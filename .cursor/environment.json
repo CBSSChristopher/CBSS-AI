@@ -1,0 +1,11 @@
+{
+  "name": "CBSS-AI",
+  "install": "./scripts/install.sh",
+  "terminals": [
+    {
+      "name": "api",
+      "command": "./scripts/start.sh"
+    }
+  ],
+  "ports": [8000]
+}
