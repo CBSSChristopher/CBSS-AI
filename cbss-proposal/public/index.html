@@ -335,6 +335,7 @@
             <label for="condition">Grade</label>
             <select id="condition" onchange="onSizeOrConditionChange()">
               <option value="CW">Cargo Worthy (CW)</option>
+              <option value="IICL">IICL/Multi-Trip</option>
               <option value="WWT">Wind & Water Tight (WWT)</option>
               <option value="OneTrip">One-Trip / New</option>
               <option value="AsIs">As-Is</option>
@@ -702,6 +703,7 @@
     ];
     const DEFAULT_CONDITION_OPTIONS = [
       { value: "CW", label: "Cargo Worthy (CW)" },
+      { value: "IICL", label: "IICL/Multi-Trip" },
       { value: "WWT", label: "Wind & Water Tight (WWT)" },
       { value: "OneTrip", label: "One-Trip / New" },
       { value: "AsIs", label: "As-Is" }
@@ -713,6 +715,7 @@
     };
     const CONDITION_LABELS = {
       CW: "Cargo Worthy (CW)",
+      IICL: "IICL/Multi-Trip",
       WWT: "Wind & Water Tight (WWT)",
       OneTrip: "One-Trip / New",
       AsIs: "As-Is"
@@ -753,7 +756,7 @@
       const sizeLabel = size + " ft";
       const heightLabel = height === "HC" ? "High Cube" : "Standard";
       const configMap = { standard: "Standard", "tri-door": "Tri-door", "double-door": "Double door", "side-door": "Side door", "full-open-side": "Full open side", other: "Specialized" };
-      const gradeMap = { CW: "Cargo Worthy (CW)", WWT: "Wind & Water Tight (WWT)", OneTrip: "One-Trip / New", AsIs: "As-Is" };
+      const gradeMap = { CW: "Cargo Worthy (CW)", IICL: "IICL/Multi-Trip", WWT: "Wind & Water Tight (WWT)", OneTrip: "One-Trip / New", AsIs: "As-Is" };
       const bits = [sizeLabel, heightLabel];
       if (config && config !== "standard") bits.push(configMap[config] || config);
       if (gradeMap[grade]) bits.push(gradeMap[grade]);
@@ -795,9 +798,10 @@
     function mapOfferCondition(raw) {
       const s = String(raw || "").trim();
       if (!s) return "";
-      if (s === "CW" || s === "WWT" || s === "OneTrip" || s === "AsIs") return s;
-      const n = s.toLowerCase().replace(/[\s\-_&/]/g, "");
-      if (n === "cw" || n === "cargoworthy" || n === "iicl" || n.indexOf("iicl") >= 0) return "CW";
+      if (s === "CW" || s === "IICL" || s === "WWT" || s === "OneTrip" || s === "AsIs") return s;
+      const n = s.toLowerCase().replace(/[\s\-_&/().]/g, "");
+      if (n === "iicl" || n.indexOf("iicl") >= 0 || n.indexOf("multitrip") >= 0) return "IICL";
+      if (n === "cw" || n === "cargoworthy") return "CW";
       if (n === "wwt" || n === "windwatertight" || n === "windandwatertight" || n.indexOf("wwt") >= 0) return "WWT";
       if (n === "onetrip" || n === "onetripnew" || n.indexOf("onetrip") >= 0) return "OneTrip";
       if (n === "asis" || n.indexOf("asis") >= 0) return "AsIs";

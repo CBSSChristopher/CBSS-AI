@@ -22,6 +22,7 @@ export const CONFIGS = [
 
 export const GRADES = [
   { value: "CW", label: "Cargo Worthy (CW)" },
+  { value: "IICL", label: "IICL/Multi-Trip" },
   { value: "WWT", label: "Wind & Water Tight (WWT)" },
   { value: "OneTrip", label: "One-Trip / New" },
   { value: "AsIs", label: "As-Is" },
@@ -30,8 +31,13 @@ export const GRADES = [
 const GRADE_ALIASES = {
   cw: "CW",
   cargoworthy: "CW",
-  iicl: "CW",
-  iiclcw: "CW",
+  iicl: "IICL",
+  iiclcw: "IICL",
+  iiclmultitrip: "IICL",
+  iiclolder: "IICL",
+  iiclnewer: "IICL",
+  iiclnewermultitrip: "IICL",
+  multitrip: "IICL",
   wwt: "WWT",
   windwatertight: "WWT",
   windandwatertight: "WWT",
@@ -46,10 +52,11 @@ export function mapGrade(raw) {
   const s = String(raw || "").trim();
   if (!s) return "";
   if (GRADES.some((g) => g.value === s)) return s;
-  const n = s.toLowerCase().replace(/[\s\-_&/]/g, "");
+  const n = s.toLowerCase().replace(/[\s\-_&/().]/g, "");
   if (GRADE_ALIASES[n]) return GRADE_ALIASES[n];
+  if (n.includes("iicl") || n.includes("multitrip")) return "IICL";
   if (n.includes("onetrip")) return "OneTrip";
-  if (n.includes("cargoworthy") || n === "cw" || n.includes("iicl")) return "CW";
+  if (n.includes("cargoworthy") || n === "cw") return "CW";
   if (n.includes("wwt") || n.includes("windwater")) return "WWT";
   if (n.includes("asis") || n === "as-is") return "AsIs";
   return "";

@@ -17,13 +17,17 @@ const page = readFileSync(new URL("../public/index.html", import.meta.url), "utf
 const submit = readFileSync(new URL("../src/submit-proposal.js", import.meta.url), "utf8");
 
 describe("Proposal tool picker, depot, and cash price", () => {
-  it("maps messy xChange grades to one CW/WWT/OneTrip/AsIs each", () => {
+  it("maps messy xChange grades to one CW/IICL/WWT/OneTrip/AsIs each", () => {
     assert.equal(mapGrade("Cargo Worthy"), "CW");
     assert.equal(mapGrade("CW"), "CW");
-    assert.equal(mapGrade("IICL"), "CW");
+    assert.equal(mapGrade("IICL"), "IICL");
+    assert.equal(mapGrade("IICL (older)"), "IICL");
+    assert.equal(mapGrade("IICL (newer)/multi-trip"), "IICL");
     assert.equal(mapGrade("Wind & Water Tight"), "WWT");
-    const grades = uniqueGrades(["CW", "Cargo Worthy", "IICL", "WWT", "Wind and Water Tight", "One-Trip", "As-Is"]);
-    assert.deepEqual(grades.map((g) => g.value), ["CW", "WWT", "OneTrip", "AsIs"]);
+    const grades = uniqueGrades(["CW", "Cargo Worthy", "IICL", "IICL (older)", "WWT", "One-Trip", "As-Is"]);
+    assert.deepEqual(grades.map((g) => g.value), ["CW", "IICL", "WWT", "OneTrip", "AsIs"]);
+    assert.match(page, /IICL\/Multi-Trip/);
+    assert.match(page, /value="IICL"/);
   });
 
   it("parses size, height, and configuration instead of a crowded size dump", () => {
