@@ -319,6 +319,24 @@ export async function crmSaveContactEdits(
   await crmSave(env, token, "saveContactEdits", { contactEdits });
 }
 
+export async function crmIngestProposal(
+  env: Env,
+  token: string,
+  proposal: Record<string, unknown>,
+): Promise<{ ok: boolean; contactId?: string }> {
+  const res = await crmFetch(env, token, "/crm-data", {
+    method: "POST",
+    body: JSON.stringify({ action: "ingestProposal", ...proposal }),
+  });
+  const text = await res.text().catch(() => "");
+  if (!res.ok) throw new Error(`CRM ingestProposal failed (${res.status}) ${text.slice(0, 120)}`);
+  try {
+    return JSON.parse(text) as { ok: boolean; contactId?: string };
+  } catch {
+    return { ok: true };
+  }
+}
+
 export function findContact(book: CrmBook, contactId: string): CrmContact | null {
   const want = String(contactId);
   const all = [...(book.contactsAdded || []), ...(book.contacts || [])];

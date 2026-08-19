@@ -16,6 +16,7 @@ import {
   crmSaveDeals,
   crmSaveFollowups,
   crmSaveNotes,
+  crmIngestProposal,
   findContact,
   mergeFollowupMap,
   noteTimestamp,
@@ -363,6 +364,23 @@ export default {
             mergeContactEdit(book.contactEdits, String(contact.id), { status: plan.stage, lastActivity: note.timestamp }),
           );
         }
+        let ingested: { ok: boolean; contactId?: string } | null = null;
+        if (direction === "sent" && hasProposal) {
+          ingested = await crmIngestProposal(env, user.crm, {
+            customerName: String(contact.name || ""),
+            email: String(contact.email || str(body.to) || ""),
+            phone: String(contact.phone || ""),
+            zip: String(contact.zip || str(body.zip) || ""),
+            containerDesc: str(body.what) || str(body.containerDesc),
+            containerSize: str(body.size) || str(body.containerSize),
+            amount: str(body.amount),
+            unitPrice: str(body.amount),
+            status: "sent",
+            paymentMode: "cash",
+            repName: user.name || "Desk",
+            notes: str(body.subject) || "Proposal sent from Desk",
+          });
+        }
         return json(200, {
           ok: true,
           contact: { id: String(contact.id), name: String(contact.name || "") },
@@ -371,6 +389,7 @@ export default {
           followUpDate: plan.followUpDate,
           stage: plan.stage,
           note: note.text,
+          ingested: Boolean(ingested && ingested.ok),
         });
       } catch (err) {
         console.error("desk_mail_log_error", err instanceof Error ? err.message : "unknown");

@@ -127,6 +127,8 @@ describe("email loop + templates", () => {
     assert.match(index, /path === "\/inbox-sync"/);
     assert.match(index, /crmSaveDeals/);
     assert.match(index, /crmSaveContactEdits/);
+    assert.match(index, /crmIngestProposal/);
+    assert.match(crmSrc, /action: "ingestProposal"/);
     assert.match(page, /id="panel-templates"/);
     assert.match(page, /id="panel-inbox"/);
     assert.match(page, /Save to CRM as sent/);
