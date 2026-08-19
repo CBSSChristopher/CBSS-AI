@@ -98,7 +98,12 @@ describe("Live call CRM + CTE", () => {
     assert.match(page, /Summarize &amp; save to CRM/);
     assert.match(page, /Still in CTE/);
     assert.match(page, /Past CTE/);
+    assert.match(page, /Email templates/);
+    assert.match(page, /Save to CRM as sent/);
+    assert.match(page, /Write to CRM/);
     assert.match(index, /path === "\/contacts"/);
+    assert.match(index, /path === "\/templates"/);
+    assert.match(index, /path === "\/mail\/log"/);
     assert.match(index, /path === "\/call\/save"/);
     assert.match(index, /crmSaveNotes/);
     assert.match(index, /crmSaveFollowups/);

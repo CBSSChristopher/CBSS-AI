@@ -12,12 +12,14 @@ Jobs:
 - Live call — feed scraps on the phone; it summarizes, writes the CRM note, and books CTE or the next follow-up
 - Ask — talk through a lead
 - CRM note draft — paste-ready note if you only need copy
-- Customer email — Christopher’s voice, draft only
-- Proposal copy — formal wording; price only if Christopher already set one
+- Customer email — Christopher’s voice; copy, send from Gmail, then save to the CRM
+- Email templates — premade Chris-voice emails the rep fills and sends
+- Inbox — paste a customer reply; it matches the lead, writes the note, and books the next step
+- Proposal copy — formal wording; price only if Christopher already set one; save the send to the CRM
 
 CTE means Call, then Text, then Email. That is first outreach. If the lead makes it past CTE, the desk books one real follow-up instead. The CRM has one follow-up slot per contact; the full CTE plan is stored in the note.
 
-It does **not** send email or invent a price.
+It does **not** invent a price. The rep sends the email from Gmail. The desk logs sent and received mail into the CRM so the book stays current.
 
 Live Call always reads the CRM first, then writes. It will not replace the notes map unless the protected existing notes are still present.
 

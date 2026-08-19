@@ -307,6 +307,18 @@ export async function crmSaveContactsAdded(env: Env, token: string, contactsAdde
   await crmSave(env, token, "saveContactsAdded", { contactsAdded });
 }
 
+export async function crmSaveDeals(env: Env, token: string, deals: CrmDeal[]): Promise<void> {
+  await crmSave(env, token, "saveDeals", { deals });
+}
+
+export async function crmSaveContactEdits(
+  env: Env,
+  token: string,
+  contactEdits: Record<string, Record<string, unknown>>,
+): Promise<void> {
+  await crmSave(env, token, "saveContactEdits", { contactEdits });
+}
+
 export function findContact(book: CrmBook, contactId: string): CrmContact | null {
   const want = String(contactId);
   const all = [...(book.contactsAdded || []), ...(book.contacts || [])];

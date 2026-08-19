@@ -38,8 +38,9 @@ export function pageHtml(): string {
     .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
     .err { color: #8A1F1F; font-size: 14px; min-height: 1.2em; }
     .hide { display: none !important; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
-    @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+    .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 14px 0; }
+    @media (max-width: 720px) { .grid { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 520px) { .grid { grid-template-columns: 1fr; } }
     .tile { text-align: left; background: #fff; color: var(--navy); border: 1px solid var(--line); padding: 14px; }
     .tile b { display: block; color: var(--accent); margin-bottom: 4px; }
     .tile span { font-weight: 400; font-size: 13px; color: var(--muted); }
@@ -53,7 +54,7 @@ export function pageHtml(): string {
     .hits { border: 1px solid var(--line); border-radius: 8px; max-height: 220px; overflow: auto; margin-top: 6px; }
     .hit { display: block; width: 100%; text-align: left; padding: 10px 12px; border: 0; border-bottom: 1px solid var(--line); background: #fff; color: var(--navy); cursor: pointer; }
     .hit:last-child { border-bottom: 0; }
-    .hit:hover, .hit.on { background: #E8F0F7; }
+    .hit:hover, .hit.on, .tpl-card.on { background: #E8F0F7; }
     .sel { background: #E8F5EE; border: 1px solid #C8E4D4; border-radius: 8px; padding: 10px 12px; margin-top: 10px; }
     .choice { display: flex; gap: 14px; flex-wrap: wrap; margin: 8px 0 4px; }
     .choice label { font-weight: 400; display: flex; gap: 6px; align-items: center; margin: 0; }
@@ -66,14 +67,14 @@ export function pageHtml(): string {
   <header>
     <div>
       <strong>CB SHIPPING SOLUTIONS</strong>
-      <span>Rep desk — writes notes and follow-ups into the CRM</span>
+      <span>Rep desk — notes, templates, inbox, and follow-ups into the CRM</span>
     </div>
     <button type="button" class="secondary hide" id="out">Sign out</button>
   </header>
   <main>
     <section id="login" class="card">
       <h1>CBSS Desk</h1>
-      <p class="muted">Log in with the same company email and password you use for the CRM. On a live call, feed it scraps. It summarizes, writes the CRM note, and books CTE or the next follow-up. It does not send customer email. It will not invent a price.</p>
+      <p class="muted">Log in with the same company email and password you use for the CRM. Live call, templates, and inbox write the book. Use the templates when you want a “what would Chris do” email. It will not invent a price.</p>
       <form id="login-form">
         <label for="email">Company email</label>
         <input id="email" name="email" type="email" autocomplete="username" placeholder="you@cbshippingsolutions.com" required />
@@ -88,22 +89,24 @@ export function pageHtml(): string {
       <div class="card">
         <h1>Your CBSS desk</h1>
         <p class="muted" id="hello">Signed in.</p>
+        <label for="contact-q">Working contact</label>
+        <input id="contact-q" placeholder="Name, phone, email, ZIP" />
+        <div id="contact-hits" class="hits hide"></div>
+        <div id="contact-sel" class="sel hide"></div>
         <div class="grid">
           <button type="button" class="tile" data-job="live"><b>Live call</b><span>Feed scraps. It summarizes, writes the CRM note, and books CTE or the follow-up.</span></button>
           <button type="button" class="tile" data-job="chat"><b>Ask</b><span>Talk through a lead, a call, or a messy note.</span></button>
           <button type="button" class="tile" data-job="crm_note"><b>CRM note draft</b><span>Write a note from facts if you only need copy. Live call saves it.</span></button>
-          <button type="button" class="tile" data-job="email"><b>Customer email</b><span>Draft in Christopher’s voice. You copy it. Nobody sends from here.</span></button>
+          <button type="button" class="tile" data-job="email"><b>Customer email</b><span>Draft in Christopher’s voice. Copy it, send it, then save it to the CRM.</span></button>
+          <button type="button" class="tile" data-job="templates"><b>Email templates</b><span>Premade Chris-voice emails. Fill the name and send. The desk logs it.</span></button>
+          <button type="button" class="tile" data-job="inbox"><b>Inbox</b><span>Paste a customer reply. It matches the lead, writes the note, and books the next step.</span></button>
           <button type="button" class="tile" data-job="proposal"><b>Proposal copy</b><span>Formal packet wording. Price only if Christopher already set one.</span></button>
         </div>
       </div>
 
       <div id="panel-live" class="card hide" style="margin-top:12px">
         <h2>Live call</h2>
-        <p class="muted">Stay on the phone. Dump scraps. The desk writes the CRM note. Still in CTE = Call, then Text, then Email. Past CTE = they connected; it books one real follow-up instead.</p>
-        <label for="contact-q">Find their CRM contact</label>
-        <input id="contact-q" placeholder="Name, phone, email, ZIP" />
-        <div id="contact-hits" class="hits hide"></div>
-        <div id="contact-sel" class="sel hide"></div>
+        <p class="muted">Stay on the phone. Dump scraps. The desk writes the CRM note. Still in CTE = Call, then Text, then Email. Past CTE = they connected; it books one real follow-up instead. Pick the working contact above first, or add a new one here.</p>
         <div class="row">
           <button type="button" class="secondary" id="new-toggle">New contact</button>
           <button type="button" class="secondary" id="contact-clear">Clear</button>
@@ -164,30 +167,84 @@ export function pageHtml(): string {
 
       <div id="panel-email" class="card hide" style="margin-top:12px">
         <h2>Customer email</h2>
-        <p class="muted">Christopher’s voice. Draft only. Attach the PDF in Gmail yourself, or send it to Christopher to send.</p>
-        <label>First name</label><input data-f="First name" />
+        <p class="muted">Christopher’s voice. Copy it, send from your Gmail, then save it to the CRM so the book shows it left the building. Attach the PDF in Gmail yourself.</p>
+        <label>First name</label><input data-f="First name" id="email-first" />
         <label>What they asked for</label><input data-f="What they asked for" placeholder="one 40ft Standard" />
-        <label>ZIP if you have it</label><input data-f="ZIP" />
+        <label>ZIP if you have it</label><input data-f="ZIP" id="email-zip" />
         <label>Price Christopher set (leave blank if none)</label><input data-f="Price set by Christopher" />
         <label>Proposal attached?</label>
-        <select data-f="Proposal attached">
+        <select data-f="Proposal attached" id="email-proposal">
           <option>Yes — official proposal attached below</option>
           <option>No — this is a first reply only</option>
         </select>
-        <div class="row"><button type="button" data-run="email">Write email</button><button type="button" class="secondary" data-copy="email">Copy</button></div>
+        <div class="row">
+          <button type="button" data-run="email">Write email</button>
+          <button type="button" class="secondary" data-copy="email">Copy</button>
+          <button type="button" class="secondary" id="email-gmail">Open Gmail</button>
+          <button type="button" id="email-log">Save to CRM as sent</button>
+        </div>
         <p class="err" id="err-email"></p>
         <div class="outbox" id="out-email"></div>
       </div>
 
+      <div id="panel-templates" class="card hide" style="margin-top:12px">
+        <h2>Email templates</h2>
+        <p class="muted">Premade in Christopher’s voice. Pick one, fill the blanks, copy, send from Gmail, then save to the CRM. This is the “what would Chris do” starting point — you send it.</p>
+        <div id="tpl-cards" class="grid"></div>
+        <label>Template</label>
+        <select id="tpl-id"></select>
+        <p class="muted" id="tpl-when"></p>
+        <div class="split">
+          <div><label>First name</label><input id="tpl-first" placeholder="Gary" /></div>
+          <div><label>ZIP</label><input id="tpl-zip" placeholder="85132" /></div>
+        </div>
+        <label>What they want</label>
+        <input id="tpl-what" placeholder="40HC wind and water tight" />
+        <label>Delivered cash (only if already quoted)</label>
+        <input id="tpl-price" placeholder="Leave blank unless a number is already on the table" />
+        <label>Site notes</label>
+        <input id="tpl-site" placeholder="level ground, no low wires" />
+        <div class="row">
+          <button type="button" id="tpl-render">Fill template</button>
+          <button type="button" class="secondary" id="tpl-copy">Copy</button>
+          <button type="button" class="secondary" id="tpl-gmail">Open Gmail</button>
+          <button type="button" id="tpl-log">Save to CRM as sent</button>
+        </div>
+        <label>Subject</label>
+        <input id="tpl-subject" readonly />
+        <label>Body</label>
+        <textarea id="tpl-body" rows="12"></textarea>
+        <p class="err" id="err-templates"></p>
+        <div class="outbox" id="out-templates"></div>
+      </div>
+
+      <div id="panel-inbox" class="card hide" style="margin-top:12px">
+        <h2>Inbox → CRM</h2>
+        <p class="muted">Paste a customer reply. The desk matches the email to the CRM contact, writes the note, sets the stage, and books the next follow-up. This is how “got it, added to my quote spreadsheet” does not sit as Quote forever.</p>
+        <label>Their email</label>
+        <input id="in-from" placeholder="customer@email.com" />
+        <label>Subject</label>
+        <input id="in-subject" placeholder="Re: Shipping Container Quote" />
+        <label>Their message</label>
+        <textarea id="in-body" rows="8" placeholder="Paste the reply"></textarea>
+        <div class="row"><button type="button" id="in-log">Write to CRM</button></div>
+        <p class="err" id="err-inbox"></p>
+        <div class="outbox" id="out-inbox"></div>
+      </div>
+
       <div id="panel-proposal" class="card hide" style="margin-top:12px">
         <h2>Proposal copy</h2>
-        <p class="muted">Customer wording only. If Christopher has not given a dollar amount, the copy will say ASK CHRISTOPHER.</p>
-        <label>Prepared for</label><input data-f="Prepared for" />
+        <p class="muted">Customer wording only. If Christopher has not given a dollar amount, the copy will say ASK CHRISTOPHER. After you send the packet, save it here so the CRM shows Proposal Sent.</p>
+        <label>Prepared for</label><input data-f="Prepared for" id="prop-name" />
         <label>Size / grade</label><input data-f="Size / grade" placeholder="1 × 40STD" />
-        <label>Delivery ZIP / city</label><input data-f="Delivery ZIP / city" />
+        <label>Delivery ZIP / city</label><input data-f="Delivery ZIP / city" id="prop-zip" />
         <label>Price set by Christopher</label><input data-f="Price set by Christopher" placeholder="Leave blank if he has not set it" />
         <label>Extra facts</label><textarea data-f="Extra facts" rows="2"></textarea>
-        <div class="row"><button type="button" data-run="proposal">Write proposal</button><button type="button" class="secondary" data-copy="proposal">Copy</button></div>
+        <div class="row">
+          <button type="button" data-run="proposal">Write proposal</button>
+          <button type="button" class="secondary" data-copy="proposal">Copy</button>
+          <button type="button" id="prop-log">Save send to CRM</button>
+        </div>
         <p class="err" id="err-proposal"></p>
         <div class="outbox" id="out-proposal"></div>
       </div>
@@ -200,9 +257,10 @@ export function pageHtml(): string {
     const outBtn = document.getElementById("out");
     const log = document.getElementById("log");
     const history = [];
-    const panels = ["live", "chat", "crm_note", "email", "proposal"];
+    const panels = ["live", "chat", "crm_note", "email", "templates", "inbox", "proposal"];
     let picked = null;
     let searchTimer = 0;
+    let templateList = [];
 
     function show(view) {
       login.classList.toggle("hide", view !== "login");
@@ -235,11 +293,12 @@ export function pageHtml(): string {
       const r = await fetch("/session", { credentials: "same-origin" });
       const j = await r.json();
       if (!j.ok) { show("login"); return; }
-      document.getElementById("hello").textContent = "Signed in as " + (j.user && j.user.name ? j.user.name : "rep") + ". Open Live call for a lead.";
+      document.getElementById("hello").textContent = "Signed in as " + (j.user && j.user.name ? j.user.name : "rep") + ". Pick a contact, then Live call, templates, or inbox.";
       show("desk");
       openJob("live");
+      loadTemplates();
       if (!log.childElementCount) {
-        bubble("assistant", "I am your CBSS desk. Live call writes the CRM note and books CTE or the follow-up. I do not send email. I do not invent a price.");
+        bubble("assistant", "I am your CBSS desk. Live call writes the CRM note. Templates are premade Chris-voice emails. Inbox pastes a reply into the book. You send the mail. I do not invent a price.");
       }
     }
 
@@ -261,10 +320,11 @@ export function pageHtml(): string {
       document.getElementById("password").value = "";
       history.length = 0;
       log.innerHTML = "";
-      document.getElementById("hello").textContent = "Signed in as " + ((j.user && j.user.name) || "rep") + ". Open Live call for a lead.";
+      document.getElementById("hello").textContent = "Signed in as " + ((j.user && j.user.name) || "rep") + ". Pick a contact, then Live call, templates, or inbox.";
       show("desk");
       openJob("live");
-      bubble("assistant", "I am your CBSS desk. Live call writes the CRM note and books CTE or the follow-up. I do not send email. I do not invent a price.");
+      loadTemplates();
+      bubble("assistant", "I am your CBSS desk. Live call writes the CRM note. Templates are premade Chris-voice emails. Inbox pastes a reply into the book. You send the mail. I do not invent a price.");
     });
 
     outBtn.addEventListener("click", async () => {
@@ -323,11 +383,96 @@ export function pageHtml(): string {
         box.textContent = j.reply || "";
       });
     });
+    function firstNameOf(name) {
+      const t = String(name || "").trim();
+      return t ? t.split(/\\s+/)[0] : "";
+    }
+    function applyPickedFields() {
+      if (!picked) return;
+      const first = firstNameOf(picked.name);
+      const zip = picked.zip || "";
+      const set = (id, val) => { const el = document.getElementById(id); if (el && !el.value) el.value = val || ""; };
+      set("tpl-first", first);
+      set("tpl-zip", zip);
+      set("email-first", first);
+      set("email-zip", zip);
+      set("prop-name", picked.name || "");
+      set("prop-zip", zip);
+      set("in-from", picked.email || "");
+    }
     function renderPicked() {
       const box = document.getElementById("contact-sel");
       if (!picked) { box.classList.add("hide"); box.textContent = ""; return; }
       box.classList.remove("hide");
-      box.textContent = "Selected: " + picked.name + (picked.phone ? " · " + picked.phone : "") + (picked.city ? " · " + picked.city : "") + (picked.stage ? " · " + picked.stage : "");
+      box.textContent = "Selected: " + picked.name + (picked.phone ? " · " + picked.phone : "") + (picked.email ? " · " + picked.email : "") + (picked.city ? " · " + picked.city : "") + (picked.stage ? " · " + picked.stage : "");
+      applyPickedFields();
+    }
+    function gmailDraft(to, body, subject) {
+      return "https://mail.google.com/mail/?view=cm&fs=1&to=" + encodeURIComponent(to || "") + "&su=" + encodeURIComponent(subject || "") + "&body=" + encodeURIComponent(body || "");
+    }
+    function mailResult(j) {
+      if (!j || !j.ok) return (j && j.error) || "Could not write the CRM.";
+      return [
+        "Saved to CRM.",
+        j.kind ? ("Read as: " + j.kind) : "",
+        j.stage ? ("Stage: " + j.stage) : "",
+        j.nextAction ? ("Follow-up: " + j.nextAction + (j.followUpDate ? " @ " + String(j.followUpDate).replace("T", " ") : "")) : "",
+        j.note || "",
+      ].filter(Boolean).join("\\n");
+    }
+    async function logMail(payload, errId, outId) {
+      const err = document.getElementById(errId);
+      const box = document.getElementById(outId);
+      err.textContent = "";
+      box.textContent = "Saving to the CRM…";
+      const r = await fetch("/mail/log", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (r.status === 401) { show("login"); return; }
+      if (!r.ok) { err.textContent = j.error || "Could not save."; box.textContent = ""; return; }
+      box.textContent = mailResult(j);
+    }
+    function selectTemplate(id) {
+      const sel = document.getElementById("tpl-id");
+      sel.value = id;
+      const t = templateList.find((x) => x.id === id);
+      document.getElementById("tpl-when").textContent = t && t.when || "";
+      document.querySelectorAll(".tpl-card").forEach((el) => {
+        el.classList.toggle("on", el.getAttribute("data-id") === id);
+      });
+    }
+    function renderTemplateCards() {
+      const box = document.getElementById("tpl-cards");
+      const sel = document.getElementById("tpl-id");
+      box.innerHTML = "";
+      sel.innerHTML = "";
+      templateList.forEach((t) => {
+        const o = document.createElement("option");
+        o.value = t.id;
+        o.textContent = t.name;
+        sel.appendChild(o);
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "tile tpl-card";
+        b.setAttribute("data-id", t.id);
+        b.innerHTML = "<b></b><span></span>";
+        b.querySelector("b").textContent = t.name;
+        b.querySelector("span").textContent = t.when || "";
+        b.addEventListener("click", () => selectTemplate(t.id));
+        box.appendChild(b);
+      });
+      if (templateList[0]) selectTemplate(templateList[0].id);
+    }
+    async function loadTemplates() {
+      const r = await fetch("/templates", { credentials: "same-origin" });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) return;
+      templateList = j.templates || [];
+      renderTemplateCards();
     }
     function renderHits(rows) {
       const box = document.getElementById("contact-hits");
@@ -433,6 +578,95 @@ export function pageHtml(): string {
         try { await navigator.clipboard.writeText(text); b.textContent = "Copied"; setTimeout(() => b.textContent = "Copy", 1200); } catch (_) {}
       });
     });
+
+    document.getElementById("email-gmail").addEventListener("click", () => {
+      const to = picked && picked.email || "";
+      const body = document.getElementById("out-email").textContent || "";
+      window.open(gmailDraft(to, body, "Thanks for reaching out to CBShippingSolutions"), "_blank");
+    });
+    document.getElementById("email-log").addEventListener("click", () => {
+      const attached = String(document.getElementById("email-proposal").value || "").indexOf("Yes") === 0;
+      logMail({
+        direction: "sent",
+        to: picked && picked.email,
+        contactId: picked && picked.id,
+        body: document.getElementById("out-email").textContent || "",
+        hasProposal: attached,
+        templateId: attached ? "proposal-attached" : "first-reply",
+      }, "err-email", "out-email");
+    });
+
+    document.getElementById("tpl-id").addEventListener("change", () => selectTemplate(document.getElementById("tpl-id").value));
+    document.getElementById("tpl-render").addEventListener("click", async () => {
+      const err = document.getElementById("err-templates");
+      const box = document.getElementById("out-templates");
+      err.textContent = "";
+      box.textContent = "Filling…";
+      const r = await fetch("/templates/render", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: document.getElementById("tpl-id").value,
+          vars: {
+            firstName: document.getElementById("tpl-first").value,
+            what: document.getElementById("tpl-what").value,
+            zip: document.getElementById("tpl-zip").value,
+            price: document.getElementById("tpl-price").value,
+            site: document.getElementById("tpl-site").value,
+          },
+        }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (r.status === 401) { show("login"); return; }
+      if (!r.ok) { err.textContent = j.error || "Could not fill that template."; box.textContent = ""; return; }
+      document.getElementById("tpl-subject").value = j.subject || "";
+      document.getElementById("tpl-body").value = j.body || "";
+      box.textContent = "Filled. Copy, send from Gmail, then save to CRM.";
+    });
+    document.getElementById("tpl-copy").addEventListener("click", async () => {
+      const text = document.getElementById("tpl-body").value || "";
+      if (!text) return;
+      try { await navigator.clipboard.writeText(text); } catch (_) {}
+    });
+    document.getElementById("tpl-gmail").addEventListener("click", () => {
+      window.open(gmailDraft(picked && picked.email || "", document.getElementById("tpl-body").value, document.getElementById("tpl-subject").value), "_blank");
+    });
+    document.getElementById("tpl-log").addEventListener("click", () => {
+      const id = document.getElementById("tpl-id").value;
+      logMail({
+        direction: "sent",
+        to: picked && picked.email,
+        contactId: picked && picked.id,
+        subject: document.getElementById("tpl-subject").value,
+        body: document.getElementById("tpl-body").value,
+        templateId: id,
+        hasProposal: id === "proposal-attached",
+      }, "err-templates", "out-templates");
+    });
+
+    document.getElementById("in-log").addEventListener("click", () => {
+      logMail({
+        direction: "received",
+        from: document.getElementById("in-from").value,
+        subject: document.getElementById("in-subject").value,
+        body: document.getElementById("in-body").value,
+        contactId: picked && picked.id,
+      }, "err-inbox", "out-inbox");
+    });
+
+    document.getElementById("prop-log").addEventListener("click", () => {
+      logMail({
+        direction: "sent",
+        to: picked && picked.email,
+        contactId: picked && picked.id,
+        subject: "Official proposal from CBShippingSolutions",
+        body: document.getElementById("out-proposal").textContent || "",
+        templateId: "proposal-attached",
+        hasProposal: true,
+      }, "err-proposal", "out-proposal");
+    });
+
     boot();
   </script>
 </body>
