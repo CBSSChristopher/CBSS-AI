@@ -35,9 +35,10 @@ function clause(prefix, value) {
 }
 function renderTemplate(id, vars = {}) {
   const blocks = {
-    "first-reply": "Good Morning,\n\n{{firstName}} thanks for reaching out to us at CBShippingSolutions. I received your request{{whatClause}}{{zipClause}}.",
+    "first-reply": "Good Morning and Happy Monday!\n\n{{firstName}}, thanks for reaching out to us at CBShippingSolutions. I received your request{{whatClause}}{{zipClause}}.\n\nI will give you a call today, Monday, to go over options and get you a number.",
     "proposal-attached": "Please see our official proposal attached below.{{priceClause}}",
     "got-reply-shopping": "{{firstName}} thanks for the note. Glad the proposal landed.",
+    "late-reconnect": "Hey,\n\nChristopher Banks here owner of CBShippingSolutions.\n\nIf you're still needing a box delivered, let me know and I can give you an updated quote. If you ended up going another route or built a wooden shed instead, no hard feelings at all—just let me know so I stop bothering you!",
   };
   const src = blocks[id];
   if (!src) return null;
@@ -82,22 +83,32 @@ describe("email loop + templates", () => {
 
   it("fills Chris-voice templates without inventing a price", () => {
     const first = renderTemplate("first-reply", { firstName: "Gary Griffiths", what: "40HC CW", zip: "85132" });
-    assert.match(first, /Gary thanks for reaching out to us at CBShippingSolutions/);
+    assert.match(first, /Gary, thanks for reaching out to us at CBShippingSolutions/);
     assert.match(first, /for 40HC CW/);
     assert.match(first, /for zip 85132/);
+    assert.match(first, /I will give you a call today/);
     const priced = renderTemplate("proposal-attached", { firstName: "Gary", price: "$3,775" });
     assert.match(priced, /official proposal attached below/);
     assert.match(priced, /\$3,775/);
     const bare = renderTemplate("proposal-attached", { firstName: "Gary" });
     assert.doesNotMatch(bare, /\$\d/);
+    const late = renderTemplate("late-reconnect", { firstName: "John" });
+    assert.match(late, /Christopher Banks here owner of CBShippingSolutions/);
+    assert.match(late, /wooden shed/);
+    assert.match(late, /stop bothering you/);
     assert.match(tplSrc, /EMAIL_TEMPLATES/);
     assert.match(tplSrc, /id: "first-reply"/);
     assert.match(tplSrc, /id: "proposal-attached"/);
+    assert.match(tplSrc, /id: "proposal-after-call"/);
+    assert.match(tplSrc, /id: "late-reconnect"/);
     assert.match(tplSrc, /id: "got-reply-shopping"/);
     assert.match(tplSrc, /id: "cash-before-truck"/);
     assert.match(tplSrc, /With thanks and my blessings/);
     assert.match(tplSrc, /\(870\)-682-3867/);
     assert.match(tplSrc, /\(870\)-323-2593/);
+    assert.doesNotMatch(tplSrc, /573-525-8324/);
+    assert.doesNotMatch(tplSrc, /Do not add freight/);
+    assert.match(tplSrc, /Please see our official proposal attached below/);
   });
 
   it("matches a contact by email and never drops protected notes", () => {

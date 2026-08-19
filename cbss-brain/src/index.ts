@@ -305,6 +305,8 @@ export default {
         zip: str(vars.zip),
         price: str(vars.price),
         site: str(vars.site),
+        day: str(vars.day),
+        note: str(vars.note),
       });
       if (!rendered) return json(404, { error: "That template is not on the desk." });
       return json(200, { ok: true, ...rendered });

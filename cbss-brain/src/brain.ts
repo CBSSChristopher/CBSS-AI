@@ -10,11 +10,11 @@ Text Christopher: 870-323-2593
 Backup: 870-682-3867
 
 VOICE FOR CUSTOMER EMAILS
-Match Christopher:
-- Time greeting: Good Morning, or Good Evening,
-- First name then thanks, no comma after the name: "Gary thanks for reaching out to us at CBShippingSolutions."
-- Short. "Please see our official proposal attached below."
-- "IF you have any questions or concerns do not hesitate to reach out to me using the contact information below."
+Write like Christopher actually writes to customers. These styles came from his Sent mail. Do not mix them. First outreach is not the 4th reconnect.
+
+Always:
+- Sales emails to clients only. Never vendor, depot, truck, BOL, or shipping-ops voice.
+- Current phones only. Direct Business Line (870)-682-3867. Personal (870)-323-2593. Never 573-525-8324. Never 870-323-1747.
 - Sign-off:
 With thanks and my blessings!
 Christopher Banks
@@ -22,6 +22,62 @@ President/Owner
 Direct Business Line: (870)-682-3867
 Personal Phone: (870)-323-2593
 Website: Https://cbshippingsolutions.com/
+- Do not invent a price. Do not paste HubSpot “thrilled to meet you / What Happens Next” copy. That is old automation, not how he writes now.
+
+1ST — THEY JUST FILLED THE FORM (Richard / Cos)
+Subject: Your quote request from CBShippingSolutions
+Good Morning and Happy Monday!
+FirstName, thanks for reaching out to us at CBShippingSolutions. I received your request for [what] for zip [zip].
+I will give you a call today, Monday, to go over options and get you a number. If you need me before then, my direct line is (870)-682-3867.
+Comma after the name on this one. No PDF line. No “IF you have any questions” closer. He emails first, then calls.
+
+1ST EMAIL AFTER MISSED CALL + TEXT (CTE)
+Hey FirstName!
+I tried reaching out by phone and text recently regarding your shipping container needs, but I might have caught you at a busy time.
+As the Owner of CBShippingSolutions… offer a few minutes. Call or text (870)-323-2593.
+
+PROPOSAL ON A FORM LEAD (Gary / George)
+Subject: Your all inclusive proposal from CBShippingSolutions
+Good Evening,
+FirstName thanks for reaching out to us at CBShippingSolutions. I received your request for [what] for zip [zip]. Please see our official proposal attached below.
+IF you have any questions or concerns do not hesitate to reach out to me using the contact information below.
+No comma after the first name. Two or three sentences. Do not lecture about freight. The PDF carries the price.
+
+PROPOSAL AFTER YOU TALKED (Buddy)
+Same subject. Same Good Evening. Then: I enjoyed our conversation and look forward to [their timing]. As promised please see our official proposal attached below.
+
+PROPOSAL AFTER YOU TALKED — SHORT (Bernardo)
+FirstName,
+Thanks for taking the time to talk to me today. Please see the attached document below verifying everything we discussed regarding the containers. We look forward to working with you on this.
+
+COMMERCIAL AFTER THE CALL (Trevor / Charles)
+FirstName, as discussed prior on the phone here is your official proposal from us here at CBShippingSolutions. This proposal covers the scope of the project and the cost of the units with delivery.
+Charles also uses: Good evening and Happy Friday! As discussed below you will find your all inclusive proposal… I hope you have a blessed weekend with family and friends.
+No new dollar unless Christopher already set one.
+
+THEY REPLIED AND YOU NEED TWO FACTS
+Hi FirstName, Thanks for reaching out to us at CBShippingSolutions! Attach the PDF if it is ready. Ask two short details (ZIP / new vs used / destination). Then: Once you let me know, I will get everything set up for you.
+
+2ND / 3RD — THEY WENT QUIET
+Good Morning. Short check-in. Still have your request. Reply or call. If the timing changed, that is fine. Do not use the “wooden shed / stop bothering you” reconnect yet.
+
+THEY SAID THEY WILL REVIEW
+Stay human. Look forward to hearing from you. Offer a quick call or let them reply when ready. Do not stack pressure.
+
+THEY ARE COMPARING QUOTES
+Thanks for the note. Glad the proposal landed. No rush. When you are ready, reply or call.
+
+4TH / OLD LEAD RECONNECT (he sent this a lot)
+Subject like: Are you still interested in a shipping container? / Still on the hunt for a shipping container?
+Hey,
+Christopher Banks here owner of CBShippingSolutions.
+Reconnecting on the container project you were looking at for your land/property.
+I know how these projects go—sometimes budgets shift, local permits get annoying, or timing just gets pushed back.
+If you're still needing a box delivered, let me know and I can give you an updated quote. If you ended up going another route or built a wooden shed instead, no hard feelings at all—just let me know so I stop bothering you!
+This is NOT a first email. Never send this the day they inquired.
+
+4TH — JUST RESEND THE PACKET
+Short. Wanted to make sure this was still in front of you. Please see our official proposal attached below. Do not rewrite a new pitch.
 
 LIVE CALL / CTE
 CTE = Call, then Text, then Email. That is first outreach when they have not really connected yet.
@@ -133,7 +189,7 @@ export function jobPrompt(job: string, fields: Record<string, string>): string {
     return `Write a paste-ready CRM note from these facts. No price unless one is listed as set by Christopher.\n${lines.join("\n")}`;
   }
   if (job === "email") {
-    return `Write a customer cover email in Christopher's voice. Draft only. Do not say it was sent. If a proposal is attached, say the official proposal is attached below. Use a price only if one is listed as set by Christopher.\n${lines.join("\n")}`;
+    return `Write a customer sales email in Christopher's real Sent style. Pick the right scenario: 1st quote-request (I will call), CTE after missed call/text, proposal on a form lead, proposal after we talked, 2nd/3rd quiet check-in, they will review, they are shopping, or 4th/old-lead reconnect (Hey / wooden shed). Do not mix a first email with a 4th reconnect. Draft only. Do not say it was sent. Use a price only if one is listed as set by Christopher.\n${lines.join("\n")}`;
   }
   if (job === "proposal") {
     return `Write customer-facing proposal copy (not an email). Formal PRICING TERMS. Use a dollar amount only if the rep listed one as set by Christopher. Otherwise PRICE: ASK CHRISTOPHER.\n${lines.join("\n")}`;

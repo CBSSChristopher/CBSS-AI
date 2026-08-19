@@ -189,7 +189,7 @@ export function pageHtml(): string {
 
       <div id="panel-templates" class="card hide" style="margin-top:12px">
         <h2>Email templates</h2>
-        <p class="muted">Premade in Christopher’s voice. Pick one, fill the blanks, copy, send from Gmail, then save to the CRM. This is the “what would Chris do” starting point — you send it.</p>
+        <p class="muted">Premade from Christopher’s real Sent mail. 1st outreach is not the 4th reconnect. Pick the scenario, fill the blanks, send from Gmail, then save to the CRM.</p>
         <div id="tpl-cards" class="grid"></div>
         <label>Template</label>
         <select id="tpl-id"></select>
@@ -200,6 +200,10 @@ export function pageHtml(): string {
         </div>
         <label>What they want</label>
         <input id="tpl-what" placeholder="40HC wind and water tight" />
+        <div class="split">
+          <div><label>Day (for Happy Monday / I will call today, Monday)</label><input id="tpl-day" placeholder="Monday" /></div>
+          <div><label>After-call note</label><input id="tpl-note" placeholder="delivering once your property closes" /></div>
+        </div>
         <label>Delivered cash (only if already quoted)</label>
         <input id="tpl-price" placeholder="Leave blank unless a number is already on the table" />
         <label>Site notes</label>
@@ -614,6 +618,8 @@ export function pageHtml(): string {
             zip: document.getElementById("tpl-zip").value,
             price: document.getElementById("tpl-price").value,
             site: document.getElementById("tpl-site").value,
+            day: document.getElementById("tpl-day").value,
+            note: document.getElementById("tpl-note").value,
           },
         }),
       });

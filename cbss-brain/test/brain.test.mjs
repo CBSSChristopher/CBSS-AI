@@ -40,6 +40,9 @@ describe("CBSS Desk rules", () => {
   it("is a writing desk, not a send bot", () => {
     assert.match(src, /Never invent a price/);
     assert.match(src, /The rep may send/);
+    assert.match(src, /1ST — THEY JUST FILLED THE FORM/);
+    assert.match(src, /4TH \/ OLD LEAD RECONNECT/);
+    assert.match(src, /wooden shed/);
     assert.match(src, /CRM NOTE FORMAT/);
     assert.match(src, /With thanks and my blessings/);
     assert.match(src, /Live Call writes the CRM note/);
