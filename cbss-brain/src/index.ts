@@ -79,6 +79,10 @@ function str(v: unknown): string {
   return typeof v === "string" ? v.trim() : "";
 }
 
+function publicUser(user: { email: string; name: string; crm?: string }): { email: string; name: string; crm: boolean } {
+  return { email: user.email, name: user.name, crm: Boolean(user.crm) };
+}
+
 function fieldMap(raw: unknown): Record<string, string> {
   if (!raw || typeof raw !== "object") return {};
   const out: Record<string, string> = {};
@@ -126,7 +130,7 @@ export default {
       return json(
         200,
         user
-          ? { ok: true, user: { email: user.email, name: user.name, crm: Boolean(user.crm) } }
+          ? { ok: true, user: publicUser(user) }
           : { ok: false },
       );
     }
@@ -143,12 +147,12 @@ export default {
       if (email && isCompanyEmail(email)) {
         const crm = await loginViaCrm(env, email, password);
         if (!crm.ok) return json(crm.status, { error: crm.error });
-        return withCookies(200, { ok: true, user: crm.user }, await makeSession(request, env, crm.user));
+        return withCookies(200, { ok: true, user: publicUser(crm.user) }, await makeSession(request, env, crm.user));
       }
 
       if (!email && (await checkTeamPassword(env, password))) {
         const user = { email: "team@cbshippingsolutions.com", name: "CBSS Team" };
-        return withCookies(200, { ok: true, user }, await makeSession(request, env, user));
+        return withCookies(200, { ok: true, user: publicUser(user) }, await makeSession(request, env, user));
       }
 
       return json(401, { error: "Use your company email and CRM password." });

@@ -102,6 +102,8 @@ describe("Live call CRM + CTE", () => {
     assert.match(index, /path === "\/call\/save"/);
     assert.match(index, /crmSaveNotes/);
     assert.match(index, /crmSaveFollowups/);
+    assert.match(index, /function publicUser/);
+    assert.match(index, /crm: Boolean\(user\.crm\)/);
     assert.match(crmSrc, /ownerMatchesSession/);
     assert.doesNotMatch(index, /saveNotes[\s\S]{0,80}notes: \{/);
   });
