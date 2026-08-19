@@ -2,242 +2,244 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>CBSS Employee Benefits Package</title>
+  <title>CBSS Total Rewards | Employee Benefits Package</title>
   <style>
-    @page {
-      size: letter;
-      margin: 0.42in 0.5in 0.42in 0.5in;
-    }
+    @page { size: letter; margin: 0.48in 0.55in 0.5in 0.55in; }
     * { box-sizing: border-box; }
     html, body {
-      margin: 0;
-      padding: 0;
-      background: #fff;
-      color: #1b2430;
-      font-family: "Segoe UI", Calibri, "Helvetica Neue", Arial, sans-serif;
-      font-size: 9.4pt;
-      line-height: 1.32;
+      margin: 0; padding: 0; background: #fff; color: #152032;
+      font-family: "Calibri", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      font-size: 9.6pt; line-height: 1.38;
     }
-    h1, h2, h3 {
-      font-family: Georgia, "Times New Roman", serif;
-      margin: 0;
-      color: #0a2540;
+    h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; margin: 0; color: #071a33; }
+    p { margin: 0 0 7px; }
+    .hero {
+      background: #071a33;
+      color: #f4efe4;
+      padding: 22px 22px 18px;
+      margin: 0 0 12px;
     }
-    p { margin: 0 0 8px; }
-    .cover {
-      background: #0a2540;
-      color: #f7f4ee;
-      padding: 18px 22px 16px;
-      margin: 0 0 10px;
+    .hero .row { display: flex; justify-content: space-between; align-items: flex-start; }
+    .kicker {
+      letter-spacing: 0.22em; text-transform: uppercase; font-size: 8pt;
+      color: #d4b36a; font-weight: 700; margin-bottom: 10px;
     }
-    .eyebrow {
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      font-size: 8.5pt;
-      color: #c5a46e;
-      font-weight: 700;
-      margin-bottom: 8px;
+    .hero h1 { color: #fff; font-size: 28pt; line-height: 1.08; margin-bottom: 8px; }
+    .hero .lede { font-size: 12pt; color: #e7dfd0; max-width: 540px; }
+    .hero .seal {
+      text-align: right; font-size: 8pt; letter-spacing: 0.12em;
+      text-transform: uppercase; color: #d4b36a; line-height: 1.5;
     }
-    .cover h1 {
-      color: #fff;
-      font-size: 22pt;
-      line-height: 1.12;
-      margin-bottom: 6px;
+    .stats {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+      margin: 16px 0 0;
     }
-    .cover .sub {
-      font-size: 12pt;
-      color: #e8e2d6;
-      max-width: 620px;
+    .stat { border-top: 2px solid #d4b36a; padding-top: 7px; }
+    .stat b { display: block; color: #fff; font-size: 10.5pt; font-family: Georgia, serif; }
+    .stat span { color: #c9d3df; font-size: 8pt; }
+
+    .thanks {
+      background: #f6f1e6; border-left: 5px solid #d4b36a;
+      padding: 10px 14px; margin-bottom: 12px;
     }
-    .meta {
-      margin-top: 14px;
-      font-size: 8.5pt;
-      color: #c9d4e0;
+    .section {
+      font-size: 13pt; margin: 4px 0 8px; padding-bottom: 3px;
+      border-bottom: 1px solid #d4b36a;
     }
-    .intro {
-      background: #f7f4ee;
-      border-left: 4px solid #c5a46e;
-      padding: 8px 12px;
-      margin-bottom: 10px;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px 10px;
-      margin-bottom: 10px;
-    }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px 11px; margin-bottom: 11px; }
+    .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 11px; }
     .card {
-      border: 1px solid #d8deE6;
-      border-top: 3px solid #0a2540;
-      padding: 8px 10px 7px;
-      break-inside: avoid;
+      border: 1px solid #d5dce6; border-top: 3px solid #071a33;
+      padding: 9px 11px 8px; break-inside: avoid; page-break-inside: avoid;
     }
-    .card.gold { border-top-color: #c5a46e; }
-    .card h2 {
-      font-size: 11pt;
-      margin-bottom: 3px;
+    .card.gold { border-top-color: #d4b36a; }
+    .card.navy { background: #071a33; color: #f4efe4; border: 0; }
+    .card.navy h2, .card.navy strong { color: #fff; }
+    .card.navy .tag { color: #d4b36a; }
+    .card.navy p { color: #e7dfd0; }
+    .card h2 { font-size: 11.2pt; margin-bottom: 3px; }
+    .tag {
+      color: #8a6d32; font-size: 7.6pt; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 5px;
     }
-    .card .tag {
-      color: #8a6d32;
-      font-size: 8pt;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      margin-bottom: 6px;
-    }
-    ul {
-      margin: 4px 0 0 16px;
-      padding: 0;
-    }
-    li { margin: 0 0 3px; }
+    ul { margin: 3px 0 0 16px; padding: 0; }
+    li { margin: 0 0 2px; }
     .wide { grid-column: 1 / -1; }
-    .brands {
-      columns: 3;
-      column-gap: 18px;
-      margin: 6px 0 0;
-      padding: 0 0 0 16px;
-    }
+    .brands { columns: 3; column-gap: 16px; margin: 5px 0 0; padding: 0 0 0 16px; }
     .brands li { break-inside: avoid; }
-    .section-title {
-      font-size: 12pt;
-      margin: 2px 0 6px;
-      padding-bottom: 3px;
-      border-bottom: 1px solid #c5a46e;
+    .fine { font-size: 7.6pt; color: #5b6570; line-height: 1.38; margin-top: 8px; }
+    .foot {
+      margin-top: 10px; padding-top: 7px; border-top: 2px solid #071a33;
+      font-size: 7.8pt; color: #5b6570; display: flex; justify-content: space-between;
     }
-    .fine {
-      font-size: 8pt;
-      color: #5b6570;
-      line-height: 1.4;
-      margin-top: 10px;
-    }
-    .footer-bar {
-      margin-top: 12px;
-      padding-top: 8px;
-      border-top: 2px solid #0a2540;
-      font-size: 8pt;
-      color: #5b6570;
-      display: flex;
-      justify-content: space-between;
-    }
-    strong { color: #0a2540; }
+    strong { color: #071a33; }
+    .ladder { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 6px; }
+    .step { background: #f7f4ee; padding: 8px 9px; border-top: 3px solid #d4b36a; }
+    .step b { display: block; font-family: Georgia, serif; color: #071a33; margin-bottom: 3px; }
   </style>
 </head>
 <body>
-  <header class="cover">
-    <div class="eyebrow">CBGC LLC DBA CB Shipping Solutions</div>
-    <h1>Employee Benefits Package</h1>
-    <p class="sub">Thank you for being a part of CBSS. This overview explains the core benefits available to our team — written simply, so you can see the full value of working here.</p>
-    <div class="meta">Universal Team Guide &nbsp;|&nbsp; Effective 2026 &nbsp;|&nbsp; Confidential — for CBSS employees and eligible new hires</div>
-  </header>
 
-  <section class="intro">
-    <p><strong>Welcome to the team.</strong> At CBSS we take care of the people who take care of our customers. The package below is the standard company offering: health coverage, retirement, ownership, faster pay, and travel and everyday rewards. Plan booklets and official documents always control the details.</p>
+  <section>
+    <header class="hero">
+      <div class="row">
+        <div>
+          <div class="kicker">CBGC LLC &nbsp;·&nbsp; DBA CB Shipping Solutions</div>
+          <h1>Total Rewards<br>and Benefits Guide</h1>
+          <p class="lede">Thank you for being a part of CBSS. This is the company-wide picture of how we take care of our people — the same class of health, retirement, pay, travel, and leadership opportunity you expect from a serious American company.</p>
+        </div>
+        <div class="seal">Confidential<br>Team Edition<br>Effective 2026</div>
+      </div>
+      <div class="stats">
+        <div class="stat"><b>National + global reach</b><span>Containers and logistics, delivered at enterprise scale</span></div>
+        <div class="stat"><b>Fortune-grade partners</b><span>Choice Hotels, Delta, American, United, Revolut, Discount Tire</span></div>
+        <div class="stat"><b>Total rewards</b><span>Health, 401(k), ownership, same-day pay, travel, leadership</span></div>
+        <div class="stat"><b>Leadership path</b><span>Contests that unlock bigger pay, 401(k), and benefits</span></div>
+      </div>
+    </header>
+
+    <section class="thanks">
+      <p><strong>Welcome to the organization.</strong> CBSS is built like a real operating company: a standard benefits platform for every eligible team member, enterprise vendor relationships for travel and pay, and a leadership track that is not a poster on the wall. If you perform, you can move. If you win the contests we run for leadership, the package gets larger — pay, retirement, and benefits included.</p>
+    </section>
+
+    <h2 class="section">Unique leadership opportunities</h2>
+    <div class="grid">
+      <article class="card navy wide">
+        <div class="tag">Advancement</div>
+        <h2>Leadership is a paid path, not a title you wait on</h2>
+        <p>CBSS runs unique internal leadership opportunities so high performers can step into larger seats — sales leadership, operations leadership, and company-level responsibility — without leaving the organization to get ahead. These are structured contests and advancement windows, reviewed by ownership. Winners do not just get a new name on a card. They contest, and unlock, bigger payment options, stronger 401(k) options, and improved benefits.</p>
+      </article>
+      <article class="card gold wide">
+        <div class="tag">Leadership contests</div>
+        <h2>Win the contest. Upgrade the package.</h2>
+        <p>When you compete in a CBSS leadership contest and place, the company can move you onto an improved rewards tier. That is how we keep our best people inside the building.</p>
+        <div class="ladder">
+          <div class="step">
+            <b>Bigger payment options</b>
+            Higher leadership pay bands, contest bonuses, and expanded commission or override structures reserved for contest winners and promoted leaders.
+          </div>
+          <div class="step">
+            <b>Stronger 401(k) options</b>
+            Contest and leadership advancement can unlock improved 401(k) treatment above the standard 3% company match — including enhanced match opportunities and expanded contribution options as the plan allows.
+          </div>
+          <div class="step">
+            <b>Improved benefits</b>
+            Upgraded medical, vision, and dental elections, larger HSA / FSA room where eligible, priority travel, and increased company stock / crypto participation.
+          </div>
+        </div>
+      </article>
+    </div>
+    <p>Standard benefits below are the company floor. Leadership contests are how the ceiling moves. Official contest rules, plan documents, and grant paperwork set the exact numbers for each cycle.</p>
   </section>
 
-  <h2 class="section-title">Health &amp; Everyday Protection</h2>
-  <div class="grid">
-    <article class="card">
-      <div class="tag">Medical</div>
-      <h2>Company insurance</h2>
-      <p>CBSS provides medical insurance so you and your eligible family members have a clear path to routine care and major medical needs.</p>
-      <ul>
-        <li>Employee medical coverage through the company plan</li>
-        <li>Dependent coverage available at enrollment</li>
-        <li>In-network care and preventive visits as the plan allows</li>
-      </ul>
-    </article>
-    <article class="card">
-      <div class="tag">Vision &amp; Dental</div>
-      <h2>Vision and dental</h2>
-      <p>Standard vision and dental coverage sits alongside medical so annual checkups, glasses, and dental work are part of the package — not an afterthought.</p>
-      <ul>
-        <li>Vision exams, lenses, and frames per plan allowances</li>
-        <li>Dental preventive, basic, and major services per the schedule</li>
-        <li>Family enrollment during open or new-hire enrollment</li>
-      </ul>
-    </article>
-    <article class="card">
-      <div class="tag">Tax-advantaged</div>
-      <h2>HSA</h2>
-      <p>A Health Savings Account lets you set aside pre-tax dollars for qualified medical expenses. Unused funds stay with you and can grow over time.</p>
-      <ul>
-        <li>Pre-tax contributions when you are in an HSA-eligible medical plan</li>
-        <li>Use for deductibles, prescriptions, and other IRS-qualified costs</li>
-        <li>Your account is portable if you change roles later</li>
-      </ul>
-    </article>
-    <article class="card">
-      <div class="tag">Tax-advantaged</div>
-      <h2>FSA</h2>
-      <p>A Flexible Spending Account is a simple way to pay eligible health or dependent-care costs with pre-tax pay.</p>
-      <ul>
-        <li>Health care FSA for qualified out-of-pocket expenses</li>
-        <li>Dependent care FSA where offered for eligible childcare costs</li>
-        <li>Elect during enrollment; use funds in the plan year as the rules allow</li>
-      </ul>
-    </article>
-  </div>
+  <section>
+    <h2 class="section">Health and protection</h2>
+    <p>Every eligible employee starts on a complete health platform — medical, vision, dental, and tax-advantaged accounts. This is the corporate baseline. Leadership contest winners may be moved to improved benefit elections when those upgrades are offered for that cycle.</p>
+    <div class="grid">
+      <article class="card">
+        <div class="tag">Medical</div>
+        <h2>Company health insurance</h2>
+        <p>CBSS provides medical insurance so you and eligible family members have a defined path to routine care and major medical needs, through a company-sponsored plan.</p>
+        <ul>
+          <li>Employee medical coverage on the company plan</li>
+          <li>Dependent coverage available at enrollment</li>
+          <li>In-network care and preventive visits as the plan allows</li>
+          <li>Leadership-tier upgrades available after qualifying contests</li>
+        </ul>
+      </article>
+      <article class="card">
+        <div class="tag">Vision and dental</div>
+        <h2>Vision and dental</h2>
+        <p>Vision and dental sit beside medical so annual exams, glasses, and dental work are part of the package — the way a national employer runs it.</p>
+        <ul>
+          <li>Vision exams, lenses, and frames per plan allowances</li>
+          <li>Dental preventive, basic, and major services per the schedule</li>
+          <li>Family enrollment at new-hire or open enrollment</li>
+          <li>Improved allowances may attach to leadership tiers</li>
+        </ul>
+      </article>
+      <article class="card">
+        <div class="tag">Tax-advantaged</div>
+        <h2>Health Savings Account (HSA)</h2>
+        <p>Set aside pre-tax dollars for qualified medical expenses. Unused funds stay with you and can grow.</p>
+        <ul>
+          <li>Pre-tax contributions on an HSA-eligible medical plan</li>
+          <li>Use for deductibles, prescriptions, and IRS-qualified costs</li>
+          <li>Portable if your role changes</li>
+        </ul>
+      </article>
+      <article class="card">
+        <div class="tag">Tax-advantaged</div>
+        <h2>Flexible Spending Account (FSA)</h2>
+        <p>Pay eligible health or dependent-care costs with pre-tax pay through a standard corporate FSA.</p>
+        <ul>
+          <li>Health care FSA for qualified out-of-pocket expenses</li>
+          <li>Dependent care FSA where offered</li>
+          <li>Elect during enrollment; use funds in the plan year as rules allow</li>
+        </ul>
+      </article>
+    </div>
 
-  <h2 class="section-title">Retirement &amp; Ownership</h2>
-  <div class="grid">
-    <article class="card gold wide">
-      <div class="tag">401(k)</div>
-      <h2>Company 401(k) with a 3% match</h2>
-      <p>CBSS offers a traditional 401(k) so you can invest for retirement directly from payroll. The company match is straightforward:</p>
-      <ul>
-        <li><strong>3% company match:</strong> CBSS matches 100% of the first 3% of eligible pay you contribute.</li>
-        <li>Example: if you earn $50,000 and contribute at least 3% ($1,500), the company adds $1,500.</li>
-        <li>Contributions are pre-tax, which can lower current taxable income.</li>
-        <li>You choose your contribution rate and investment mix from the plan menu.</li>
-        <li>Enrollment, eligibility, and vesting follow the official 401(k) plan document.</li>
-        <li>Loans, hardship withdrawals, and rollovers are available only as the plan and IRS rules allow.</li>
-      </ul>
-    </article>
-    <article class="card gold wide">
-      <div class="tag">Ownership</div>
-      <h2>Company stock and crypto</h2>
-      <p>Eligible team members may participate in CBSS ownership-style benefits. That includes company stock programs and company-sponsored crypto participation when those programs are offered for your role.</p>
-      <ul>
-        <li>Company stock / equity participation as granted by leadership</li>
-        <li>Crypto / digital-asset benefits through approved company channels only</li>
-        <li>Awards, timing, and any holding rules are set in the grant or program paperwork</li>
-      </ul>
-    </article>
-  </div>
+    <h2 class="section">Retirement, match, and ownership</h2>
+    <div class="grid">
+      <article class="card gold wide">
+        <div class="tag">401(k)</div>
+        <h2>Company 401(k) — 3% match, with contest upgrades</h2>
+        <p>CBSS offers a traditional 401(k) so retirement is funded from payroll, the same way a large American company does it. The standard match is simple. Leadership contests can improve it.</p>
+        <ul>
+          <li><strong>Standard company match:</strong> CBSS matches 100% of the first 3% of eligible pay you contribute.</li>
+          <li><strong>Example:</strong> on $50,000 of eligible pay, a 3% deferral is $1,500 and the company adds $1,500.</li>
+          <li><strong>Leadership / contest 401(k) options:</strong> placing in a leadership contest, or moving into a leadership seat, can unlock improved 401(k) options — a richer match opportunity, additional contribution room, or other plan features as that year’s program and the plan document allow.</li>
+          <li>Contributions are pre-tax and can lower current taxable income.</li>
+          <li>You choose your deferral rate and the investment mix from the plan menu.</li>
+          <li>Enrollment, eligibility, vesting, loans, hardships, and rollovers follow the official 401(k) plan and IRS rules.</li>
+        </ul>
+      </article>
+      <article class="card gold">
+        <div class="tag">Ownership</div>
+        <h2>Company stock</h2>
+        <p>Eligible team members may receive company stock / equity participation as granted by ownership. Leadership contest winners are first in line for larger grants when those programs are open.</p>
+      </article>
+      <article class="card gold">
+        <div class="tag">Ownership</div>
+        <h2>Company crypto</h2>
+        <p>CBSS may offer company-sponsored crypto / digital-asset participation through approved channels only. Leadership tiers can carry larger allocations. Grant paperwork controls timing and any holding rules.</p>
+      </article>
+    </div>
+  </section>
 
-  <h2 class="section-title">Pay, Banking &amp; Everyday Rewards</h2>
-  <div class="grid">
-    <article class="card">
-      <div class="tag">Revolut partnership</div>
-      <h2>Revolut benefits and same-day pay</h2>
-      <p>CBSS partners with Revolut so you can get paid faster and manage money on a modern platform.</p>
-      <ul>
-        <li><strong>Same-day pay</strong> so earned wages can hit your account the same day, when you opt in</li>
-        <li>Revolut account and card tools for spending, transfers, and balances</li>
-        <li>Faster access to your pay versus a traditional wait-until-Friday cycle</li>
-        <li>Standard banking protections and program terms apply through Revolut</li>
-      </ul>
-    </article>
-    <article class="card">
-      <div class="tag">Services &amp; rewards</div>
-      <h2>Discount Tire</h2>
-      <p>Team members receive services and rewards through Discount Tire — a practical benefit for the miles we put on the road.</p>
-      <ul>
-        <li>Employee pricing and reward offers on tires and related services</li>
-        <li>Access through the CBSS / Discount Tire partner channel</li>
-        <li>Present your employee offer at participating Discount Tire locations</li>
-      </ul>
-    </article>
-  </div>
+  <section>
+    <h2 class="section">Pay, banking, and everyday rewards</h2>
+    <div class="grid">
+      <article class="card">
+        <div class="tag">Revolut partnership</div>
+        <h2>Revolut benefits and same-day pay</h2>
+        <p>CBSS partners with Revolut so compensation clears like a modern enterprise payroll — not a wait-until-Friday shop.</p>
+        <ul>
+          <li><strong>Same-day pay</strong> so earned wages can hit your account the same day when you opt in</li>
+          <li>Revolut account and card tools for balances, spending, and transfers</li>
+          <li>Leadership contest payouts and upgraded payment options can run through the same channel</li>
+          <li>Revolut program terms and banking protections apply</li>
+        </ul>
+      </article>
+      <article class="card">
+        <div class="tag">Services and rewards</div>
+        <h2>Discount Tire</h2>
+        <p>Team members receive services and rewards through Discount Tire — a national partner for the miles this work puts on the road.</p>
+        <ul>
+          <li>Employee pricing and reward offers on tires and related services</li>
+          <li>Access through the CBSS / Discount Tire partner channel</li>
+          <li>Present the employee offer at participating locations</li>
+        </ul>
+      </article>
+    </div>
 
-  <h2 class="section-title" style="break-before: page;">Corporate Travel</h2>
-  <div class="grid">
-    <article class="card wide">
-      <div class="tag">Lodging</div>
-      <h2>Choice Hotels and partner brands</h2>
-      <p>CBSS books corporate lodging through <strong>Choice Hotels</strong> and the Choice Privileges network. That gives the team a national (and international) footprint — upscale properties for client trips, extended-stay for longer jobs, and value brands when the work is simple and the goal is rest and a fair rate.</p>
-      <p><strong>Why this matters:</strong> one corporate relationship, one loyalty program, and 22 brands so you are rarely stuck without a company option nearby.</p>
-      <p><strong>Choice Hotels brands and partners:</strong></p>
+    <h2 class="section">Corporate travel network</h2>
+    <article class="card wide" style="margin-bottom: 9px;">
+      <div class="tag">Lodging — Choice Hotels</div>
+      <h2>Corporate lodging across 22 Choice brands and partners</h2>
+      <p>CBSS books lodging through <strong>Choice Hotels</strong> and Choice Privileges. That is a national and international hotel system: upscale flags for client work, extended-stay for longer jobs, and value brands when the assignment is simple. One corporate relationship. One loyalty program. Coverage in the cities we actually work.</p>
+      <p><strong>Choice Hotels brands and partners</strong></p>
       <ul class="brands">
         <li>Cambria Hotels</li>
         <li>Radisson Blu</li>
@@ -265,37 +267,67 @@
     </article>
     <article class="card wide">
       <div class="tag">Air travel</div>
-      <h2>Flight discounts</h2>
-      <p>CBSS offers flight discounts through the major U.S. carriers we use for business travel:</p>
+      <h2>Flight discounts — Delta, American, United</h2>
+      <p>CBSS carries corporate / partner fare relationships with the three U.S. majors we use for business travel:</p>
       <ul>
         <li><strong>Delta Air Lines</strong> — corporate / partner fares on eligible routes</li>
         <li><strong>American Airlines</strong> — corporate / partner fares on eligible routes</li>
         <li><strong>United Airlines</strong> — corporate / partner fares on eligible routes</li>
       </ul>
-      <p>Book work travel through the company process so the discount and the correct billing attach. Personal leisure use, if allowed, follows the same partner rules.</p>
+      <p>Book work travel through the company process so the discount and the correct billing attach. Leadership travel may use improved booking classes when that tier is awarded. Personal leisure use, if allowed, follows the same partner rules.</p>
     </article>
-  </div>
+  </section>
 
-  <h2 class="section-title">How to use this package</h2>
-  <div class="grid">
-    <article class="card">
-      <h2>Getting started</h2>
+  <section>
+    <h2 class="section">How the package works</h2>
+    <div class="grid3">
+      <article class="card">
+        <div class="tag">Enrollment</div>
+        <h2>Getting started</h2>
+        <ul>
+          <li>New hires enroll in the new-hire window</li>
+          <li>Current team members update at open enrollment or after a qualifying life event</li>
+          <li>Ask HR / leadership for current carriers, rates, and logins</li>
+        </ul>
+      </article>
+      <article class="card">
+        <div class="tag">Contests</div>
+        <h2>Leadership cycles</h2>
+        <ul>
+          <li>Contest rules are published for each cycle</li>
+          <li>Placement can unlock bigger pay, 401(k) options, and benefits</li>
+          <li>Awards are confirmed in writing before they attach to payroll or the plan</li>
+        </ul>
+      </article>
+      <article class="card">
+        <div class="tag">Support</div>
+        <h2>Questions</h2>
+        <p>This guide is the company-wide picture. If something is unclear, ask before you enroll, travel, or enter a contest. We would rather walk it through than have you miss a benefit you already have.</p>
+      </article>
+    </div>
+
+    <article class="card gold wide">
+      <div class="tag">At a glance</div>
+      <h2>What working at CBSS includes</h2>
       <ul>
-        <li>New hires enroll during the new-hire window</li>
-        <li>Current team members update elections at open enrollment or after a qualifying life event</li>
-        <li>Ask HR / leadership for current carrier names, rates, and login links</li>
+        <li>Medical, vision, and dental insurance</li>
+        <li>HSA and FSA</li>
+        <li>401(k) with a standard 3% company match, plus improved 401(k) options through leadership contests</li>
+        <li>Company stock and company crypto participation</li>
+        <li>Revolut partnership and same-day pay</li>
+        <li>Discount Tire services and rewards</li>
+        <li>Corporate lodging through Choice Hotels and 22 partner brands</li>
+        <li>Flight discounts through Delta, American Airlines, and United</li>
+        <li>Unique leadership opportunities, with contests that unlock bigger payment options and upgraded rewards</li>
       </ul>
     </article>
-    <article class="card">
-      <h2>Questions</h2>
-      <p>This guide is the company-wide picture. If something is unclear, ask before you enroll or travel. We would rather walk it through than have you miss a benefit you already have.</p>
-    </article>
-  </div>
 
-  <p class="fine">This document is a general overview for CBGC LLC DBA CB Shipping Solutions (CBSS) employees and eligible new hires. It is not a contract of employment and does not create a guarantee of any specific benefit, payment, match, fare, hotel rate, or award. Medical, vision, dental, HSA, FSA, 401(k), stock, crypto, Revolut / same-day pay, Discount Tire, Choice Hotels, and airline benefits are subject to eligibility, waiting periods, plan documents, carrier contracts, partner terms, and applicable law. Partner brand lists can change as Choice Hotels updates its portfolio. Official plan documents and partner agreements govern if there is any difference between this overview and those documents. Confidential — do not distribute outside CBSS without approval.</p>
-  <div class="footer-bar">
-    <span>CBGC LLC DBA CB Shipping Solutions &nbsp;|&nbsp; cbshippingsolutions.com</span>
-    <span>Employee Benefits Package &nbsp;|&nbsp; 2026</span>
-  </div>
+    <p class="fine">This document is a general Total Rewards overview for employees and eligible new hires of CBGC LLC DBA CB Shipping Solutions (CBSS). It is not a contract of employment and does not guarantee any specific benefit, payment, contest award, match, fare, hotel rate, grant, or leadership seat. Medical, vision, dental, HSA, FSA, 401(k), stock, crypto, Revolut / same-day pay, Discount Tire, Choice Hotels, airline, leadership-contest, and improved-tier benefits are subject to eligibility, waiting periods, published contest rules, plan documents, carrier contracts, partner terms, and applicable law. The standard 401(k) match described here is 100% of the first 3% of eligible pay; any enhanced 401(k) option is available only if and when a leadership contest or advancement program awards it and the plan document allows it. Partner brand lists can change as Choice Hotels updates its portfolio. Official plan documents, contest rules, and partner agreements govern if there is any difference between this overview and those documents. Confidential — do not distribute outside CBSS without approval.</p>
+    <div class="foot">
+      <span>CBGC LLC DBA CB Shipping Solutions &nbsp;|&nbsp; cbshippingsolutions.com</span>
+      <span>Total Rewards Guide &nbsp;|&nbsp; 2026</span>
+    </div>
+  </section>
+
 </body>
 </html>

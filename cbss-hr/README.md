@@ -1,9 +1,9 @@
-# CBSS Employee Benefits Package
+# CBSS Total Rewards and Benefits Guide
 
-Universal team overview for CBGC LLC DBA CB Shipping Solutions.
+Ready-to-use corporate Total Rewards overview for CBGC LLC DBA CB Shipping Solutions.
 
 - Source: `cbss-employee-benefits.html`
-- PDF: `CBSS-Employee-Benefits-Package.pdf`
+- Ready PDF: `CBSS-Employee-Benefits-Package.pdf`
 
 Rebuild the PDF:
 
