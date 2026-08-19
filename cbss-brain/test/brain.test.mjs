@@ -3,34 +3,60 @@ import { describe, it } from "node:test";
 import { readFileSync } from "node:fs";
 
 const src = readFileSync(new URL("../src/brain.ts", import.meta.url), "utf8");
+const page = readFileSync(new URL("../src/page.ts", import.meta.url), "utf8");
+
 const PRICE_RE = /\$\s*\d|\b\d{1,3}(?:,\d{3})+(?:\.\d+)?\s*(?:dollars|usd)?\b|\b\d{3,5}\s*(?:dollars|usd)\b/i;
+const DOLLAR_RE = /\$\s*([\d,]+(?:\.\d{1,2})?)/g;
+const WORDS_RE = /(\d{3,7})\s*(?:dollars|usd)\b/gi;
 
 function containsQuotedPrice(text) {
   return PRICE_RE.test(String(text || ""));
 }
-
-function sanitizeReply(text) {
+function extractAmounts(text) {
+  const found = new Set();
+  const add = (raw) => {
+    const n = Number(String(raw).replace(/,/g, ""));
+    if (!Number.isFinite(n) || n < 50) return;
+    found.add(n.toFixed(2));
+    found.add(String(Math.round(n)));
+  };
+  for (const match of String(text || "").matchAll(DOLLAR_RE)) add(match[1] || "");
+  for (const match of String(text || "").matchAll(WORDS_RE)) add(match[1] || "");
+  return found;
+}
+function sanitizeReply(text, allowedSource = "") {
   const raw = String(text || "").trim();
-  if (!raw) return "Ask me how we sell, what to put in the CRM, or when to text Christopher.";
-  if (containsQuotedPrice(raw)) {
-    return "I cannot give a price or a guess. Get their name, phone, email, ZIP, size, and what they want. Put it in the CRM. Text Christopher at 870-323-2593.";
+  if (!raw) return "Tell me the lead or the job: CRM note, email, proposal, or call help.";
+  if (!containsQuotedPrice(raw)) return raw;
+  const allowed = extractAmounts(allowedSource);
+  if (!allowed.size) return "I can only use a price Christopher or you typed.";
+  for (const amt of extractAmounts(raw)) {
+    if (!allowed.has(amt)) return "I can only use a price Christopher or you typed.";
   }
   return raw;
 }
 
-describe("CBSS Brain rules", () => {
-  it("bakes in no-price and Christopher-closes rules", () => {
-    assert.match(src, /Do not give a delivered price/);
+describe("CBSS Desk rules", () => {
+  it("is a writing desk, not a send bot", () => {
+    assert.match(src, /Never invent a price/);
     assert.match(src, /Christopher closes/);
-    assert.match(src, /No COD/);
+    assert.match(src, /Draft only|never send email/i);
+    assert.match(src, /CRM NOTE FORMAT/);
+    assert.match(src, /With thanks and my blessings/);
+    assert.match(page, /CRM note/);
+    assert.match(page, /Customer email/);
+    assert.match(page, /Proposal copy/);
+    assert.match(page, /company email/);
     assert.doesNotMatch(src, /xChange|Phoenix depot|\$725|\$600/);
   });
 
-  it("blocks dollar quotes and allows phones", () => {
-    assert.equal(containsQuotedPrice("The 40HC is $3,775 delivered"), true);
-    assert.equal(containsQuotedPrice("about 3775 dollars"), true);
+  it("allows only dollar amounts the rep already typed", () => {
     assert.equal(containsQuotedPrice("Text Christopher at 870-323-2593"), false);
-    assert.match(sanitizeReply("I would charge $3990"), /cannot give a price/);
-    assert.equal(sanitizeReply("Put the ZIP in the CRM."), "Put the ZIP in the CRM.");
+    assert.match(sanitizeReply("Charge them $3990"), /only use a price/);
+    assert.equal(
+      sanitizeReply("1 × 40STD = $3,990.00 delivered", "Price set by Christopher: $3990"),
+      "1 × 40STD = $3,990.00 delivered",
+    );
+    assert.match(sanitizeReply("Also add $725 freight", "Price set by Christopher: $3990"), /only use a price/);
   });
 });

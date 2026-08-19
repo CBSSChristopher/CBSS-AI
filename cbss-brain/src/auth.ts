@@ -1,5 +1,9 @@
 const COOKIE = "cbss_brain";
 const MAX_AGE = 60 * 60 * 24 * 30;
+const COMPANY_RE = /@cbshippingsolutions\.com$/i;
+const CRM_LOGIN = "https://cbsscrm.cbss.workers.dev/auth/login";
+
+export type SessionUser = { email: string; name: string };
 
 function b64urlEncode(bytes: ArrayBuffer | Uint8Array): string {
   const arr = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
@@ -34,6 +38,10 @@ async function sign(payloadB64: string, secret: string): Promise<string> {
   );
   const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payloadB64));
   return b64urlEncode(sig);
+}
+
+export function isCompanyEmail(email: string): boolean {
+  return COMPANY_RE.test(String(email || "").trim());
 }
 
 export function parseCookies(request: Request): Record<string, string> {
@@ -71,13 +79,67 @@ function cookieHeader(request: Request, token: string, maxAge: number): string[]
   return out;
 }
 
-export async function checkPassword(env: Env, password: string): Promise<boolean> {
+export async function checkTeamPassword(env: Env, password: string): Promise<boolean> {
   const expected = env.TEAM_PASSWORD || "";
   return Boolean(expected) && timingSafeEqualStr(String(password || ""), expected);
 }
 
-export async function makeSession(request: Request, env: Env): Promise<string[]> {
-  const payload = JSON.stringify({ k: "brain", x: Date.now() + MAX_AGE * 1000 });
+export async function loginViaCrm(
+  email: string,
+  password: string,
+): Promise<{ ok: true; user: SessionUser } | { ok: false; error: string; status: number }> {
+  const clean = String(email || "").trim().toLowerCase();
+  if (!isCompanyEmail(clean)) {
+    return { ok: false, error: "Use your company email.", status: 401 };
+  }
+  try {
+    const res = await fetch(CRM_LOGIN, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "https://cbsscrm.cbss.workers.dev",
+        Referer: "https://cbsscrm.cbss.workers.dev/",
+        Accept: "application/json, text/plain, */*",
+        "User-Agent": "CBSSBrain/1.0",
+      },
+      body: JSON.stringify({ email: clean, password }),
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      email?: string;
+      name?: string;
+      error?: string;
+    };
+    if (!res.ok || !data.ok) {
+      return {
+        ok: false,
+        error: data.error || "Wrong email or password.",
+        status: res.status === 401 ? 401 : 401,
+      };
+    }
+    return {
+      ok: true,
+      user: {
+        email: String(data.email || clean).toLowerCase(),
+        name: String(data.name || clean.split("@")[0]),
+      },
+    };
+  } catch {
+    return { ok: false, error: "Could not reach the CRM login. Try again.", status: 502 };
+  }
+}
+
+export async function makeSession(
+  request: Request,
+  env: Env,
+  user: SessionUser,
+): Promise<string[]> {
+  const payload = JSON.stringify({
+    k: "brain",
+    e: user.email,
+    n: user.name,
+    x: Date.now() + MAX_AGE * 1000,
+  });
   const payloadB64 = b64urlEncode(new TextEncoder().encode(payload));
   const sig = await sign(payloadB64, env.AUTH_SECRET);
   return cookieHeader(request, `${payloadB64}.${sig}`, MAX_AGE);
@@ -87,22 +149,22 @@ export function clearSession(request: Request): string[] {
   return cookieHeader(request, "", 0);
 }
 
-export async function readSession(request: Request, env: Env): Promise<boolean> {
+export async function readSession(request: Request, env: Env): Promise<SessionUser | null> {
   const secret = env.AUTH_SECRET || "";
-  if (!secret) return false;
+  if (!secret) return null;
   const token = parseCookies(request)[COOKIE];
-  if (!token) return false;
+  if (!token) return null;
   const parts = token.split(".");
-  if (parts.length !== 2) return false;
+  if (parts.length !== 2) return null;
   const [payloadB64, sig] = parts;
   const expect = await sign(payloadB64, secret);
-  if (!timingSafeEqualStr(sig, expect)) return false;
+  if (!timingSafeEqualStr(sig, expect)) return null;
   try {
     const payload = JSON.parse(new TextDecoder().decode(b64urlDecode(payloadB64)));
-    if (!payload || payload.k !== "brain") return false;
-    if (payload.x && Date.now() > Number(payload.x)) return false;
-    return true;
+    if (!payload || payload.k !== "brain" || !payload.e) return null;
+    if (payload.x && Date.now() > Number(payload.x)) return null;
+    return { email: String(payload.e), name: String(payload.n || payload.e) };
   } catch {
-    return false;
+    return null;
   }
 }

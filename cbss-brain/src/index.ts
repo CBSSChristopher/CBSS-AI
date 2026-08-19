@@ -1,5 +1,12 @@
-import { checkPassword, clearSession, makeSession, readSession } from "./auth";
-import { SYSTEM_PROMPT, clipHistory, sanitizeReply } from "./brain";
+import {
+  checkTeamPassword,
+  clearSession,
+  isCompanyEmail,
+  loginViaCrm,
+  makeSession,
+  readSession,
+} from "./auth";
+import { SYSTEM_PROMPT, clipHistory, jobPrompt, sanitizeReply } from "./brain";
 import { pageHtml } from "./page";
 
 const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
@@ -12,19 +19,11 @@ const SECURITY = {
     "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'none'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
 };
 
-function json(status: number, body: unknown, extra?: HeadersInit): Response {
-  const headers = new Headers({
-    "Content-Type": "application/json; charset=utf-8",
-    ...SECURITY,
+function json(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json; charset=utf-8", ...SECURITY },
   });
-  if (extra) {
-    const e = extra instanceof Headers ? extra : new Headers(extra);
-    e.forEach((v, k) => {
-      if (k.toLowerCase() === "set-cookie") headers.append(k, v);
-      else headers.set(k, v);
-    });
-  }
-  return new Response(JSON.stringify(body), { status, headers });
 }
 
 function withCookies(status: number, body: unknown, cookies: string[]): Response {
@@ -63,6 +62,39 @@ function extractReply(result: unknown): string {
   return "";
 }
 
+function str(v: unknown): string {
+  return typeof v === "string" ? v.trim() : "";
+}
+
+function fieldMap(raw: unknown): Record<string, string> {
+  if (!raw || typeof raw !== "object") return {};
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    const val = str(v);
+    if (val) out[k] = val.slice(0, 2000);
+  }
+  return out;
+}
+
+async function runModel(
+  env: Env,
+  userMessage: string,
+  history: Array<{ role: "user" | "assistant"; content: string }>,
+  maxTokens: number,
+): Promise<string> {
+  const result = await env.AI.run(MODEL, {
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      ...history,
+      { role: "user", content: userMessage },
+    ],
+    max_tokens: maxTokens,
+    temperature: 0.2,
+  });
+  const allowed = [userMessage, ...history.map((m) => m.content)].join("\n");
+  return sanitizeReply(extractReply(result), allowed);
+}
+
 export default {
   async fetch(request, env): Promise<Response> {
     const url = new URL(request.url);
@@ -77,53 +109,59 @@ export default {
     }
 
     if (request.method === "GET" && path === "/session") {
-      return json(200, { ok: await readSession(request, env) });
+      const user = await readSession(request, env);
+      return json(200, user ? { ok: true, user } : { ok: false });
     }
 
     if (request.method === "POST" && path === "/auth/login") {
-      if (!env.TEAM_PASSWORD || !env.AUTH_SECRET) {
-        return json(500, { error: "Brain is not set up yet. Christopher needs to set the team password." });
+      if (!env.AUTH_SECRET) {
+        return json(500, { error: "Desk is not set up yet." });
       }
       const body = await readJson(request);
-      const password = typeof body.password === "string" ? body.password : "";
-      if (!(await checkPassword(env, password))) {
-        return json(401, { error: "Wrong password." });
+      const email = str(body.email).toLowerCase();
+      const password = str(body.password);
+      if (!password) return json(401, { error: "Enter your password." });
+
+      if (email && isCompanyEmail(email)) {
+        const crm = await loginViaCrm(email, password);
+        if (!crm.ok) return json(crm.status, { error: crm.error });
+        return withCookies(200, { ok: true, user: crm.user }, await makeSession(request, env, crm.user));
       }
-      return withCookies(200, { ok: true }, await makeSession(request, env));
+
+      if (!email && (await checkTeamPassword(env, password))) {
+        const user = { email: "team@cbshippingsolutions.com", name: "CBSS Team" };
+        return withCookies(200, { ok: true, user }, await makeSession(request, env, user));
+      }
+
+      return json(401, { error: "Use your company email and CRM password." });
     }
 
     if (request.method === "POST" && path === "/auth/logout") {
       return withCookies(200, { ok: true }, clearSession(request));
     }
 
-    if (request.method === "POST" && path === "/chat") {
-      if (!(await readSession(request, env))) {
-        return json(401, { error: "Sign in first." });
-      }
+    if (request.method === "POST" && (path === "/chat" || path === "/job")) {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
       const body = await readJson(request);
-      const message = typeof body.message === "string" ? body.message.trim() : "";
-      if (!message) return json(400, { error: "Type a question." });
-      if (message.length > 2000) return json(400, { error: "Keep it shorter." });
+
+      let message = str(body.message);
+      const job = str(body.job);
+      if (path === "/job") {
+        if (!job) return json(400, { error: "Pick a job." });
+        message = jobPrompt(job, fieldMap(body.fields));
+      }
+      if (!message) return json(400, { error: "Type a question or fill the form." });
+      if (message.length > 6000) return json(400, { error: "Keep it shorter." });
 
       const history = clipHistory(body.history);
-      const messages = [
-        { role: "system" as const, content: SYSTEM_PROMPT },
-        ...history,
-        { role: "user" as const, content: message },
-      ];
-
       try {
-        const result = await env.AI.run(MODEL, {
-          messages,
-          max_tokens: 500,
-          temperature: 0.2,
-        });
-        const reply = sanitizeReply(extractReply(result));
+        const reply = await runModel(env, message, history, path === "/job" ? 900 : 600);
         return json(200, { reply });
       } catch (err) {
         console.error("brain_ai_error", err instanceof Error ? err.message : "unknown");
         return json(502, {
-          error: "The Brain is busy. Text Christopher at 870-323-2593 if you need a live answer.",
+          error: "The desk is busy. Text Christopher at 870-323-2593 if you need a live answer.",
         });
       }
     }
