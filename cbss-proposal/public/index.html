@@ -240,6 +240,12 @@
     }
     #appWrap { display: none; }
     #appWrap.show { display: block; }
+    .qty-row { display: flex; align-items: center; gap: 8px; }
+    .qty-row input { text-align: center; font-weight: 700; }
+    .qty-btn {
+      width: 44px; height: 44px; border: 1px solid var(--border); border-radius: 8px;
+      background: #fff; color: var(--primary); font-size: 1.3rem; font-weight: 700; cursor: pointer;
+    }
     .upfront-highlight {
       background: #e8f5e9;
       border-radius: 8px;
@@ -333,6 +339,19 @@
               <option value="OneTrip">One-Trip / New</option>
               <option value="AsIs">As-Is</option>
             </select>
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="boxQty">How many *</label>
+            <div class="qty-row">
+              <button type="button" class="qty-btn" onclick="nudgeQty(-1)" aria-label="Fewer">−</button>
+              <input type="number" id="boxQty" min="1" max="50" step="1" value="1" oninput="onSizeOrConditionChange()" />
+              <button type="button" class="qty-btn" onclick="nudgeQty(1)" aria-label="More">+</button>
+            </div>
+          </div>
+          <div>
+            <p class="note" style="margin-top:28px;">How many of this container they want. 1, 2, 3, and so on.</p>
           </div>
         </div>
         <select id="size" class="hidden" aria-hidden="true">
@@ -465,12 +484,6 @@
 
       <div class="row" style="margin-top:14px;">
         <div class="full">
-          <label for="containerDesc">Container Description *</label>
-          <input type="text" id="containerDesc" required placeholder="e.g. 40ft High Cube Cargo Worthy (CW)" />
-        </div>
-      </div>
-      <div class="row">
-        <div class="full">
           <label for="containerNotes">Condition / Notes (optional)</label>
           <input type="text" id="containerNotes" placeholder="Any details about condition, depot, etc." />
         </div>
@@ -488,6 +501,7 @@
       <input type="hidden" id="unitPrice" name="unitPrice" />
       <input type="hidden" id="deliveryCost" name="deliveryCost" />
       <input type="hidden" id="quantity" name="quantity" value="1" />
+      <input type="hidden" id="containerDesc" name="containerDesc" />
       <input type="hidden" id="containerSize" name="containerSize" value="40ft" />
       <input type="hidden" id="wholesaleCost" name="wholesaleCost" />
 
@@ -753,6 +767,19 @@
         config: document.getElementById("boxConfig").value,
         grade: document.getElementById("condition").value
       };
+    }
+
+    function currentQty() {
+      const n = parseInt((document.getElementById("boxQty") || {}).value, 10);
+      if (!Number.isFinite(n) || n < 1) return 1;
+      return Math.min(50, n);
+    }
+
+    function nudgeQty(delta) {
+      const el = document.getElementById("boxQty");
+      if (!el) return;
+      el.value = String(Math.min(50, Math.max(1, currentQty() + delta)));
+      onSizeOrConditionChange();
     }
 
     function syncLegacySize() {
@@ -1080,8 +1107,10 @@
       document.getElementById('deliveryCost').value = delivery;
       document.getElementById('wholesaleCost').value = wholesale;
       document.getElementById('containerSize').value = size;
+      const qty = currentQty();
+      document.getElementById('quantity').value = String(qty);
+      document.getElementById('boxQty').value = String(qty);
 
-      // Auto-fill description
       const desc = document.getElementById('containerDesc');
       const box = currentBox();
       desc.value = describeContainer(box.size, box.height, box.config, box.grade);
@@ -1097,7 +1126,9 @@
         <div class="price-row"><span>How far</span><span>${miles} miles</span></div>
         <div class="price-row"><span>Wholesale</span><span>$${wholesale.toLocaleString()}</span></div>
         <div class="price-row"><span>Net Margin</span><span class="${marginClass}">$${margin.toLocaleString()}</span></div>
-        <div class="price-row total"><span>Delivered cash price</span><span>$${recommended.toLocaleString()}</span></div>
+        <div class="price-row"><span>Quantity</span><span>${qty}</span></div>
+        <div class="price-row total"><span>Delivered cash each</span><span>$${recommended.toLocaleString()}</span></div>
+        <div class="price-row total"><span>Total delivered cash</span><span>$${(recommended * qty).toLocaleString()}</span></div>
         <div class="price-row"><span style="font-size:0.82rem;font-weight:400;color:#555;">Delivery is already inside that cash price. Do not add it again.</span><span></span></div>
       `;
       document.getElementById('priceBox').classList.remove('hidden');
@@ -1159,12 +1190,13 @@
       // Cash price of container = unitPrice - delivery
       // Then down on container + down on mods + delivery = upfront
 
-      const containerCash = unitPrice - delivery; // the pure container portion
+      const qty = currentQty();
+      const containerCash = (unitPrice - delivery) * qty;
       const containerDown = containerCash * downPct;
       const modDown = modPrice * modDownPct;
       const totalDown = containerDown + modDown;
       const amountFinanced = (containerCash + modPrice) - totalDown;
-      const totalUpfront = totalDown + delivery;
+      const totalUpfront = totalDown + (delivery * qty);
 
       document.getElementById('upfrontBox').innerHTML = `
         <strong>Upfront due:</strong> ${formatMoney(totalUpfront)}
@@ -1274,8 +1306,8 @@
         phone: document.getElementById('phone').value.trim(),
         email: document.getElementById('email').value.trim(),
         delivery: document.getElementById('delivery').value.trim(),
-        containerDesc: document.getElementById('containerDesc').value.trim(),
-        quantity: '1',
+        containerDesc: document.getElementById('containerDesc').value.trim() || describeContainer(currentBox().size, currentBox().height, currentBox().config, currentBox().grade),
+        quantity: String(currentQty()),
         wholesaleCost: document.getElementById('wholesaleCost').value,
         unitPrice: document.getElementById('unitPrice').value,
         containerNotes: document.getElementById('containerNotes').value.trim(),

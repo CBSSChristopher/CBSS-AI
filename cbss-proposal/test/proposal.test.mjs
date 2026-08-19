@@ -63,6 +63,12 @@ describe("Proposal tool picker, depot, and cash price", () => {
     assert.match(page, /High cube \/ HC/);
     assert.match(page, /Full open side/);
     assert.match(page, /id="boxConfig"/);
+    assert.match(page, /id="boxQty"/);
+    assert.match(page, /How many/);
+    assert.match(page, /nudgeQty/);
+    assert.doesNotMatch(page, /label for="containerDesc"/);
+    assert.match(page, /quantity: String\(currentQty\(\)\)/);
+    assert.equal(customerCashTotal(2900, 2), 5800);
   });
 
   it("keeps the login script valid", () => {
