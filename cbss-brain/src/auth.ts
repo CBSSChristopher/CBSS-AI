@@ -85,6 +85,7 @@ export async function checkTeamPassword(env: Env, password: string): Promise<boo
 }
 
 export async function loginViaCrm(
+  env: Env,
   email: string,
   password: string,
 ): Promise<{ ok: true; user: SessionUser } | { ok: false; error: string; status: number }> {
@@ -93,28 +94,40 @@ export async function loginViaCrm(
     return { ok: false, error: "Use your company email.", status: 401 };
   }
   try {
-    const res = await fetch(CRM_LOGIN, {
+    const req = new Request(CRM_LOGIN, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Origin: "https://cbsscrm.cbss.workers.dev",
         Referer: "https://cbsscrm.cbss.workers.dev/",
         Accept: "application/json, text/plain, */*",
-        "User-Agent": "CBSSBrain/1.0",
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
       },
       body: JSON.stringify({ email: clean, password }),
     });
-    const data = (await res.json().catch(() => ({}))) as {
+    const res = env.CRM ? await env.CRM.fetch(req) : await fetch(req);
+    const rawText = await res.text();
+    console.log("crm_login_status", res.status);
+    let data: {
       ok?: boolean;
       email?: string;
       name?: string;
       error?: string;
-    };
+    } = {};
+    try {
+      data = JSON.parse(rawText) as typeof data;
+    } catch {
+      data = {};
+    }
     if (!res.ok || !data.ok) {
+      if (res.status >= 500 || res.status === 403) {
+        return { ok: false, error: "Could not reach the CRM login. Try again.", status: 502 };
+      }
       return {
         ok: false,
         error: data.error || "Wrong email or password.",
-        status: res.status === 401 ? 401 : 401,
+        status: 401,
       };
     }
     return {

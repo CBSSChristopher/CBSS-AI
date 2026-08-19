@@ -13,6 +13,9 @@
   "ai": {
     "binding": "AI"
   },
+  "services": [
+    { "binding": "CRM", "service": "cbsscrm" }
+  ],
   "vars": {
     "PUBLIC_TITLE": "CBSS Brain"
   }

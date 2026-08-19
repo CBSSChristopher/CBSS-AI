@@ -123,7 +123,7 @@ export default {
       if (!password) return json(401, { error: "Enter your password." });
 
       if (email && isCompanyEmail(email)) {
-        const crm = await loginViaCrm(email, password);
+        const crm = await loginViaCrm(env, email, password);
         if (!crm.ok) return json(crm.status, { error: crm.error });
         return withCookies(200, { ok: true, user: crm.user }, await makeSession(request, env, crm.user));
       }
