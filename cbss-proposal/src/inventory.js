@@ -14,7 +14,7 @@ function normalizeOffer(row) {
   if (!row || typeof row !== "object") return null;
   const size = row.size != null ? String(row.size).trim() : "";
   const condition = row.condition != null ? String(row.condition).trim() : "";
-  const depot = String(row.depot || row.location || row.city || "").trim();
+  const depot = String(row.depot || row.location || row.city || "").replace(/\u00a0/g, " ").trim();
   const qtyRaw = row.qty != null ? row.qty : row.quantity;
   const costRaw = row.wholesaleCost != null ? row.wholesaleCost : row.wholesale != null ? row.wholesale : row.cost;
   const lat = parseFloat(row.lat);
@@ -34,8 +34,8 @@ function normalizeOffer(row) {
     size,
     condition,
     depot,
-    location: String(row.location || "").trim(),
-    city: String(row.city || "").trim(),
+    location: String(row.location || "").replace(/\u00a0/g, " ").trim(),
+    city: String(row.city || "").replace(/\u00a0/g, " ").trim(),
     lat: Number.isFinite(lat) ? lat : null,
     lon: Number.isFinite(lon) ? lon : null,
     wholesaleCost,

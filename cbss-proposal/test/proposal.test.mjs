@@ -4,11 +4,15 @@ import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import {
+  cityKey,
   customerCashTotal,
   describeContainer,
+  displayCityState,
+  groupOffersByCity,
   mapGrade,
   parseOfferSpec,
   pickClosestDepot,
+  pickWholesaleOffer,
   rateSheetSize,
   uniqueGrades,
 } from "../src/container.js";
@@ -35,6 +39,8 @@ describe("Proposal tool picker, depot, and cash price", () => {
     assert.deepEqual(parseOfferSpec("40' Standard"), { size: "40", height: "DC", config: "standard" });
     assert.deepEqual(parseOfferSpec("20ft DC"), { size: "20", height: "DC", config: "standard" });
     assert.deepEqual(parseOfferSpec("40 HC side door"), { size: "40", height: "HC", config: "side-door" });
+    assert.deepEqual(parseOfferSpec("40HC OS 4D"), { size: "40", height: "HC", config: "full-open-side" });
+    assert.equal(parseOfferSpec("40HC Reefer").config, "other");
     assert.equal(rateSheetSize("40", "standard"), "40ft");
     assert.equal(rateSheetSize("20", "standard"), "20ft");
     assert.equal(rateSheetSize("40", "full-open-side"), "Specialized");
@@ -51,8 +57,58 @@ describe("Proposal tool picker, depot, and cash price", () => {
     assert.match(page, /This is your depot/);
     assert.match(page, /This is how far/);
     assert.match(page, /return list\.slice\(0, 1\)/);
+    assert.match(page, /This is your depot: \$\{escapeHtml\(displayName\)\}/);
+    assert.doesNotMatch(page, /This is your depot: \$\{d\.name\}/);
     assert.doesNotMatch(page, /Find Closest Depots/);
     assert.doesNotMatch(page, /Est\. Delivery/);
+  });
+
+  it("shows city and state for a Memphis yard, not the yard name", () => {
+    assert.equal(displayCityState("CMC (Raines Road Depot)"), "Memphis, TN");
+    assert.equal(displayCityState({ depot: "CMC\u00a0(Raines Road Depot)", location: "Memphis, TN" }), "Memphis, TN");
+    assert.equal(displayCityState({ name: "Memphis, TN" }), "Memphis, TN");
+    assert.equal(displayCityState("ConGlobal (Lanport) - Memphis"), "Memphis, TN");
+  });
+
+  it("matches wholesale by city and lowest price that covers qty", () => {
+    const offers = [
+      { size: "40HC", condition: "CW", depot: "CMC (Raines Road Depot)", location: "Memphis, TN", wholesaleCost: 2100, qty: 4 },
+      { size: "40HC", condition: "CW", depot: "ConGlobal (Lanport) - Memphis", location: "Memphis, TN", wholesaleCost: 1850, qty: 2 },
+      { size: "40HC", condition: "CW", depot: "CMC Charleston", location: "Charleston, SC", wholesaleCost: 900, qty: 10 },
+      { size: "40HC OS 4D", condition: "CW", depot: "Memphis, TN", location: "Memphis, TN", wholesaleCost: 400, qty: 3 },
+      { size: "40ft", condition: "CW", depot: "Memphis, TN", location: "Memphis, TN", wholesaleCost: 1200, qty: 1 },
+    ];
+    const want = { size: "40", height: "HC", config: "standard", grade: "CW", qty: 1, cityKey: cityKey("Memphis", "TN") };
+    const pick = pickWholesaleOffer(offers, want);
+    assert.equal(pick.wholesaleCost, 1850);
+    assert.equal(pick.depot, "ConGlobal (Lanport) - Memphis");
+    const needTwo = pickWholesaleOffer(offers, { ...want, qty: 3 });
+    assert.equal(needTwo.wholesaleCost, 2100);
+    assert.equal(pickWholesaleOffer(offers, { ...want, cityKey: cityKey("Charleston", "SC") }).wholesaleCost, 900);
+    assert.equal(pickWholesaleOffer([{ size: "40HC", condition: "New", depot: "Memphis, TN", location: "Memphis, TN", wholesaleCost: 500, qty: 1 }], want), null);
+  });
+
+  it("keeps 40HC wholesale instead of flattening it to a 40ft DC miss", () => {
+    const pick = pickWholesaleOffer(
+      [{ size: "40HC", condition: "CW", depot: "Memphis, TN", location: "Memphis, TN", wholesaleCost: 1950, qty: 1 }],
+      { size: "40", height: "HC", config: "standard", grade: "CW", qty: 1, cityKey: cityKey("Memphis", "TN") }
+    );
+    assert.equal(pick.wholesaleCost, 1950);
+    assert.match(page, /const size = cleanPlace\(o\.size \|\| o\.containerSize\)/);
+    assert.doesNotMatch(page, /const size = mapOfferSize\(o\.size/);
+  });
+
+  it("groups Jonesboro-nearest inventory as Memphis, TN", () => {
+    const groups = groupOffersByCity(
+      [
+        { depot: "CMC (Raines Road Depot)", location: "Memphis, TN", qty: 2 },
+        { depot: "Charleston CMC", location: "Charleston, SC", qty: 2 },
+      ],
+      35.8423,
+      -90.7043
+    );
+    assert.equal(groups[0].name, "Memphis, TN");
+    assert.ok(groups[0].miles > 50 && groups[0].miles < 80);
   });
 
   it("does not add delivery on top of a delivered cash price", () => {

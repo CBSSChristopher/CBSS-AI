@@ -689,6 +689,7 @@
     ];
 
     let selectedDepot = null;
+    let selectedPurchasingDepot = "";
     let rankedDepots = [];
     let selectedFlexIdx = -1;
     let currentFlexOptions = [];
@@ -738,10 +739,86 @@
       let config = "standard";
       if (n.includes("tridoor") || n.includes("3door")) config = "tri-door";
       else if (n.includes("doubledoor") || n.includes("tunnel")) config = "double-door";
-      else if (n.includes("fullopen") || n.includes("openside")) config = "full-open-side";
+      else if (n.includes("fullopen") || n.includes("openside") || n.includes("hcos") || /(^|[^a-z])os([^a-z]|$)/.test(n)) config = "full-open-side";
       else if (n.includes("sidedoor")) config = "side-door";
+      else if (n.includes("reefer") || n.includes("refrigerat")) config = "other";
       else if (n.includes("specialized") || n.includes("modified") || n.includes("custom")) config = "other";
       return { size, height, config };
+    }
+
+    function specsCompatible(want, got) {
+      if (!want || !got) return false;
+      if (want.size && got.size && String(want.size) !== String(got.size)) return false;
+      if (want.height && got.height && want.height !== got.height) return false;
+      if (want.config && want.config !== "standard") {
+        if (got.config && got.config !== want.config) return false;
+      } else if (got.config && got.config !== "standard") {
+        return false;
+      }
+      return true;
+    }
+
+    function cleanPlace(raw) {
+      return String(raw || "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+    }
+
+    function cityKey(city, state) {
+      const n = function (s) { return cleanPlace(s).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); };
+      return n(city) + "|" + n(state);
+    }
+
+    function parseCityState(raw) {
+      const s = cleanPlace(raw);
+      const m = s.match(/^([^,]+),\s*([A-Za-z]{2})\s*$/);
+      if (!m) return null;
+      return { city: m[1].trim(), state: m[2].toUpperCase() };
+    }
+
+    function findCityHub(text) {
+      const parsed = parseCityState(text);
+      if (parsed) {
+        const hit = DEPOTS.find((d) => {
+          const parts = d.name.split(",");
+          return cityKey(parts[0], parts[1] || "") === cityKey(parsed.city, parsed.state);
+        });
+        if (hit) return { city: parsed.city, state: parsed.state, lat: hit.lat, lon: hit.lon, region: hit.region };
+        return { city: parsed.city, state: parsed.state, lat: null, lon: null, region: "" };
+      }
+      const n = cleanPlace(text).toLowerCase();
+      if (!n) return null;
+      if (/raines\s*road/i.test(n) || /lanport/i.test(n) || /mrs-?cmc/i.test(n)) {
+        const mem = DEPOTS.find((d) => d.name.indexOf("Memphis") === 0);
+        return mem ? { city: "Memphis", state: "TN", lat: mem.lat, lon: mem.lon, region: mem.region } : { city: "Memphis", state: "TN", lat: null, lon: null, region: "" };
+      }
+      const hubs = DEPOTS.map((d) => {
+        const parts = d.name.split(",");
+        return { city: parts[0].trim(), state: (parts[1] || "").trim(), lat: d.lat, lon: d.lon, region: d.region };
+      }).sort((a, b) => b.city.length - a.city.length);
+      for (let i = 0; i < hubs.length; i++) {
+        if (n.indexOf(hubs[i].city.toLowerCase()) >= 0) return hubs[i];
+      }
+      return null;
+    }
+
+    function resolveOfferCity(o) {
+      if (!o) return null;
+      return findCityHub(o.location) || findCityHub(o.city) || findCityHub(o.depot);
+    }
+
+    function displayCityState(depot) {
+      if (!depot) return "";
+      if (depot.displayLocation) return depot.displayLocation;
+      if (depot.city && depot.state) return depot.city + ", " + depot.state;
+      const parsed = parseCityState(depot.location || depot.name || depot.depot);
+      if (parsed) return parsed.city + ", " + parsed.state;
+      const h = findCityHub(depot.name || depot.depot || depot.location || depot.city);
+      return h ? h.city + ", " + h.state : "";
+    }
+
+    function escapeHtml(s) {
+      return String(s || "").replace(/[&<>"']/g, function (c) {
+        return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c];
+      });
     }
 
     function rateSheetSize(size, config) {
@@ -803,7 +880,7 @@
       if (n === "iicl" || n.indexOf("iicl") >= 0 || n.indexOf("multitrip") >= 0) return "IICL";
       if (n === "cw" || n === "cargoworthy") return "CW";
       if (n === "wwt" || n === "windwatertight" || n === "windandwatertight" || n.indexOf("wwt") >= 0) return "WWT";
-      if (n === "onetrip" || n === "onetripnew" || n.indexOf("onetrip") >= 0) return "OneTrip";
+      if (n === "onetrip" || n === "onetripnew" || n === "new" || n === "newbuild" || n.indexOf("onetrip") >= 0) return "OneTrip";
       if (n === "asis" || n.indexOf("asis") >= 0) return "AsIs";
       return "";
     }
@@ -827,18 +904,20 @@
 
     function normalizeClientOffer(o) {
       if (!o || typeof o !== "object") return null;
-      const size = mapOfferSize(o.size || o.containerSize);
-      const condition = mapOfferCondition(o.condition);
-      const depot = offerDepotName(o);
-      if (!depot && !size && !condition) return null;
+      const size = cleanPlace(o.size || o.containerSize);
+      const conditionRaw = String(o.condition || "").trim();
+      const condition = mapOfferCondition(conditionRaw);
+      const depot = cleanPlace(offerDepotName(o));
+      if (!depot && !size && !conditionRaw) return null;
       const lat = parseFloat(o.lat);
       const lon = parseFloat(o.lon);
       return {
         id: o.id || "",
         size,
-        condition,
+        condition: condition || conditionRaw,
         depot,
-        city: String(o.city || "").trim(),
+        location: cleanPlace(o.location),
+        city: cleanPlace(o.city),
         lat: Number.isFinite(lat) ? lat : null,
         lon: Number.isFinite(lon) ? lon : null,
         wholesaleCost: offerWholesale(o),
@@ -899,7 +978,7 @@
             : "";
           setInventoryStatus(
             inventoryOffers.length + " xChange offer" + (inventoryOffers.length === 1 ? "" : "s") +
-            pulled + ". Wholesale fills from the selected offer; leave blank if none match."
+            pulled + ". Wholesale fills from the cheapest matching box in that city; leave blank if none match."
           );
         } else {
           restoreDefaultSelects();
@@ -915,37 +994,63 @@
     }
 
     function matchCityDepot(name) {
-      const n = String(name || "").toLowerCase();
-      if (!n) return null;
-      return DEPOTS.find((d) => {
-        const city = d.name.split(",")[0].toLowerCase();
-        return n.indexOf(city) >= 0 || d.name.toLowerCase() === n;
-      }) || null;
+      return findCityHub(name);
+    }
+
+    function asDisplayDepot(d) {
+      if (!d) return null;
+      const loc = displayCityState(d) || cleanPlace(d.name);
+      const parts = loc.split(",");
+      return {
+        ...d,
+        name: loc,
+        displayLocation: loc,
+        city: d.city || (parts[0] || "").trim(),
+        state: d.state || (parts[1] || "").trim(),
+        cityKey: d.cityKey || cityKey(d.city || parts[0] || "", d.state || parts[1] || ""),
+        yards: d.yards || [],
+        purchasingDepot: d.purchasingDepot || ""
+      };
     }
 
     function depotsFromInventory(lat, lon) {
-      const byName = new Map();
+      const byCity = new Map();
       inventoryOffers.forEach((o) => {
-        if (!o.depot) return;
-        if (o.qty === 0) return;
-        if (!byName.has(o.depot)) {
-          const city = matchCityDepot(o.depot) || matchCityDepot(o.city);
-          const dlat = o.lat != null ? o.lat : (city ? city.lat : null);
-          const dlon = o.lon != null ? o.lon : (city ? city.lon : null);
-          const miles = (dlat != null && dlon != null && lat != null && lon != null)
-            ? Math.round(haversine(lat, lon, dlat, dlon))
-            : null;
-          byName.set(o.depot, {
-            name: o.depot,
+        if (offerQty(o) === 0) return;
+        const resolved = resolveOfferCity(o);
+        if (!resolved) return;
+        const key = cityKey(resolved.city, resolved.state);
+        const dlat = o.lat != null ? o.lat : resolved.lat;
+        const dlon = o.lon != null ? o.lon : resolved.lon;
+        const miles = (dlat != null && dlon != null && lat != null && lon != null)
+          ? Math.round(haversine(lat, lon, dlat, dlon))
+          : null;
+        const yard = cleanPlace(o.depot);
+        const existing = byCity.get(key);
+        if (!existing) {
+          byCity.set(key, {
+            name: resolved.city + ", " + resolved.state,
+            displayLocation: resolved.city + ", " + resolved.state,
+            city: resolved.city,
+            state: resolved.state,
+            cityKey: key,
             lat: dlat,
             lon: dlon,
-            region: city ? city.region : "",
+            region: resolved.region || "",
             miles,
+            yards: yard ? [yard] : [],
             fromInventory: true
           });
+        } else {
+          if (yard && existing.yards.indexOf(yard) < 0) existing.yards.push(yard);
+          if (miles != null && (existing.miles == null || miles < existing.miles)) {
+            existing.miles = miles;
+            existing.lat = dlat;
+            existing.lon = dlon;
+          }
         }
       });
-      const list = Array.from(byName.values());
+      const list = Array.from(byCity.values());
       list.sort((a, b) => {
         if (a.miles == null && b.miles == null) return a.name.localeCompare(b.name);
         if (a.miles == null) return 1;
@@ -957,25 +1062,45 @@
 
     function applyWholesaleFromOffer() {
       if (!inventoryActive) return;
-      const size = document.getElementById("size").value;
-      const condition = document.getElementById("condition").value;
-      const depotName = selectedDepot ? selectedDepot.name : "";
-      const box = currentBox();
-      const matches = inventoryOffers.filter((o) => {
-        if (o.qty === 0) return false;
-        const spec = parseOfferSpec(o.size || "");
-        if (box.size && spec.size && spec.size !== box.size) return false;
-        if (box.height && spec.height && spec.height !== box.height) return false;
-        if (box.config && box.config !== "standard" && spec.config && spec.config !== box.config) return false;
-        const grade = mapOfferCondition(o.condition);
-        if (condition && grade && grade !== condition) return false;
-        if (depotName && o.depot && o.depot !== depotName) return false;
-        return true;
-      });
-      const withCost = matches.find((o) => o.wholesaleCost != null);
       const wholesaleBox = document.getElementById("wholesale");
       if (!wholesaleBox) return;
+      const box = currentBox();
+      const qty = currentQty();
+      const key = selectedDepot ? (selectedDepot.cityKey || cityKey(selectedDepot.city, selectedDepot.state)) : "";
+      const matches = inventoryOffers.filter((o) => {
+        if (offerQty(o) === 0) return false;
+        const q = offerQty(o);
+        if (q != null && q < qty) return false;
+        if (!offerWholesale(o)) return false;
+        if (key) {
+          const resolved = resolveOfferCity(o);
+          const oKey = resolved ? cityKey(resolved.city, resolved.state) : "";
+          if (oKey !== key) return false;
+        } else {
+          return false;
+        }
+        const spec = parseOfferSpec(o.size || "");
+        if (!specsCompatible(box, spec)) return false;
+        const grade = mapOfferCondition(o.condition);
+        if (box.grade && (!grade || grade !== box.grade)) return false;
+        return true;
+      }).sort((a, b) => offerWholesale(a) - offerWholesale(b));
+      const withCost = matches[0] || null;
       wholesaleBox.value = withCost ? withCost.wholesaleCost : "";
+      selectedPurchasingDepot = withCost
+        ? cleanPlace(withCost.depot)
+        : ((selectedDepot && selectedDepot.yards) || []).join(" | ");
+      const cityLabel = selectedDepot ? displayCityState(selectedDepot) : "";
+      if (withCost) {
+        setInventoryStatus(
+          "Using lowest " + cityLabel + " wholesale for this box and qty (" + matches.length +
+          " match" + (matches.length === 1 ? "" : "es") + "). Yard name stays on the purchasing copy."
+        );
+      } else if (cityLabel) {
+        setInventoryStatus(
+          "No matching xChange box in " + cityLabel + " for this size/grade/qty. Enter wholesale or change the box."
+        );
+      }
     }
 
     function onSizeOrConditionChange() {
@@ -1056,18 +1181,22 @@
         const list = document.getElementById('depotList');
         list.innerHTML = "";
 
+        rankedDepots = rankedDepots.map(asDisplayDepot).filter(Boolean);
+
         rankedDepots.forEach((d, i) => {
           const milesLabel = d.miles != null ? (d.miles + " miles") : "distance unknown";
+          const displayName = displayCityState(d) || d.name;
           const card = document.createElement('div');
           card.className = "depot-card selected";
           card.innerHTML = `
-            <div class="depot-name">This is your depot: ${d.name}</div>
+            <div class="depot-name">This is your depot: ${escapeHtml(displayName)}</div>
             <div class="depot-meta">This is how far: ${milesLabel}</div>
           `;
           list.appendChild(card);
         });
 
         selectedDepot = rankedDepots[0] || null;
+        selectedPurchasingDepot = selectedDepot && selectedDepot.yards ? selectedDepot.yards.join(" | ") : "";
         document.getElementById('depotSection').classList.remove('hidden');
         document.getElementById('pricingSection').classList.remove('hidden');
         applyWholesaleFromOffer();
@@ -1119,14 +1248,15 @@
       const box = currentBox();
       desc.value = describeContainer(box.size, box.height, box.config, box.grade);
 
+      const depotCity = displayCityState(selectedDepot) || selectedDepot.name;
       const del = document.getElementById('delivery');
-      if (!del.value) {
-        del.value = selectedDepot.name + ' -> Customer Site';
+      if (!del.value || / -> Customer Site$/.test(del.value)) {
+        del.value = depotCity + ' -> Customer Site';
       }
 
       const marginClass = margin >= 600 ? 'margin-good' : 'margin-warn';
       document.getElementById('priceBox').innerHTML = `
-        <div class="price-row"><span>Your depot</span><span>${selectedDepot.name}</span></div>
+        <div class="price-row"><span>Your depot</span><span>${escapeHtml(depotCity)}</span></div>
         <div class="price-row"><span>How far</span><span>${miles} miles</span></div>
         <div class="price-row"><span>Wholesale</span><span>$${wholesale.toLocaleString()}</span></div>
         <div class="price-row"><span>Net Margin</span><span class="${marginClass}">$${margin.toLocaleString()}</span></div>
@@ -1323,7 +1453,8 @@
         notes: document.getElementById('notes').value.trim(),
         deliveryCost: document.getElementById('deliveryCost').value,
         zip: document.getElementById('zip').value.trim(),
-        depot: selectedDepot ? selectedDepot.name : '',
+        depot: selectedPurchasingDepot || (selectedDepot && selectedDepot.yards ? selectedDepot.yards.join(" | ") : "") || (selectedDepot ? displayCityState(selectedDepot) : ''),
+        depotCity: selectedDepot ? displayCityState(selectedDepot) : '',
         condition: document.getElementById('condition').value,
 
         // New Flex Buy fields

@@ -35,6 +35,7 @@ async function ingestProposal(env, data, status) {
         zip: data.zip,
         delivery: data.delivery,
         depot: data.depot,
+        depotCity: data.depotCity,
         containerDesc: data.containerDesc,
         containerSize: data.containerSize,
         condition: data.condition,
@@ -395,6 +396,10 @@ async function generateInternalPDF(data, deliveryPer, marginPer) {
   draw("CONTAINER & COSTS", margin, y, 11, true, rgb(0.12, 0.31, 0.47));
   y -= 15;
   draw(data.containerDesc, margin, y, 11, true);
+  y -= 13;
+  draw(`Depot city: ${data.depotCity || ""}`, margin, y);
+  y -= 13;
+  draw(`Purchasing yard: ${data.depot || ""}`, margin, y);
   y -= 14;
   draw(`Qty: ${data.quantity}  |  Wholesale: $${Number(data.wholesaleCost).toFixed(2)}  |  Delivered cash: $${Number(data.unitPrice).toFixed(2)}`, margin, y);
   y -= 18;
@@ -452,6 +457,8 @@ function buildInternalHtml(data, marginPer, deliveryPer) {
       <p><strong>Rep:</strong> ${data.repName} (${data.repEmail})</p>
       <p><strong>Customer:</strong> ${data.customerName}</p>
       <p><strong>Container:</strong> ${data.containerDesc} x ${data.quantity}</p>
+      <p><strong>Depot city:</strong> ${data.depotCity || ""}</p>
+      <p><strong>Purchasing yard:</strong> ${data.depot || ""}</p>
       <p><strong>Delivered cash:</strong> $${Number(data.unitPrice).toFixed(2)} &nbsp;|&nbsp; <strong>Margin/unit:</strong> $${marginPer.toFixed(2)}</p>
       <p><strong>Delivery already inside that cash price:</strong> $${Number(deliveryPer).toFixed(2)}</p>
     </div>

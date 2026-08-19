@@ -93,11 +93,24 @@ export function parseOfferSpec(raw) {
   let config = "standard";
   if (n.includes("tridoor") || n.includes("3door")) config = "tri-door";
   else if (n.includes("doubledoor") || n.includes("tunnel")) config = "double-door";
-  else if (n.includes("fullopen") || n.includes("openside")) config = "full-open-side";
+  else if (n.includes("fullopen") || n.includes("openside") || n.includes("hcos") || /(^|[^a-z])os([^a-z]|$)/.test(n)) config = "full-open-side";
   else if (n.includes("sidedoor")) config = "side-door";
+  else if (n.includes("reefer") || n.includes("refrigerat")) config = "other";
   else if (n.includes("specialized") || n.includes("modified") || n.includes("custom")) config = "other";
 
   return { size, height, config };
+}
+
+export function specsCompatible(want, got) {
+  if (!want || !got) return false;
+  if (want.size && got.size && String(want.size) !== String(got.size)) return false;
+  if (want.height && got.height && want.height !== got.height) return false;
+  if (want.config && want.config !== "standard") {
+    if (got.config && got.config !== want.config) return false;
+  } else if (got.config && got.config !== "standard") {
+    return false;
+  }
+  return true;
 }
 
 export function rateSheetSize(size, config) {
@@ -149,15 +162,210 @@ export function customerCashTotal(unitPrice, quantity = 1) {
   return Math.round(sell * qty * 100) / 100;
 }
 
+export const CITY_HUBS = [
+  { city: "Memphis", state: "TN", lat: 35.15, lon: -90.05, region: "Midwest" },
+  { city: "Chicago", state: "IL", lat: 41.88, lon: -87.63, region: "Midwest" },
+  { city: "Detroit", state: "MI", lat: 42.33, lon: -83.05, region: "Midwest" },
+  { city: "Indianapolis", state: "IN", lat: 39.77, lon: -86.16, region: "Midwest" },
+  { city: "St. Louis", state: "MO", lat: 38.63, lon: -90.20, region: "Midwest" },
+  { city: "Kansas City", state: "MO", lat: 39.10, lon: -94.58, region: "Midwest" },
+  { city: "Louisville", state: "KY", lat: 38.25, lon: -85.76, region: "Midwest" },
+  { city: "Columbus", state: "OH", lat: 39.96, lon: -83.00, region: "Midwest" },
+  { city: "Cleveland", state: "OH", lat: 41.50, lon: -81.69, region: "Midwest" },
+  { city: "Atlanta", state: "GA", lat: 33.75, lon: -84.39, region: "East Coast" },
+  { city: "Charlotte", state: "NC", lat: 35.23, lon: -80.84, region: "East Coast" },
+  { city: "Charleston", state: "SC", lat: 32.78, lon: -79.93, region: "East Coast" },
+  { city: "Savannah", state: "GA", lat: 32.08, lon: -81.09, region: "East Coast" },
+  { city: "Jacksonville", state: "FL", lat: 30.33, lon: -81.66, region: "East Coast" },
+  { city: "Miami", state: "FL", lat: 25.76, lon: -80.19, region: "East Coast" },
+  { city: "Tampa", state: "FL", lat: 27.95, lon: -82.46, region: "East Coast" },
+  { city: "Norfolk", state: "VA", lat: 36.85, lon: -76.29, region: "East Coast" },
+  { city: "Baltimore", state: "MD", lat: 39.29, lon: -76.61, region: "East Coast" },
+  { city: "Philadelphia", state: "PA", lat: 39.95, lon: -75.17, region: "East Coast" },
+  { city: "Newark", state: "NJ", lat: 40.74, lon: -74.17, region: "East Coast" },
+  { city: "New York", state: "NY", lat: 40.71, lon: -74.01, region: "East Coast" },
+  { city: "Boston", state: "MA", lat: 42.36, lon: -71.06, region: "East Coast" },
+  { city: "Houston", state: "TX", lat: 29.76, lon: -95.37, region: "West Coast" },
+  { city: "Dallas", state: "TX", lat: 32.78, lon: -96.80, region: "West Coast" },
+  { city: "Los Angeles", state: "CA", lat: 34.05, lon: -118.24, region: "West Coast" },
+  { city: "Oakland", state: "CA", lat: 37.80, lon: -122.27, region: "West Coast" },
+  { city: "Seattle", state: "WA", lat: 47.61, lon: -122.33, region: "West Coast" },
+  { city: "Portland", state: "OR", lat: 45.52, lon: -122.68, region: "West Coast" },
+  { city: "Phoenix", state: "AZ", lat: 33.45, lon: -112.07, region: "West Coast" },
+  { city: "Denver", state: "CO", lat: 39.74, lon: -104.99, region: "West Coast" },
+  { city: "Salt Lake City", state: "UT", lat: 40.76, lon: -111.89, region: "West Coast" },
+];
+
+const YARD_CITY_HINTS = [
+  { test: /raines\s*road/i, city: "Memphis", state: "TN" },
+  { test: /lanport/i, city: "Memphis", state: "TN" },
+  { test: /mrs-?cmc/i, city: "Memphis", state: "TN" },
+];
+
+function cleanPlace(raw) {
+  return String(raw || "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function normPlace(raw) {
+  return cleanPlace(raw).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+export function cityKey(city, state) {
+  return `${normPlace(city)}|${normPlace(state)}`;
+}
+
+export function parseCityState(raw) {
+  const s = cleanPlace(raw);
+  const m = s.match(/^([^,]+),\s*([A-Za-z]{2})\s*$/);
+  if (!m) return null;
+  return { city: m[1].trim(), state: m[2].toUpperCase() };
+}
+
+export function findCityHub(text, hubs = CITY_HUBS) {
+  const parsed = parseCityState(text);
+  if (parsed) {
+    const hit = hubs.find((h) => cityKey(h.city, h.state) === cityKey(parsed.city, parsed.state));
+    if (hit) return { ...hit };
+    return { city: parsed.city, state: parsed.state, lat: null, lon: null, region: "" };
+  }
+  const n = cleanPlace(text).toLowerCase();
+  if (!n) return null;
+  for (const hint of YARD_CITY_HINTS) {
+    if (hint.test.test(n)) {
+      const hub = hubs.find((h) => cityKey(h.city, h.state) === cityKey(hint.city, hint.state));
+      return hub ? { ...hub } : { city: hint.city, state: hint.state, lat: null, lon: null, region: "" };
+    }
+  }
+  const sorted = hubs.slice().sort((a, b) => b.city.length - a.city.length);
+  for (const h of sorted) {
+    if (n.includes(h.city.toLowerCase())) return { ...h };
+  }
+  return null;
+}
+
+export function resolveOfferCity(offer, hubs = CITY_HUBS) {
+  if (!offer) return null;
+  return findCityHub(offer.location, hubs) || findCityHub(offer.city, hubs) || findCityHub(offer.depot, hubs);
+}
+
+export function displayCityState(depot) {
+  if (!depot) return "";
+  if (typeof depot === "string") {
+    const h = findCityHub(depot);
+    return h ? `${h.city}, ${h.state}` : "";
+  }
+  if (depot.displayLocation) return depot.displayLocation;
+  if (depot.city && depot.state) return `${depot.city}, ${depot.state}`;
+  const parsed = parseCityState(depot.location || depot.name || depot.depot);
+  if (parsed) return `${parsed.city}, ${parsed.state}`;
+  const h = findCityHub(depot.name || depot.depot || depot.location || depot.city);
+  return h ? `${h.city}, ${h.state}` : "";
+}
+
+export function haversineMiles(lat1, lon1, lat2, lon2) {
+  const R = 3958.8;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+export function groupOffersByCity(offers, zipLat, zipLon, hubs = CITY_HUBS) {
+  const byCity = new Map();
+  for (const o of offers || []) {
+    const q = o.qty == null || o.qty === "" ? null : Number(o.qty);
+    if (q === 0) continue;
+    const resolved = resolveOfferCity(o, hubs);
+    if (!resolved) continue;
+    const key = cityKey(resolved.city, resolved.state);
+    const dlat = o.lat != null ? o.lat : resolved.lat;
+    const dlon = o.lon != null ? o.lon : resolved.lon;
+    let miles = null;
+    if (dlat != null && dlon != null && zipLat != null && zipLon != null) {
+      miles = Math.round(haversineMiles(zipLat, zipLon, dlat, dlon));
+    }
+    const yard = cleanPlace(o.depot);
+    const existing = byCity.get(key);
+    if (!existing) {
+      byCity.set(key, {
+        cityKey: key,
+        city: resolved.city,
+        state: resolved.state,
+        name: `${resolved.city}, ${resolved.state}`,
+        displayLocation: `${resolved.city}, ${resolved.state}`,
+        lat: dlat,
+        lon: dlon,
+        region: resolved.region || "",
+        miles,
+        yards: yard ? [yard] : [],
+        fromInventory: true,
+      });
+    } else {
+      if (yard && !existing.yards.includes(yard)) existing.yards.push(yard);
+      if (miles != null && (existing.miles == null || miles < existing.miles)) {
+        existing.miles = miles;
+        existing.lat = dlat;
+        existing.lon = dlon;
+      }
+    }
+  }
+  return Array.from(byCity.values()).sort((a, b) => {
+    if (a.miles == null && b.miles == null) return a.name.localeCompare(b.name);
+    if (a.miles == null) return 1;
+    if (b.miles == null) return -1;
+    return a.miles - b.miles;
+  });
+}
+
+function offerCost(o) {
+  const v = o && (o.wholesaleCost != null ? o.wholesaleCost : o.wholesale);
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+export function pickWholesaleOffer(offers, want) {
+  const qty = Number(want && want.qty) || 1;
+  const key = (want && want.cityKey) || "";
+  if (!key) return null;
+  const hits = (offers || [])
+    .filter((o) => {
+      const q = o.qty == null || o.qty === "" ? null : Number(o.qty);
+      if (q === 0) return false;
+      if (q != null && Number.isFinite(q) && q < qty) return false;
+      if (!offerCost(o)) return false;
+      const resolved = resolveOfferCity(o);
+      const oKey = resolved ? cityKey(resolved.city, resolved.state) : "";
+      if (oKey !== key) return false;
+      const spec = parseOfferSpec(o.size || o.desc || "");
+      if (!specsCompatible(want, spec)) return false;
+      const grade = mapGrade(o.condition);
+      if (want.grade && (!grade || grade !== want.grade)) return false;
+      return true;
+    })
+    .sort((a, b) => offerCost(a) - offerCost(b));
+  return hits[0] || null;
+}
+
+export function purchasingDepotLabel(offer, fallbackYards, fallbackCity) {
+  const yard = offer ? cleanPlace(offer.depot) : "";
+  if (yard) return yard;
+  if (Array.isArray(fallbackYards) && fallbackYards.length) return fallbackYards.map(cleanPlace).filter(Boolean).join(" | ");
+  return fallbackCity || "";
+}
+
 export function offerMatches(offer, want) {
   if (!offer) return false;
   if (offer.qty === 0) return false;
   const spec = parseOfferSpec(offer.size || "");
-  if (want.size && spec.size && spec.size !== String(want.size)) return false;
-  if (want.height && spec.height && spec.height !== want.height) return false;
-  if (want.config && want.config !== "standard" && spec.config && spec.config !== want.config) return false;
+  if (!specsCompatible(want, spec)) return false;
   const grade = mapGrade(offer.condition);
-  if (want.grade && grade && grade !== want.grade) return false;
-  if (want.depot && offer.depot && offer.depot !== want.depot) return false;
+  if (want.grade && (!grade || grade !== want.grade)) return false;
+  if (want.cityKey) {
+    const resolved = resolveOfferCity(offer);
+    const oKey = resolved ? cityKey(resolved.city, resolved.state) : "";
+    return oKey === want.cityKey;
+  }
   return true;
 }
