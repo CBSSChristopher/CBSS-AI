@@ -50,6 +50,15 @@ export function pageHtml(): string {
     #composer { display: flex; gap: 8px; align-items: flex-end; }
     #composer textarea { min-height: 52px; resize: vertical; }
     .outbox { white-space: pre-wrap; background: #F7FAFC; border: 1px dashed var(--line); border-radius: 8px; padding: 12px; min-height: 8em; }
+    .hits { border: 1px solid var(--line); border-radius: 8px; max-height: 220px; overflow: auto; margin-top: 6px; }
+    .hit { display: block; width: 100%; text-align: left; padding: 10px 12px; border: 0; border-bottom: 1px solid var(--line); background: #fff; color: var(--navy); cursor: pointer; }
+    .hit:last-child { border-bottom: 0; }
+    .hit:hover, .hit.on { background: #E8F0F7; }
+    .sel { background: #E8F5EE; border: 1px solid #C8E4D4; border-radius: 8px; padding: 10px 12px; margin-top: 10px; }
+    .choice { display: flex; gap: 14px; flex-wrap: wrap; margin: 8px 0 4px; }
+    .choice label { font-weight: 400; display: flex; gap: 6px; align-items: center; margin: 0; }
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media (max-width: 640px) { .split { grid-template-columns: 1fr; } }
     footer { margin-top: 16px; color: var(--muted); font-size: 12px; }
   </style>
 </head>
@@ -57,14 +66,14 @@ export function pageHtml(): string {
   <header>
     <div>
       <strong>CB SHIPPING SOLUTIONS</strong>
-      <span>Rep desk — drafts only, not for customers</span>
+      <span>Rep desk — writes notes and follow-ups into the CRM</span>
     </div>
     <button type="button" class="secondary hide" id="out">Sign out</button>
   </header>
   <main>
     <section id="login" class="card">
       <h1>CBSS Desk</h1>
-      <p class="muted">Log in with the same company email and password you use for the CRM. This is your mini CBSS assistant: notes, emails, proposals, and call help. It drafts. It does not send. It will not invent a price.</p>
+      <p class="muted">Log in with the same company email and password you use for the CRM. On a live call, feed it scraps. It summarizes, writes the CRM note, and books CTE or the next follow-up. It does not send customer email. It will not invent a price.</p>
       <form id="login-form">
         <label for="email">Company email</label>
         <input id="email" name="email" type="email" autocomplete="username" placeholder="you@cbshippingsolutions.com" required />
@@ -80,11 +89,49 @@ export function pageHtml(): string {
         <h1>Your CBSS desk</h1>
         <p class="muted" id="hello">Signed in.</p>
         <div class="grid">
+          <button type="button" class="tile" data-job="live"><b>Live call</b><span>Feed scraps. It summarizes, writes the CRM note, and books CTE or the follow-up.</span></button>
           <button type="button" class="tile" data-job="chat"><b>Ask</b><span>Talk through a lead, a call, or a messy note.</span></button>
-          <button type="button" class="tile" data-job="crm_note"><b>CRM note</b><span>Write a paste-ready note from the facts you have.</span></button>
+          <button type="button" class="tile" data-job="crm_note"><b>CRM note draft</b><span>Write a note from facts if you only need copy. Live call saves it.</span></button>
           <button type="button" class="tile" data-job="email"><b>Customer email</b><span>Draft in Christopher’s voice. You copy it. Nobody sends from here.</span></button>
           <button type="button" class="tile" data-job="proposal"><b>Proposal copy</b><span>Formal packet wording. Price only if Christopher already set one.</span></button>
         </div>
+      </div>
+
+      <div id="panel-live" class="card hide" style="margin-top:12px">
+        <h2>Live call</h2>
+        <p class="muted">Stay on the phone. Dump scraps. The desk writes the CRM note. Still in CTE = Call, then Text, then Email. Past CTE = they connected; it books one real follow-up instead.</p>
+        <label for="contact-q">Find their CRM contact</label>
+        <input id="contact-q" placeholder="Name, phone, email, ZIP" />
+        <div id="contact-hits" class="hits hide"></div>
+        <div id="contact-sel" class="sel hide"></div>
+        <div class="row">
+          <button type="button" class="secondary" id="new-toggle">New contact</button>
+          <button type="button" class="secondary" id="contact-clear">Clear</button>
+        </div>
+        <div id="new-box" class="hide">
+          <div class="split">
+            <div><label>Name</label><input id="new-name" /></div>
+            <div><label>Phone</label><input id="new-phone" /></div>
+            <div><label>Email</label><input id="new-email" /></div>
+            <div><label>City</label><input id="new-city" /></div>
+            <div><label>State</label><input id="new-state" /></div>
+            <div><label>ZIP</label><input id="new-zip" /></div>
+          </div>
+        </div>
+        <label for="scraps">Call scraps</label>
+        <textarea id="scraps" rows="6" placeholder="What they said, ZIP, size, site, next step…"></textarea>
+        <p class="muted">CTE stage</p>
+        <div class="choice">
+          <label><input type="radio" name="cte" value="cte" checked /> Still in CTE — book Call / Text / Email</label>
+          <label><input type="radio" name="cte" value="past" /> Past CTE — they connected, book a follow-up</label>
+        </div>
+        <div class="split">
+          <div><label>Next action (optional)</label><input id="next-action" placeholder="Leave blank and the desk will set it" /></div>
+          <div><label>Follow-up time (optional)</label><input id="follow-when" type="datetime-local" /></div>
+        </div>
+        <div class="row"><button type="button" id="call-save">Summarize &amp; save to CRM</button></div>
+        <p class="err" id="err-live"></p>
+        <div class="outbox" id="out-live"></div>
       </div>
 
       <div id="panel-chat" class="card hide" style="margin-top:12px">
@@ -153,7 +200,9 @@ export function pageHtml(): string {
     const outBtn = document.getElementById("out");
     const log = document.getElementById("log");
     const history = [];
-    const panels = ["chat", "crm_note", "email", "proposal"];
+    const panels = ["live", "chat", "crm_note", "email", "proposal"];
+    let picked = null;
+    let searchTimer = 0;
 
     function show(view) {
       login.classList.toggle("hide", view !== "login");
@@ -186,11 +235,11 @@ export function pageHtml(): string {
       const r = await fetch("/session", { credentials: "same-origin" });
       const j = await r.json();
       if (!j.ok) { show("login"); return; }
-      document.getElementById("hello").textContent = "Signed in as " + (j.user && j.user.name ? j.user.name : "rep") + ". Pick a job or ask.";
+      document.getElementById("hello").textContent = "Signed in as " + (j.user && j.user.name ? j.user.name : "rep") + ". Open Live call for a lead.";
       show("desk");
-      openJob("chat");
+      openJob("live");
       if (!log.childElementCount) {
-        bubble("assistant", "I am your CBSS desk. I write notes, emails, and proposal copy. I do not send. I do not invent a price. If Christopher already set a number, type it and I will use that exact figure.");
+        bubble("assistant", "I am your CBSS desk. Live call writes the CRM note and books CTE or the follow-up. I do not send email. I do not invent a price.");
       }
     }
 
@@ -212,10 +261,10 @@ export function pageHtml(): string {
       document.getElementById("password").value = "";
       history.length = 0;
       log.innerHTML = "";
-      document.getElementById("hello").textContent = "Signed in as " + ((j.user && j.user.name) || "rep") + ". Pick a job or ask.";
+      document.getElementById("hello").textContent = "Signed in as " + ((j.user && j.user.name) || "rep") + ". Open Live call for a lead.";
       show("desk");
-      openJob("chat");
-      bubble("assistant", "I am your CBSS desk. I write notes, emails, and proposal copy. I do not send. I do not invent a price.");
+      openJob("live");
+      bubble("assistant", "I am your CBSS desk. Live call writes the CRM note and books CTE or the follow-up. I do not send email. I do not invent a price.");
     });
 
     outBtn.addEventListener("click", async () => {
@@ -274,6 +323,108 @@ export function pageHtml(): string {
         box.textContent = j.reply || "";
       });
     });
+    function renderPicked() {
+      const box = document.getElementById("contact-sel");
+      if (!picked) { box.classList.add("hide"); box.textContent = ""; return; }
+      box.classList.remove("hide");
+      box.textContent = "Selected: " + picked.name + (picked.phone ? " · " + picked.phone : "") + (picked.city ? " · " + picked.city : "") + (picked.stage ? " · " + picked.stage : "");
+    }
+    function renderHits(rows) {
+      const box = document.getElementById("contact-hits");
+      box.innerHTML = "";
+      if (!rows || !rows.length) { box.classList.add("hide"); return; }
+      box.classList.remove("hide");
+      rows.forEach((c) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "hit" + (picked && picked.id === c.id ? " on" : "");
+        b.textContent = (c.name || "Unnamed") + (c.phone ? " · " + c.phone : "") + (c.city ? " · " + c.city : "") + (c.owner ? " · " + c.owner : "");
+        b.addEventListener("click", () => {
+          picked = c;
+          document.getElementById("new-box").classList.add("hide");
+          renderPicked();
+          renderHits(rows);
+        });
+        box.appendChild(b);
+      });
+    }
+    async function searchContacts(q) {
+      const r = await fetch("/contacts?q=" + encodeURIComponent(q || ""), { credentials: "same-origin" });
+      const j = await r.json().catch(() => ({}));
+      if (r.status === 401) { show("login"); return; }
+      if (!r.ok) {
+        document.getElementById("err-live").textContent = j.error || "Could not search the CRM.";
+        return;
+      }
+      renderHits(j.contacts || []);
+    }
+    document.getElementById("contact-q").addEventListener("input", (e) => {
+      const q = e.target.value;
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => searchContacts(q), 280);
+    });
+    document.getElementById("new-toggle").addEventListener("click", () => {
+      picked = null;
+      renderPicked();
+      document.getElementById("new-box").classList.toggle("hide");
+    });
+    document.getElementById("contact-clear").addEventListener("click", () => {
+      picked = null;
+      document.getElementById("contact-q").value = "";
+      document.getElementById("contact-hits").classList.add("hide");
+      document.getElementById("new-box").classList.add("hide");
+      renderPicked();
+    });
+    document.getElementById("call-save").addEventListener("click", async () => {
+      const err = document.getElementById("err-live");
+      const box = document.getElementById("out-live");
+      err.textContent = "";
+      box.textContent = "Summarizing and saving…";
+      const past = document.querySelector('input[name="cte"]:checked');
+      const body = {
+        scraps: document.getElementById("scraps").value,
+        pastCte: !!(past && past.value === "past"),
+        nextAction: document.getElementById("next-action").value,
+        followUpDate: document.getElementById("follow-when").value,
+      };
+      if (picked && picked.id) body.contactId = picked.id;
+      else {
+        const name = document.getElementById("new-name").value.trim();
+        if (!name) { err.textContent = "Pick a contact or add a name."; box.textContent = ""; return; }
+        body.create = {
+          name,
+          phone: document.getElementById("new-phone").value,
+          email: document.getElementById("new-email").value,
+          city: document.getElementById("new-city").value,
+          state: document.getElementById("new-state").value,
+          zip: document.getElementById("new-zip").value,
+        };
+      }
+      const r = await fetch("/call/save", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (r.status === 401) { show("login"); return; }
+      if (!r.ok) { err.textContent = j.error || "Could not save."; box.textContent = ""; return; }
+      if (j.contact) picked = Object.assign({}, picked || {}, j.contact);
+      renderPicked();
+      const cte = (j.ctePlan || []).map((item) => item.channel.toUpperCase() + " " + String(item.when || "").replace("T", " ") + " — " + item.label).join("\\n");
+      box.textContent = [
+        j.created ? "Added a new CRM contact." : "Updated the CRM contact.",
+        j.summary || "",
+        "",
+        j.pastCte ? "Past CTE — follow-up booked." : "CTE booked.",
+        j.nextAction ? ("Next: " + j.nextAction + " @ " + String(j.followUpDate || "").replace("T", " ")) : "",
+        cte,
+        "",
+        "CRM note:",
+        j.note || "",
+      ].filter((line, i, arr) => line || (i && arr[i-1])).join("\\n");
+    });
+
     document.querySelectorAll("[data-copy]").forEach((b) => {
       b.addEventListener("click", async () => {
         const job = b.getAttribute("data-copy");

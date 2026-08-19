@@ -7,6 +7,19 @@ import {
   readSession,
 } from "./auth";
 import { SYSTEM_PROMPT, clipHistory, jobPrompt, sanitizeReply } from "./brain";
+import {
+  appendNoteToMap,
+  buildCreatedContact,
+  crmGetBook,
+  crmSaveContactsAdded,
+  crmSaveFollowups,
+  crmSaveNotes,
+  findContact,
+  mergeFollowupMap,
+  noteTimestamp,
+  searchContacts,
+} from "./crm";
+import { liveCallPrompt, parseLiveCallDraft, scheduleLiveCall } from "./cte";
 import { pageHtml } from "./page";
 
 const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
@@ -110,7 +123,12 @@ export default {
 
     if (request.method === "GET" && path === "/session") {
       const user = await readSession(request, env);
-      return json(200, user ? { ok: true, user } : { ok: false });
+      return json(
+        200,
+        user
+          ? { ok: true, user: { email: user.email, name: user.name, crm: Boolean(user.crm) } }
+          : { ok: false },
+      );
     }
 
     if (request.method === "POST" && path === "/auth/login") {
@@ -138,6 +156,118 @@ export default {
 
     if (request.method === "POST" && path === "/auth/logout") {
       return withCookies(200, { ok: true }, clearSession(request));
+    }
+
+    if (request.method === "GET" && path === "/contacts") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      if (!user.crm) return json(403, { error: "Sign in with your company email so the desk can open the CRM." });
+      try {
+        const book = await crmGetBook(env, user.crm);
+        const q = url.searchParams.get("q") || "";
+        return json(200, { ok: true, contacts: searchContacts(book, q, user.email, user.name) });
+      } catch (err) {
+        console.error("desk_contacts_error", err instanceof Error ? err.message : "unknown");
+        return json(502, { error: "Could not read the CRM. Try again." });
+      }
+    }
+
+    if (request.method === "POST" && path === "/call/save") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      if (!user.crm) return json(403, { error: "Sign in with your company email so the desk can write the CRM." });
+      const body = await readJson(request);
+      const scraps = str(body.scraps);
+      if (!scraps) return json(400, { error: "Feed the call scraps first." });
+      if (scraps.length > 8000) return json(400, { error: "Keep the scraps shorter." });
+      const markedPast = Boolean(body.pastCte);
+      const userNext = str(body.nextAction);
+      const userWhen = str(body.followUpDate);
+
+      try {
+        const book = await crmGetBook(env, user.crm);
+        let contactId = str(body.contactId);
+        let created: { id: string; name: string } | null = null;
+        if (!contactId) {
+          const createRaw = body.create && typeof body.create === "object" ? (body.create as Record<string, unknown>) : {};
+          const newName = str(createRaw.name);
+          if (!newName) return json(400, { error: "Pick a contact or type a name to add one." });
+          const fresh = buildCreatedContact({
+            name: newName,
+            phone: str(createRaw.phone),
+            email: str(createRaw.email),
+            city: str(createRaw.city),
+            state: str(createRaw.state),
+            zip: str(createRaw.zip),
+            owner: user.name || "Desk",
+          });
+          const added = [fresh, ...(book.contactsAdded || [])];
+          await crmSaveContactsAdded(env, user.crm, added);
+          book.contactsAdded = added;
+          contactId = String(fresh.id);
+          created = { id: contactId, name: String(fresh.name || newName) };
+        }
+
+        const contact = findContact(book, contactId);
+        if (!contact) return json(404, { error: "That contact is not in the CRM." });
+
+        const prompt = liveCallPrompt({
+          scraps,
+          pastCte: markedPast,
+          contactName: String(contact.name || ""),
+          phone: String(contact.phone || ""),
+          email: String(contact.email || ""),
+          city: String(contact.city || ""),
+          zip: String(contact.zip || ""),
+          stage: String(contact.status || ""),
+        });
+        let modelRaw = "";
+        try {
+          modelRaw = await runModel(env, prompt, [], 700);
+        } catch (err) {
+          console.error("desk_call_ai_error", err instanceof Error ? err.message : "unknown");
+        }
+        const draft = parseLiveCallDraft(modelRaw, scraps, markedPast);
+        const pastCte = markedPast || draft.pastCte;
+        const schedule = scheduleLiveCall({
+          pastCte,
+          nextAction: userNext || draft.nextAction,
+          followUpDate: userWhen || draft.followUpDate,
+        });
+        const allowed = [scraps, prompt, userNext, String(contact.name || "")].join("\n");
+        const safeNote = sanitizeReply(`${draft.crmNote.trim()}\n\n${schedule.noteSuffix}`, allowed);
+        const entry = {
+          author: user.name || "Desk",
+          timestamp: noteTimestamp(),
+          tag: "Desk",
+          text: safeNote,
+        };
+        const notes = appendNoteToMap(book.notes, contactId, entry);
+        await crmSaveNotes(env, user.crm, notes);
+        const followups = mergeFollowupMap(book.followups, contactId, {
+          nextAction: schedule.nextAction,
+          followUpDate: schedule.followUpDate,
+        });
+        await crmSaveFollowups(env, user.crm, followups);
+
+        return json(200, {
+          ok: true,
+          summary: sanitizeReply(draft.summary, allowed),
+          note: entry.text,
+          pastCte: schedule.pastCte,
+          ctePlan: schedule.ctePlan,
+          nextAction: schedule.nextAction,
+          followUpDate: schedule.followUpDate,
+          contact: {
+            id: contactId,
+            name: String(contact.name || created?.name || "Contact"),
+          },
+          created: Boolean(created),
+        });
+      } catch (err) {
+        console.error("desk_call_save_error", err instanceof Error ? err.message : "unknown");
+        return json(502, { error: "Could not save to the CRM. Nothing was overwritten blindly. Try again." });
+      }
     }
 
     if (request.method === "POST" && (path === "/chat" || path === "/job")) {

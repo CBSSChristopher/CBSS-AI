@@ -3,7 +3,7 @@ const MAX_AGE = 60 * 60 * 24 * 30;
 const COMPANY_RE = /@cbshippingsolutions\.com$/i;
 const CRM_LOGIN = "https://cbsscrm.cbss.workers.dev/auth/login";
 
-export type SessionUser = { email: string; name: string };
+export type SessionUser = { email: string; name: string; crm?: string };
 
 function b64urlEncode(bytes: ArrayBuffer | Uint8Array): string {
   const arr = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
@@ -84,6 +84,18 @@ export async function checkTeamPassword(env: Env, password: string): Promise<boo
   return Boolean(expected) && timingSafeEqualStr(String(password || ""), expected);
 }
 
+function crmTokenFromLogin(res: Response): string {
+  const headers = res.headers as Headers & { getSetCookie?: () => string[] };
+  const raw = typeof headers.getSetCookie === "function" ? headers.getSetCookie() : [];
+  const fallback = res.headers.get("set-cookie");
+  const cookies = raw.length ? raw : fallback ? [fallback] : [];
+  for (const cookie of cookies) {
+    const match = String(cookie).match(/cbss_session=([^;]+)/);
+    if (match && match[1]) return match[1];
+  }
+  return "";
+}
+
 export async function loginViaCrm(
   env: Env,
   email: string,
@@ -130,11 +142,14 @@ export async function loginViaCrm(
         status: 401,
       };
     }
+    const crm = crmTokenFromLogin(res);
+    if (!crm) console.log("crm_login_missing_session_cookie");
     return {
       ok: true,
       user: {
         email: String(data.email || clean).toLowerCase(),
         name: String(data.name || clean.split("@")[0]),
+        crm,
       },
     };
   } catch {
@@ -152,6 +167,7 @@ export async function makeSession(
     e: user.email,
     n: user.name,
     x: Date.now() + MAX_AGE * 1000,
+    crm: user.crm || "",
   });
   const payloadB64 = b64urlEncode(new TextEncoder().encode(payload));
   const sig = await sign(payloadB64, env.AUTH_SECRET);
@@ -176,7 +192,8 @@ export async function readSession(request: Request, env: Env): Promise<SessionUs
     const payload = JSON.parse(new TextDecoder().decode(b64urlDecode(payloadB64)));
     if (!payload || payload.k !== "brain" || !payload.e) return null;
     if (payload.x && Date.now() > Number(payload.x)) return null;
-    return { email: String(payload.e), name: String(payload.n || payload.e) };
+    const crm = typeof payload.crm === "string" ? payload.crm : "";
+    return { email: String(payload.e), name: String(payload.n || payload.e), crm };
   } catch {
     return null;
   }
