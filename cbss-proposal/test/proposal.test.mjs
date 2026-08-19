@@ -16,6 +16,7 @@ import {
   rateSheetSize,
   uniqueGrades,
 } from "../src/container.js";
+import { normalizeOffer } from "../src/inventory.js";
 
 const page = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const submit = readFileSync(new URL("../src/submit-proposal.js", import.meta.url), "utf8");
@@ -94,8 +95,32 @@ describe("Proposal tool picker, depot, and cash price", () => {
       { size: "40", height: "HC", config: "standard", grade: "CW", qty: 1, cityKey: cityKey("Memphis", "TN") }
     );
     assert.equal(pick.wholesaleCost, 1950);
-    assert.match(page, /const size = cleanPlace\(o\.size \|\| o\.containerSize\)/);
+    assert.match(page, /const size = cleanPlace\(o\.size \|\| o\.containerSize \|\| o\.type\)/);
     assert.doesNotMatch(page, /const size = mapOfferSize\(o\.size/);
+  });
+
+  it("ports xChange type/price rows into size and wholesale", () => {
+    const row = normalizeOffer({
+      type: "40HC",
+      size: "",
+      condition: "CW Cargo Worthy",
+      depot: "ConGlobal (Lanport) - Memphis",
+      location: "Memphis, TN",
+      city: "Memphis",
+      price: 1400,
+      qty: 41,
+    });
+    assert.equal(row.size, "40HC");
+    assert.equal(row.wholesaleCost, 1400);
+    const pick = pickWholesaleOffer([row], {
+      size: "40",
+      height: "HC",
+      config: "standard",
+      grade: "CW",
+      qty: 1,
+      cityKey: cityKey("Memphis", "TN"),
+    });
+    assert.equal(pick.wholesaleCost, 1400);
   });
 
   it("groups Jonesboro-nearest inventory as Memphis, TN", () => {

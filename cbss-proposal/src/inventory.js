@@ -10,13 +10,13 @@ function asList(raw) {
   return [];
 }
 
-function normalizeOffer(row) {
+export function normalizeOffer(row) {
   if (!row || typeof row !== "object") return null;
-  const size = row.size != null ? String(row.size).trim() : "";
+  const size = String(row.size != null && row.size !== "" ? row.size : row.type || "").trim();
   const condition = row.condition != null ? String(row.condition).trim() : "";
   const depot = String(row.depot || row.location || row.city || "").replace(/\u00a0/g, " ").trim();
   const qtyRaw = row.qty != null ? row.qty : row.quantity;
-  const costRaw = row.wholesaleCost != null ? row.wholesaleCost : row.wholesale != null ? row.wholesale : row.cost;
+  const costRaw = row.wholesaleCost != null ? row.wholesaleCost : row.wholesale != null ? row.wholesale : row.cost != null ? row.cost : row.price;
   const lat = parseFloat(row.lat);
   const lon = parseFloat(row.lon);
   let wholesaleCost = null;

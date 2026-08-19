@@ -887,7 +887,7 @@
 
     function offerWholesale(o) {
       if (!o || typeof o !== "object") return null;
-      const v = o.wholesaleCost != null ? o.wholesaleCost : (o.wholesale != null ? o.wholesale : o.cost);
+      const v = o.wholesaleCost != null ? o.wholesaleCost : (o.wholesale != null ? o.wholesale : (o.cost != null ? o.cost : o.price));
       if (v == null || v === "") return null;
       const n = parseFloat(String(v).replace(/[$,]/g, ""));
       return Number.isFinite(n) && n > 0 ? n : null;
@@ -904,7 +904,7 @@
 
     function normalizeClientOffer(o) {
       if (!o || typeof o !== "object") return null;
-      const size = cleanPlace(o.size || o.containerSize);
+      const size = cleanPlace(o.size || o.containerSize || o.type);
       const conditionRaw = String(o.condition || "").trim();
       const condition = mapOfferCondition(conditionRaw);
       const depot = cleanPlace(offerDepotName(o));

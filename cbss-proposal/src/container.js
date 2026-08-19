@@ -320,7 +320,7 @@ export function groupOffersByCity(offers, zipLat, zipLon, hubs = CITY_HUBS) {
 }
 
 function offerCost(o) {
-  const v = o && (o.wholesaleCost != null ? o.wholesaleCost : o.wholesale);
+  const v = o && (o.wholesaleCost != null ? o.wholesaleCost : o.wholesale != null ? o.wholesale : o.cost != null ? o.cost : o.price);
   const n = Number(v);
   return Number.isFinite(n) && n > 0 ? n : null;
 }
@@ -338,7 +338,7 @@ export function pickWholesaleOffer(offers, want) {
       const resolved = resolveOfferCity(o);
       const oKey = resolved ? cityKey(resolved.city, resolved.state) : "";
       if (oKey !== key) return false;
-      const spec = parseOfferSpec(o.size || o.desc || "");
+      const spec = parseOfferSpec(o.size || o.desc || o.type || "");
       if (!specsCompatible(want, spec)) return false;
       const grade = mapGrade(o.condition);
       if (want.grade && (!grade || grade !== want.grade)) return false;
