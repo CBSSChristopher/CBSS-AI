@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { writeFileSync } from "node:fs";
 import {
   customerCashTotal,
   describeContainer,
@@ -61,5 +63,12 @@ describe("Proposal tool picker, depot, and cash price", () => {
     assert.match(page, /High cube \/ HC/);
     assert.match(page, /Full open side/);
     assert.match(page, /id="boxConfig"/);
+  });
+
+  it("keeps the login script valid", () => {
+    const js = page.split("<script>")[1].split("</script>")[0];
+    writeFileSync("/tmp/proposal_page_check.js", js);
+    const check = spawnSync("node", ["--check", "/tmp/proposal_page_check.js"], { encoding: "utf8" });
+    assert.equal(check.status, 0, check.stderr || check.stdout);
   });
 });

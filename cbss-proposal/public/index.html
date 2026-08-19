@@ -942,9 +942,9 @@
         return true;
       });
       const withCost = matches.find((o) => o.wholesaleCost != null);
-      const box = document.getElementById("wholesale");
-      if (!box) return;
-      box.value = withCost ? withCost.wholesaleCost : "";
+      const wholesaleBox = document.getElementById("wholesale");
+      if (!wholesaleBox) return;
+      wholesaleBox.value = withCost ? withCost.wholesaleCost : "";
     }
 
     function onSizeOrConditionChange() {
