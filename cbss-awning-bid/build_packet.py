@@ -28,6 +28,18 @@ CONTAINER = 4400.00
 STRUCTURE = 27850.00
 TOTAL = CONTAINER + STRUCTURE
 
+CLIENT = {
+    "name": "Chuck Galavich",
+    "first": "Chuck",
+    "zip": "43719",
+    "city": "Bethesda",
+    "county": "Belmont County",
+    "state": "Ohio",
+    "phone": "740-238-0492",
+    "email": "galavichchuck@gmail.com",
+}
+PDF_NAME = "CBSS_Proposal_Chuck_Galavich_43719.pdf"
+
 
 def font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     for name in (
@@ -60,7 +72,8 @@ def draw_plan() -> Path:
     img = Image.new("RGB", (1700, 1280), (255, 255, 255))
     d = ImageDraw.Draw(img)
     d.rectangle((0, 0, 1700, 70), fill=(20, 30, 46))
-    d.text((40, 22), "CBSS  |  COURTYARD AWNING  |  PLAN", fill=(255, 255, 255), font=font(28, True))
+    d.text((40, 18), "CBSS  |  COURTYARD AWNING  |  PLAN", fill=(255, 255, 255), font=font(26, True))
+    d.text((40, 46), f"Prepared for {CLIENT['name']}  ·  {CLIENT['zip']} {CLIENT['city']}, {CLIENT['state']}", fill=(184, 196, 208), font=font(14))
     d.text((1280, 26), "SHEET A1   NOT FOR CONSTRUCTION", fill=(184, 196, 208), font=font(16))
 
     # Scale: 1 ft = 16 px. Leave room under the boxes for both dim strings and notes.
@@ -114,7 +127,8 @@ def draw_section() -> Path:
     img = Image.new("RGB", (1600, 900), (255, 255, 255))
     d = ImageDraw.Draw(img)
     d.rectangle((0, 0, 1600, 70), fill=(20, 30, 46))
-    d.text((40, 22), "CBSS  |  COURTYARD AWNING  |  SECTION", fill=(255, 255, 255), font=font(28, True))
+    d.text((40, 18), "CBSS  |  COURTYARD AWNING  |  SECTION", fill=(255, 255, 255), font=font(26, True))
+    d.text((40, 46), f"Prepared for {CLIENT['name']}  ·  {CLIENT['zip']} {CLIENT['city']}, {CLIENT['state']}", fill=(184, 196, 208), font=font(14))
     d.text((1180, 26), "SHEET A2   NOT FOR CONSTRUCTION", fill=(184, 196, 208), font=font(16))
 
     s = 16
@@ -164,7 +178,8 @@ def draw_elevation() -> Path:
     img = Image.new("RGB", (1700, 900), (255, 255, 255))
     d = ImageDraw.Draw(img)
     d.rectangle((0, 0, 1700, 70), fill=(20, 30, 46))
-    d.text((40, 22), "CBSS  |  COURTYARD AWNING  |  END ELEVATION", fill=(255, 255, 255), font=font(28, True))
+    d.text((40, 18), "CBSS  |  COURTYARD AWNING  |  END ELEVATION", fill=(255, 255, 255), font=font(26, True))
+    d.text((40, 46), f"Prepared for {CLIENT['name']}  ·  {CLIENT['zip']} {CLIENT['city']}, {CLIENT['state']}", fill=(184, 196, 208), font=font(14))
     d.text((1280, 26), "SHEET A3   NOT FOR CONSTRUCTION", fill=(184, 196, 208), font=font(16))
 
     s = 16
@@ -217,7 +232,8 @@ def draw_presentation() -> Path:
     d.rectangle((0, 0, 1600, 520), fill=(210, 224, 232))
     d.rectangle((0, 520, 1600, 900), fill=(176, 186, 168))
     d.rectangle((0, 0, 1600, 64), fill=(20, 30, 46))
-    d.text((40, 18), "CBSS  |  COURTYARD AWNING  |  PRESENTATION", fill=(255, 255, 255), font=font(26, True))
+    d.text((40, 14), "CBSS  |  COURTYARD AWNING  |  PRESENTATION", fill=(255, 255, 255), font=font(24, True))
+    d.text((40, 42), f"Prepared for {CLIENT['name']}  ·  {CLIENT['zip']} {CLIENT['city']}, {CLIENT['state']}", fill=(184, 196, 208), font=font(14))
     d.text((1180, 22), "NOT A CONSTRUCTION DRAWING", fill=(184, 196, 208), font=font(15))
 
     # Simple 3/4 view: two boxes receding, metal roof between.
@@ -372,10 +388,12 @@ def write_takeoff() -> Path:
 
 def build_pdf(plan: Path, section: Path, elevation: Path, presentation: Path) -> Path:
     OUT.mkdir(parents=True, exist_ok=True)
-    pdf_path = OUT / "CBSS_40FT_OneTrip_Courtyard_Awning_Proposal.pdf"
+    pdf_path = OUT / PDF_NAME
     c = canvas.Canvas(str(pdf_path), pagesize=letter)
     w, h = letter
     pages = 8
+    who = CLIENT["name"]
+    site = f"{CLIENT['zip']} {CLIENT['city']}, {CLIENT['state']}  ({CLIENT['county']})"
 
     # 1 cover
     header(c, "Official Proposal", 1, pages)
@@ -388,13 +406,17 @@ def build_pdf(plan: Path, section: Path, elevation: Path, presentation: Path) ->
     c.setFont("Times-Roman", 11)
     c.drawString(36, y, "40FT One-Trip Double Door  +  courtyard awning roof")
     y -= 28
-    y = wrap(c, "Prepared for the client who was quoted $4,400 delivered cash for one 40FT One-Trip Double Door, then asked us to roof across a 30-foot gap to a second unit with a traditional truss roof. Shingles or metal — whichever is cheaper.", 36, y, 540, 11, 15)
+    y = wrap(c, f"Prepared for {who}. We quoted $4,400 delivered cash for one 40FT One-Trip Double Door. Chuck then asked us to roof across a 30-foot gap to a second unit with a traditional truss roof. Shingles or metal — whichever is cheaper.", 36, y, 540, 11, 15)
     y -= 8
     for line in (
+        f"Prepared for: {who}",
+        f"Delivery ZIP: {site}",
+        f"Phone: {CLIENT['phone']}",
+        f"Email: {CLIENT['email']}",
         "Date: 19 August 2026",
         "Prepared by: Christopher Banks, President/Owner",
         "Company: CBGC LLC DBA CBShippingSolutions",
-        "Site: Client to confirm delivery ZIP and that the existing unit is on the ground, parallel, 30 feet clear.",
+        "Site: Two parallel units, 30 feet clear. Existing unit assumed 40FT until we have a photo.",
     ):
         y = wrap(c, line, 36, y, 540, 10, 14)
     y -= 10
@@ -449,7 +471,7 @@ def build_pdf(plan: Path, section: Path, elevation: Path, presentation: Path) ->
         y -= 3
     y -= 8
     y = h2(c, "WHAT THIS IS NOT", y)
-    y = wrap(c, "This is not a building with walls. It is not a reroof of the container tops except at the sleeper and flash. It is not engineered for a snow country or hurricane coast until the ZIP is confirmed. It does not include permits, a site PE stamp beyond the truss-plant package, concrete, electric, plumbing, or moving the existing box.", 36, y, 540, 10, 14)
+    y = wrap(c, f"This is not a building with walls. It is not a reroof of the container tops except at the sleeper and flash. Delivery is {site}. Belmont County ground snow is in the light 20 psf class — the truss plant stamps the package to that local load. This is not a lake-effect or mountain snow upgrade. It does not include permits, a site PE stamp beyond the truss-plant package, concrete, electric, plumbing, or moving the existing box.", 36, y, 540, 10, 14)
     footer(c)
     c.showPage()
 
@@ -524,13 +546,12 @@ def build_pdf(plan: Path, section: Path, elevation: Path, presentation: Path) ->
     y -= 8
     y = h2(c, "NOT IN THIS NUMBER", y)
     for item in (
-        "Permits, impact fees, or a site PE stamp if the county wants more than the truss-plant package.",
+        "Permits, impact fees, or a site PE stamp if Belmont County wants more than the truss-plant package.",
         "Concrete, gravel pad, or moving the existing container.",
         "Electric, lights, or solar.",
         "Walls, roll-up doors, or closing in the courtyard.",
         "Weekend, crane, or off-road delivery.",
-        "Snow-country or high-wind upgrades once the ZIP is known.",
-        "Sales tax if the delivery state charges it on construction labor — billed as incurred.",
+        "Ohio tax, if the state requires it on the container or any part of the work — billed as incurred. It is not inside these cash figures.",
     ):
         y = wrap(c, "•  " + item, 36, y, 540, 10, 14)
         y -= 2
@@ -545,7 +566,7 @@ def build_pdf(plan: Path, section: Path, elevation: Path, presentation: Path) ->
     y = h - 88
     y = h2(c, "SEQUENCE", y)
     for item in (
-        "Client confirms ZIP, photos of the existing box, and that the pad will take a tilt-bed and a lull.",
+        f"{who} sends a photo of the existing box and the 30-foot gap, and confirms the pad will take a tilt-bed and a lull.",
         "We write the container order and collect before the truck.",
         "Box lands parallel, 30 feet clear, doors unobstructed.",
         "Truss package is ordered to the field measure (we verify 30 feet on the ground before we cut).",
@@ -556,7 +577,7 @@ def build_pdf(plan: Path, section: Path, elevation: Path, presentation: Path) ->
         y -= 3
     y -= 8
     y = h2(c, "WHAT WE NEED FROM YOU", y)
-    y = wrap(c, "Delivery ZIP. A photo of the existing unit and the 30-foot gap. Whether that existing box is 20FT or 40FT. How we access the pad. Any county that will want a permit — we will say so before we collect.", 36, y, 540, 10, 14)
+    y = wrap(c, f"ZIP {CLIENT['zip']} is locked. We still need a photo of the existing unit and the 30-foot gap, whether that box is 20FT or 40FT, and how we access the pad. Belmont County may want a permit on a 32-foot span roof — we will say so before we collect.", 36, y, 540, 10, 14)
     y -= 10
     y = h2(c, "CLOSE", y)
     y = wrap(c, "IF you have any questions or concerns do not hesitate to reach out to me using the contact information below.", 36, y, 540, 10, 14)
@@ -588,11 +609,17 @@ def main() -> None:
     presentation = draw_presentation()
     takeoff = write_takeoff()
     pdf = build_pdf(plan, section, elevation, presentation)
+    named = ART / PDF_NAME
+    named.write_bytes(pdf.read_bytes())
     for src in (plan, section, elevation, presentation, takeoff, pdf):
         dest = ART / src.name
         dest.write_bytes(src.read_bytes())
     (ART / "awning_materials_takeoff.csv").write_bytes(takeoff.read_bytes())
-    print(pdf)
+    # Keep a stable generic alias so older links still open the same packet.
+    (OUT / "CBSS_40FT_OneTrip_Courtyard_Awning_Proposal.pdf").write_bytes(pdf.read_bytes())
+    (ART / "CBSS_40FT_OneTrip_Courtyard_Awning_Proposal.pdf").write_bytes(pdf.read_bytes())
+    print(named)
+    print(f"CLIENT {CLIENT['name']} {CLIENT['zip']}")
     print(f"CONTAINER {CONTAINER:.2f}")
     print(f"STRUCTURE {STRUCTURE:.2f}")
     print(f"TOTAL {TOTAL:.2f}")

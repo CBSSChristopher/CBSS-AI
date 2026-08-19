@@ -1,8 +1,10 @@
 # 40FT One-Trip + courtyard awning bid
 
-Client was already quoted **$4,400 delivered cash** for one 40FT One-Trip Double Door. They want that box 30 feet from an existing unit, with a traditional truss roof across the gap.
+Prepared for **Chuck Galavich**, ZIP **43719** (Bethesda, Belmont County, Ohio). Phone 740-238-0492.
 
-This folder builds the drawings, materials takeoff, scope, and official proposal.
+He was already quoted **$4,400 delivered cash** for one 40FT One-Trip Double Door. He wants that box 30 feet from an existing unit, with a traditional truss roof across the gap.
+
+This folder builds the drawings, materials takeoff, scope, and official proposal. Download: `output/CBSS_Proposal_Chuck_Galavich_43719.pdf`
 
 ## Bid (complete cash)
 
