@@ -247,7 +247,7 @@
         <span class="mark">CB</span>
         <div>
           <h1>CBShippingSolutions</h1>
-          <p>Container Sales CRM · build 5</p>
+          <p>Container Sales CRM · build 6</p>
         </div>
       </div>
       <div class="user">
@@ -1293,7 +1293,7 @@
           </div>
           <div class="actions">
             <button class="btn btn-primary" onclick="saveFollowUp(${c.id})">Save Follow-up</button>
-            ${c.nextAction || c.followUpDate ? `<button type="button" class="btn btn-success" onclick="event.preventDefault();event.stopPropagation();completeTask(${JSON.stringify(String(c.id))}, event)">Complete task</button>` : ''}
+            ${c.nextAction || c.followUpDate ? `<button type="button" class="btn btn-success" data-complete-id="${esc(String(c.id))}">Complete task</button>` : ''}
           </div>
         </div>
         <div class="card">
@@ -1527,7 +1527,7 @@
                 <td>${esc(c.nextAction) || '—'}</td>
                 <td>${badge}</td>
                 <td>${esc(c.owner) || '—'}</td>
-                <td><button type="button" class="btn btn-success btn-compact" onclick="event.preventDefault();event.stopPropagation();completeTask(${JSON.stringify(String(c.id))}, event)">Complete</button></td>
+                <td class="complete-cell" onclick="event.stopPropagation()"><button type="button" class="btn btn-success btn-compact" data-complete-id="${esc(String(c.id))}">Complete</button></td>
               </tr>`;
             }).join('')}
           </tbody>
@@ -1680,14 +1680,18 @@
       try { renderFollowUps(); } catch (e) { console.warn(e); }
     }
 
+    const completingIds = new Set();
     async function completeTask(id, ev) {
       if (ev) {
         ev.preventDefault();
         ev.stopPropagation();
         if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
       }
+      if (completingIds.has(String(id))) return;
+      completingIds.add(String(id));
       const c = contactForId(id);
       if (!c) {
+        completingIds.delete(String(id));
         alert('Could not find that contact. Refresh and try again.');
         return;
       }
@@ -1714,6 +1718,7 @@
         clearedFollowupIds.delete(contactId);
         refreshTaskLists();
         selectContact(c.id);
+        completingIds.delete(contactId);
         alert('Could not complete the task. Stay on this page and try Complete again.');
         return;
       }
@@ -1721,8 +1726,17 @@
       refreshTaskLists();
       selectContact(c.id);
       showNextFollowupPrompt(c);
+      completingIds.delete(contactId);
     }
     window.completeTask = completeTask;
+    document.addEventListener('click', function(ev) {
+      const btn = ev.target && ev.target.closest && ev.target.closest('[data-complete-id]');
+      if (!btn) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+      completeTask(btn.getAttribute('data-complete-id'), ev);
+    }, true);
 
     function cancelTask() {
       document.getElementById('taskContactId').value = '';
@@ -1764,7 +1778,7 @@
               <td>${esc(c.nextAction) || 'Follow up'}</td>
               <td>${badge}</td>
               <td>${esc(c.owner || '') || '—'}</td>
-              <td><button type="button" class="btn btn-success btn-compact" onclick="event.preventDefault();event.stopPropagation();completeTask(${JSON.stringify(String(c.id))}, event)">Complete</button></td>
+              <td class="complete-cell" onclick="event.stopPropagation()"><button type="button" class="btn btn-success btn-compact" data-complete-id="${esc(String(c.id))}">Complete</button></td>
             </tr>`;
           }).join('')}
         </tbody>
