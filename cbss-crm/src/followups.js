@@ -10,6 +10,28 @@ export function completeFollowupKeys(current, contactId) {
   return merged;
 }
 
+export function clearFollowupEdits(edits, contactId) {
+  const next = edits && typeof edits === "object" && !Array.isArray(edits)
+    ? Object.assign({}, edits)
+    : {};
+  const want = String(contactId == null ? "" : contactId).trim();
+  if (!want) return next;
+  let wrote = false;
+  for (const key of Object.keys(next)) {
+    if (String(key) !== want) continue;
+    next[key] = Object.assign({}, next[key] || {}, { nextAction: "", followUpDate: "" });
+    wrote = true;
+  }
+  if (!wrote) next[want] = { nextAction: "", followUpDate: "" };
+  return next;
+}
+
+export function completedActionText(body) {
+  const src = body && typeof body === "object" ? body : {};
+  const text = String(src.nextAction || src.completedAction || "").trim();
+  return text || "Follow-up";
+}
+
 export function isCompletedFollowup(value) {
   if (!value || typeof value !== "object") return false;
   return value.completed === true || value.clear === true || String(value.status || "").toLowerCase() === "completed";

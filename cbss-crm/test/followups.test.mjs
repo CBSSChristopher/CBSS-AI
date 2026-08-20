@@ -2,7 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   applyFollowupPatch,
+  clearFollowupEdits,
   completeFollowupKeys,
+  completedActionText,
   completionNote,
   mergeNoteOntoContact
 } from "../src/followups.js";
@@ -33,6 +35,21 @@ test("applyFollowupPatch updates a live task", () => {
   const current = { a1: { nextAction: "Call", followUpDate: "2026-08-20T09:00" } };
   const next = applyFollowupPatch(current, { a1: { nextAction: "Text", followUpDate: "2026-08-21T10:00" } });
   assert.deepEqual(next.a1, { nextAction: "Text", followUpDate: "2026-08-21T10:00" });
+});
+
+test("completedActionText ignores the CRM action name", () => {
+  assert.equal(completedActionText({ action: "completeFollowup", nextAction: "Call back" }), "Call back");
+  assert.equal(completedActionText({ action: "Call back" }), "Follow-up");
+});
+
+test("clearFollowupEdits blanks next action on matching contact edits", () => {
+  const next = clearFollowupEdits(
+    { 9: { owner: "James", nextAction: "Call", followUpDate: "2026-08-20T09:00" } },
+    "9"
+  );
+  assert.equal(next["9"].owner, "James");
+  assert.equal(next["9"].nextAction, "");
+  assert.equal(next["9"].followUpDate, "");
 });
 
 test("completion note and merge keep existing notes", () => {

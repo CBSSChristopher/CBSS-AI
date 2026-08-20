@@ -354,7 +354,7 @@
             <button type="button" class="filter-chip owner-chip active" data-owner="" onclick="setOwnerChip(this)">All</button>
             <button type="button" class="filter-chip owner-chip" data-owner="__mine__" onclick="setOwnerChip(this)">Mine</button>
           </div>
-          <p style="font-size:0.85rem;color:#666;margin-bottom:12px;">Contacts with a follow-up date or next action. All = company book. Mine = your owned rows. Use Complete to clear the task and log it on the contact.</p>
+          <p style="font-size:0.85rem;color:#666;margin-bottom:12px;">Contacts with a follow-up date or next action. All = company book. Mine = your owned rows. Complete clears the task, logs it on the contact, and asks if you want to schedule the next follow-up.</p>
           <div id="tasksList"></div>
         </div>
       </div>
@@ -379,6 +379,7 @@
     let currentUser = null;
     let deals = [];
     let followupsMap = {};
+    let clearedFollowupIds = new Set();
     let archiveRequests = {};
     let followFilter = 'open';
     let contactById = new Map();
@@ -879,14 +880,20 @@
 
     async function apiSave(action, payload) {
       try {
-        await fetch('/crm-data', {
+        const res = await fetch('/crm-data', {
           method: 'POST',
           headers: await authHeaders(),
           credentials: 'include',
-          body: JSON.stringify({ action, ...payload })
+          body: JSON.stringify(Object.assign({}, payload || {}, { action }))
         });
+        if (!res.ok) {
+          console.warn('Save failed', res.status);
+          return { ok: false, status: res.status };
+        }
+        return await res.json();
       } catch (e) {
         console.warn('Save failed', e);
+        return { ok: false };
       }
     }
 
@@ -1305,6 +1312,9 @@
 
     function persistFollowups() {
       followupsMap = collectFollowupsMap();
+      Object.keys(followupsMap).forEach(key => {
+        if (clearedFollowupIds.has(String(key))) delete followupsMap[key];
+      });
       if (!Object.keys(followupsMap).length) return;
       localStorage.setItem(storageKey('followups'), JSON.stringify(followupsMap));
       apiSave('saveFollowups', { followups: followupsMap });
@@ -1546,6 +1556,7 @@
       c.followUpDate = '';
       delete followupsMap[c.id];
       delete followupsMap[String(c.id)];
+      clearedFollowupIds.add(String(c.id));
       const author = (currentUser && currentUser.user_metadata && currentUser.user_metadata.full_name) || (currentUser && currentUser.email) || 'User';
       c.notes = c.notes || [];
       c.notes.unshift({
@@ -1556,18 +1567,38 @@
       });
     }
 
+    function offerNextFollowup(c) {
+      if (!c) return;
+      switchView('contacts');
+      selectContact(c.id);
+      setTimeout(function() {
+        const action = document.getElementById('nextAction');
+        if (action) {
+          action.focus();
+          action.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+      }, 50);
+    }
+
     async function completeTask(id, ev) {
       if (ev) ev.stopPropagation();
       const c = contactForId(id);
       if (!c) return;
       const actionText = String(c.nextAction || 'Follow-up').trim() || 'Follow-up';
       if (!confirm('Mark this task complete for ' + (c.name || 'this contact') + '?')) return;
+      const saved = await apiSave('completeFollowup', { contactId: String(c.id), nextAction: actionText });
+      if (!saved || saved.ok === false || saved.completed !== true) {
+        alert('Could not complete the task. Try again.');
+        return;
+      }
       applyCompletedTaskLocal(c, actionText);
-      await apiSave('completeFollowup', { contactId: String(c.id), action: actionText });
       renderStats();
       if (activeView() === 'tasks') renderTasks();
       if (activeView() === 'followups') renderFollowUps();
       if (String(selectedId) === String(c.id)) selectContact(c.id);
+      if (confirm('Schedule another follow-up for ' + (c.name || 'this contact') + '?')) {
+        offerNextFollowup(c);
+      }
     }
 
     function cancelTask() {

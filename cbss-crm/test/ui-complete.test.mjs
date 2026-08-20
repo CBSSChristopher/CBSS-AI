@@ -10,6 +10,11 @@ test("tasks tab exposes a Complete button and completeTask handler", () => {
   assert.match(html, /action: 'getNotes'/);
   assert.match(html, /omitNotes: '1'/);
   assert.match(html, /function onSearchInput\(/);
+  assert.match(html, /JSON\.stringify\(Object\.assign\(\{\}, payload \|\| \{\}, \{ action \}\)\)/);
+  assert.match(html, /nextAction: actionText/);
+  assert.match(html, /Schedule another follow-up/);
+  assert.match(html, /function offerNextFollowup\(/);
+  assert.doesNotMatch(html, /apiSave\('completeFollowup', \{ contactId: String\(c\.id\), action: actionText \}\)/);
 });
 
 test("worker still serves the CRM data routes used by the desk", async () => {

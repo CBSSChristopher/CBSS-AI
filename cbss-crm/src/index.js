@@ -1,4 +1,4 @@
-import { applyFollowupPatch, completeFollowupKeys, completionNote, mergeNoteOntoContact } from "./followups.js";
+import { applyFollowupPatch, clearFollowupEdits, completeFollowupKeys, completedActionText, completionNote, mergeNoteOntoContact } from "./followups.js";
 
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
@@ -971,12 +971,16 @@ async function handleCrmData(request, env) {
       if (!contactId) return jsonResponse(request, 400, { error: "contactId required" });
       const current = await store.get("followups", { type: "json" });
       const merged = completeFollowupKeys(current && typeof current === "object" ? current : {}, contactId);
-      await store.setJSON("followups", merged);
-      const actionText = String(body.action || body.nextAction || "Follow-up").trim() || "Follow-up";
+      const edits = clearFollowupEdits(await store.get("contactEdits", { type: "json" }), contactId);
+      const actionText = completedActionText(body);
       const author = user && (user.name || user.email) || "User";
       const existingNotes = await store.get("notes", { type: "json" });
       const notes = mergeNoteOntoContact(existingNotes, contactId, completionNote(actionText, author, nowStamp()));
-      await store.setJSON("notes", notes);
+      await Promise.all([
+        store.setJSON("followups", merged),
+        store.setJSON("contactEdits", edits),
+        store.setJSON("notes", notes)
+      ]);
       return jsonResponse(request, 200, { ok: true, contactId, completed: true });
     }
     if (!await store.get("_init")) {
