@@ -424,12 +424,13 @@ function normalizePath(pathname) {
 __name(normalizePath, "normalizePath");
 async function serveAssets(request, env) {
   if (!env.ASSETS) return new Response("Not found", { status: 404 });
-  const res = await env.ASSETS.fetch(request);
-  const type = String(res.headers.get("content-type") || "");
   const path = normalizePath(new URL(request.url).pathname);
-  if (path === "/" || path === "/index.html" || type.includes("text/html")) {
+  const assetReq = path === "/" ? new Request(new URL("/index.html", request.url), request) : request;
+  const res = await env.ASSETS.fetch(assetReq);
+  const type = String(res.headers.get("content-type") || "");
+  if (path === "/" || path === "/index.html" || path === "/fresh" || path === "/app" || path === "/b6" || type.includes("text/html")) {
     const headers = new Headers(res.headers);
-    headers.set("Cache-Control", "private, no-store, no-cache, must-revalidate");
+    headers.set("Cache-Control", "private, no-store");
     headers.set("CDN-Cache-Control", "no-store");
     headers.set("Cloudflare-CDN-Cache-Control", "no-store");
     headers.set("Pragma", "no-cache");
@@ -1527,9 +1528,13 @@ __name(handleMetaLeadgen, "handleMetaLeadgen");
 
 // src/index.js
 var index_default = {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = normalizePath(url.pathname);
+    if (path === "/__bust" && ctx && ctx.cache && typeof ctx.cache.purge === "function") {
+      try { await ctx.cache.purge({ purgeEverything: true }); } catch (_) {}
+      return new Response("ok", { status: 200, headers: { "Cache-Control": "private, no-store", "x-crm-build": "6" } });
+    }
     if (path === "/auth/login") return handleLogin(request, env);
     if (path === "/auth/me") return handleMe(request, env);
     if (path === "/auth/logout") return handleLogout(request);
@@ -1544,7 +1549,7 @@ var index_default = {
     if (path === "/webhooks/meta-leadgen") {
       return handleMetaLeadgen(request, env);
     }
-    if (path === "/fresh" || path === "/app") {
+    if (path === "/fresh" || path === "/app" || path === "/b6") {
       const assetReq = new Request(new URL("/index.html", request.url), request);
       return serveAssets(assetReq, env);
     }

@@ -28,6 +28,8 @@ test("tasks tab exposes a Complete button and completeTask handler", () => {
 
 test("worker still serves the CRM data routes used by the desk", async () => {
   const worker = readFileSync(new URL("../src/index.js", import.meta.url), "utf8");
+  const wrangler = readFileSync(new URL("../wrangler.jsonc", import.meta.url), "utf8");
+  assert.match(wrangler, /"enabled": false/);
   assert.match(worker, /action === "completeFollowup"/);
   assert.match(worker, /crmBuild: 6/);
   assert.match(worker, /Cloudflare-CDN-Cache-Control/);
@@ -37,6 +39,8 @@ test("worker still serves the CRM data routes used by the desk", async () => {
   assert.match(worker, /resolveCrmAction/);
   assert.match(worker, /Cache-Control/);
   assert.match(worker, /path === "\/fresh"/);
+  assert.match(worker, /path === "\/b6"/);
+  assert.match(worker, /cache\.purge/);
   assert.doesNotMatch(worker, /await migrateQuoted\(store, state\);/);
   assert.doesNotMatch(worker, /await migrateOwners\(store, state, archive\);/);
 });
