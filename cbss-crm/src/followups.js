@@ -1,3 +1,17 @@
+export function followupTombstone() {
+  return { nextAction: "", followUpDate: "", completed: true, status: "completed" };
+}
+
+export function isCompletedFollowup(value) {
+  if (!value || typeof value !== "object") return false;
+  return value.completed === true || value.clear === true || String(value.status || "").toLowerCase() === "completed";
+}
+
+export function isLiveFollowup(value) {
+  if (!value || typeof value !== "object" || isCompletedFollowup(value)) return false;
+  return Boolean(String(value.nextAction || "").trim() || String(value.followUpDate || "").trim());
+}
+
 export function completeFollowupKeys(current, contactId) {
   const merged = current && typeof current === "object" && !Array.isArray(current)
     ? Object.assign({}, current)
@@ -7,6 +21,7 @@ export function completeFollowupKeys(current, contactId) {
   for (const key of Object.keys(merged)) {
     if (String(key) === want) delete merged[key];
   }
+  merged[want] = followupTombstone();
   return merged;
 }
 
@@ -32,11 +47,6 @@ export function completedActionText(body) {
   return text || "Follow-up";
 }
 
-export function isCompletedFollowup(value) {
-  if (!value || typeof value !== "object") return false;
-  return value.completed === true || value.clear === true || String(value.status || "").toLowerCase() === "completed";
-}
-
 export function applyFollowupPatch(current, incoming) {
   const merged = current && typeof current === "object" && !Array.isArray(current)
     ? Object.assign({}, current)
@@ -49,6 +59,7 @@ export function applyFollowupPatch(current, incoming) {
       for (const existing of Object.keys(merged)) {
         if (String(existing) === String(key)) delete merged[existing];
       }
+      merged[String(key)] = followupTombstone();
       continue;
     }
     const prev = merged[key] || merged[String(key)] || {};

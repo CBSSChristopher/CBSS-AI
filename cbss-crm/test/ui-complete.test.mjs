@@ -14,6 +14,8 @@ test("tasks tab exposes a Complete button and completeTask handler", () => {
   assert.match(html, /nextAction: actionText/);
   assert.match(html, /Schedule another follow-up/);
   assert.match(html, /function offerNextFollowup\(/);
+  assert.match(html, /apiSave\('saveFollowups', \{ followups: patch \}\)/);
+  assert.match(html, /completed: true, status: 'completed'/);
   assert.doesNotMatch(html, /apiSave\('completeFollowup', \{ contactId: String\(c\.id\), action: actionText \}\)/);
 });
 
@@ -23,6 +25,7 @@ test("worker still serves the CRM data routes used by the desk", async () => {
   assert.match(worker, /action === "getNotes"/);
   assert.match(worker, /omitNotes/);
   assert.match(worker, /saveFollowups/);
+  assert.match(worker, /url\.searchParams\.get\("action"\) \|\| body\.action/);
   assert.doesNotMatch(worker, /await migrateQuoted\(store, state\);/);
   assert.doesNotMatch(worker, /await migrateOwners\(store, state, archive\);/);
 });

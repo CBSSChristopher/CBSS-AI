@@ -9,20 +9,27 @@ import {
   mergeNoteOntoContact
 } from "../src/followups.js";
 
-test("completeFollowupKeys removes both string and number ids", () => {
+test("completeFollowupKeys tombs both string and number ids", () => {
   const next = completeFollowupKeys(
     { 1787155801308: { nextAction: "CTE2", followUpDate: "2026-08-20T11:17" }, other: { nextAction: "Keep" } },
     "1787155801308"
   );
-  assert.equal(next["1787155801308"], undefined);
-  assert.equal(next[1787155801308], undefined);
+  assert.equal(next["1787155801308"].completed, true);
+  assert.equal(next["1787155801308"].nextAction, "");
   assert.deepEqual(next.other, { nextAction: "Keep" });
 });
 
 test("applyFollowupPatch honors completed flag instead of preserving the old task", () => {
   const current = { a1: { nextAction: "Call", followUpDate: "2026-08-20T09:00" } };
   const next = applyFollowupPatch(current, { a1: { nextAction: "", followUpDate: "", completed: true } });
-  assert.equal(next.a1, undefined);
+  assert.equal(next.a1.completed, true);
+  assert.equal(next.a1.nextAction, "");
+});
+
+test("applyFollowupPatch can schedule a new task after a completed tombstone", () => {
+  const current = { a1: { nextAction: "", followUpDate: "", completed: true, status: "completed" } };
+  const next = applyFollowupPatch(current, { a1: { nextAction: "Call again", followUpDate: "2026-08-22T09:00" } });
+  assert.deepEqual(next.a1, { nextAction: "Call again", followUpDate: "2026-08-22T09:00" });
 });
 
 test("applyFollowupPatch still refuses an accidental empty wipe", () => {

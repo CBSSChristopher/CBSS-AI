@@ -958,7 +958,7 @@ async function handleCrmData(request, env) {
       const raw = await request.text();
       if (raw) body = JSON.parse(raw);
     }
-    const action = body.action || url.searchParams.get("action") || "get";
+    const action = url.searchParams.get("action") || body.action || "get";
     const user = await requireSession(request, env);
     if (!user) return jsonResponse(request, 401, { error: "Unauthorized" });
     const store = openStore(env);

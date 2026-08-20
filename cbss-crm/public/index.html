@@ -880,7 +880,7 @@
 
     async function apiSave(action, payload) {
       try {
-        const res = await fetch('/crm-data', {
+        const res = await fetch('/crm-data?action=' + encodeURIComponent(action), {
           method: 'POST',
           headers: await authHeaders(),
           credentials: 'include',
@@ -991,15 +991,16 @@
         });
         followupsMap = (shared.followups && typeof shared.followups === 'object') ? Object.assign({}, shared.followups) : {};
         archiveRequests = (shared.archiveRequests && typeof shared.archiveRequests === 'object') ? Object.assign({}, shared.archiveRequests) : {};
-        if (shared.followups) {
-          contacts.forEach(c => {
-            const fu = shared.followups[c.id] || shared.followups[String(c.id)];
-            if (fu) {
-              c.nextAction = fu.nextAction || c.nextAction || '';
-              c.followUpDate = fu.followUpDate || c.followUpDate || '';
-            }
-          });
-        }
+        contacts.forEach(c => {
+          const fu = followupsMap[c.id] || followupsMap[String(c.id)];
+          if (isLiveFollowupRecord(fu)) {
+            c.nextAction = fu.nextAction || '';
+            c.followUpDate = fu.followUpDate || '';
+          } else if (fu || clearedFollowupIds.has(String(c.id))) {
+            c.nextAction = '';
+            c.followUpDate = '';
+          }
+        });
         if (shared.notes) {
           contacts.forEach(c => {
             const extra = shared.notes[c.id] || shared.notes[String(c.id)];
@@ -1296,13 +1297,27 @@
       `;
     }
 
+    function isCompletedFollowupRecord(value) {
+      if (!value || typeof value !== 'object') return false;
+      return value.completed === true || value.clear === true || String(value.status || '').toLowerCase() === 'completed';
+    }
+
+    function isLiveFollowupRecord(value) {
+      if (!value || typeof value !== 'object' || isCompletedFollowupRecord(value)) return false;
+      return Boolean(String(value.nextAction || '').trim() || String(value.followUpDate || '').trim());
+    }
+
     function collectFollowupsMap() {
       const out = Object.assign({}, followupsMap);
       contacts.forEach(c => {
+        const key = String(c.id);
+        if (clearedFollowupIds.has(key) || isCompletedFollowupRecord(out[key] || out[c.id])) {
+          out[key] = { nextAction: '', followUpDate: '', completed: true, status: 'completed' };
+          return;
+        }
         const na = c.nextAction && String(c.nextAction).trim();
         const fd = c.followUpDate || '';
         if (!na && !fd) return;
-        const key = String(c.id);
         if (!out[key] && out[c.id] == null) {
           out[key] = { nextAction: na || '', followUpDate: fd || '' };
         }
@@ -1312,9 +1327,6 @@
 
     function persistFollowups() {
       followupsMap = collectFollowupsMap();
-      Object.keys(followupsMap).forEach(key => {
-        if (clearedFollowupIds.has(String(key))) delete followupsMap[key];
-      });
       if (!Object.keys(followupsMap).length) return;
       localStorage.setItem(storageKey('followups'), JSON.stringify(followupsMap));
       apiSave('saveFollowups', { followups: followupsMap });
@@ -1325,6 +1337,7 @@
       if (!c) return;
       c.nextAction = document.getElementById('nextAction').value.trim();
       c.followUpDate = document.getElementById('followUpDate').value;
+      clearedFollowupIds.delete(String(id));
       followupsMap[id] = { nextAction: c.nextAction, followUpDate: c.followUpDate };
       followupsMap[String(id)] = followupsMap[id];
       persistFollowups();
@@ -1541,6 +1554,7 @@
       if (!c) { alert('Contact not found'); return; }
       c.nextAction = action;
       c.followUpDate = date || '';
+      clearedFollowupIds.delete(String(id));
       followupsMap[id] = { nextAction: c.nextAction, followUpDate: c.followUpDate };
       followupsMap[String(id)] = followupsMap[id];
       persistFollowups();
@@ -1554,8 +1568,9 @@
     function applyCompletedTaskLocal(c, actionText) {
       c.nextAction = '';
       c.followUpDate = '';
-      delete followupsMap[c.id];
-      delete followupsMap[String(c.id)];
+      const tombstone = { nextAction: '', followUpDate: '', completed: true, status: 'completed' };
+      followupsMap[c.id] = tombstone;
+      followupsMap[String(c.id)] = tombstone;
       clearedFollowupIds.add(String(c.id));
       const author = (currentUser && currentUser.user_metadata && currentUser.user_metadata.full_name) || (currentUser && currentUser.email) || 'User';
       c.notes = c.notes || [];
@@ -1583,19 +1598,24 @@
     async function completeTask(id, ev) {
       if (ev) ev.stopPropagation();
       const c = contactForId(id);
-      if (!c) return;
-      const actionText = String(c.nextAction || 'Follow-up').trim() || 'Follow-up';
-      if (!confirm('Mark this task complete for ' + (c.name || 'this contact') + '?')) return;
-      const saved = await apiSave('completeFollowup', { contactId: String(c.id), nextAction: actionText });
-      if (!saved || saved.ok === false || saved.completed !== true) {
-        alert('Could not complete the task. Try again.');
+      if (!c) {
+        alert('Could not find that contact. Refresh and try again.');
         return;
       }
+      const actionText = String(c.nextAction || 'Follow-up').trim() || 'Follow-up';
+      if (!confirm('Mark this task complete for ' + (c.name || 'this contact') + '?')) return;
       applyCompletedTaskLocal(c, actionText);
       renderStats();
       if (activeView() === 'tasks') renderTasks();
       if (activeView() === 'followups') renderFollowUps();
       if (String(selectedId) === String(c.id)) selectContact(c.id);
+      const contactId = String(c.id);
+      const patch = { [contactId]: { nextAction: '', followUpDate: '', completed: true, status: 'completed' } };
+      const saved = await apiSave('saveFollowups', { followups: patch });
+      apiSave('completeFollowup', { contactId, nextAction: actionText });
+      if (!saved || saved.ok === false) {
+        alert('The task was cleared on this screen, but the server save failed. Refresh and try Complete again if it comes back.');
+      }
       if (confirm('Schedule another follow-up for ' + (c.name || 'this contact') + '?')) {
         offerNextFollowup(c);
       }
