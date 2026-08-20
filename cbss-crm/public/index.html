@@ -246,7 +246,7 @@
         <span class="mark">CB</span>
         <div>
           <h1>CBShippingSolutions</h1>
-          <p>Container Sales CRM · build 3</p>
+          <p>Container Sales CRM · build 4</p>
         </div>
       </div>
       <div class="user">
@@ -395,6 +395,7 @@
     let currentUser = null;
     let deals = [];
     let followupsMap = {};
+    let completedTasksMap = {};
     let clearedFollowupIds = new Set();
     let archiveRequests = {};
     let followFilter = 'open';
@@ -1006,6 +1007,7 @@
           if ((d.owner || '') !== next) d.owner = next;
         });
         followupsMap = (shared.followups && typeof shared.followups === 'object') ? Object.assign({}, shared.followups) : {};
+        completedTasksMap = (shared.completedTasks && typeof shared.completedTasks === 'object') ? Object.assign({}, shared.completedTasks) : {};
         archiveRequests = (shared.archiveRequests && typeof shared.archiveRequests === 'object') ? Object.assign({}, shared.archiveRequests) : {};
         contacts.forEach(c => {
           const fu = followupsMap[c.id] || followupsMap[String(c.id)];
@@ -1016,6 +1018,8 @@
             c.nextAction = '';
             c.followUpDate = '';
           }
+          const done = completedTasksMap[c.id] || completedTasksMap[String(c.id)];
+          c.completedTasks = Array.isArray(done) ? done.slice() : [];
         });
         if (shared.notes) {
           contacts.forEach(c => {
@@ -1292,6 +1296,10 @@
           </div>
         </div>
         <div class="card">
+          <h2>Completed tasks (${(c.completedTasks || []).length})</h2>
+          ${completedTasksHtml(c)}
+        </div>
+        <div class="card">
           <h2>Add Note</h2>
           <textarea id="newNote" rows="3" placeholder="Add a note..."></textarea>
           <div class="actions"><button class="btn btn-primary" onclick="addNote(${c.id})">Add Note</button></div>
@@ -1561,12 +1569,12 @@
     }
 
     function createTask() {
-      const id = Number(document.getElementById('taskContactId').value);
+      const id = document.getElementById('taskContactId').value;
       const action = document.getElementById('taskAction').value.trim();
       const date = document.getElementById('taskDate').value;
       if (!id) { alert('Select a contact first'); return; }
       if (!action) { alert('Enter a next action'); return; }
-      const c = contacts.find(x => x.id === id);
+      const c = contactForId(id);
       if (!c) { alert('Contact not found'); return; }
       c.nextAction = action;
       c.followUpDate = date || '';
@@ -1581,7 +1589,18 @@
       alert('Task created for ' + c.name);
     }
 
-    function applyCompletedTaskLocal(c, actionText) {
+    function completedTasksHtml(c) {
+      const rows = Array.isArray(c && c.completedTasks) ? c.completedTasks : [];
+      if (!rows.length) return '<p style="color:#888;font-size:0.88rem;">No completed tasks yet.</p>';
+      return rows.slice(0, 40).map(function(t) {
+        return `<div class="note">
+          <div class="meta">${esc(t.author || 'User')} · ${esc(t.timestamp || '')} · Completed</div>
+          <div>${esc(t.text || 'Follow-up')}</div>
+        </div>`;
+      }).join('');
+    }
+
+    function applyCompletedTaskLocal(c, actionText, serverRows) {
       c.nextAction = '';
       c.followUpDate = '';
       const tombstone = { nextAction: '', followUpDate: '', completed: true, status: 'completed' };
@@ -1589,10 +1608,15 @@
       followupsMap[String(c.id)] = tombstone;
       clearedFollowupIds.add(String(c.id));
       const author = (currentUser && currentUser.user_metadata && currentUser.user_metadata.full_name) || (currentUser && currentUser.email) || 'User';
+      const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+      const row = { text: actionText, author, timestamp, status: 'completed' };
+      c.completedTasks = Array.isArray(serverRows) && serverRows.length ? serverRows.slice() : (c.completedTasks || []);
+      if (!Array.isArray(serverRows) || !serverRows.length) c.completedTasks.unshift(row);
+      completedTasksMap[String(c.id)] = c.completedTasks;
       c.notes = c.notes || [];
       c.notes.unshift({
         author,
-        timestamp: new Date().toISOString().slice(0, 16).replace('T', ' '),
+        timestamp,
         tag: 'Task',
         text: 'Completed: ' + actionText
       });
@@ -1633,6 +1657,12 @@
       offerNextFollowup(contactForId(id));
     }
 
+    function refreshTaskLists() {
+      try { renderStats(); } catch (e) { console.warn(e); }
+      try { renderTasks(); } catch (e) { console.warn(e); }
+      try { renderFollowUps(); } catch (e) { console.warn(e); }
+    }
+
     async function completeTask(id, ev) {
       if (ev) ev.stopPropagation();
       const c = contactForId(id);
@@ -1641,19 +1671,19 @@
         return;
       }
       const actionText = String(c.nextAction || 'Follow-up').trim() || 'Follow-up';
-      applyCompletedTaskLocal(c, actionText);
-      renderStats();
-      renderTasks();
-      renderFollowUps();
-      if (String(selectedId) === String(c.id)) selectContact(c.id);
       const contactId = String(c.id);
-      const patch = { [contactId]: { nextAction: '', followUpDate: '', completed: true, status: 'completed' } };
-      const saved = await apiSave('saveFollowups', { followups: patch });
-      apiSave('completeFollowup', { contactId, nextAction: actionText });
+      let saved = await apiSave('completeFollowup', { contactId, nextAction: actionText });
+      if (!saved || saved.ok === false || saved.completed !== true) {
+        const patch = { [contactId]: { nextAction: '', followUpDate: '', completed: true, status: 'completed' } };
+        saved = await apiSave('saveFollowups', { followups: patch });
+      }
       if (!saved || saved.ok === false) {
-        alert('The task was cleared on this screen, but the server save failed. Refresh and try Complete again if it comes back.');
+        alert('Could not complete the task. Stay on this page and try Complete again.');
         return;
       }
+      applyCompletedTaskLocal(c, actionText, saved.completedTasks);
+      refreshTaskLists();
+      selectContact(c.id);
       showNextFollowupPrompt(c);
     }
 
@@ -1670,7 +1700,7 @@
     function renderTasks() {
       const today = new Date().toISOString().slice(0, 10);
       const withTasks = contacts
-        .filter(c => contactMatchesOwnerScope(c) && !isArchivedContact(c) && !isDncTask(c) && (c.followUpDate || (c.nextAction && c.nextAction.trim())))
+        .filter(c => contactMatchesOwnerScope(c) && !isArchivedContact(c) && !isDncTask(c) && (c.followUpDate || String(c.nextAction || '').trim()))
         .sort((a, b) => {
           const da = a.followUpDate || '9999';
           const db = b.followUpDate || '9999';

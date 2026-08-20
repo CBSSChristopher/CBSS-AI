@@ -7,6 +7,8 @@ import {
   completedActionText,
   completionNote,
   mergeNoteOntoContact,
+  recordCompletedTask,
+  applyCompleteFollowupState,
   resolveCrmAction
 } from "../src/followups.js";
 
@@ -66,6 +68,32 @@ test("clearFollowupEdits blanks next action on matching contact edits", () => {
   assert.equal(next["9"].owner, "James");
   assert.equal(next["9"].nextAction, "");
   assert.equal(next["9"].followUpDate, "");
+});
+
+test("applyCompleteFollowupState tombs the live task and records history", () => {
+  const next = applyCompleteFollowupState(
+    {
+      followups: { 9: { nextAction: "Call", followUpDate: "2026-08-21T09:00" } },
+      contactEdits: { 9: { owner: "James", nextAction: "Call" } },
+      notes: { 9: [{ text: "old" }] },
+      completedTasks: {}
+    },
+    "9",
+    "Call",
+    "Christopher Banks",
+    "2026-08-20 18:22"
+  );
+  assert.equal(next.followups["9"].completed, true);
+  assert.equal(next.contactEdits["9"].nextAction, "");
+  assert.equal(next.notes["9"][0].text, "Completed: Call");
+  assert.equal(next.completedTasks["9"][0].text, "Call");
+  assert.equal(next.completedTasks["9"][0].status, "completed");
+});
+
+test("recordCompletedTask keeps newer completions first", () => {
+  const next = recordCompletedTask({ 9: [{ text: "old" }] }, "9", { text: "new" });
+  assert.equal(next["9"][0].text, "new");
+  assert.equal(next["9"][1].text, "old");
 });
 
 test("completion note and merge keep existing notes", () => {

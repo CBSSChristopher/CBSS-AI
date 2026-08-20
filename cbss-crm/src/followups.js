@@ -126,6 +126,41 @@ export function completionNote(action, author, timestamp) {
   };
 }
 
+export function completedTaskRecord(action, author, timestamp) {
+  return {
+    text: String(action || "Follow-up").trim() || "Follow-up",
+    author: String(author || "User").trim() || "User",
+    timestamp: String(timestamp || "").trim(),
+    status: "completed"
+  };
+}
+
+export function recordCompletedTask(current, contactId, task) {
+  const next = current && typeof current === "object" && !Array.isArray(current)
+    ? Object.assign({}, current)
+    : {};
+  const key = String(contactId == null ? "" : contactId).trim();
+  if (!key || !task) return next;
+  const existing = Array.isArray(next[key])
+    ? next[key].slice()
+    : Array.isArray(next[contactId])
+      ? next[contactId].slice()
+      : [];
+  existing.unshift(task);
+  next[key] = existing;
+  return next;
+}
+
+export function applyCompleteFollowupState(state, contactId, actionText, author, timestamp) {
+  const src = state && typeof state === "object" ? state : {};
+  return {
+    followups: completeFollowupKeys(src.followups, contactId),
+    contactEdits: clearFollowupEdits(src.contactEdits, contactId),
+    notes: mergeNoteOntoContact(src.notes, contactId, completionNote(actionText, author, timestamp)),
+    completedTasks: recordCompletedTask(src.completedTasks, contactId, completedTaskRecord(actionText, author, timestamp))
+  };
+}
+
 export function mergeNoteOntoContact(notes, contactId, note) {
   const next = notes && typeof notes === "object" && !Array.isArray(notes)
     ? Object.assign({}, notes)

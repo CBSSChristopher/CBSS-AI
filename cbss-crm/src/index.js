@@ -1,4 +1,4 @@
-import { applyFollowupPatch, clearFollowupEdits, completeFollowupKeys, completedActionText, completionNote, mergeNoteOntoContact, resolveCrmAction } from "./followups.js";
+import { applyCompleteFollowupState, applyFollowupPatch, completedActionText, resolveCrmAction } from "./followups.js";
 
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
@@ -762,7 +762,7 @@ async function migrateQuoted(store, state) {
 }
 __name(migrateQuoted, "migrateQuoted");
 async function readState(store) {
-  const keys = ["deals", "followups", "notes", "contactsAdded", "contactEdits", "proposals", "archiveRequests"];
+  const keys = ["deals", "followups", "notes", "contactsAdded", "contactEdits", "proposals", "archiveRequests", "completedTasks"];
   const results = await Promise.all(keys.map((k) => store.get(k, { type: "json" })));
   return {
     deals: Array.isArray(results[0]) ? results[0] : [],
@@ -771,7 +771,8 @@ async function readState(store) {
     contactsAdded: Array.isArray(results[3]) ? results[3] : [],
     contactEdits: results[4] && typeof results[4] === "object" ? results[4] : {},
     proposals: results[5] && typeof results[5] === "object" ? results[5] : {},
-    archiveRequests: results[6] && typeof results[6] === "object" && !Array.isArray(results[6]) ? results[6] : {}
+    archiveRequests: results[6] && typeof results[6] === "object" && !Array.isArray(results[6]) ? results[6] : {},
+    completedTasks: results[7] && typeof results[7] === "object" && !Array.isArray(results[7]) ? results[7] : {}
   };
 }
 __name(readState, "readState");
@@ -955,7 +956,8 @@ async function persistState(store, state) {
     store.setJSON("notes", state.notes),
     store.setJSON("contactsAdded", state.contactsAdded),
     store.setJSON("contactEdits", state.contactEdits),
-    store.setJSON("proposals", state.proposals)
+    store.setJSON("proposals", state.proposals),
+    store.setJSON("completedTasks", state.completedTasks || {})
   ]);
 }
 __name(persistState, "persistState");
@@ -980,19 +982,34 @@ async function handleCrmData(request, env) {
     if (action === "completeFollowup") {
       const contactId = String(body.contactId || body.id || "").trim();
       if (!contactId) return jsonResponse(request, 400, { error: "contactId required" });
-      const current = await store.get("followups", { type: "json" });
-      const merged = completeFollowupKeys(current && typeof current === "object" ? current : {}, contactId);
-      const edits = clearFollowupEdits(await store.get("contactEdits", { type: "json" }), contactId);
       const actionText = completedActionText(body);
       const author = user && (user.name || user.email) || "User";
-      const existingNotes = await store.get("notes", { type: "json" });
-      const notes = mergeNoteOntoContact(existingNotes, contactId, completionNote(actionText, author, nowStamp()));
-      await Promise.all([
-        store.setJSON("followups", merged),
-        store.setJSON("contactEdits", edits),
-        store.setJSON("notes", notes)
+      const stamp = nowStamp();
+      const [followups, contactEdits, notes, completedTasks] = await Promise.all([
+        store.get("followups", { type: "json" }),
+        store.get("contactEdits", { type: "json" }),
+        store.get("notes", { type: "json" }),
+        store.get("completedTasks", { type: "json" })
       ]);
-      return jsonResponse(request, 200, { ok: true, contactId, completed: true });
+      const next = applyCompleteFollowupState(
+        { followups, contactEdits, notes, completedTasks },
+        contactId,
+        actionText,
+        author,
+        stamp
+      );
+      await Promise.all([
+        store.setJSON("followups", next.followups),
+        store.setJSON("contactEdits", next.contactEdits),
+        store.setJSON("notes", next.notes),
+        store.setJSON("completedTasks", next.completedTasks)
+      ]);
+      return jsonResponse(request, 200, {
+        ok: true,
+        contactId,
+        completed: true,
+        completedTasks: next.completedTasks[contactId] || []
+      });
     }
     if (!await store.get("_init")) {
       await store.setJSON("_init", {
@@ -1014,6 +1031,7 @@ async function handleCrmData(request, env) {
         contactEdits: state.contactEdits,
         proposals: state.proposals,
         archiveRequests: state.archiveRequests,
+        completedTasks: state.completedTasks,
         contacts: archive
       };
       if (!omitNotes) payload.notes = state.notes;

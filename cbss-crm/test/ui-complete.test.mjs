@@ -15,9 +15,10 @@ test("tasks tab exposes a Complete button and completeTask handler", () => {
   assert.match(html, /Schedule another follow-up/);
   assert.match(html, /function offerNextFollowup\(/);
   assert.match(html, /function showNextFollowupPrompt\(/);
-  assert.match(html, /build 3/);
-  assert.match(html, /apiSave\('saveFollowups', \{ followups: patch \}\)/);
-  assert.match(html, /completed: true, status: 'completed'/);
+  assert.match(html, /build 4/);
+  assert.match(html, /Completed tasks/);
+  assert.match(html, /function completedTasksHtml\(/);
+  assert.match(html, /apiSave\('completeFollowup', \{ contactId, nextAction: actionText \}\)/);
   assert.doesNotMatch(html, /confirm\('Mark this task complete/);
   assert.doesNotMatch(html, /apiSave\('completeFollowup', \{ contactId: String\(c\.id\), action: actionText \}\)/);
 });
