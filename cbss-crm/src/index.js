@@ -1,4 +1,4 @@
-import { applyFollowupPatch, clearFollowupEdits, completeFollowupKeys, completedActionText, completionNote, mergeNoteOntoContact } from "./followups.js";
+import { applyFollowupPatch, clearFollowupEdits, completeFollowupKeys, completedActionText, completionNote, mergeNoteOntoContact, resolveCrmAction } from "./followups.js";
 
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
@@ -423,8 +423,17 @@ function normalizePath(pathname) {
 }
 __name(normalizePath, "normalizePath");
 async function serveAssets(request, env) {
-  if (env.ASSETS) return env.ASSETS.fetch(request);
-  return new Response("Not found", { status: 404 });
+  if (!env.ASSETS) return new Response("Not found", { status: 404 });
+  const res = await env.ASSETS.fetch(request);
+  const type = String(res.headers.get("content-type") || "");
+  const path = normalizePath(new URL(request.url).pathname);
+  if (path === "/" || path === "/index.html" || type.includes("text/html")) {
+    const headers = new Headers(res.headers);
+    headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+    headers.set("Pragma", "no-cache");
+    return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+  }
+  return res;
 }
 __name(serveAssets, "serveAssets");
 
@@ -958,7 +967,9 @@ async function handleCrmData(request, env) {
       const raw = await request.text();
       if (raw) body = JSON.parse(raw);
     }
-    const action = url.searchParams.get("action") || body.action || "get";
+    const resolved = resolveCrmAction(request.method, url.searchParams.get("action"), body);
+    const action = resolved.action;
+    body = resolved.body;
     const user = await requireSession(request, env);
     if (!user) return jsonResponse(request, 401, { error: "Unauthorized" });
     const store = openStore(env);

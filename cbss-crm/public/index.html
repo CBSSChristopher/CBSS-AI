@@ -210,6 +210,12 @@
     .filter-chip.active { background: var(--primary); color: white; border-color: var(--primary); }
     .filter-chip:hover { border-color: var(--accent); }
     .hidden { display: none !important; }
+    #nextFollowupPrompt {
+      position: fixed; inset: 0; background: rgba(15, 32, 53, 0.45); z-index: 80;
+      display: flex; align-items: center; justify-content: center; padding: 16px;
+    }
+    #nextFollowupPrompt.hidden { display: none !important; }
+    #nextFollowupPrompt .card { max-width: 420px; width: 100%; margin: 0; }
     .netlify-identity-signup { display: none !important; }
     input[type="checkbox"] { width: auto; margin-right: 8px; }
     input[type="number"] { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; font-family: inherit; }
@@ -240,7 +246,7 @@
         <span class="mark">CB</span>
         <div>
           <h1>CBShippingSolutions</h1>
-          <p>Container Sales CRM</p>
+          <p>Container Sales CRM · build 3</p>
         </div>
       </div>
       <div class="user">
@@ -255,6 +261,16 @@
       <button data-view="pipeline" onclick="switchView('pipeline')">Pipeline</button>
       <button data-view="archive-review" id="archiveReviewNav" class="hidden" onclick="switchView('archive-review')">Archive review</button>
     </nav>
+    <div id="nextFollowupPrompt" class="hidden">
+      <div class="card">
+        <h2>Task completed</h2>
+        <p id="nextFollowupPromptText" style="font-size:0.92rem;color:#444;margin:10px 0 16px;"></p>
+        <div class="actions">
+          <button type="button" class="btn btn-primary" onclick="acceptNextFollowup()">Schedule another</button>
+          <button type="button" class="btn btn-secondary" onclick="dismissNextFollowup()">Not now</button>
+        </div>
+      </div>
+    </div>
     <div class="stat-bar" id="statBar"></div>
     <div class="main" id="view-contacts">
       <div class="contacts-pane">
@@ -996,7 +1012,7 @@
           if (isLiveFollowupRecord(fu)) {
             c.nextAction = fu.nextAction || '';
             c.followUpDate = fu.followUpDate || '';
-          } else if (fu || clearedFollowupIds.has(String(c.id))) {
+          } else {
             c.nextAction = '';
             c.followUpDate = '';
           }
@@ -1582,6 +1598,8 @@
       });
     }
 
+    let pendingNextFollowupId = null;
+
     function offerNextFollowup(c) {
       if (!c) return;
       switchView('contacts');
@@ -1595,6 +1613,26 @@
       }, 50);
     }
 
+    function showNextFollowupPrompt(c) {
+      pendingNextFollowupId = c && c.id;
+      const text = document.getElementById('nextFollowupPromptText');
+      const box = document.getElementById('nextFollowupPrompt');
+      if (text) text.textContent = 'Schedule another follow-up for ' + ((c && c.name) || 'this contact') + '?';
+      if (box) box.classList.remove('hidden');
+    }
+
+    function dismissNextFollowup() {
+      pendingNextFollowupId = null;
+      const box = document.getElementById('nextFollowupPrompt');
+      if (box) box.classList.add('hidden');
+    }
+
+    function acceptNextFollowup() {
+      const id = pendingNextFollowupId;
+      dismissNextFollowup();
+      offerNextFollowup(contactForId(id));
+    }
+
     async function completeTask(id, ev) {
       if (ev) ev.stopPropagation();
       const c = contactForId(id);
@@ -1603,11 +1641,10 @@
         return;
       }
       const actionText = String(c.nextAction || 'Follow-up').trim() || 'Follow-up';
-      if (!confirm('Mark this task complete for ' + (c.name || 'this contact') + '?')) return;
       applyCompletedTaskLocal(c, actionText);
       renderStats();
-      if (activeView() === 'tasks') renderTasks();
-      if (activeView() === 'followups') renderFollowUps();
+      renderTasks();
+      renderFollowUps();
       if (String(selectedId) === String(c.id)) selectContact(c.id);
       const contactId = String(c.id);
       const patch = { [contactId]: { nextAction: '', followUpDate: '', completed: true, status: 'completed' } };
@@ -1615,10 +1652,9 @@
       apiSave('completeFollowup', { contactId, nextAction: actionText });
       if (!saved || saved.ok === false) {
         alert('The task was cleared on this screen, but the server save failed. Refresh and try Complete again if it comes back.');
+        return;
       }
-      if (confirm('Schedule another follow-up for ' + (c.name || 'this contact') + '?')) {
-        offerNextFollowup(c);
-      }
+      showNextFollowupPrompt(c);
     }
 
     function cancelTask() {

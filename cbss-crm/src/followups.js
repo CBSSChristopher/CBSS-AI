@@ -41,6 +41,44 @@ export function clearFollowupEdits(edits, contactId) {
   return next;
 }
 
+const KNOWN_CRM_ACTIONS = new Set([
+  "get",
+  "getNotes",
+  "completeFollowup",
+  "saveFollowups",
+  "saveArchiveRequests",
+  "saveDeals",
+  "saveNotes",
+  "saveContactsAdded",
+  "saveContactEdits",
+  "saveProposals",
+  "ingestProposal",
+  "importDeals",
+  "importContacts"
+]);
+
+export function resolveCrmAction(method, urlAction, body) {
+  const src = body && typeof body === "object" && !Array.isArray(body) ? body : {};
+  let action = String(urlAction || src.action || "get").trim() || "get";
+  const contactId = String(src.contactId || src.id || "").trim();
+  const looksLikeLegacyComplete = String(method || "").toUpperCase() === "POST"
+    && Boolean(contactId)
+    && !KNOWN_CRM_ACTIONS.has(action)
+    && !src.followups
+    && !src.deals
+    && !src.notes
+    && !src.proposal
+    && !src.contacts
+    && !src.archiveRequests
+    && !src.contactEdits
+    && !src.contactsAdded;
+  if (looksLikeLegacyComplete) {
+    if (!src.nextAction) src.nextAction = action;
+    action = "completeFollowup";
+  }
+  return { action, body: src };
+}
+
 export function completedActionText(body) {
   const src = body && typeof body === "object" ? body : {};
   const text = String(src.nextAction || src.completedAction || "").trim();

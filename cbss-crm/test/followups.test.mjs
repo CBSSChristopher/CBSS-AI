@@ -6,7 +6,8 @@ import {
   completeFollowupKeys,
   completedActionText,
   completionNote,
-  mergeNoteOntoContact
+  mergeNoteOntoContact,
+  resolveCrmAction
 } from "../src/followups.js";
 
 test("completeFollowupKeys tombs both string and number ids", () => {
@@ -42,6 +43,14 @@ test("applyFollowupPatch updates a live task", () => {
   const current = { a1: { nextAction: "Call", followUpDate: "2026-08-20T09:00" } };
   const next = applyFollowupPatch(current, { a1: { nextAction: "Text", followUpDate: "2026-08-21T10:00" } });
   assert.deepEqual(next.a1, { nextAction: "Text", followUpDate: "2026-08-21T10:00" });
+});
+
+test("legacy complete payload with overwritten action still resolves", () => {
+  const body = { action: "Call back about 40ft", contactId: "1787155801308" };
+  const resolved = resolveCrmAction("POST", null, body);
+  assert.equal(resolved.action, "completeFollowup");
+  assert.equal(resolved.body.contactId, "1787155801308");
+  assert.equal(resolved.body.nextAction, "Call back about 40ft");
 });
 
 test("completedActionText ignores the CRM action name", () => {
