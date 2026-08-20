@@ -30,6 +30,7 @@ test("worker still serves the CRM data routes used by the desk", async () => {
   assert.match(worker, /saveFollowups/);
   assert.match(worker, /resolveCrmAction/);
   assert.match(worker, /Cache-Control/);
+  assert.match(worker, /path === "\/fresh"/);
   assert.doesNotMatch(worker, /await migrateQuoted\(store, state\);/);
   assert.doesNotMatch(worker, /await migrateOwners\(store, state, archive\);/);
 });

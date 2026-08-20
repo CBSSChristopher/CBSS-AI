@@ -1521,6 +1521,10 @@ var index_default = {
     if (path === "/webhooks/meta-leadgen") {
       return handleMetaLeadgen(request, env);
     }
+    if (path === "/fresh" || path === "/app") {
+      const assetReq = new Request(new URL("/index.html", request.url), request);
+      return serveAssets(assetReq, env);
+    }
     return serveAssets(request, env);
   }
 };
