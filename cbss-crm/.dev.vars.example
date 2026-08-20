@@ -1,0 +1,3 @@
+# Local only. Secrets stay in the Cloudflare dashboard for production.
+AUTH_SECRET=
+CRM_INGEST_SECRET=
