@@ -6,7 +6,7 @@ const html = readFileSync(new URL("../public/index.html", import.meta.url), "utf
 
 test("tasks tab exposes a Complete button and completeTask handler", () => {
   assert.match(html, /function completeTask\(/);
-  assert.match(html, /onclick="completeTask\(\$\{JSON\.stringify\(String\(c\.id\)\)\}, event\)">Complete<\/button>/);
+  assert.match(html, /completeTask\(\$\{JSON\.stringify\(String\(c\.id\)\)\}, event\)">Complete<\/button>/);
   assert.match(html, /action: 'getNotes'/);
   assert.match(html, /omitNotes: '1'/);
   assert.match(html, /function onSearchInput\(/);
@@ -15,7 +15,9 @@ test("tasks tab exposes a Complete button and completeTask handler", () => {
   assert.match(html, /Schedule another follow-up/);
   assert.match(html, /function offerNextFollowup\(/);
   assert.match(html, /function showNextFollowupPrompt\(/);
-  assert.match(html, /build 4/);
+  assert.match(html, /build 5/);
+  assert.match(html, /function persistFollowupRecord\(/);
+  assert.match(html, /window\.completeTask = completeTask/);
   assert.match(html, /Completed tasks/);
   assert.match(html, /function completedTasksHtml\(/);
   assert.match(html, /apiSave\('completeFollowup', \{ contactId, nextAction: actionText \}\)/);
@@ -26,6 +28,8 @@ test("tasks tab exposes a Complete button and completeTask handler", () => {
 test("worker still serves the CRM data routes used by the desk", async () => {
   const worker = readFileSync(new URL("../src/index.js", import.meta.url), "utf8");
   assert.match(worker, /action === "completeFollowup"/);
+  assert.match(worker, /crmBuild: 5/);
+  assert.match(worker, /Cloudflare-CDN-Cache-Control/);
   assert.match(worker, /action === "getNotes"/);
   assert.match(worker, /omitNotes/);
   assert.match(worker, /saveFollowups/);

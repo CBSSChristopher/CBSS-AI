@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-store" />
   <title>CBShippingSolutions CRM</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -246,7 +247,7 @@
         <span class="mark">CB</span>
         <div>
           <h1>CBShippingSolutions</h1>
-          <p>Container Sales CRM · build 4</p>
+          <p>Container Sales CRM · build 5</p>
         </div>
       </div>
       <div class="user">
@@ -1292,7 +1293,7 @@
           </div>
           <div class="actions">
             <button class="btn btn-primary" onclick="saveFollowUp(${c.id})">Save Follow-up</button>
-            ${c.nextAction || c.followUpDate ? `<button class="btn btn-success" onclick="completeTask(${JSON.stringify(String(c.id))})">Complete task</button>` : ''}
+            ${c.nextAction || c.followUpDate ? `<button type="button" class="btn btn-success" onclick="event.preventDefault();event.stopPropagation();completeTask(${JSON.stringify(String(c.id))}, event)">Complete task</button>` : ''}
           </div>
         </div>
         <div class="card">
@@ -1349,11 +1350,19 @@
       return out;
     }
 
+    function persistFollowupRecord(contactId, record) {
+      const key = String(contactId);
+      const row = Object.assign({ updatedAt: new Date().toISOString() }, record || {});
+      followupsMap[key] = row;
+      followupsMap[contactId] = row;
+      localStorage.setItem(storageKey('followups'), JSON.stringify(followupsMap));
+      return apiSave('saveFollowups', { followups: { [key]: row } });
+    }
+
     function persistFollowups() {
       followupsMap = collectFollowupsMap();
       if (!Object.keys(followupsMap).length) return;
       localStorage.setItem(storageKey('followups'), JSON.stringify(followupsMap));
-      apiSave('saveFollowups', { followups: followupsMap });
     }
 
     function saveFollowUp(id) {
@@ -1362,9 +1371,7 @@
       c.nextAction = document.getElementById('nextAction').value.trim();
       c.followUpDate = document.getElementById('followUpDate').value;
       clearedFollowupIds.delete(String(id));
-      followupsMap[id] = { nextAction: c.nextAction, followUpDate: c.followUpDate };
-      followupsMap[String(id)] = followupsMap[id];
-      persistFollowups();
+      persistFollowupRecord(id, { nextAction: c.nextAction, followUpDate: c.followUpDate });
       renderStats();
       if (activeView() === 'followups') renderFollowUps();
       if (activeView() === 'tasks') renderTasks();
@@ -1520,7 +1527,7 @@
                 <td>${esc(c.nextAction) || '—'}</td>
                 <td>${badge}</td>
                 <td>${esc(c.owner) || '—'}</td>
-                <td><button class="btn btn-success btn-compact" onclick="completeTask(${JSON.stringify(String(c.id))}, event)">Complete</button></td>
+                <td><button type="button" class="btn btn-success btn-compact" onclick="event.preventDefault();event.stopPropagation();completeTask(${JSON.stringify(String(c.id))}, event)">Complete</button></td>
               </tr>`;
             }).join('')}
           </tbody>
@@ -1579,9 +1586,7 @@
       c.nextAction = action;
       c.followUpDate = date || '';
       clearedFollowupIds.delete(String(id));
-      followupsMap[id] = { nextAction: c.nextAction, followUpDate: c.followUpDate };
-      followupsMap[String(id)] = followupsMap[id];
-      persistFollowups();
+      persistFollowupRecord(id, { nextAction: c.nextAction, followUpDate: c.followUpDate });
       cancelTask();
       if (activeView() === 'tasks') renderTasks();
       if (activeView() === 'followups') renderFollowUps();
@@ -1601,25 +1606,37 @@
     }
 
     function applyCompletedTaskLocal(c, actionText, serverRows) {
-      c.nextAction = '';
-      c.followUpDate = '';
-      const tombstone = { nextAction: '', followUpDate: '', completed: true, status: 'completed' };
-      followupsMap[c.id] = tombstone;
-      followupsMap[String(c.id)] = tombstone;
-      clearedFollowupIds.add(String(c.id));
+      const contactId = String(c && c.id);
+      const tombstone = { nextAction: '', followUpDate: '', completed: true, status: 'completed', updatedAt: new Date().toISOString() };
+      followupsMap[contactId] = tombstone;
+      if (c && c.id != null) followupsMap[c.id] = tombstone;
+      clearedFollowupIds.add(contactId);
       const author = (currentUser && currentUser.user_metadata && currentUser.user_metadata.full_name) || (currentUser && currentUser.email) || 'User';
       const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
       const row = { text: actionText, author, timestamp, status: 'completed' };
-      c.completedTasks = Array.isArray(serverRows) && serverRows.length ? serverRows.slice() : (c.completedTasks || []);
-      if (!Array.isArray(serverRows) || !serverRows.length) c.completedTasks.unshift(row);
-      completedTasksMap[String(c.id)] = c.completedTasks;
-      c.notes = c.notes || [];
-      c.notes.unshift({
-        author,
-        timestamp,
-        tag: 'Task',
-        text: 'Completed: ' + actionText
+      const matches = contacts.filter(x => x && String(x.id) === contactId);
+      if (c && matches.indexOf(c) < 0) matches.push(c);
+      matches.forEach(function(target) {
+        target.nextAction = '';
+        target.followUpDate = '';
+        target.completedTasks = Array.isArray(serverRows) && serverRows.length ? serverRows.slice() : (target.completedTasks || []);
+        if (!Array.isArray(serverRows) || !serverRows.length) {
+          target.completedTasks = (target.completedTasks || []).slice();
+          if (!target.completedTasks.some(t => t && t.text === actionText && t.status === 'completed')) {
+            target.completedTasks.unshift(row);
+          }
+        }
+        target.notes = target.notes || [];
+        if (!target.notes.some(n => n && n.text === ('Completed: ' + actionText) && n.timestamp === timestamp)) {
+          target.notes.unshift({
+            author,
+            timestamp,
+            tag: 'Task',
+            text: 'Completed: ' + actionText
+          });
+        }
       });
+      completedTasksMap[contactId] = (matches[0] && matches[0].completedTasks) || [row];
     }
 
     let pendingNextFollowupId = null;
@@ -1664,7 +1681,11 @@
     }
 
     async function completeTask(id, ev) {
-      if (ev) ev.stopPropagation();
+      if (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+      }
       const c = contactForId(id);
       if (!c) {
         alert('Could not find that contact. Refresh and try again.');
@@ -1672,12 +1693,27 @@
       }
       const actionText = String(c.nextAction || 'Follow-up').trim() || 'Follow-up';
       const contactId = String(c.id);
+      const previous = {
+        nextAction: c.nextAction,
+        followUpDate: c.followUpDate,
+        followup: followupsMap[contactId] || followupsMap[c.id]
+      };
+      applyCompletedTaskLocal(c, actionText);
+      refreshTaskLists();
       let saved = await apiSave('completeFollowup', { contactId, nextAction: actionText });
       if (!saved || saved.ok === false || saved.completed !== true) {
-        const patch = { [contactId]: { nextAction: '', followUpDate: '', completed: true, status: 'completed' } };
-        saved = await apiSave('saveFollowups', { followups: patch });
+        saved = await persistFollowupRecord(contactId, { nextAction: '', followUpDate: '', completed: true, status: 'completed' });
       }
       if (!saved || saved.ok === false) {
+        c.nextAction = previous.nextAction;
+        c.followUpDate = previous.followUpDate;
+        if (previous.followup) {
+          followupsMap[contactId] = previous.followup;
+          followupsMap[c.id] = previous.followup;
+        }
+        clearedFollowupIds.delete(contactId);
+        refreshTaskLists();
+        selectContact(c.id);
         alert('Could not complete the task. Stay on this page and try Complete again.');
         return;
       }
@@ -1686,6 +1722,7 @@
       selectContact(c.id);
       showNextFollowupPrompt(c);
     }
+    window.completeTask = completeTask;
 
     function cancelTask() {
       document.getElementById('taskContactId').value = '';
@@ -1727,7 +1764,7 @@
               <td>${esc(c.nextAction) || 'Follow up'}</td>
               <td>${badge}</td>
               <td>${esc(c.owner || '') || '—'}</td>
-              <td><button class="btn btn-success btn-compact" onclick="completeTask(${JSON.stringify(String(c.id))}, event)">Complete</button></td>
+              <td><button type="button" class="btn btn-success btn-compact" onclick="event.preventDefault();event.stopPropagation();completeTask(${JSON.stringify(String(c.id))}, event)">Complete</button></td>
             </tr>`;
           }).join('')}
         </tbody>

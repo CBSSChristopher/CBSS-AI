@@ -30,9 +30,24 @@ test("applyFollowupPatch honors completed flag instead of preserving the old tas
 });
 
 test("applyFollowupPatch can schedule a new task after a completed tombstone", () => {
-  const current = { a1: { nextAction: "", followUpDate: "", completed: true, status: "completed" } };
-  const next = applyFollowupPatch(current, { a1: { nextAction: "Call again", followUpDate: "2026-08-22T09:00" } });
-  assert.deepEqual(next.a1, { nextAction: "Call again", followUpDate: "2026-08-22T09:00" });
+  const current = { a1: { nextAction: "", followUpDate: "", completed: true, status: "completed", updatedAt: "2026-08-20T12:00:00.000Z" } };
+  const next = applyFollowupPatch(current, {
+    a1: { nextAction: "Call again", followUpDate: "2026-08-22T09:00", updatedAt: "2026-08-20T13:00:00.000Z" }
+  });
+  assert.equal(next.a1.nextAction, "Call again");
+  assert.equal(next.a1.followUpDate, "2026-08-22T09:00");
+  assert.equal(next.a1.updatedAt, "2026-08-20T13:00:00.000Z");
+});
+
+test("applyFollowupPatch ignores stale live saves after a completed tombstone", () => {
+  const current = { a1: { nextAction: "", followUpDate: "", completed: true, status: "completed", updatedAt: "2026-08-20T23:00:00.000Z" } };
+  const stale = applyFollowupPatch(current, { a1: { nextAction: "Call", followUpDate: "2026-08-21T09:00" } });
+  assert.equal(stale.a1.completed, true);
+  assert.equal(stale.a1.nextAction, "");
+  const older = applyFollowupPatch(current, {
+    a1: { nextAction: "Call", followUpDate: "2026-08-21T09:00", updatedAt: "2026-08-20T22:00:00.000Z" }
+  });
+  assert.equal(older.a1.completed, true);
 });
 
 test("applyFollowupPatch still refuses an accidental empty wipe", () => {
@@ -44,7 +59,9 @@ test("applyFollowupPatch still refuses an accidental empty wipe", () => {
 test("applyFollowupPatch updates a live task", () => {
   const current = { a1: { nextAction: "Call", followUpDate: "2026-08-20T09:00" } };
   const next = applyFollowupPatch(current, { a1: { nextAction: "Text", followUpDate: "2026-08-21T10:00" } });
-  assert.deepEqual(next.a1, { nextAction: "Text", followUpDate: "2026-08-21T10:00" });
+  assert.equal(next.a1.nextAction, "Text");
+  assert.equal(next.a1.followUpDate, "2026-08-21T10:00");
+  assert.ok(next.a1.updatedAt);
 });
 
 test("legacy complete payload with overwritten action still resolves", () => {

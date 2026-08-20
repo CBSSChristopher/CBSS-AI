@@ -1,5 +1,21 @@
-export function followupTombstone() {
-  return { nextAction: "", followUpDate: "", completed: true, status: "completed" };
+export function followupNow() {
+  return new Date().toISOString();
+}
+
+export function followupUpdatedAt(value) {
+  if (!value || typeof value !== "object") return 0;
+  const n = Date.parse(String(value.updatedAt || value.completedAt || ""));
+  return Number.isFinite(n) ? n : 0;
+}
+
+export function followupTombstone(at) {
+  return {
+    nextAction: "",
+    followUpDate: "",
+    completed: true,
+    status: "completed",
+    updatedAt: at || followupNow()
+  };
 }
 
 export function isCompletedFollowup(value) {
@@ -97,7 +113,7 @@ export function applyFollowupPatch(current, incoming) {
       for (const existing of Object.keys(merged)) {
         if (String(existing) === String(key)) delete merged[existing];
       }
-      merged[String(key)] = followupTombstone();
+      merged[String(key)] = followupTombstone(value.updatedAt || value.completedAt);
       continue;
     }
     const prev = merged[key] || merged[String(key)] || {};
@@ -111,7 +127,16 @@ export function applyFollowupPatch(current, incoming) {
       merged[key] = prev;
       continue;
     }
-    merged[key] = { nextAction: nextActionText, followUpDate: followUpDateText };
+    if (isCompletedFollowup(prev) && (nextActionText || followUpDateText)) {
+      const incomingTs = followupUpdatedAt(value);
+      const prevTs = followupUpdatedAt(prev);
+      if (!incomingTs || incomingTs < prevTs) continue;
+    }
+    merged[key] = {
+      nextAction: nextActionText,
+      followUpDate: followUpDateText,
+      updatedAt: value.updatedAt || followupNow()
+    };
   }
   return merged;
 }

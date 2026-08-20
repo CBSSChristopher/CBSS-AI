@@ -429,8 +429,11 @@ async function serveAssets(request, env) {
   const path = normalizePath(new URL(request.url).pathname);
   if (path === "/" || path === "/index.html" || type.includes("text/html")) {
     const headers = new Headers(res.headers);
-    headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+    headers.set("Cache-Control", "private, no-store, no-cache, must-revalidate");
+    headers.set("CDN-Cache-Control", "no-store");
+    headers.set("Cloudflare-CDN-Cache-Control", "no-store");
     headers.set("Pragma", "no-cache");
+    headers.set("x-crm-build", "5");
     return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
   }
   return res;
@@ -1006,6 +1009,7 @@ async function handleCrmData(request, env) {
       ]);
       return jsonResponse(request, 200, {
         ok: true,
+        crmBuild: 5,
         contactId,
         completed: true,
         completedTasks: next.completedTasks[contactId] || []
@@ -1025,6 +1029,7 @@ async function handleCrmData(request, env) {
       applyEdits(state.contactsAdded, state.contactEdits);
       const omitNotes = url.searchParams.get("omitNotes") === "1" || body.omitNotes === true || body.omitNotes === "1";
       const payload = {
+        crmBuild: 5,
         deals: state.deals,
         followups: state.followups,
         contactsAdded: state.contactsAdded,
