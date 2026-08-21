@@ -92,7 +92,7 @@ describe("Live call CRM + CTE", () => {
     assert.match(crmSrc, /PROTECTED_NOTE_KEY = "2621"/);
     assert.match(crmSrc, /notesSafeToSave/);
     assert.match(crmSrc, /Refusing to write notes: protected note key is missing/);
-    assert.match(index, /crmSaveNotes\(env, user\.crm, notes, book\.notes\)/);
+    assert.match(index, /crmAppendNote\(env, user\.crm,/);
   });
 
   it("still writes when CRM already lost the protected note key", () => {
@@ -117,7 +117,9 @@ describe("Live call CRM + CTE", () => {
     assert.match(page, /Past CTE/);
     assert.match(index, /path === "\/contacts"/);
     assert.match(index, /path === "\/call\/save"/);
-    assert.match(index, /crmSaveNotes/);
+    assert.match(index, /crmAppendNote/);
+    assert.match(crmSrc, /function crmAppendNote/);
+    assert.match(crmSrc, /findExistingContact/);
     assert.match(index, /crmSaveFollowups/);
     assert.match(index, /function publicUser/);
     assert.match(index, /crm: Boolean\(user\.crm\)/);

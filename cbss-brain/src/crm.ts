@@ -229,7 +229,7 @@ export function buildCreatedContact(input: {
     state: String(input.state || "").trim(),
     zip: String(input.zip || "").trim(),
     street: "",
-    owner: input.owner,
+    owner: titleCaseOwner(input.owner),
     status: "New Lead",
     created: now.toISOString().slice(0, 10),
     source: "Desk",
@@ -307,6 +307,46 @@ export async function crmSaveNotes(
     throw new Error("Refusing to write notes: protected note key is missing");
   }
   await crmSave(env, token, "saveNotes", { notes });
+}
+
+export function phoneDigits(value: string): string {
+  return String(value || "").replace(/\D+/g, "");
+}
+
+export function findExistingContact(
+  book: CrmBook,
+  input: { name?: string; phone?: string; email?: string },
+): CrmContact | null {
+  const phone = phoneDigits(String(input.phone || ""));
+  const email = String(input.email || "").trim().toLowerCase();
+  const all = [...(book.contactsAdded || []), ...(book.contacts || [])];
+  if (phone && phone.length >= 10) {
+    const hit = all.find((c) => phoneDigits(String(c.phone || "")) === phone);
+    if (hit) return hit;
+  }
+  if (email) {
+    const hit = all.find((c) => String(c.email || "").trim().toLowerCase() === email);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+export async function crmAppendNote(
+  env: Env,
+  token: string,
+  contactId: string,
+  note: CrmNote,
+  previous?: Record<string, CrmNote[]>,
+): Promise<void> {
+  const id = String(contactId || "").trim();
+  if (!id) throw new Error("contactId required");
+  try {
+    await crmSave(env, token, "appendNote", { contactId: id, note });
+    return;
+  } catch (err) {
+    const notes = appendNoteToMap(previous || {}, id, note);
+    await crmSaveNotes(env, token, notes, previous);
+  }
 }
 
 export async function crmSaveFollowups(

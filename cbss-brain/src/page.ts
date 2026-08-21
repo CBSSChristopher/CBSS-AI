@@ -100,7 +100,7 @@ export function pageHtml(): string {
   <header>
     <div>
       <div class="brand">CBSS Desk</div>
-      <div class="sub" id="stamp">build 10</div>
+      <div class="sub" id="stamp">build 11</div>
     </div>
     <div class="right">
       <div class="who hide" id="who"></div>
