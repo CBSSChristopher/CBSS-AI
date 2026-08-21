@@ -12,5 +12,11 @@
   },
   "kv_namespaces": [
     { "binding": "CRM_STORE", "id": "257a2e17e41b4662b0f8ac164f91d7ca" }
-  ]
+  ],
+  "triggers": {
+    "crons": ["*/10 * * * *"]
+  },
+  "browser": {
+    "binding": "BROWSER"
+  }
 }

@@ -94,6 +94,22 @@
     .btn-primary { background: var(--primary); color: white; width: 100%; }
     .btn-primary:hover { background: var(--primary-dark); }
     .btn-secondary { background: #e8eef4; color: var(--primary); }
+    .zip-actions { display: flex; gap: 8px; width: 100%; }
+    .zip-actions .btn { width: auto; flex: 1; padding: 13px 12px; }
+    .picks { margin: 0 0 10px; }
+    .picks .lbl { font-size: 12px; font-weight: 700; color: #3d4d5c; margin: 10px 0 6px; }
+    .picks .btns { display: flex; flex-wrap: wrap; gap: 6px; }
+    .picks .pick {
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--primary);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .picks .pick.on { background: var(--navy); color: #fff; border-color: var(--navy); }
     .depot-card {
       border: 1px solid var(--border);
       border-radius: 10px;
@@ -274,110 +290,133 @@
   <div class="container">
     <header>
       <h1>CBShippingSolutions</h1>
-      <p>Proposal Builder · One depot · Delivered cash price</p>
+      <p>Proposal Builder · One depot · Delivered cash · build 3</p>
     </header>
 
     <form id="proposalForm" onsubmit="submitProposal(event)">
 
-      <!-- 1. ZIP + Depot Finder -->
-      <div class="section-title">1. Customer Location & Depot</div>
+      <!-- 1. Container picks — same button style as AI Help Desk -->
+      <div class="section-title">1. Container</div>
+      <p class="note" style="margin-top:-6px;margin-bottom:8px;">Pick size, grade, and configuration the same way as Help Desk, then pull the posted xChange number. That number is theirs, not a CBSS quote.</p>
+      <div class="picks" id="box-picks">
+        <div class="lbl">Size</div>
+        <div class="btns">
+          <button type="button" class="pick" data-pick="size" data-val="20STD">20STD</button>
+          <button type="button" class="pick" data-pick="size" data-val="20HC">20HC</button>
+          <button type="button" class="pick" data-pick="size" data-val="40STD">40STD</button>
+          <button type="button" class="pick on" data-pick="size" data-val="40HC">40HC</button>
+          <button type="button" class="pick" data-pick="size" data-val="10STD">10</button>
+          <button type="button" class="pick" data-pick="size" data-val="45HC">45HC</button>
+          <button type="button" class="pick" data-pick="size" data-val="53STD">53</button>
+        </div>
+        <div class="lbl">Grade</div>
+        <div class="btns">
+          <button type="button" class="pick" data-pick="grade" data-val="WWT">WWT</button>
+          <button type="button" class="pick on" data-pick="grade" data-val="CW">CW</button>
+          <button type="button" class="pick" data-pick="grade" data-val="IICL">IICL / Multi-Trip</button>
+          <button type="button" class="pick" data-pick="grade" data-val="OneTrip">One-Trip</button>
+          <button type="button" class="pick" data-pick="grade" data-val="AsIs">As-Is</button>
+        </div>
+        <div class="lbl">Configuration</div>
+        <div class="btns">
+          <button type="button" class="pick on" data-pick="config" data-val="standard">Standard</button>
+          <button type="button" class="pick" data-pick="config" data-val="double-door">Double door</button>
+          <button type="button" class="pick" data-pick="config" data-val="side-os-2d">Side door (OS 2D)</button>
+          <button type="button" class="pick" data-pick="config" data-val="side-os-4d">Side door (OS 4D)</button>
+          <button type="button" class="pick" data-pick="config" data-val="tri-door">Tri-door</button>
+          <button type="button" class="pick" data-pick="config" data-val="full-open-side">Full open side</button>
+        </div>
+        <p class="note">OS 2D and OS 4D are side-door units on xChange. Full open side is a different box and usually costs more. Do not mix them.</p>
+      </div>
+      <div class="row">
+        <div>
+          <label for="boxQty">How many *</label>
+          <div class="qty-row">
+            <button type="button" class="qty-btn" onclick="nudgeQty(-1)" aria-label="Fewer">−</button>
+            <input type="number" id="boxQty" min="1" max="50" step="1" value="1" oninput="onSizeOrConditionChange()" />
+            <button type="button" class="qty-btn" onclick="nudgeQty(1)" aria-label="More">+</button>
+          </div>
+        </div>
+        <div>
+          <p class="note" style="margin-top:28px;">How many of this container they want. 1, 2, 3, and so on.</p>
+        </div>
+      </div>
+      <select id="boxSize" class="hidden" aria-hidden="true" onchange="onSizeOrConditionChange()">
+        <option value="10">10 ft</option>
+        <option value="20">20 ft</option>
+        <option value="40" selected>40 ft</option>
+        <option value="45">45 ft</option>
+        <option value="53">53 ft</option>
+      </select>
+      <select id="boxHeight" class="hidden" aria-hidden="true" onchange="onSizeOrConditionChange()">
+        <option value="DC">Standard height / DC</option>
+        <option value="HC" selected>High cube / HC</option>
+      </select>
+      <select id="boxConfig" class="hidden" aria-hidden="true" onchange="onSizeOrConditionChange()">
+        <option value="standard" selected>Standard</option>
+        <option value="tri-door">Tri-door</option>
+        <option value="double-door">Double door</option>
+        <option value="side-os-2d">Side door (OS 2D)</option>
+        <option value="side-os-4d">Side door (OS 4D)</option>
+        <option value="side-door">Side door</option>
+        <option value="full-open-side">Full open side</option>
+        <option value="other">Other / specialized</option>
+      </select>
+      <select id="condition" class="hidden" aria-hidden="true" onchange="onSizeOrConditionChange()">
+        <option value="CW">Cargo Worthy (CW)</option>
+        <option value="IICL">IICL/Multi-Trip</option>
+        <option value="WWT">Wind & Water Tight (WWT)</option>
+        <option value="OneTrip">One-Trip / New</option>
+        <option value="AsIs">As-Is</option>
+      </select>
+      <select id="size" class="hidden" aria-hidden="true">
+        <option value="20ft">20ft</option>
+        <option value="40ft" selected>40ft</option>
+        <option value="Specialized">Specialized</option>
+      </select>
+
+      <!-- 2. ZIP + Depot + Pull xChange -->
+      <div class="section-title">2. Customer Location & Depot</div>
       <div class="row">
         <div>
           <label for="zip">Customer ZIP Code *</label>
           <input type="text" id="zip" maxlength="5" placeholder="e.g. 38103" required />
         </div>
         <div style="display:flex; align-items:flex-end;">
-          <button type="button" class="btn btn-primary" id="findBtn" onclick="findDepots()">Find depot</button>
+          <div class="zip-actions">
+            <button type="button" class="btn btn-primary" id="findBtn" onclick="findDepots()">Find depot</button>
+            <button type="button" class="btn btn-secondary" id="pullXchangeBtn" onclick="pullXchange()">Pull xChange</button>
+          </div>
         </div>
       </div>
       <p class="status" id="zipStatus"></p>
+      <p class="status" id="inventoryStatus">Wholesale fills from the latest posted xChange pickup price. Pull xChange if it is missing or stale.</p>
 
       <div id="depotSection" class="hidden">
         <label style="margin-top:12px;">Your depot</label>
         <div id="depotList"></div>
       </div>
 
-      <!-- 2. Container & Cost -->
-      <div id="pricingSection" class="hidden">
-        <div class="section-title">2. Container & Wholesale Cost</div>
-        <div class="row">
-          <div>
-            <label for="boxSize">Size *</label>
-            <select id="boxSize" onchange="onSizeOrConditionChange()">
-              <option value="10">10 ft</option>
-              <option value="20">20 ft</option>
-              <option value="40" selected>40 ft</option>
-              <option value="45">45 ft</option>
-              <option value="53">53 ft</option>
-            </select>
-          </div>
-          <div>
-            <label for="boxHeight">Height *</label>
-            <select id="boxHeight" onchange="onSizeOrConditionChange()">
-              <option value="DC">Standard height / DC</option>
-              <option value="HC" selected>High cube / HC</option>
-            </select>
-          </div>
-        </div>
-        <div class="row">
-          <div>
-            <label for="boxConfig">Configuration *</label>
-            <select id="boxConfig" onchange="onSizeOrConditionChange()">
-              <option value="standard" selected>Standard</option>
-              <option value="tri-door">Tri-door</option>
-              <option value="double-door">Double door</option>
-              <option value="side-door">Side door</option>
-              <option value="full-open-side">Full open side</option>
-              <option value="other">Other / specialized</option>
-            </select>
-          </div>
-          <div>
-            <label for="condition">Grade</label>
-            <select id="condition" onchange="onSizeOrConditionChange()">
-              <option value="CW">Cargo Worthy (CW)</option>
-              <option value="IICL">IICL/Multi-Trip</option>
-              <option value="WWT">Wind & Water Tight (WWT)</option>
-              <option value="OneTrip">One-Trip / New</option>
-              <option value="AsIs">As-Is</option>
-            </select>
-          </div>
-        </div>
-        <div class="row">
-          <div>
-            <label for="boxQty">How many *</label>
-            <div class="qty-row">
-              <button type="button" class="qty-btn" onclick="nudgeQty(-1)" aria-label="Fewer">−</button>
-              <input type="number" id="boxQty" min="1" max="50" step="1" value="1" oninput="onSizeOrConditionChange()" />
-              <button type="button" class="qty-btn" onclick="nudgeQty(1)" aria-label="More">+</button>
-            </div>
-          </div>
-          <div>
-            <p class="note" style="margin-top:28px;">How many of this container they want. 1, 2, 3, and so on.</p>
-          </div>
-        </div>
-        <select id="size" class="hidden" aria-hidden="true">
-          <option value="20ft">20ft</option>
-          <option value="40ft" selected>40ft</option>
-          <option value="Specialized">Specialized</option>
-        </select>
+      <!-- 3. Wholesale & cash -->
+      <div id="pricingSection">
+        <div class="section-title">3. Wholesale & Delivered Cash</div>
         <div class="row">
           <div>
             <label for="wholesale">Wholesale Cost (xChange) *</label>
-            <input type="number" id="wholesale" min="0" step="0.01" placeholder="Enter wholesale" required oninput="recalcIfReady()" />
+            <input type="number" id="wholesale" min="0" step="0.01" placeholder="Posted xChange pickup — do not invent" required oninput="recalcIfReady()" />
           </div>
           <div>
             <label for="milesOverride">Miles Override (optional)</label>
             <input type="number" id="milesOverride" min="0" placeholder="Leave blank for estimate" oninput="recalcIfReady()" />
           </div>
         </div>
-        <p class="status" id="inventoryStatus">Wholesale is entered manually until xChange inventory is loaded.</p>
 
         <div id="priceBox" class="price-box hidden"></div>
       </div>
 
       <!-- 3. Flex Buy / Payment Options -->
       <div id="flexSection" class="hidden">
-        <div class="section-title">3. Payment Options — Cash or Flex Buy</div>
+        <div class="section-title">4. Payment Options — Cash or Flex Buy</div>
 
         <div class="radio-group" style="margin-bottom:14px;">
           <label><input type="radio" name="payMode" value="cash" checked onchange="toggleFlexUI()" /> Cash / Full Payment</label>
@@ -434,7 +473,7 @@
       </div>
 
       <!-- 4. Sales Rep -->
-      <div class="section-title">4. Sales Rep</div>
+      <div class="section-title">5. Sales Rep</div>
       <div class="row">
         <div>
           <label for="repName">Sales Rep Name *</label>
@@ -447,7 +486,7 @@
       </div>
 
       <!-- 5. Customer -->
-      <div class="section-title">5. Customer Information</div>
+      <div class="section-title">6. Customer Information</div>
       <div class="row">
         <div>
           <label for="customerName">Customer / Contact Name *</label>
@@ -476,7 +515,7 @@
       </div>
 
       <!-- 6. Client Type + Notes -->
-      <div class="section-title">6. Client Type & Notes</div>
+      <div class="section-title">7. Client Type & Notes</div>
       <div class="radio-group">
         <label><input type="radio" name="clientType" value="Residential" checked /> Residential</label>
         <label><input type="radio" name="clientType" value="Commercial" /> Commercial / Large Deal</label>
@@ -736,14 +775,51 @@
       else if (n.includes("10")) size = "10";
       let height = "DC";
       if (n.includes("highcube") || n.includes("40hc") || n.includes("20hc") || n.includes("45hc") || n.includes("hq") || /(^|[^a-z])hc([^a-z]|$)/.test(n)) height = "HC";
-      let config = "standard";
-      if (n.includes("tridoor") || n.includes("3door")) config = "tri-door";
-      else if (n.includes("doubledoor") || n.includes("tunnel")) config = "double-door";
-      else if (n.includes("fullopen") || n.includes("openside") || n.includes("hcos") || /(^|[^a-z])os([^a-z]|$)/.test(n)) config = "full-open-side";
-      else if (n.includes("sidedoor")) config = "side-door";
-      else if (n.includes("reefer") || n.includes("refrigerat")) config = "other";
-      else if (n.includes("specialized") || n.includes("modified") || n.includes("custom")) config = "other";
-      return { size, height, config };
+      return { size, height, config: parseOfferConfig(raw) };
+    }
+
+    function parseOfferConfig(raw) {
+      const n = compactSpec(raw);
+      if (!n) return "standard";
+      if (n.includes("tridoor") || n.includes("3door")) return "tri-door";
+      if (n.includes("fullopen") || n.includes("opensidefull") || n.includes("fullopenside")) return "full-open-side";
+      if (n.includes("opentop")) return "other";
+      const openSide =
+        n.includes("openside") ||
+        n.includes("sidedoor") ||
+        n.includes("os2d") ||
+        n.includes("os4d") ||
+        n.includes("os2door") ||
+        n.includes("os4door") ||
+        n.includes("hcos") ||
+        /(^|[^a-z])os([^a-z]|$)/.test(n);
+      if (openSide) {
+        if (
+          n.includes("os2d") ||
+          n.includes("os2door") ||
+          n.includes("openside2") ||
+          n.includes("sidedoor2") ||
+          n.includes("2doors") ||
+          /(?:os|openside|sidedoor)2d/.test(n)
+        ) {
+          return "side-os-2d";
+        }
+        if (
+          n.includes("os4d") ||
+          n.includes("os4door") ||
+          n.includes("openside4") ||
+          n.includes("sidedoor4") ||
+          n.includes("4doors") ||
+          /(?:os|openside|sidedoor)4d/.test(n)
+        ) {
+          return "side-os-4d";
+        }
+        return "side-door";
+      }
+      if (n.includes("doubledoor") || n.includes("tunnel")) return "double-door";
+      if (n.includes("reefer") || n.includes("refrigerat")) return "other";
+      if (n.includes("specialized") || n.includes("modified") || n.includes("custom")) return "other";
+      return "standard";
     }
 
     function specsCompatible(want, got) {
@@ -832,7 +908,7 @@
     function describeContainer(size, height, config, grade) {
       const sizeLabel = size + " ft";
       const heightLabel = height === "HC" ? "High Cube" : "Standard";
-      const configMap = { standard: "Standard", "tri-door": "Tri-door", "double-door": "Double door", "side-door": "Side door", "full-open-side": "Full open side", other: "Specialized" };
+      const configMap = { standard: "Standard", "tri-door": "Tri-door", "double-door": "Double door", "side-os-2d": "Side door (OS 2D)", "side-os-4d": "Side door (OS 4D)", "side-door": "Side door", "full-open-side": "Full open side", other: "Specialized" };
       const gradeMap = { CW: "Cargo Worthy (CW)", IICL: "IICL/Multi-Trip", WWT: "Wind & Water Tight (WWT)", OneTrip: "One-Trip / New", AsIs: "As-Is" };
       const bits = [sizeLabel, heightLabel];
       if (config && config !== "standard") bits.push(configMap[config] || config);
@@ -925,6 +1001,46 @@
       };
     }
 
+    const SIZE_PICKS = {
+      "20STD": { size: "20", height: "DC" },
+      "20HC": { size: "20", height: "HC" },
+      "40STD": { size: "40", height: "DC" },
+      "40HC": { size: "40", height: "HC" },
+      "10STD": { size: "10", height: "DC" },
+      "45HC": { size: "45", height: "HC" },
+      "53STD": { size: "53", height: "DC" }
+    };
+
+    function setBoxPick(kind, val) {
+      document.querySelectorAll('#box-picks .pick[data-pick="' + kind + '"]').forEach((el) => {
+        el.classList.toggle("on", el.getAttribute("data-val") === val);
+      });
+      if (kind === "size") {
+        const mapped = SIZE_PICKS[val];
+        if (mapped) {
+          document.getElementById("boxSize").value = mapped.size;
+          document.getElementById("boxHeight").value = mapped.height;
+        }
+      } else if (kind === "grade") {
+        document.getElementById("condition").value = val;
+      } else if (kind === "config") {
+        document.getElementById("boxConfig").value = val;
+      }
+      onSizeOrConditionChange();
+    }
+
+    document.querySelectorAll("#box-picks .pick").forEach((b) => {
+      b.addEventListener("click", () => {
+        setBoxPick(b.getAttribute("data-pick"), b.getAttribute("data-val"));
+      });
+    });
+
+    function pulledLabel() {
+      return inventoryMeta.pulledAt
+        ? ("pulledAt " + String(inventoryMeta.pulledAt).replace("T", " ").slice(0, 16) + " UTC")
+        : "pulledAt unknown";
+    }
+
     function setInventoryStatus(msg) {
       const el = document.getElementById("inventoryStatus");
       if (el) el.textContent = msg || "";
@@ -961,35 +1077,68 @@
           inventoryActive = false;
           inventoryLoaded = true;
           restoreDefaultSelects();
-          setInventoryStatus("No xChange inventory loaded — enter wholesale manually.");
+          setInventoryStatus("No posted xChange inventory yet. Use Pull xChange. Do not invent a wholesale.");
           return;
         }
-        const data = await res.json();
-        const list = Array.isArray(data.offers) ? data.offers : (Array.isArray(data.items) ? data.items : []);
-        inventoryOffers = list.map(normalizeClientOffer).filter(Boolean);
-        inventoryMeta.pulledAt = data.pulledAt || "";
-        inventoryMeta.source = data.source || "";
-        inventoryActive = inventoryOffers.length > 0;
-        inventoryLoaded = true;
-        if (inventoryActive) {
-          populateSelectsFromOffers();
-          const pulled = inventoryMeta.pulledAt
-            ? (" · pulled " + String(inventoryMeta.pulledAt).replace("T", " ").slice(0, 16))
-            : "";
-          setInventoryStatus(
-            inventoryOffers.length + " xChange offer" + (inventoryOffers.length === 1 ? "" : "s") +
-            pulled + ". Wholesale fills from the cheapest matching box in that city; leave blank if none match."
-          );
-        } else {
-          restoreDefaultSelects();
-          setInventoryStatus("No xChange inventory loaded — enter wholesale manually.");
-        }
+        applyInventoryPayload(await res.json());
       } catch (_) {
         inventoryOffers = [];
         inventoryActive = false;
         inventoryLoaded = true;
         restoreDefaultSelects();
-        setInventoryStatus("No xChange inventory loaded — enter wholesale manually.");
+        setInventoryStatus("xChange inventory did not load. Use Pull xChange. Do not invent a wholesale.");
+      }
+    }
+
+    function applyInventoryPayload(data) {
+      const list = data && (Array.isArray(data.offers) ? data.offers : (Array.isArray(data.items) ? data.items : []));
+      inventoryOffers = (list || []).map(normalizeClientOffer).filter(Boolean);
+      inventoryMeta.pulledAt = (data && data.pulledAt) || "";
+      inventoryMeta.source = (data && data.source) || "";
+      inventoryActive = inventoryOffers.length > 0;
+      inventoryLoaded = true;
+      if (inventoryActive) {
+        populateSelectsFromOffers();
+        const err = data && data.refreshError ? (" · " + data.refreshError) : "";
+        setInventoryStatus(
+          inventoryOffers.length + " posted xChange offer" + (inventoryOffers.length === 1 ? "" : "s") +
+          " · " + pulledLabel() + err + ". Wholesale fills from the cheapest matching box in that city. Leave blank if none match."
+        );
+      } else {
+        restoreDefaultSelects();
+        setInventoryStatus((data && data.error) || "xChange posted no matching inventory. Do not invent a wholesale.");
+      }
+    }
+
+    async function pullXchange() {
+      const btn = document.getElementById("pullXchangeBtn");
+      const zip = document.getElementById("zip").value.trim();
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Pulling xChange...";
+      }
+      setInventoryStatus("Pulling posted Container Exchange pickup prices. This can take about 20 seconds. That number is theirs, not a CBSS quote.");
+      try {
+        const res = await fetch("/inventory/refresh", { method: "POST", credentials: "include" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok && !(data && data.offers && data.offers.length)) {
+          setInventoryStatus((data && data.error) || "xChange pull failed. Do not invent a wholesale.");
+          return;
+        }
+        applyInventoryPayload(data);
+        if (/^\d{5}$/.test(zip)) {
+          await findDepots();
+        } else {
+          applyWholesaleFromOffer();
+          recalcIfReady();
+        }
+      } catch (_) {
+        setInventoryStatus("xChange pull failed. Do not invent a wholesale.");
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = "Pull xChange";
+        }
       }
     }
 
@@ -1036,7 +1185,14 @@
             cityKey: key,
             lat: dlat,
             lon: dlon,
-            region: resolved.region || "",
+            region: resolved.region || (dlat != null && dlon != null ? (function () {
+              let best = null, bestM = Infinity;
+              DEPOTS.forEach((h) => {
+                const m = haversine(dlat, dlon, h.lat, h.lon);
+                if (m < bestM) { bestM = m; best = h; }
+              });
+              return best ? best.region : "";
+            })() : ""),
             miles,
             yards: yard ? [yard] : [],
             fromInventory: true
@@ -1093,12 +1249,12 @@
       const cityLabel = selectedDepot ? displayCityState(selectedDepot) : "";
       if (withCost) {
         setInventoryStatus(
-          "Using lowest " + cityLabel + " wholesale for this box and qty (" + matches.length +
-          " match" + (matches.length === 1 ? "" : "es") + "). Yard name stays on the purchasing copy."
+          "Using lowest posted " + cityLabel + " xChange wholesale for this box and qty (" + matches.length +
+          " match" + (matches.length === 1 ? "" : "es") + "). " + pulledLabel() + ". Not a CBSS quote."
         );
       } else if (cityLabel) {
         setInventoryStatus(
-          "No matching xChange box in " + cityLabel + " for this size/grade/qty. Enter wholesale or change the box."
+          "No matching posted xChange box in " + cityLabel + " for this size/grade/qty. Pull xChange again or type a number you actually have. Do not invent one. " + pulledLabel() + "."
         );
       }
     }
@@ -1198,7 +1354,6 @@
         selectedDepot = rankedDepots[0] || null;
         selectedPurchasingDepot = selectedDepot && selectedDepot.yards ? selectedDepot.yards.join(" | ") : "";
         document.getElementById('depotSection').classList.remove('hidden');
-        document.getElementById('pricingSection').classList.remove('hidden');
         applyWholesaleFromOffer();
         recalcIfReady();
 

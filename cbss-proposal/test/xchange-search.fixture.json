@@ -1,0 +1,53 @@
+{
+  "results": [
+    {
+      "Location": "Houston, TX",
+      "Type": "40HC",
+      "Condition": "CW",
+      "Min_Price": 1375,
+      "Max_Price": 2100,
+      "Total_Quantity": 85,
+      "Deal_Type": "PICK_UP"
+    },
+    {
+      "Location": "Houston, TX",
+      "Type": "40HC",
+      "Condition": "Wind & Watertight (WWT)",
+      "Min_Price": 1175,
+      "Total_Quantity": 100,
+      "Deal_Type": "PICK_UP"
+    },
+    {
+      "Location": "Houston, TX",
+      "Type": "20DC",
+      "Condition": "CW",
+      "Min_Price": 835,
+      "Total_Quantity": 124,
+      "Deal_Type": "PICK_UP"
+    },
+    {
+      "Location": "Memphis, TN",
+      "Type": "40HC",
+      "Condition": "CW",
+      "Min_Price": 1400,
+      "Total_Quantity": 51,
+      "Deal_Type": "PICK_UP"
+    },
+    {
+      "Location": "Houston, TX",
+      "Type": "40HC",
+      "Condition": "CW",
+      "Min_Price": 0,
+      "Total_Quantity": 12,
+      "Deal_Type": "PICK_UP"
+    },
+    {
+      "Location": "Houston, TX",
+      "Type": "40DC",
+      "Condition": "CW",
+      "Min_Price": 1275,
+      "Total_Quantity": 0,
+      "Deal_Type": "PICK_UP"
+    }
+  ]
+}

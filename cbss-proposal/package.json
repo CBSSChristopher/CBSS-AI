@@ -8,6 +8,7 @@
     "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
+    "@cloudflare/puppeteer": "^1.4.0",
     "pdf-lib": "^1.17.1"
   },
   "devDependencies": {
