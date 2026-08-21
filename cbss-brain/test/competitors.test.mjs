@@ -231,7 +231,7 @@ describe("Container One live pull", () => {
     assert.match(page, /Pull Container One/);
     assert.match(page, /Pull USA Containers/);
     assert.match(src, /20STRFW/);
-    assert.match(page, /build 9/);
+    assert.match(page, /build 10/);
     assert.doesNotMatch(src, /xChange/);
   });
 
