@@ -13,6 +13,8 @@ test("edit contact exposes admin-only coded cleanup", () => {
   assert.match(html, /apiSave\('cleanupContact'/);
   assert.match(html, /resetAdminCleanup\(true\)/);
   assert.match(html, /Boolean\(editing && isChristopher\(\)\)/);
+  assert.match(html, /data-cleanup-id=/);
+  assert.doesNotMatch(html, /onclick="pickCleanupKeeper\(/);
   assert.doesNotMatch(html, /CRM_ADMIN_CODE/);
 });
 

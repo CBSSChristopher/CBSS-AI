@@ -2184,9 +2184,12 @@
       }
       box.style.display = 'block';
       box.innerHTML = (suggested ? '<div style="padding:6px 9px;font-size:0.72rem;color:#5b6b7c;">Possible duplicates</div>' : '') +
-        rows.map(c => '<button type="button" onclick="pickCleanupKeeper(' + JSON.stringify(String(c.id)) + ')">' +
+        rows.map(c => '<button type="button" data-cleanup-id="' + esc(String(c.id)) + '">' +
           esc(c.name || '(No name)') + ' · ' + esc(c.email || c.phone || c.company || '') +
           (c.owner ? ' · ' + esc(c.owner) : '') + '</button>').join('');
+      box.querySelectorAll('button[data-cleanup-id]').forEach(function(btn) {
+        btn.addEventListener('click', function() { pickCleanupKeeper(btn.getAttribute('data-cleanup-id')); });
+      });
     }
 
     function pickCleanupKeeper(id) {
@@ -2207,7 +2210,20 @@
         return;
       }
       const currentId = cleanupCurrentId();
-      const otherId = String((document.getElementById('cleanupKeepId') || {}).value || '').trim();
+      let otherId = String((document.getElementById('cleanupKeepId') || {}).value || '').trim();
+      if (!otherId) {
+        const typed = String((document.getElementById('cleanupKeepSearch') || {}).value || '').trim().toLowerCase();
+        const matches = contacts.filter(c => {
+          if (!c || String(c.id) === currentId || isArchivedContact(c)) return false;
+          const name = String(c.name || '').trim().toLowerCase();
+          const em = String(c.email || '').trim().toLowerCase();
+          return typed && (name === typed || em === typed || name.includes(typed) || em.includes(typed));
+        });
+        if (matches.length === 1) {
+          otherId = String(matches[0].id);
+          pickCleanupKeeper(otherId);
+        }
+      }
       const code = String((document.getElementById('cleanupCode') || {}).value || '').trim();
       const roleEl = document.querySelector('input[name="cleanupRole"]:checked');
       const currentIsDuplicate = !roleEl || roleEl.value === 'duplicate';
