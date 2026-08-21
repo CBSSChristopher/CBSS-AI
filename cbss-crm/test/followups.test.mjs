@@ -9,6 +9,7 @@ import {
   mergeNoteOntoContact,
   recordCompletedTask,
   applyCompleteFollowupState,
+  mergeNotesMap,
   resolveCrmAction
 } from "../src/followups.js";
 
@@ -120,4 +121,14 @@ test("completion note and merge keep existing notes", () => {
   const notes = mergeNoteOntoContact({ 9: [{ text: "old" }] }, 9, note);
   assert.equal(notes["9"][0].text, note.text);
   assert.equal(notes["9"][1].text, "old");
+});
+
+test("saveNotes merges contact keys instead of replacing the whole map", () => {
+  const next = mergeNotesMap(
+    { 4: [{ text: "keep" }], 2621: [{ text: "protected" }] },
+    { 99: [{ text: "desk" }], 4: [{ text: "updated" }] }
+  );
+  assert.equal(next["4"][0].text, "updated");
+  assert.equal(next["99"][0].text, "desk");
+  assert.equal(next["2621"][0].text, "protected");
 });

@@ -1,4 +1,4 @@
-import { applyCompleteFollowupState, applyFollowupPatch, completedActionText, resolveCrmAction } from "./followups.js";
+import { applyCompleteFollowupState, applyFollowupPatch, completedActionText, mergeNotesMap, resolveCrmAction } from "./followups.js";
 import {
   META_CONFIG_KEY,
   META_SOURCE,
@@ -1146,6 +1146,8 @@ async function handleCrmData(request, env) {
       const [key, value] = writers[action];
       if (key === "contactEdits") {
         await store.setJSON(key, preserveArchivedFlags(state.contactEdits, value));
+      } else if (key === "notes") {
+        await store.setJSON(key, mergeNotesMap(state.notes, value));
       } else {
         await store.setJSON(key, value);
       }
