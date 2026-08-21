@@ -247,7 +247,7 @@
         <span class="mark">CB</span>
         <div>
           <h1>CBShippingSolutions</h1>
-          <p>Container Sales CRM · build 7</p>
+          <p>Container Sales CRM · build 8</p>
         </div>
       </div>
       <div class="user">
@@ -399,7 +399,7 @@
             <li>In <a href="https://business.facebook.com" target="_blank" rel="noopener">Meta Business Suite</a>, open <strong>Settings → Users → System users</strong>. Add an Admin system user if you do not have one.</li>
             <li>Assign your Facebook Page to that system user (full control).</li>
             <li>Generate a token. Include <code>leads_retrieval</code>, <code>pages_manage_metadata</code>, <code>pages_show_list</code>, and <code>pages_read_engagement</code>. Paste it below.</li>
-            <li>In <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener">Meta for Developers</a>, open your Business app → <strong>Webhooks → Page</strong>. Callback URL is copied below. Verify token is copied below. Subscribe to <code>leadgen</code>.</li>
+            <li>In <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener">Meta for Developers</a>, copy the App ID and App Secret from the app Settings. Paste them below with the Page token, or send them so the webhook can be registered for you.</li>
             <li>Click <strong>Connect Page</strong>, assign each Instant Form to a rep, then <strong>Import existing leads</strong>.</li>
           </ol>
           <div class="field-row"><span class="label">Webhook URL</span><span id="metaWebhookUrl">—</span></div>
@@ -408,6 +408,14 @@
           <label class="ctrl" style="display:block;margin:12px 0 8px;max-width:520px;">
             <span>Page access token</span>
             <input type="password" id="metaPageToken" placeholder="Paste the system-user Page token" autocomplete="off" />
+          </label>
+          <label class="ctrl" style="display:block;margin:0 0 8px;max-width:320px;">
+            <span>Meta App ID</span>
+            <input type="text" id="metaAppId" placeholder="From the Developer app" autocomplete="off" />
+          </label>
+          <label class="ctrl" style="display:block;margin:0 0 12px;max-width:520px;">
+            <span>Meta App Secret</span>
+            <input type="password" id="metaAppSecret" placeholder="From the Developer app Settings" autocomplete="off" />
           </label>
           <label class="ctrl" style="display:block;margin:0 0 12px;max-width:320px;">
             <span>Default owner if a form is not mapped</span>
@@ -757,9 +765,9 @@
       const box = document.getElementById('metaStatusBox');
       if (box) {
         if (metaStatus.connected) {
-          box.textContent = 'Connected. New Instant Form leads land in the CRM automatically. Last webhook: ' + (metaStatus.lastWebhookAt ? fmtWhen(metaStatus.lastWebhookAt) : 'none yet') + '. Last import: ' + (metaStatus.lastImportAt ? fmtWhen(metaStatus.lastImportAt) : 'none yet') + '.';
+          box.textContent = 'Connected' + (metaStatus.webhookRegistered ? ' and webhook registered' : '') + '. New Instant Form leads land in the CRM automatically. Last webhook: ' + (metaStatus.lastWebhookAt ? fmtWhen(metaStatus.lastWebhookAt) : 'none yet') + '. Last import: ' + (metaStatus.lastImportAt ? fmtWhen(metaStatus.lastImportAt) : 'none yet') + '.';
         } else {
-          box.textContent = 'Not connected yet. Follow the steps below. Keep this CRM tab as the place reps work leads.';
+          box.textContent = 'Not connected yet. Paste the Page token, App ID, and App Secret, then Connect Page.';
         }
       }
       const urlEl = document.getElementById('metaWebhookUrl');
@@ -768,6 +776,8 @@
       if (tokEl) tokEl.textContent = metaStatus.verifyToken || '—';
       const pageEl = document.getElementById('metaPageName');
       if (pageEl) pageEl.textContent = metaStatus.pageName ? (metaStatus.pageName + ' · ' + (metaStatus.pageId || '')) : 'Not connected';
+      const appIdEl = document.getElementById('metaAppId');
+      if (appIdEl && metaStatus.appId && !appIdEl.value) appIdEl.value = metaStatus.appId;
       fillMetaOwnerSelect(document.getElementById('metaDefaultOwner'), metaStatus.defaultOwner);
       const map = document.getElementById('metaFormMap');
       const forms = Array.isArray(metaStatus.forms) ? metaStatus.forms : [];
@@ -805,6 +815,8 @@
       setMetaMsg('Connecting Facebook Page…');
       const res = await apiSave('connectMeta', {
         pageAccessToken: (document.getElementById('metaPageToken') || {}).value || '',
+        appId: (document.getElementById('metaAppId') || {}).value || '',
+        appSecret: (document.getElementById('metaAppSecret') || {}).value || '',
         defaultOwner: (document.getElementById('metaDefaultOwner') || {}).value || 'Christopher Banks',
         formOwners: metaFormOwnersFromUi()
       });

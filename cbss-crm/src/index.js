@@ -12,7 +12,9 @@ import {
   mapLead,
   normalizeMetaConfig,
   publicMetaStatus,
-  verifyHandshake
+  verifyHandshake,
+  appAccessToken,
+  appSubscriptionPayload
 } from "./meta.js";
 
 var __defProp = Object.defineProperty;
@@ -449,7 +451,7 @@ async function serveAssets(request, env) {
     headers.set("CDN-Cache-Control", "no-store");
     headers.set("Cloudflare-CDN-Cache-Control", "no-store");
     headers.set("Pragma", "no-cache");
-    headers.set("x-crm-build", "7");
+    headers.set("x-crm-build", "8");
     return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
   }
   return res;
@@ -1025,7 +1027,7 @@ async function handleCrmData(request, env) {
       ]);
       return jsonResponse(request, 200, {
         ok: true,
-        crmBuild: 7,
+        crmBuild: 8,
         contactId,
         completed: true,
         completedTasks: next.completedTasks[contactId] || []
@@ -1045,7 +1047,7 @@ async function handleCrmData(request, env) {
       applyEdits(state.contactsAdded, state.contactEdits);
       const omitNotes = url.searchParams.get("omitNotes") === "1" || body.omitNotes === true || body.omitNotes === "1";
       const payload = {
-        crmBuild: 7,
+        crmBuild: 8,
         deals: state.deals,
         followups: state.followups,
         contactsAdded: state.contactsAdded,
@@ -1367,6 +1369,7 @@ async function saveMetaConfigFromBody(env, body) {
   const current = await readMetaConfig(env);
   const incoming = body && typeof body === "object" ? body : {};
   if (incoming.pageAccessToken) current.pageAccessToken = String(incoming.pageAccessToken).trim();
+  if (incoming.appId) current.appId = String(incoming.appId).trim();
   if (incoming.appSecret) current.appSecret = String(incoming.appSecret).trim();
   if (incoming.verifyToken) current.verifyToken = String(incoming.verifyToken).trim();
   if (incoming.defaultOwner) current.defaultOwner = String(incoming.defaultOwner).trim();
@@ -1401,18 +1404,47 @@ async function listLeadForms(pageId, token) {
   })).filter((f) => f.id);
 }
 __name(listLeadForms, "listLeadForms");
+async function registerAppWebhook(cfg, webhookUrl) {
+  const token = appAccessToken(cfg.appId, cfg.appSecret);
+  if (!token) return { ok: false, skipped: true, error: "Need the Meta App ID and App Secret to register the webhook." };
+  const payload = appSubscriptionPayload(webhookUrl, cfg.verifyToken);
+  const posted = await fetch(GRAPH + encodeURIComponent(cfg.appId) + "/subscriptions", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams(Object.assign({ access_token: token }, payload)).toString()
+  });
+  const postedJson = await posted.json().catch(() => ({}));
+  if (!posted.ok && postedJson.success !== true) {
+    return {
+      ok: false,
+      error: (postedJson.error && postedJson.error.message) || "Could not register the webhook on the Meta app."
+    };
+  }
+  return { ok: true };
+}
+__name(registerAppWebhook, "registerAppWebhook");
 async function connectMetaPage(env, body) {
   const current = await readMetaConfig(env);
   const token = String(body && body.pageAccessToken || current.pageAccessToken || "").trim();
   if (!token) return { ok: false, error: "Paste a Facebook Page access token first." };
   try {
+    if (body && body.appId) current.appId = String(body.appId).trim();
+    if (body && body.appSecret) current.appSecret = String(body.appSecret).trim();
+    if (body && body.defaultOwner) current.defaultOwner = String(body.defaultOwner).trim();
     const me = await graphFetch("me", token, { fields: "id,name" });
     current.pageAccessToken = token;
     current.pageId = String(me.id || "");
     current.pageName = String(me.name || "");
-    if (body && body.defaultOwner) current.defaultOwner = String(body.defaultOwner).trim();
-    if (body && body.appSecret) current.appSecret = String(body.appSecret).trim();
-    const posted = await fetch(GRAPH + current.pageId + "/subscribed_apps", {
+    const hookUrl = "https://cbsscrm.cbss.workers.dev" + META_WEBHOOK_PATH;
+    const prepared = await writeMetaConfig(env, current);
+    if (prepared.appId && prepared.appSecret) {
+      const registered = await registerAppWebhook(prepared, hookUrl);
+      if (!registered.ok) {
+        return { ok: false, error: registered.error };
+      }
+      prepared.webhookRegistered = true;
+    }
+    const posted = await fetch(GRAPH + prepared.pageId + "/subscribed_apps", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ access_token: token, subscribed_fields: "leadgen" }).toString()
@@ -1424,9 +1456,9 @@ async function connectMetaPage(env, body) {
         error: (postedJson.error && postedJson.error.message) || "Could not subscribe the Page to new Facebook leads."
       };
     }
-    current.forms = await listLeadForms(current.pageId, token);
-    const saved = await writeMetaConfig(env, current);
-    return { ok: true, ...publicMetaStatus(saved, "https://cbsscrm.cbss.workers.dev" + META_WEBHOOK_PATH) };
+    prepared.forms = await listLeadForms(prepared.pageId, token);
+    const saved = await writeMetaConfig(env, prepared);
+    return { ok: true, ...publicMetaStatus(saved, hookUrl) };
   } catch (err) {
     return { ok: false, error: err.message || "Could not connect that Facebook Page token." };
   }
@@ -1653,7 +1685,7 @@ var index_default = {
     const path = normalizePath(url.pathname);
     if (path === "/__bust" && ctx && ctx.cache && typeof ctx.cache.purge === "function") {
       try { await ctx.cache.purge({ purgeEverything: true }); } catch (_) {}
-      return new Response("ok", { status: 200, headers: { "Cache-Control": "private, no-store", "x-crm-build": "7" } });
+      return new Response("ok", { status: 200, headers: { "Cache-Control": "private, no-store", "x-crm-build": "8" } });
     }
     if (path === "/auth/login") return handleLogin(request, env);
     if (path === "/auth/me") return handleMe(request, env);

@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  appAccessToken,
+  appSubscriptionPayload,
   collectLeadgenEvents,
   ensureVerifyToken,
   facebookLeadTask,
@@ -82,4 +84,15 @@ test("identity requires a name, email, or phone", () => {
 test("ensureVerifyToken keeps an existing token", () => {
   const next = ensureVerifyToken({ verifyToken: "keep-me" }, "new");
   assert.equal(next.verifyToken, "keep-me");
+});
+
+test("app webhook payload points at the CRM callback", () => {
+  assert.equal(appAccessToken("123", "secret"), "123|secret");
+  assert.deepEqual(appSubscriptionPayload("https://cbsscrm.cbss.workers.dev/webhooks/meta-leadgen", "cbss-x"), {
+    object: "page",
+    callback_url: "https://cbsscrm.cbss.workers.dev/webhooks/meta-leadgen",
+    verify_token: "cbss-x",
+    fields: "leadgen",
+    include_values: "true"
+  });
 });

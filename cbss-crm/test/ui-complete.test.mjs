@@ -15,7 +15,7 @@ test("tasks tab exposes a Complete button and completeTask handler", () => {
   assert.match(html, /Schedule another follow-up/);
   assert.match(html, /function offerNextFollowup\(/);
   assert.match(html, /function showNextFollowupPrompt\(/);
-  assert.match(html, /build 7/);
+  assert.match(html, /build 8/);
   assert.match(html, /Meta leads/);
   assert.match(html, /function connectMetaPage\(/);
   assert.match(html, /function importMetaLeads\(/);
@@ -34,7 +34,7 @@ test("worker still serves the CRM data routes used by the desk", async () => {
   const wrangler = readFileSync(new URL("../wrangler.jsonc", import.meta.url), "utf8");
   assert.match(wrangler, /"enabled": false/);
   assert.match(worker, /action === "completeFollowup"/);
-  assert.match(worker, /crmBuild: 7/);
+  assert.match(worker, /crmBuild: 8/);
   assert.match(worker, /getMetaStatus/);
   assert.match(worker, /importMetaLeads/);
   assert.match(worker, /Cloudflare-CDN-Cache-Control/);

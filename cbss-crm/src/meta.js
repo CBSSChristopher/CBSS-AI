@@ -162,9 +162,11 @@ export function normalizeMetaConfig(raw) {
   return {
     verifyToken: pickStr(src.verifyToken),
     pageAccessToken: pickStr(src.pageAccessToken),
+    appId: pickStr(src.appId),
     appSecret: pickStr(src.appSecret),
     pageId: pickStr(src.pageId),
     pageName: pickStr(src.pageName),
+    webhookRegistered: Boolean(src.webhookRegistered),
     defaultOwner: titleOwner(src.defaultOwner) || "Christopher Banks",
     formOwners,
     forms,
@@ -186,7 +188,9 @@ export function publicMetaStatus(cfg, webhookUrl) {
     webhookUrl: webhookUrl || "",
     verifyToken: src.verifyToken,
     hasPageToken: Boolean(src.pageAccessToken),
+    appId: src.appId,
     hasAppSecret: Boolean(src.appSecret),
+    webhookRegistered: Boolean(src.webhookRegistered),
     pageId: src.pageId,
     pageName: src.pageName,
     defaultOwner: src.defaultOwner,
@@ -211,4 +215,21 @@ export function facebookLeadTask() {
 
 export function hasIdentity(payload) {
   return !!(payload && (payload.email || payload.phone || payload.name));
+}
+
+export function appAccessToken(appId, appSecret) {
+  const id = pickStr(appId);
+  const secret = pickStr(appSecret);
+  if (!id || !secret) return "";
+  return id + "|" + secret;
+}
+
+export function appSubscriptionPayload(webhookUrl, verifyToken) {
+  return {
+    object: "page",
+    callback_url: pickStr(webhookUrl),
+    verify_token: pickStr(verifyToken),
+    fields: "leadgen",
+    include_values: "true"
+  };
 }
