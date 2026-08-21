@@ -1027,7 +1027,7 @@ async function handleCrmData(request, env) {
       ]);
       return jsonResponse(request, 200, {
         ok: true,
-        crmBuild: 8,
+        crmBuild: 9,
         contactId,
         completed: true,
         completedTasks: next.completedTasks[contactId] || []
@@ -1047,7 +1047,7 @@ async function handleCrmData(request, env) {
       applyEdits(state.contactsAdded, state.contactEdits);
       const omitNotes = url.searchParams.get("omitNotes") === "1" || body.omitNotes === true || body.omitNotes === "1";
       const payload = {
-        crmBuild: 8,
+        crmBuild: 9,
         deals: state.deals,
         followups: state.followups,
         contactsAdded: state.contactsAdded,

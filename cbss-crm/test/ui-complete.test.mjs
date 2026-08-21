@@ -4,6 +4,17 @@ import { readFileSync } from "node:fs";
 
 const html = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 
+test("list panes can scroll inside the flex shell", () => {
+  assert.match(html, /\.main \{ flex: 1; display: flex; overflow: hidden; min-height: 0;/);
+  assert.match(html, /\.list-panel \{[\s\S]*?min-height: 0; overflow-y: auto/);
+  assert.match(html, /\.table-wrap \{[\s\S]*?min-height: 0; overflow: auto/);
+  assert.match(html, /\.contacts-pane \{[\s\S]*?min-height: 0;/);
+  assert.match(html, /#app \{[\s\S]*?overflow: hidden;/);
+  assert.match(html, /html \{ overflow: hidden; \}/);
+  assert.match(html, /-webkit-overflow-scrolling: touch/);
+  assert.match(html, /if\(event\.target===this\)dismissNextFollowup\(\)/);
+});
+
 test("tasks tab exposes a Complete button and completeTask handler", () => {
   assert.match(html, /function completeTask\(/);
   assert.match(html, /data-complete-id="\$\{esc\(String\(c\.id\)\)\}">Complete<\/button>/);
@@ -15,7 +26,7 @@ test("tasks tab exposes a Complete button and completeTask handler", () => {
   assert.match(html, /Schedule another follow-up/);
   assert.match(html, /function offerNextFollowup\(/);
   assert.match(html, /function showNextFollowupPrompt\(/);
-  assert.match(html, /build 8/);
+  assert.match(html, /build 9/);
   assert.match(html, /Meta leads/);
   assert.match(html, /function connectMetaPage\(/);
   assert.match(html, /function importMetaLeads\(/);
@@ -34,7 +45,7 @@ test("worker still serves the CRM data routes used by the desk", async () => {
   const wrangler = readFileSync(new URL("../wrangler.jsonc", import.meta.url), "utf8");
   assert.match(wrangler, /"enabled": false/);
   assert.match(worker, /action === "completeFollowup"/);
-  assert.match(worker, /crmBuild: 8/);
+  assert.match(worker, /crmBuild: 9/);
   assert.match(worker, /getMetaStatus/);
   assert.match(worker, /importMetaLeads/);
   assert.match(worker, /Cloudflare-CDN-Cache-Control/);
