@@ -117,6 +117,7 @@
       border-right: 1px solid var(--border);
     }
     .search-box { padding: 0; border: none; flex: 1; min-width: 220px; }
+    .search-box form { width: 100%; margin: 0; }
     .search-box input {
       width: 100%; padding: 8px 11px; border: 1px solid var(--border);
       border-radius: 7px; font-size: 0.88rem; font-family: inherit;
@@ -320,7 +321,7 @@
         <span class="mark">CB</span>
         <div>
           <h1>CBShippingSolutions</h1>
-          <p>Container Sales CRM · build 13</p>
+          <p>Container Sales CRM · build 14</p>
         </div>
       </div>
       <div class="user">
@@ -351,7 +352,9 @@
       <div class="contacts-pane">
         <div class="toolbar" id="contactFilterBar">
           <div class="search-box">
-            <input type="text" id="searchInput" placeholder="Search name, company, email, phone, city..." oninput="onSearchInput()" autocomplete="off" />
+            <form id="contactSearchForm" action="#" autocomplete="off" onsubmit="return false;">
+              <input type="search" id="searchInput" name="crm-contact-filter" placeholder="Search name, company, email, phone, city..." autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" role="searchbox" data-lpignore="true" data-1p-ignore="true" data-form-type="other" readonly onfocus="unlockContactSearch(this)" oninput="onSearchInput(event)" />
+            </form>
           </div>
           <label class="ctrl">
             <span>Owner</span>
@@ -536,6 +539,7 @@
     let dealByContactId = new Map();
     let mappedOwnerCache = null;
     let searchTimer = null;
+    let searchTouched = false;
     let notesLoaded = false;
     const PROPOSAL_ORIGIN = 'https://cbsscompletetool.cbss.workers.dev';
     const STAGES = ['New Lead', 'Contacted', 'Quote', 'Proposal Sent', 'Flex Buy', 'Won', 'Lost', 'DNC'];
@@ -1224,8 +1228,57 @@
     }
 
     function showLogin() {
+      armLoginFields(true);
       document.getElementById('loginScreen').style.display = 'flex';
       document.getElementById('app').classList.remove('show');
+    }
+
+    function armLoginFields(armed) {
+      const email = document.getElementById('loginEmail');
+      const pass = document.getElementById('loginPassword');
+      const form = document.getElementById('loginForm');
+      [email, pass].forEach(function(el) {
+        if (!el) return;
+        el.disabled = !armed;
+        el.readOnly = !armed;
+        el.setAttribute('autocomplete', armed ? (el.id === 'loginPassword' ? 'current-password' : 'username') : 'off');
+        if (!armed) el.value = '';
+      });
+      if (form) form.setAttribute('autocomplete', armed ? 'on' : 'off');
+    }
+
+    function sessionLoginEmail() {
+      return String((currentUser && currentUser.email) || '').trim().toLowerCase();
+    }
+
+    function searchLooksLikeSavedLogin(value) {
+      const v = String(value || '').trim().toLowerCase();
+      if (!v) return false;
+      const mine = sessionLoginEmail();
+      if (mine && v === mine) return true;
+      return COMPANY_RE.test(v);
+    }
+
+    function unlockContactSearch(el) {
+      if (el) el.removeAttribute('readonly');
+    }
+
+    function stripAutofilledSearch() {
+      const box = document.getElementById('searchInput');
+      if (!box || searchTouched) return false;
+      if (!searchLooksLikeSavedLogin(box.value)) return false;
+      box.value = '';
+      filterContacts();
+      return true;
+    }
+
+    function guardContactSearchAutofill() {
+      searchTouched = false;
+      stripAutofilledSearch();
+      setTimeout(stripAutofilledSearch, 50);
+      setTimeout(stripAutofilledSearch, 250);
+      setTimeout(stripAutofilledSearch, 800);
+      setTimeout(stripAutofilledSearch, 1600);
     }
 
     function isCompanyEmail(email) {
@@ -1243,8 +1296,10 @@
       currentUser = user;
       const name = user.user_metadata?.full_name || user.email;
       document.getElementById('userLabel').textContent = name;
+      armLoginFields(false);
       document.getElementById('loginScreen').style.display = 'none';
       document.getElementById('app').classList.add('show');
+      guardContactSearchAutofill();
       updateArchiveReviewNav();
       loadData();
     }
@@ -1453,7 +1508,15 @@
       return (btn && btn.dataset.view) || 'contacts';
     }
 
-    function onSearchInput() {
+    function onSearchInput(ev) {
+      const box = document.getElementById('searchInput');
+      const typed = ev && ev.inputType;
+      if (!typed && box && searchLooksLikeSavedLogin(box.value) && !searchTouched) {
+        box.value = '';
+        filterContacts();
+        return;
+      }
+      if (typed) searchTouched = true;
       clearTimeout(searchTimer);
       searchTimer = setTimeout(filterContacts, 120);
     }
@@ -1523,7 +1586,11 @@
     }
 
     function filterContacts() {
-      const q = (document.getElementById('searchInput').value || '').toLowerCase().trim();
+      const searchBox = document.getElementById('searchInput');
+      if (searchBox && !searchTouched && searchLooksLikeSavedLogin(searchBox.value)) {
+        searchBox.value = '';
+      }
+      const q = ((searchBox && searchBox.value) || '').toLowerCase().trim();
       syncOwnerChips();
       let filtered = contacts.filter(c => !isFoldedContact(c) && contactMatchesOwnerScope(c));
       if (q) {
