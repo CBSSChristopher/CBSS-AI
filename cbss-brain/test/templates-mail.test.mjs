@@ -18,13 +18,23 @@ function clause(prefix, value, empty = "") {
 }
 
 describe("Desk templates and mail", () => {
-  it("keeps the 15 Chris-voice templates in source", () => {
+  it("keeps the Chris-voice templates and labels CTE1 through CTE4", () => {
     assert.match(templates, /id: "first-reply"/);
     assert.match(templates, /id: "late-reconnect"/);
+    assert.match(templates, /id: "cte3-email"/);
     assert.match(templates, /id: "ready-to-lock"/);
+    assert.match(templates, /CTE1 — first email if they missed/);
+    assert.match(templates, /CTE2 — email 2/);
+    assert.match(templates, /CTE3 — email 3/);
+    assert.match(templates, /CTE4 — email 4 if they still don't answer/);
+    assert.match(templates, /If they missed you — CTE emails/);
+    assert.match(templates, /They just filled the form/);
+    assert.match(templates, /Sending a proposal/);
+    assert.match(templates, /They wrote back/);
     assert.match(templates, /fields: \["firstName"/);
     assert.match(index, /path === "\/templates"/);
     assert.match(index, /path === "\/mail\/log"/);
+    assert.match(page, /createElement\("optgroup"\)/);
   });
 
   it("fills only the blanks that belong on the template", () => {

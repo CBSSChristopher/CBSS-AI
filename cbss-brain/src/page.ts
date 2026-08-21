@@ -78,7 +78,7 @@ export function pageHtml(): string {
   <header>
     <div>
       <div class="brand">CBSS Desk</div>
-      <div class="sub" id="stamp">build 3</div>
+      <div class="sub" id="stamp">build 4</div>
     </div>
     <div class="right">
       <div class="who hide" id="who"></div>
@@ -167,9 +167,9 @@ export function pageHtml(): string {
           <label><input type="radio" name="mail-mode" value="reply" /> Log a reply</label>
         </div>
         <div id="mail-write">
-          <label for="tpl-id">Template</label>
-          <select id="tpl-id"></select>
-          <p class="muted" id="tpl-when"></p>
+        <label for="tpl-id">Which email</label>
+        <select id="tpl-id"></select>
+        <p class="muted" id="tpl-when"></p>
           <div class="split">
             <div class="field-wrap" data-need="firstName"><label>First name</label><input id="tpl-first" /></div>
             <div class="field-wrap" data-need="zip"><label>ZIP</label><input id="tpl-zip" /></div>
@@ -331,11 +331,26 @@ export function pageHtml(): string {
     function renderTemplateOptions() {
       const sel = document.getElementById("tpl-id");
       sel.innerHTML = "";
+      const groups = [];
+      const byGroup = new Map();
       templateList.forEach((t) => {
-        const o = document.createElement("option");
-        o.value = t.id;
-        o.textContent = t.name;
-        sel.appendChild(o);
+        const g = t.group || "Other";
+        if (!byGroup.has(g)) {
+          byGroup.set(g, []);
+          groups.push(g);
+        }
+        byGroup.get(g).push(t);
+      });
+      groups.forEach((g) => {
+        const og = document.createElement("optgroup");
+        og.label = g;
+        byGroup.get(g).forEach((t) => {
+          const o = document.createElement("option");
+          o.value = t.id;
+          o.textContent = t.name;
+          og.appendChild(o);
+        });
+        sel.appendChild(og);
       });
       if (templateList[0]) selectTemplate(templateList[0].id);
     }

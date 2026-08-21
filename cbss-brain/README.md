@@ -8,7 +8,7 @@ Live URL: `https://cbssbrain.cbss.workers.dev`
 
 - **Ask** — talk through a lead or a messy note
 - **Call** — dump scraps; it writes the CRM note and books CTE or one follow-up
-- **Email templates** — Chris-voice outbound mail, or **Log a reply** to paste a customer email and save it to the CRM
+- **Email templates** — Chris-voice outbound mail, or **Log a reply** to paste a customer email and save it to the CRM. Missed-call emails are labeled **CTE1–CTE4**. The other picks are grouped: form lead, sending a proposal, or they wrote back.
 
 Custom email / proposal wording sits under Email templates → *Custom draft or proposal wording*.
 
