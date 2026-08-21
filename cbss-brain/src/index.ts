@@ -11,7 +11,10 @@ import {
   appendNoteToMap,
   buildCreatedContact,
   crmGetBook,
+  crmIngestProposal,
+  crmSaveContactEdits,
   crmSaveContactsAdded,
+  crmSaveDeals,
   crmSaveFollowups,
   crmSaveNotes,
   findContact,
@@ -20,7 +23,18 @@ import {
   searchContacts,
 } from "./crm";
 import { liveCallPrompt, parseLiveCallDraft, scheduleLiveCall } from "./cte";
+import {
+  classifyInbound,
+  followUpFromKind,
+  mailNoteText,
+  mergeContactEdit,
+  outboundFollowup,
+  resolveMailContact,
+  stageAfterOutbound,
+  upsertDealStage,
+} from "./mail";
 import { pageHtml } from "./page";
+import { listTemplates, renderTemplate } from "./templates";
 
 const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 
@@ -53,6 +67,7 @@ function html(): Response {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
       "Cache-Control": "no-store",
+      "Cloudflare-CDN-Cache-Control": "no-store",
       ...SECURITY,
     },
   });
@@ -271,6 +286,191 @@ export default {
       } catch (err) {
         console.error("desk_call_save_error", err instanceof Error ? err.message : "unknown");
         return json(502, { error: "Could not save to the CRM. Nothing was overwritten blindly. Try again." });
+      }
+    }
+
+    if (request.method === "GET" && path === "/templates") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      return json(200, { ok: true, templates: listTemplates() });
+    }
+
+    if (request.method === "POST" && path === "/templates/render") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      const body = await readJson(request);
+      const vars = body.vars && typeof body.vars === "object" ? (body.vars as Record<string, unknown>) : body;
+      const rendered = renderTemplate(str(body.id), {
+        firstName: str(vars.firstName),
+        what: str(vars.what),
+        zip: str(vars.zip),
+        price: str(vars.price),
+        site: str(vars.site),
+        day: str(vars.day),
+        note: str(vars.note),
+      });
+      if (!rendered) return json(404, { error: "That template is not on the desk." });
+      return json(200, { ok: true, ...rendered });
+    }
+
+    if (request.method === "POST" && path === "/mail/log") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      if (!user.crm) return json(403, { error: "Sign in with your company email so the desk can write the CRM." });
+      const body = await readJson(request);
+      const direction = str(body.direction) === "received" ? "received" : "sent";
+      const hasProposal = Boolean(body.hasProposal) || str(body.templateId) === "proposal-attached";
+      try {
+        const book = await crmGetBook(env, user.crm);
+        const contact = resolveMailContact(book, str(body.contactId), str(body.from) || str(body.to) || str(body.email));
+        if (!contact) return json(404, { error: "Pick a CRM contact or use the email on the lead." });
+        const kind = direction === "received" ? classifyInbound(str(body.subject), str(body.body)) : "other";
+        const plan =
+          direction === "received"
+            ? followUpFromKind(kind)
+            : { ...outboundFollowup(hasProposal), stage: stageAfterOutbound(hasProposal) };
+        const note = {
+          author: user.name || "Desk",
+          timestamp: noteTimestamp(),
+          tag: direction === "sent" ? "Email Sent" : "Email In",
+          text: mailNoteText({
+            direction,
+            subject: str(body.subject),
+            body: str(body.body),
+            from: str(body.from) || str(body.email),
+            templateId: str(body.templateId),
+            kind: direction === "received" ? kind : undefined,
+          }),
+        };
+        const notes = appendNoteToMap(book.notes, String(contact.id), note);
+        await crmSaveNotes(env, user.crm, notes);
+        if (plan.nextAction) {
+          await crmSaveFollowups(
+            env,
+            user.crm,
+            mergeFollowupMap(book.followups, String(contact.id), {
+              nextAction: plan.nextAction,
+              followUpDate: plan.followUpDate,
+            }),
+          );
+        }
+        if (plan.stage) {
+          await crmSaveDeals(env, user.crm, upsertDealStage(book.deals, contact, plan.stage));
+          await crmSaveContactEdits(
+            env,
+            user.crm,
+            mergeContactEdit(book.contactEdits, String(contact.id), {
+              status: plan.stage,
+              lastActivity: note.timestamp,
+            }),
+          );
+        }
+        let ingested: Record<string, unknown> | null = null;
+        if (direction === "sent" && hasProposal) {
+          ingested = await crmIngestProposal(env, user.crm, {
+            customerName: String(contact.name || ""),
+            email: String(contact.email || str(body.to) || ""),
+            phone: String(contact.phone || ""),
+            zip: String(contact.zip || str(body.zip) || ""),
+            containerDesc: str(body.what) || str(body.containerDesc),
+            containerSize: str(body.size) || str(body.containerSize),
+            amount: str(body.amount),
+            unitPrice: str(body.amount),
+            status: "sent",
+            paymentMode: "cash",
+            repName: user.name || "Desk",
+            notes: str(body.subject) || "Proposal sent from Desk",
+          });
+        }
+        return json(200, {
+          ok: true,
+          contact: { id: String(contact.id), name: String(contact.name || "") },
+          kind: direction === "received" ? kind : "sent",
+          nextAction: plan.nextAction,
+          followUpDate: plan.followUpDate,
+          stage: plan.stage,
+          note: note.text,
+          ingested: Boolean(ingested && ingested.ok),
+        });
+      } catch (err) {
+        console.error("desk_mail_log_error", err instanceof Error ? err.message : "unknown");
+        return json(502, { error: "Could not write the email into the CRM. Notes were not replaced blindly." });
+      }
+    }
+
+    if (request.method === "POST" && path === "/inbox-sync") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      if (!user.crm) return json(403, { error: "Sign in with your company email so the desk can write the CRM." });
+      const body = await readJson(request);
+      const rows = Array.isArray(body.messages) ? body.messages : [];
+      if (!rows.length) {
+        return json(200, {
+          ok: true,
+          matched: 0,
+          skipped: 0,
+          note: "Paste the customer email on Inbox.",
+        });
+      }
+      try {
+        const book = await crmGetBook(env, user.crm);
+        let notes = book.notes;
+        let followups = book.followups;
+        let deals = book.deals;
+        let edits = book.contactEdits;
+        let matched = 0;
+        let skipped = 0;
+        const results: Array<{ from: string; name: string; kind: string }> = [];
+        for (const raw of rows.slice(0, 40)) {
+          if (!raw || typeof raw !== "object") continue;
+          const row = raw as Record<string, unknown>;
+          const from = str(row.from) || str(row.email);
+          const contact = resolveMailContact(book, str(row.contactId), from);
+          if (!contact) {
+            skipped += 1;
+            continue;
+          }
+          const kind = classifyInbound(str(row.subject), str(row.body) || str(row.snippet));
+          const plan = followUpFromKind(kind);
+          const note = {
+            author: user.name || "Desk",
+            timestamp: noteTimestamp(),
+            tag: "Email In",
+            text: mailNoteText({
+              direction: "received",
+              subject: str(row.subject),
+              body: str(row.body) || str(row.snippet),
+              from,
+              kind,
+            }),
+          };
+          notes = appendNoteToMap(notes, String(contact.id), note);
+          if (plan.nextAction) {
+            followups = mergeFollowupMap(followups, String(contact.id), {
+              nextAction: plan.nextAction,
+              followUpDate: plan.followUpDate,
+            });
+          }
+          if (plan.stage) {
+            deals = upsertDealStage(deals, contact, plan.stage);
+            edits = mergeContactEdit(edits, String(contact.id), {
+              status: plan.stage,
+              lastActivity: note.timestamp,
+            });
+          }
+          matched += 1;
+          results.push({ from, name: String(contact.name || ""), kind });
+        }
+        if (matched) {
+          await crmSaveNotes(env, user.crm, notes);
+          await crmSaveFollowups(env, user.crm, followups);
+          await crmSaveDeals(env, user.crm, deals);
+          await crmSaveContactEdits(env, user.crm, edits);
+        }
+        return json(200, { ok: true, matched, skipped, results });
+      } catch (err) {
+        console.error("desk_inbox_sync_error", err instanceof Error ? err.message : "unknown");
+        return json(502, { error: "Could not sync those emails into the CRM." });
       }
     }
 

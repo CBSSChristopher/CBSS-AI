@@ -35,6 +35,7 @@ export type CrmDeal = {
   stage?: string;
   owner?: string;
   amount?: string | number;
+  updated?: string;
 };
 
 export type CrmBook = {
@@ -278,9 +279,9 @@ export async function crmGetBook(env: Env, token: string): Promise<CrmBook> {
 }
 
 async function crmSave(env: Env, token: string, action: string, payload: Record<string, unknown>): Promise<void> {
-  const res = await crmFetch(env, token, "/crm-data", {
+  const res = await crmFetch(env, token, `/crm-data?action=${encodeURIComponent(action)}`, {
     method: "POST",
-    body: JSON.stringify({ action, ...payload }),
+    body: JSON.stringify({ ...payload, action }),
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
@@ -305,6 +306,36 @@ export async function crmSaveFollowups(
 
 export async function crmSaveContactsAdded(env: Env, token: string, contactsAdded: CrmContact[]): Promise<void> {
   await crmSave(env, token, "saveContactsAdded", { contactsAdded });
+}
+
+export async function crmSaveDeals(env: Env, token: string, deals: CrmDeal[]): Promise<void> {
+  await crmSave(env, token, "saveDeals", { deals });
+}
+
+export async function crmSaveContactEdits(
+  env: Env,
+  token: string,
+  contactEdits: Record<string, Record<string, unknown>>,
+): Promise<void> {
+  await crmSave(env, token, "saveContactEdits", { contactEdits });
+}
+
+export async function crmIngestProposal(
+  env: Env,
+  token: string,
+  proposal: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const res = await crmFetch(env, token, "/crm-data?action=ingestProposal", {
+    method: "POST",
+    body: JSON.stringify({ ...proposal, action: "ingestProposal" }),
+  });
+  const text = await res.text().catch(() => "");
+  if (!res.ok) throw new Error(`CRM ingestProposal failed (${res.status}) ${text.slice(0, 120)}`);
+  try {
+    return JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    return { ok: true };
+  }
 }
 
 export function findContact(book: CrmBook, contactId: string): CrmContact | null {
