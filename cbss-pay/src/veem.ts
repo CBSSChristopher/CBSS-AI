@@ -175,7 +175,7 @@ export function tokenError(raw: string): string {
     desc = String(raw || "").trim();
   }
   if (/restricted/i.test(desc) || /cannot generate tokens/i.test(desc)) {
-    return "Veem says this account is restricted and cannot generate API tokens. Ask Veem support to enable API access on the CBGC LLC account.";
+    return "Veem production is not open for API tokens yet. Official path: finish Sandbox at sandbox.veem.com, then email clientservices@veem.com to complete production setup.";
   }
   if (/invalid_client/i.test(desc) || /unauthorized/i.test(desc)) {
     return "Veem rejected the API keys. Check the Client ID and Secret in Settings > Integrations.";

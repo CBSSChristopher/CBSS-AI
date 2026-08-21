@@ -61,7 +61,7 @@ export function pageHtml(): string {
   <header>
     <div>
       <div class="brand">CBSS Pay</div>
-      <div class="sub" id="stamp">build 2 · Veem</div>
+      <div class="sub" id="stamp">build 3 · Veem</div>
     </div>
     <div class="right">
       <div class="who hide" id="who"></div>
