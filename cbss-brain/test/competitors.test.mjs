@@ -9,10 +9,14 @@ const brain = readFileSync(new URL("../src/brain.ts", import.meta.url), "utf8");
 const fixture = JSON.parse(
   readFileSync(new URL("./fixtures/container-one-85001.json", import.meta.url), "utf8"),
 );
+const usaFixture = JSON.parse(
+  readFileSync(new URL("./fixtures/usa-containers-85001.json", import.meta.url), "utf8"),
+);
 
 const ZIP_RE = /\b(\d{5})(?:-\d{4})?\b/;
 const C1_INTENT =
   /\b(container\s*one|containerone|competitor(?:\s+price)?s?|their\s+price|what\s+are\s+they)\b/i;
+const USAC_INTENT = /\b(usa\s*containers?|usacontainers)\b/i;
 const CORE = {
   "20STWWT": { size: "20STD", grade: "WWT", config: "Standard", order: 10 },
   "20STCW": { size: "20STD", grade: "CW", config: "Standard", order: 11 },
@@ -48,6 +52,7 @@ function parseCompetitorPick(text) {
   const pick = {};
   if (/\b40\s*(?:ft\s*)?(?:hc|high\s*cube)\b/i.test(srcText) || /\b40hc\b/i.test(srcText)) pick.size = "40HC";
   else if (/\b40\s*(?:ft\s*)?(?:std|standard)\b/i.test(srcText) || /\b40std\b/i.test(srcText)) pick.size = "40STD";
+  else if (/\b20\s*(?:ft\s*)?(?:hc|high\s*cube)\b/i.test(srcText) || /\b20hc\b/i.test(srcText)) pick.size = "20HC";
   else if (/\b20\s*(?:ft\s*)?(?:std|standard)\b/i.test(srcText) || /\b20std\b/i.test(srcText)) pick.size = "20STD";
   if (/\b(?:wwt|wind\s*(?:and|&)\s*water)\b/i.test(srcText)) pick.grade = "WWT";
   else if (/\b(?:multi[-\s]?trip)\b/i.test(srcText)) pick.grade = "Multi-Trip";
@@ -77,15 +82,17 @@ function detectCompetitorPull(message, history = []) {
   if (!text) return null;
   const zip = normalizeZip(text);
   const pick = completePick(parseCompetitorPick(text));
-  if (C1_INTENT.test(text)) {
-    if (!zip) return { vendor: "container-one", needZip: true };
-    if (!pick) return { vendor: "container-one", zip, needPick: true };
-    return { vendor: "container-one", zip, pick };
+  const named = USAC_INTENT.test(text) ? "usa-containers" : C1_INTENT.test(text) ? "container-one" : "";
+  if (named) {
+    if (!zip) return { vendor: named, needZip: true };
+    if (!pick) return { vendor: named, zip, needPick: true };
+    return { vendor: named, zip, pick };
   }
   const last = [...history].reverse().find((m) => m && m.role === "assistant");
-  const asked = String(last?.content || "").includes("Type the client ZIP");
-  if (asked && zip && /^\d{5}(?:-\d{4})?$/.test(text.replace(/\s+/g, ""))) {
-    return { vendor: "container-one", zip, needPick: true };
+  const asked = String(last?.content || "");
+  if (asked.includes("Type the client ZIP") && zip && /^\d{5}(?:-\d{4})?$/.test(text.replace(/\s+/g, ""))) {
+    const vendor = /USA Containers/i.test(asked) ? "usa-containers" : "container-one";
+    return { vendor, zip, needPick: true };
   }
   return null;
 }
@@ -137,9 +144,62 @@ function applyCompetitorPick(pull, pick) {
     lines: pull.lines.filter((line) => {
       if (line.size !== pick.size) return false;
       if (isReeferConfig(pick.config)) return line.config === pick.config;
-      return line.grade === pick.grade && line.config === pick.config;
+      const gradeOk = line.grade === pick.grade || (line.grade === "WWT/CW" && (pick.grade === "WWT" || pick.grade === "CW"));
+      return gradeOk && line.config === pick.config;
     }),
   };
+}
+
+function usaSpecToPick(name) {
+  const title = String(name || "");
+  if (!title) return null;
+  if (/\b10'|open\s*side/i.test(title)) return null;
+  let size = "";
+  if (/40'\s*.*high\s*cube/i.test(title)) size = "40HC";
+  else if (/20'\s*.*high\s*cube/i.test(title)) size = "20HC";
+  else if (/40'/.test(title) && /standard/i.test(title)) size = "40STD";
+  else if (/20'/.test(title) && /standard/i.test(title)) size = "20STD";
+  else return null;
+  let config = "Standard";
+  if (/double\s*door/i.test(title)) config = "Double door";
+  else if (/side\s*doors?/i.test(title)) config = "Side door";
+  let grade = "";
+  if (/one[-\s]?trip/i.test(title)) grade = "One-Trip";
+  else if (/as\s*is/i.test(title)) grade = "Economy";
+  else if (/wwt\s*\/\s*cw|wwt\/cw/i.test(title)) grade = "WWT/CW";
+  else return null;
+  return { size, grade, config };
+}
+
+function parseUsaContainers(raw, zip, pickupRaw = null) {
+  const rows = Array.isArray(raw) ? raw : Array.isArray(raw?.delivery) ? raw.delivery : [];
+  const pickupRows = Array.isArray(pickupRaw) ? pickupRaw : Array.isArray(raw?.pickup) ? raw.pickup : [];
+  const pickupByName = new Map();
+  for (const row of pickupRows) {
+    const name = String(row.specDisplayName || "");
+    const total = Number(row.cheapestOption?.totalPrice);
+    if (name && Number.isFinite(total) && total >= 50) pickupByName.set(name, total);
+  }
+  const lines = [];
+  for (const row of rows) {
+    const name = String(row.specDisplayName || "");
+    const mapped = usaSpecToPick(name);
+    const delivered = Number(row.cheapestOption?.totalPrice);
+    if (!mapped || !Number.isFinite(delivered) || delivered < 50) continue;
+    const wh = row.cheapestOption?.warehouse || {};
+    lines.push({
+      code: name,
+      size: mapped.size,
+      grade: mapped.grade,
+      config: mapped.config,
+      delivered,
+      pickup: pickupByName.get(name) || 0,
+      depot: [wh.city, wh.state].filter(Boolean).join(", "),
+      miles: Number(row.cheapestOption?.distance) || null,
+    });
+  }
+  if (!lines.length) return null;
+  return { vendor: "usa-containers", zip, cityState: "", lines };
 }
 function formatCompetitorCard(pull) {
   const rows = pull.lines.map((line) => {
@@ -169,8 +229,9 @@ describe("Container One live pull", () => {
     assert.match(page, /Reefer working/);
     assert.match(page, /Reefer non-working/);
     assert.match(page, /Pull Container One/);
+    assert.match(page, /Pull USA Containers/);
     assert.match(src, /20STRFW/);
-    assert.match(page, /build 8/);
+    assert.match(page, /build 9/);
     assert.doesNotMatch(src, /xChange/);
   });
 
@@ -224,5 +285,73 @@ describe("Container One live pull", () => {
     const nw = applyCompetitorPick(pull, { size: "40HC", grade: "Reefer", config: "Reefer non-working" });
     assert.equal(nw.lines[0].delivered, 8677);
     assert.equal(coreCodeFromTitle("40ft High Cube 1 Trip Blue Shipping Container (40HC1TRIPBLUE)"), "");
+  });
+});
+
+describe("USA Containers live pull", () => {
+  it("uses their public quote calculate path and keeps one pick", () => {
+    assert.match(src, /prices\.usacontainers\.co\/api\/public\/sales\/0ec013baff428eda1b5f3779327c00f9174d7d71d41f90d65f425b9abc7f9107\/quotes\/calculate/);
+    assert.match(src, /usaSpecToPick|parseUsaContainers|pullUsaContainers/);
+    assert.match(src, /USA CONTAINERS/);
+    assert.match(index, /\/comp\/usa-containers/);
+    assert.match(page, /Pull USA Containers/);
+    assert.match(page, /20HC/);
+    assert.match(brain, /USA Containers/);
+    assert.doesNotMatch(src, /xChange/);
+  });
+
+  it("detects USA Containers separately from Container One", () => {
+    assert.deepEqual(detectCompetitorPull("Pull USA Containers for ZIP 85001 — 40HC CW Standard"), {
+      vendor: "usa-containers",
+      zip: "85001",
+      pick: { size: "40HC", grade: "CW", config: "Standard" },
+    });
+    assert.deepEqual(detectCompetitorPull("Pull usacontainers for ZIP 85001 — 20HC One-Trip Standard"), {
+      vendor: "usa-containers",
+      zip: "85001",
+      pick: { size: "20HC", grade: "One-Trip", config: "Standard" },
+    });
+    assert.deepEqual(detectCompetitorPull("Pull USA Containers for ZIP 85001"), {
+      vendor: "usa-containers",
+      zip: "85001",
+      needPick: true,
+    });
+    assert.deepEqual(detectCompetitorPull("usa containers"), {
+      vendor: "usa-containers",
+      needZip: true,
+    });
+    assert.deepEqual(detectCompetitorPull("Pull Container One for ZIP 85001 — 40HC CW Standard"), {
+      vendor: "container-one",
+      zip: "85001",
+      pick: { size: "40HC", grade: "CW", config: "Standard" },
+    });
+  });
+
+  it("posts only the picked USA Containers type and skips specialty boxes", () => {
+    const pull = parseUsaContainers(usaFixture, "85001");
+    assert.ok(pull);
+    assert.equal(pull.lines.some((line) => /10'|Open Side/i.test(line.code)), false);
+    const cw = applyCompetitorPick(pull, { size: "40HC", grade: "CW", config: "Standard" });
+    assert.equal(cw.lines.length, 1);
+    assert.equal(cw.lines[0].delivered, 4350.4400000000005);
+    assert.equal(cw.lines[0].depot, "Long Beach, CA");
+    assert.equal(cw.lines[0].grade, "WWT/CW");
+    const wwt = applyCompetitorPick(pull, { size: "40HC", grade: "WWT", config: "Standard" });
+    assert.equal(wwt.lines[0].delivered, cw.lines[0].delivered);
+    const asis = applyCompetitorPick(pull, { size: "40STD", grade: "Economy", config: "Standard" });
+    assert.equal(asis.lines[0].delivered, 3448);
+    assert.equal(asis.lines[0].pickup, 2699);
+    const ot = applyCompetitorPick(pull, { size: "20STD", grade: "One-Trip", config: "Standard" });
+    assert.equal(ot.lines[0].delivered, 4298);
+    const dd = applyCompetitorPick(pull, { size: "20STD", grade: "One-Trip", config: "Double door" });
+    assert.equal(dd.lines[0].delivered, 5850.4400000000005);
+    const miss = applyCompetitorPick(pull, { size: "40HC", grade: "Reefer", config: "Reefer working" });
+    assert.equal(miss.lines.length, 0);
+    assert.equal(usaSpecToPick("20' One-Trip Standard Open Side"), null);
+    assert.equal(usaSpecToPick("10' Used Standard WWT/CW"), null);
+    const card = formatCompetitorCard(cw);
+    assert.match(card, /40HC WWT\/CW · Standard/);
+    assert.match(card, /\$4,350(?:\.44)? delivered/);
+    assert.doesNotMatch(card, /\$3,448|Open Side|10'/);
   });
 });

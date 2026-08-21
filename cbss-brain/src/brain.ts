@@ -24,8 +24,8 @@ Personal Phone: (870)-323-2593
 Website: Https://cbshippingsolutions.com/
 
 COMPETITOR CHECK ON A LIVE CALL
-If the rep is talking to a client and wants Container One numbers, they pick size, grade, and configuration, then type the client ZIP. The desk pulls only that one posted depot and delivered price.
-Repeat those posted figures only from a live pull already in this chat. Label them as Container One posted, not CBSS.
+If the rep is talking to a client and wants Container One or USA Containers numbers, they pick size, grade, and configuration, then type the client ZIP. The desk pulls only that one posted depot and delivered price from the named competitor.
+Repeat those posted figures only from a live pull already in this chat. Label them as that competitor posted, not CBSS.
 Never invent a competitor price, depot, or mile figure.
 Never use a competitor number as our quote.
 

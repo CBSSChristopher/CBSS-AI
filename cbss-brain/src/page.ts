@@ -77,7 +77,7 @@ export function pageHtml(): string {
     .bot { align-self: flex-start; background: var(--ok); border: 1px solid var(--ok-line); }
     #composer { display: flex; gap: 8px; align-items: flex-end; }
     #composer textarea { min-height: 48px; resize: vertical; }
-    .comp-bar { display: flex; gap: 8px; align-items: flex-end; margin: 8px 0 0; }
+    .comp-bar { display: flex; gap: 8px; align-items: flex-end; margin: 8px 0 0; flex-wrap: wrap; }
     .comp-bar .zip-wrap { flex: 0 0 132px; }
     .comp-bar .zip-wrap label { margin-top: 0; }
     .comp-bar > button { white-space: nowrap; background: #fff; color: var(--navy); border: 1px solid var(--navy); }
@@ -100,7 +100,7 @@ export function pageHtml(): string {
   <header>
     <div>
       <div class="brand">CBSS Desk</div>
-      <div class="sub" id="stamp">build 8</div>
+      <div class="sub" id="stamp">build 9</div>
     </div>
     <div class="right">
       <div class="who hide" id="who"></div>
@@ -155,7 +155,7 @@ export function pageHtml(): string {
           <div class="ai-mark">AI</div>
           <div>
             <h2>CBSS AI for Sales</h2>
-            <p class="muted">Your closer-assistant. On a live call, pick size, grade, and configuration, then pull Container One for the client ZIP.</p>
+            <p class="muted">Your closer-assistant. On a live call, pick size, grade, and configuration, then pull Container One or USA Containers for the client ZIP.</p>
           </div>
         </div>
         <div class="log" id="log"></div>
@@ -163,6 +163,7 @@ export function pageHtml(): string {
           <div class="lbl">Size</div>
           <div class="btns">
             <button type="button" class="pick" data-pick="size" data-val="20STD">20STD</button>
+            <button type="button" class="pick" data-pick="size" data-val="20HC">20HC</button>
             <button type="button" class="pick" data-pick="size" data-val="40STD">40STD</button>
             <button type="button" class="pick on" data-pick="size" data-val="40HC">40HC</button>
           </div>
@@ -189,6 +190,7 @@ export function pageHtml(): string {
             <input id="comp-zip" inputmode="numeric" maxlength="10" placeholder="85001" />
           </div>
           <button type="button" id="comp-pull">Pull Container One</button>
+          <button type="button" id="comp-pull-usa">Pull USA Containers</button>
         </div>
         <form id="ask">
           <div id="composer">
@@ -545,14 +547,17 @@ export function pageHtml(): string {
         });
       });
     });
-    document.getElementById("comp-pull").addEventListener("click", () => {
+    function pullCompetitor(vendor) {
       const zip = String(document.getElementById("comp-zip").value || "").trim();
       if (!zip) {
         document.getElementById("chat-err").textContent = "Type the client ZIP first.";
         return;
       }
-      ask("Pull Container One for ZIP " + zip + " — " + compPick.size + " " + compPick.grade + " " + compPick.config);
-    });
+      const who = vendor === "usa" ? "USA Containers" : "Container One";
+      ask("Pull " + who + " for ZIP " + zip + " — " + compPick.size + " " + compPick.grade + " " + compPick.config);
+    }
+    document.getElementById("comp-pull").addEventListener("click", () => pullCompetitor("c1"));
+    document.getElementById("comp-pull-usa").addEventListener("click", () => pullCompetitor("usa"));
 
     document.querySelectorAll("[data-run]").forEach((b) => {
       b.addEventListener("click", async () => {

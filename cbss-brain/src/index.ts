@@ -8,12 +8,12 @@ import {
 } from "./auth";
 import { SYSTEM_PROMPT, clipHistory, jobPrompt, sanitizeReply } from "./brain";
 import {
-  ASK_FOR_PICK,
-  ASK_FOR_ZIP,
-  PULL_FAILED,
   answerCompetitorPull,
+  askForPick,
+  askForZip,
   completePick,
   detectCompetitorPull,
+  pullFailed,
 } from "./competitors";
 import {
   appendNoteToMap,
@@ -482,18 +482,19 @@ export default {
       }
     }
 
-    if (request.method === "POST" && path === "/comp/container-one") {
+    if (request.method === "POST" && (path === "/comp/container-one" || path === "/comp/usa-containers")) {
       const user = await readSession(request, env);
       if (!user) return json(401, { error: "Sign in first." });
       const body = await readJson(request);
       const zip = str(body.zip) || url.searchParams.get("zip") || "";
+      const vendor = path === "/comp/usa-containers" ? "usa-containers" : "container-one";
       const pick = completePick({
         size: str(body.size),
         grade: str(body.grade),
         config: str(body.config),
       });
-      if (!pick) return json(200, { ok: false, reply: ASK_FOR_PICK });
-      const result = await answerCompetitorPull(zip, pick);
+      if (!pick) return json(200, { ok: false, reply: askForPick(vendor) });
+      const result = await answerCompetitorPull(zip, pick, vendor);
       if (!result.ok) return json(200, { ok: false, reply: result.error });
       return json(200, { ok: true, reply: result.card, zip: result.pull.zip });
     }
@@ -516,14 +517,14 @@ export default {
       if (path === "/chat") {
         const intent = detectCompetitorPull(message, history);
         if (intent) {
-          if ("needZip" in intent) return json(200, { reply: ASK_FOR_ZIP });
-          if ("needPick" in intent) return json(200, { reply: ASK_FOR_PICK });
+          if ("needZip" in intent) return json(200, { reply: askForZip(intent.vendor) });
+          if ("needPick" in intent) return json(200, { reply: askForPick(intent.vendor) });
           try {
-            const result = await answerCompetitorPull(intent.zip, intent.pick);
+            const result = await answerCompetitorPull(intent.zip, intent.pick, intent.vendor);
             return json(200, { reply: result.ok ? result.card : result.error });
           } catch (err) {
             console.error("desk_comp_error", err instanceof Error ? err.message : "unknown");
-            return json(200, { reply: PULL_FAILED });
+            return json(200, { reply: pullFailed(intent.vendor) });
           }
         }
       }

@@ -4,12 +4,19 @@ const C1_URLS = [
 ];
 const C1_SHOP = "container-one.myshopify.com";
 const C1_ACTION = "both_google_location_high_charges_pricing_zipcode_for_product";
+const USAC_URL =
+  "https://prices.usacontainers.co/api/public/sales/0ec013baff428eda1b5f3779327c00f9174d7d71d41f90d65f425b9abc7f9107/quotes/calculate";
 const CACHE_MS = 10 * 60 * 1000;
 const FETCH_MS = 12000;
+const BROWSER_UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
 const ZIP_RE = /\b(\d{5})(?:-\d{4})?\b/;
 const C1_INTENT =
   /\b(container\s*one|containerone|competitor(?:\s+price)?s?|their\s+price|what\s+are\s+they)\b/i;
+const USAC_INTENT = /\b(usa\s*containers?|usacontainers)\b/i;
+
+export type CompetitorVendor = "container-one" | "usa-containers";
 
 export const ASK_FOR_ZIP =
   "Type the client ZIP and pick the size, grade, and configuration. I will pull that one Container One posted price — not a CBSS quote.";
@@ -19,6 +26,15 @@ export const ASK_FOR_PICK =
 
 export const PULL_FAILED =
   "Could not pull Container One just now. Open containerone.net, enter the client ZIP, and read their posted depot and price. Do not invent a number.";
+
+export const USAC_ASK_FOR_ZIP =
+  "Type the client ZIP and pick the size, grade, and configuration. I will pull that one USA Containers posted price — not a CBSS quote.";
+
+export const USAC_ASK_FOR_PICK =
+  "Pick the size, grade, and configuration, then pull. I will only post that one USA Containers figure — not a CBSS quote.";
+
+export const USAC_PULL_FAILED =
+  "Could not pull USA Containers just now. Open prices.usacontainers.co, enter the client ZIP, and read their posted depot and price. Do not invent a number.";
 
 type CoreCode =
   | "20STWWT"
@@ -82,7 +98,7 @@ export type CompetitorPick = {
 };
 
 export type CompetitorLine = {
-  code: CoreCode;
+  code: string;
   size: string;
   grade: string;
   config: string;
@@ -93,7 +109,7 @@ export type CompetitorLine = {
 };
 
 export type CompetitorPull = {
-  vendor: "container-one";
+  vendor: CompetitorVendor;
   zip: string;
   cityState: string;
   pulledAt: string;
@@ -112,6 +128,22 @@ export function normalizeZip(raw: string): string {
 
 export function wantsContainerOne(text: string): boolean {
   return C1_INTENT.test(String(text || ""));
+}
+
+export function wantsUsaContainers(text: string): boolean {
+  return USAC_INTENT.test(String(text || ""));
+}
+
+export function askForZip(vendor: CompetitorVendor): string {
+  return vendor === "usa-containers" ? USAC_ASK_FOR_ZIP : ASK_FOR_ZIP;
+}
+
+export function askForPick(vendor: CompetitorVendor): string {
+  return vendor === "usa-containers" ? USAC_ASK_FOR_PICK : ASK_FOR_PICK;
+}
+
+export function pullFailed(vendor: CompetitorVendor): string {
+  return vendor === "usa-containers" ? USAC_PULL_FAILED : PULL_FAILED;
 }
 
 export function parseCompetitorPick(text: string): Partial<CompetitorPick> {
@@ -153,23 +185,29 @@ export function detectCompetitorPull(
   message: string,
   history: Array<{ role?: string; content?: string }> = [],
 ):
-  | { vendor: "container-one"; needZip: true }
-  | { vendor: "container-one"; zip: string; needPick: true }
-  | { vendor: "container-one"; zip: string; pick: CompetitorPick }
+  | { vendor: CompetitorVendor; needZip: true }
+  | { vendor: CompetitorVendor; zip: string; needPick: true }
+  | { vendor: CompetitorVendor; zip: string; pick: CompetitorPick }
   | null {
   const text = String(message || "").trim();
   if (!text) return null;
   const zip = normalizeZip(text);
   const pick = completePick(parseCompetitorPick(text));
-  if (wantsContainerOne(text)) {
-    if (!zip) return { vendor: "container-one", needZip: true };
-    if (!pick) return { vendor: "container-one", zip, needPick: true };
-    return { vendor: "container-one", zip, pick };
+  const named: CompetitorVendor | "" = wantsUsaContainers(text)
+    ? "usa-containers"
+    : wantsContainerOne(text)
+      ? "container-one"
+      : "";
+  if (named) {
+    if (!zip) return { vendor: named, needZip: true };
+    if (!pick) return { vendor: named, zip, needPick: true };
+    return { vendor: named, zip, pick };
   }
   const last = [...history].reverse().find((m) => m && m.role === "assistant");
-  const asked = String(last?.content || "").includes("Type the client ZIP");
-  if (asked && zip && /^\d{5}(?:-\d{4})?$/.test(text.replace(/\s+/g, ""))) {
-    return { vendor: "container-one", zip, needPick: true };
+  const asked = String(last?.content || "");
+  if (asked.includes("Type the client ZIP") && zip && /^\d{5}(?:-\d{4})?$/.test(text.replace(/\s+/g, ""))) {
+    const vendor: CompetitorVendor = /USA Containers/i.test(asked) ? "usa-containers" : "container-one";
+    return { vendor, zip, needPick: true };
   }
   return null;
 }
@@ -184,7 +222,9 @@ export function coreCodeFromTitle(title: string, handle = ""): CoreCode | "" {
 }
 
 function money(n: number): string {
-  return `$${Math.round(n).toLocaleString("en-US")}`;
+  const rounded = Math.round(n * 100) / 100;
+  if (Number.isInteger(rounded)) return `$${rounded.toLocaleString("en-US")}`;
+  return `$${rounded.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function num(v: unknown): number {
@@ -247,11 +287,115 @@ export function parseContainerOne(raw: unknown, zip: string, now = new Date()): 
   };
 }
 
+function usaRows(raw: unknown): Record<string, unknown>[] {
+  if (Array.isArray(raw)) return raw.filter((row) => row && typeof row === "object") as Record<string, unknown>[];
+  if (!raw || typeof raw !== "object") return [];
+  const rec = raw as Record<string, unknown>;
+  for (const key of ["delivery", "results", "quotes", "data", "items"]) {
+    if (Array.isArray(rec[key])) return usaRows(rec[key]);
+  }
+  return [];
+}
+
+export function usaSpecToPick(name: string): CompetitorPick | null {
+  const title = String(name || "");
+  if (!title) return null;
+  if (/\b10'|open\s*side/i.test(title)) return null;
+  let size = "";
+  if (/40'\s*.*high\s*cube/i.test(title)) size = "40HC";
+  else if (/20'\s*.*high\s*cube/i.test(title)) size = "20HC";
+  else if (/40'/.test(title) && /standard/i.test(title)) size = "40STD";
+  else if (/20'/.test(title) && /standard/i.test(title)) size = "20STD";
+  else return null;
+  let config = "Standard";
+  if (/double\s*door/i.test(title)) config = "Double door";
+  else if (/side\s*doors?/i.test(title)) config = "Side door";
+  let grade = "";
+  if (/one[-\s]?trip/i.test(title)) grade = "One-Trip";
+  else if (/as\s*is/i.test(title)) grade = "Economy";
+  else if (/wwt\s*\/\s*cw|wwt\/cw/i.test(title)) grade = "WWT/CW";
+  else return null;
+  return { size, grade, config };
+}
+
+function usaBestOption(row: Record<string, unknown>): Record<string, unknown> | null {
+  const cheap = row.cheapestOption;
+  if (cheap && typeof cheap === "object" && !Array.isArray(cheap)) return cheap as Record<string, unknown>;
+  const warehouses = row.warehouses;
+  if (!Array.isArray(warehouses) || !warehouses.length) return null;
+  const priced = warehouses.filter((item) => item && typeof item === "object") as Record<string, unknown>[];
+  if (!priced.length) return null;
+  return priced.reduce((best, item) => (num(item.totalPrice) < num(best.totalPrice) ? item : best));
+}
+
+function usaDepot(option: Record<string, unknown>): string {
+  const warehouse = option.warehouse;
+  if (!warehouse || typeof warehouse !== "object" || Array.isArray(warehouse)) return "";
+  const rec = warehouse as Record<string, unknown>;
+  return [str(rec.city) || str(rec.name), str(rec.state)].filter(Boolean).join(", ");
+}
+
+export function parseUsaContainers(
+  raw: unknown,
+  zip: string,
+  pickupRaw: unknown = null,
+  now = new Date(),
+): CompetitorPull | null {
+  const rows = usaRows(raw);
+  if (!rows.length) return null;
+  const pickupByName = new Map<string, number>();
+  for (const row of usaRows(pickupRaw)) {
+    const name = str(row.specDisplayName);
+    const option = usaBestOption(row);
+    if (!name || !option) continue;
+    const pickup = num(option.totalPrice);
+    if (pickup >= 50) pickupByName.set(name, pickup);
+  }
+  const seen = new Map<string, CompetitorLine>();
+  for (const row of rows) {
+    const name = str(row.specDisplayName);
+    const mapped = usaSpecToPick(name);
+    if (!mapped) continue;
+    const option = usaBestOption(row);
+    if (!option) continue;
+    const delivered = num(option.totalPrice);
+    if (delivered < 50) continue;
+    const miles = num(option.distance);
+    seen.set(name, {
+      code: name,
+      size: mapped.size,
+      grade: mapped.grade,
+      config: mapped.config,
+      delivered,
+      pickup: pickupByName.get(name) || 0,
+      depot: usaDepot(option),
+      miles: miles > 0 ? miles : miles === 0 ? 0 : null,
+    });
+  }
+  const lines = [...seen.values()].sort((a, b) => {
+    const order = `${a.size} ${a.grade} ${a.config}`.localeCompare(`${b.size} ${b.grade} ${b.config}`);
+    return order || a.delivered - b.delivered;
+  });
+  if (!lines.length) return null;
+  return {
+    vendor: "usa-containers",
+    zip,
+    cityState: "",
+    pulledAt: now.toISOString(),
+    lines,
+  };
+}
+
+function gradeMatches(lineGrade: string, pickGrade: string): boolean {
+  if (lineGrade === pickGrade) return true;
+  return lineGrade === "WWT/CW" && (pickGrade === "WWT" || pickGrade === "CW");
+}
+
 export function applyCompetitorPick(pull: CompetitorPull, pick: CompetitorPick): CompetitorPull {
   const lines = pull.lines.filter((line) => {
     if (line.size !== pick.size) return false;
     if (isReeferConfig(pick.config)) return line.config === pick.config;
-    return line.grade === pick.grade && line.config === pick.config;
+    return gradeMatches(line.grade, pick.grade) && line.config === pick.config;
   });
   return { ...pull, lines };
 }
@@ -261,23 +405,36 @@ function boxLabel(size: string, grade: string, config: string): string {
   return `${size} ${grade} · ${config}`;
 }
 
-export function missingCombo(zip: string, pick: CompetitorPick): string {
-  return `Container One did not post a ${boxLabel(pick.size, pick.grade, pick.config)} for ZIP ${zip}. Try another grade or configuration, or check containerone.net. Do not invent a number.`;
+function vendorSite(vendor: CompetitorVendor): string {
+  return vendor === "usa-containers" ? "prices.usacontainers.co" : "containerone.net";
+}
+
+function vendorTitle(vendor: CompetitorVendor): string {
+  return vendor === "usa-containers" ? "USA CONTAINERS" : "CONTAINER ONE";
+}
+
+export function missingCombo(zip: string, pick: CompetitorPick, vendor: CompetitorVendor = "container-one"): string {
+  const who = vendor === "usa-containers" ? "USA Containers" : "Container One";
+  return `${who} did not post a ${boxLabel(pick.size, pick.grade, pick.config)} for ZIP ${zip}. Try another grade or configuration, or check ${vendorSite(vendor)}. Do not invent a number.`;
 }
 
 export function formatCompetitorCard(pull: CompetitorPull): string {
   const when = pull.pulledAt.replace("T", " ").replace(/\.\d+Z$/, " UTC");
   const where = pull.cityState ? `They resolved the ZIP as ${pull.cityState}.` : "";
+  const source =
+    pull.vendor === "usa-containers"
+      ? `Pulled from their public quote page ${when}. Confirm on prices.usacontainers.co if the number matters.`
+      : `Pulled from their public ZIP widget ${when}. Confirm on containerone.net if the number matters.`;
   const rows = pull.lines.map((line) => {
     const depot = line.depot || "depot not posted";
-    const miles = line.miles == null ? "" : ` · ${line.miles} mi`;
+    const miles = line.miles == null ? "" : ` · ${Math.round(line.miles)} mi`;
     const pickup = line.pickup >= 50 ? `  pickup ${money(line.pickup)}` : "";
     return `${boxLabel(line.size, line.grade, line.config)}  ${money(line.delivered)} delivered  ${depot}${miles}${pickup}`;
   });
   return [
-    "CONTAINER ONE — posted live (not a CBSS price)",
+    `${vendorTitle(pull.vendor)} — posted live (not a CBSS price)`,
     `ZIP ${pull.zip}. ${where}`.trim(),
-    `Pulled from their public ZIP widget ${when}. Confirm on containerone.net if the number matters.`,
+    source,
     "",
     ...rows,
     "",
@@ -299,7 +456,7 @@ export async function pullContainerOne(
   const zip = normalizeZip(zipRaw);
   if (!zip) return { ok: false, error: ASK_FOR_ZIP };
 
-  const hit = cache.get(zip);
+  const hit = cache.get(`c1:${zip}`);
   if (hit && Date.now() - hit.at < CACHE_MS) {
     return { ok: true, pull: hit.pull, card: formatCompetitorCard(hit.pull) };
   }
@@ -327,8 +484,7 @@ export async function pullContainerOne(
           Accept: "application/json",
           "X-Requested-With": "XMLHttpRequest",
           "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+          "User-Agent": BROWSER_UA,
         },
         body: body.toString(),
         signal: ctrl.signal,
@@ -359,7 +515,7 @@ export async function pullContainerOne(
             "Container One did not post a delivered price for that ZIP. Their page may want a custom quote. Open containerone.net and check, or text Christopher at 870-323-2593.",
         };
       }
-      cache.set(zip, { at: Date.now(), pull: parsed });
+      cache.set(`c1:${zip}`, { at: Date.now(), pull: parsed });
       return { ok: true, pull: parsed, card: formatCompetitorCard(parsed) };
     }
     console.error("c1_pull_exhausted", lastStatus);
@@ -372,16 +528,110 @@ export async function pullContainerOne(
   }
 }
 
+async function pacePull(): Promise<void> {
+  const wait = Date.now() - lastPullAt;
+  if (lastPullAt && wait < 1500) {
+    await new Promise((resolve) => setTimeout(resolve, 1500 - wait));
+  }
+  lastPullAt = Date.now();
+}
+
+async function fetchUsaQuote(
+  zip: string,
+  deliveryMethod: "delivery" | "pickup",
+  fetchImpl: typeof fetch,
+  signal: AbortSignal,
+): Promise<unknown> {
+  const res = await fetchImpl(USAC_URL, {
+    method: "POST",
+    redirect: "manual",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "User-Agent": BROWSER_UA,
+    },
+    body: JSON.stringify({
+      zipCode: zip,
+      deliveryMethod,
+      orderType: "Purchase",
+      containerType: "all",
+    }),
+    signal,
+  });
+  if (res.status >= 300 && res.status < 400) {
+    console.error("usac_pull_redirect", deliveryMethod, res.status);
+    throw new Error("redirect");
+  }
+  const rawText = await res.text();
+  if (!res.ok) {
+    console.error("usac_pull_http", deliveryMethod, res.status, rawText.slice(0, 160));
+    throw new Error(`http_${res.status}`);
+  }
+  try {
+    return JSON.parse(rawText);
+  } catch {
+    console.error("usac_pull_not_json", deliveryMethod, res.status, rawText.slice(0, 160));
+    throw new Error("not_json");
+  }
+}
+
+export async function pullUsaContainers(
+  zipRaw: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ ok: true; pull: CompetitorPull; card: string } | { ok: false; error: string }> {
+  const zip = normalizeZip(zipRaw);
+  if (!zip) return { ok: false, error: USAC_ASK_FOR_ZIP };
+
+  const hit = cache.get(`usa:${zip}`);
+  if (hit && Date.now() - hit.at < CACHE_MS) {
+    return { ok: true, pull: hit.pull, card: formatCompetitorCard(hit.pull) };
+  }
+
+  await pacePull();
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), FETCH_MS);
+  try {
+    const delivery = await fetchUsaQuote(zip, "delivery", fetchImpl, ctrl.signal);
+    let pickup: unknown = null;
+    try {
+      await pacePull();
+      pickup = await fetchUsaQuote(zip, "pickup", fetchImpl, ctrl.signal);
+    } catch (err) {
+      console.error("usac_pickup_skip", err instanceof Error ? err.message : "unknown");
+    }
+    const parsed = parseUsaContainers(delivery, zip, pickup);
+    if (!parsed) {
+      console.error("usac_pull_empty", zip);
+      return {
+        ok: false,
+        error:
+          "USA Containers did not post a delivered purchase price for that ZIP. Open prices.usacontainers.co and check, or text Christopher at 870-323-2593.",
+      };
+    }
+    cache.set(`usa:${zip}`, { at: Date.now(), pull: parsed });
+    return { ok: true, pull: parsed, card: formatCompetitorCard(parsed) };
+  } catch (err) {
+    console.error("usac_pull_error", err instanceof Error ? err.message : "unknown");
+    return { ok: false, error: USAC_PULL_FAILED };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function answerCompetitorPull(
   zipRaw: string,
   pickRaw: Partial<CompetitorPick> | null,
+  vendor: CompetitorVendor = "container-one",
   fetchImpl: typeof fetch = fetch,
 ): Promise<{ ok: true; pull: CompetitorPull; card: string } | { ok: false; error: string }> {
   const pick = completePick(pickRaw);
-  if (!pick) return { ok: false, error: ASK_FOR_PICK };
-  const result = await pullContainerOne(zipRaw, fetchImpl);
+  if (!pick) return { ok: false, error: askForPick(vendor) };
+  const result =
+    vendor === "usa-containers"
+      ? await pullUsaContainers(zipRaw, fetchImpl)
+      : await pullContainerOne(zipRaw, fetchImpl);
   if (!result.ok) return result;
   const filtered = applyCompetitorPick(result.pull, pick);
-  if (!filtered.lines.length) return { ok: false, error: missingCombo(result.pull.zip, pick) };
+  if (!filtered.lines.length) return { ok: false, error: missingCombo(result.pull.zip, pick, result.pull.vendor) };
   return { ok: true, pull: filtered, card: formatCompetitorCard(filtered) };
 }
