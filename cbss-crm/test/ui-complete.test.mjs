@@ -1,0 +1,51 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+
+const html = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
+
+test("tasks tab exposes a Complete button and completeTask handler", () => {
+  assert.match(html, /function completeTask\(/);
+  assert.match(html, /data-complete-id="\$\{esc\(String\(c\.id\)\)\}">Complete<\/button>/);
+  assert.match(html, /action: 'getNotes'/);
+  assert.match(html, /omitNotes: '1'/);
+  assert.match(html, /function onSearchInput\(/);
+  assert.match(html, /JSON\.stringify\(Object\.assign\(\{\}, payload \|\| \{\}, \{ action \}\)\)/);
+  assert.match(html, /nextAction: actionText/);
+  assert.match(html, /Schedule another follow-up/);
+  assert.match(html, /function offerNextFollowup\(/);
+  assert.match(html, /function showNextFollowupPrompt\(/);
+  assert.match(html, /build 8/);
+  assert.match(html, /Meta leads/);
+  assert.match(html, /function connectMetaPage\(/);
+  assert.match(html, /function importMetaLeads\(/);
+  assert.match(html, /function persistFollowupRecord\(/);
+  assert.match(html, /window\.completeTask = completeTask/);
+  assert.match(html, /data-complete-id/);
+  assert.match(html, /Completed tasks/);
+  assert.match(html, /function completedTasksHtml\(/);
+  assert.match(html, /apiSave\('completeFollowup', \{ contactId, nextAction: actionText \}\)/);
+  assert.doesNotMatch(html, /confirm\('Mark this task complete/);
+  assert.doesNotMatch(html, /apiSave\('completeFollowup', \{ contactId: String\(c\.id\), action: actionText \}\)/);
+});
+
+test("worker still serves the CRM data routes used by the desk", async () => {
+  const worker = readFileSync(new URL("../src/index.js", import.meta.url), "utf8");
+  const wrangler = readFileSync(new URL("../wrangler.jsonc", import.meta.url), "utf8");
+  assert.match(wrangler, /"enabled": false/);
+  assert.match(worker, /action === "completeFollowup"/);
+  assert.match(worker, /crmBuild: 8/);
+  assert.match(worker, /getMetaStatus/);
+  assert.match(worker, /importMetaLeads/);
+  assert.match(worker, /Cloudflare-CDN-Cache-Control/);
+  assert.match(worker, /action === "getNotes"/);
+  assert.match(worker, /omitNotes/);
+  assert.match(worker, /saveFollowups/);
+  assert.match(worker, /resolveCrmAction/);
+  assert.match(worker, /Cache-Control/);
+  assert.match(worker, /path === "\/fresh"/);
+  assert.match(worker, /path === "\/b6"/);
+  assert.match(worker, /cache\.purge/);
+  assert.doesNotMatch(worker, /await migrateQuoted\(store, state\);/);
+  assert.doesNotMatch(worker, /await migrateOwners\(store, state, archive\);/);
+});

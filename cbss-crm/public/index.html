@@ -1,0 +1,2207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-store" />
+  <title>CBShippingSolutions CRM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --navy: #0f1c2e;
+      --primary: #1F4E79;
+      --accent: #2E75B6;
+      --light: #f4f7fa;
+      --border: #d0d7de;
+      --text: #1a1a1a;
+      --muted: #5b6b7c;
+      --success: #0d7a3f;
+      --warn: #b45309;
+      --danger: #b42318;
+      --row: #ffffff;
+      --row-alt: #f7fafc;
+      --shadow: 0 1px 2px rgba(15,28,46,0.06);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "IBM Plex Sans", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #e8eef4;
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+    #loginScreen {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(145deg, #0f1c2e 0%, #1F4E79 100%);
+      padding: 24px;
+    }
+    .login-card {
+      background: white;
+      border-radius: 14px;
+      padding: 40px 36px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+      text-align: center;
+    }
+    .login-card h1 { font-size: 1.4rem; color: var(--navy); margin-bottom: 6px; }
+    .login-card .sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 28px; }
+    .login-card button {
+      width: 100%; padding: 13px; background: var(--primary); color: white;
+      border: none; border-radius: 8px; font-size: 1rem; font-weight: 600;
+      cursor: pointer; margin-top: 8px; font-family: inherit;
+    }
+    .login-card button:hover { background: #163A5F; }
+    .login-card .hint { margin-top: 18px; font-size: 0.8rem; color: var(--muted); }
+    #app { display: none; height: 100vh; flex-direction: column; }
+    #app.show { display: flex; }
+    header {
+      background: var(--navy); color: white; padding: 10px 20px;
+      display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+    }
+    header .brand { display: flex; align-items: center; gap: 10px; }
+    header .mark {
+      width: 32px; height: 32px; border-radius: 7px; background: #1F4E79;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 0.78rem; letter-spacing: 0.04em;
+    }
+    header h1 { font-size: 1.02rem; font-weight: 700; letter-spacing: 0.01em; }
+    header .brand p { font-size: 0.72rem; opacity: 0.7; font-weight: 500; margin-top: 1px; }
+    header .user { font-size: 0.85rem; display: flex; align-items: center; gap: 12px; }
+    header .user button {
+      background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.18);
+      color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer;
+      font-size: 0.8rem; font-family: inherit;
+    }
+    header .user button:hover { background: rgba(255,255,255,0.2); }
+    nav {
+      display: flex; gap: 4px; background: white; border-bottom: 1px solid var(--border);
+      padding: 6px 16px; flex-shrink: 0;
+    }
+    nav button {
+      padding: 8px 14px; border: none; background: transparent; border-radius: 6px;
+      font-weight: 600; font-size: 0.86rem; cursor: pointer; color: var(--muted); font-family: inherit;
+    }
+    nav button.active, nav button:hover { background: var(--light); color: var(--primary); }
+    .stat-bar {
+      display: flex; gap: 22px; padding: 8px 18px; background: white;
+      border-bottom: 1px solid var(--border); font-size: 0.8rem; color: var(--muted); flex-shrink: 0;
+    }
+    .stat-bar strong { color: var(--navy); }
+    .main { flex: 1; display: flex; overflow: hidden; }
+    .contacts-pane {
+      flex: 1; min-width: 0; background: white; display: flex; flex-direction: column;
+      border-right: 1px solid var(--border);
+    }
+    .search-box { padding: 0; border: none; flex: 1; min-width: 220px; }
+    .search-box input {
+      width: 100%; padding: 8px 11px; border: 1px solid var(--border);
+      border-radius: 7px; font-size: 0.88rem; font-family: inherit;
+    }
+    .toolbar {
+      display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+      padding: 10px 14px; border-bottom: 1px solid var(--border); background: #f7fafc;
+    }
+    .ctrl { display: flex; align-items: center; gap: 6px; }
+    .ctrl > span {
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.04em; color: #5b6b7c; white-space: nowrap;
+    }
+    .table-wrap { flex: 1; overflow: auto; background: white; }
+    .data-table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 760px; }
+    .data-table thead th {
+      position: sticky; top: 0; z-index: 1; background: #eef3f8; font-size: 0.7rem;
+      text-transform: uppercase; letter-spacing: 0.045em; color: #4a5b6c;
+      padding: 10px 12px; border-bottom: 1px solid var(--border); text-align: left;
+      font-weight: 650; white-space: nowrap;
+    }
+    .data-table tbody td {
+      padding: 11px 12px; border-bottom: 1px solid #e8eef3; font-size: 0.86rem;
+      vertical-align: middle; color: #243040;
+    }
+    .data-table tbody tr { cursor: pointer; background: var(--row); }
+    .data-table tbody tr:nth-child(even) { background: var(--row-alt); }
+    .data-table tbody tr:hover { background: #eef5fb; }
+    .data-table tbody tr.selected { background: #e3eef8; box-shadow: inset 3px 0 0 var(--primary); }
+    .data-table .name-cell { font-weight: 600; color: var(--navy); }
+    .data-table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .data-table .nowrap { white-space: nowrap; }
+    .data-table tr.empty-row td, .data-table tr.empty-row:hover td {
+      text-align: center; color: var(--muted); padding: 36px 16px; cursor: default;
+      background: white; font-size: 0.88rem;
+    }
+    .table-meta { padding: 8px 14px 12px; font-size: 0.75rem; color: var(--muted); border-top: 1px solid #eef1f4; background: #fafcfe; }
+    .stage-pill {
+      display: inline-block; padding: 2px 8px; border-radius: 999px; background: #e8eef4;
+      color: var(--primary); font-size: 0.72rem; font-weight: 650; white-space: nowrap;
+    }
+    .detail { width: 400px; flex-shrink: 0; overflow-y: auto; padding: 18px 18px 28px; background: #f4f7fa; }
+    .detail.empty {
+      display: flex; align-items: center; justify-content: center; color: var(--muted);
+      text-align: center; padding: 32px; font-size: 0.92rem;
+    }
+    .card { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; margin-bottom: 14px; }
+    .card h2 { font-size: 0.98rem; color: var(--primary); margin-bottom: 10px; padding-bottom: 5px; border-bottom: 2px solid var(--primary); }
+    .field-row { display: grid; grid-template-columns: 110px 1fr; gap: 6px; margin-bottom: 7px; font-size: 0.9rem; }
+    .field-row .label { color: var(--muted); font-weight: 500; }
+    .note { border-left: 3px solid var(--accent); padding: 9px 11px; margin-bottom: 8px; background: #f8fbff; border-radius: 0 6px 6px 0; font-size: 0.86rem; }
+    .note .meta { font-size: 0.73rem; color: var(--muted); margin-bottom: 3px; }
+    textarea, input[type="text"], input[type="date"], input[type="email"], input[type="password"], input[type="datetime-local"], select {
+      width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; font-family: inherit;
+    }
+    .btn { padding: 8px 14px; border: none; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer; font-family: inherit; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: #163A5F; }
+    .btn-secondary { background: #e8eef4; color: var(--primary); }
+    .btn-success { background: var(--success); color: white; }
+    .btn-success:hover { background: #0a5c30; }
+    .btn-compact { padding: 5px 10px; font-size: 0.78rem; }
+    a.btn { text-decoration: none; display: inline-block; }
+    .btn-gv { background: #1a73e8; color: white; }
+    .btn-gv:hover { background: #1557b0; }
+    a.gv-tel { color: var(--primary); text-decoration: none; font-weight: 600; }
+    a.gv-tel:hover { text-decoration: underline; }
+    .actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.72rem; font-weight: 600; }
+    .badge-follow { background: #fff4e5; color: var(--warn); }
+    .badge-overdue { background: #fce8e6; color: var(--danger); }
+    .badge-dnc { background: #fce8e6; color: var(--danger); }
+    .badge-pending { background: #e8eef4; color: var(--primary); }
+    .badge-archived { background: #e8eef4; color: var(--muted); }
+    .pipeline-board { display: flex; gap: 12px; padding: 16px; overflow-x: auto; align-items: stretch; min-height: 100%; background: #e8eef4; }
+    .pipeline-col {
+      flex: 0 0 230px; background: #f3f6f9; border: 1px solid var(--border); border-radius: 10px;
+      min-height: 280px; max-height: calc(100vh - 168px); display: flex; flex-direction: column; box-shadow: var(--shadow);
+    }
+    .pipeline-col h3 {
+      font-size: 0.75rem; padding: 10px 12px; background: white; border-bottom: 1px solid var(--border);
+      border-radius: 10px 10px 0 0; display: flex; justify-content: space-between; align-items: center;
+      text-transform: uppercase; letter-spacing: 0.03em; color: var(--navy); font-weight: 700;
+    }
+    .pipeline-col h3 em { font-style: normal; background: #e8eef4; color: var(--primary); border-radius: 999px; padding: 1px 8px; font-size: 0.7rem; }
+    .pipeline-col-body { flex: 1; overflow-y: auto; padding: 8px; }
+    .pipeline-card {
+      margin: 0 0 8px; padding: 10px 11px; background: white; border: 1px solid #d6e4f0;
+      border-radius: 8px; font-size: 0.82rem; cursor: pointer; box-shadow: var(--shadow);
+    }
+    .pipeline-card:hover { border-color: var(--accent); box-shadow: 0 2px 8px rgba(31,78,121,0.12); }
+    .pipeline-card .pc-name { font-weight: 650; color: var(--navy); font-size: 0.88rem; }
+    .pipeline-card .pc-company { color: var(--muted); margin-top: 3px; font-size: 0.78rem; }
+    .pipeline-card .pc-meta { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; font-size: 0.75rem; }
+    .pipeline-card .pc-amt { font-weight: 700; color: var(--primary); }
+    .pipeline-card .pc-owner { color: var(--muted); }
+    .pipeline-card select { margin-top: 8px; font-size: 0.72rem; padding: 4px 6px; }
+    .empty-state { color: var(--muted); font-size: 0.88rem; padding: 22px 8px; text-align: center; }
+    .empty-state.compact { padding: 16px 8px; font-size: 0.8rem; }
+    .list-panel { padding: 16px 18px 24px; flex: 1; overflow-y: auto; background: #e8eef4; }
+    .list-panel .card { box-shadow: var(--shadow); }
+    .filter-bar { padding: 0; border: none; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; background: transparent; }
+    .filter-bar select, .ctrl select { width: auto; min-width: 128px; padding: 7px 10px; font-size: 0.82rem; background: white; }
+    #nameSort { min-width: 96px; }
+    .filter-chip {
+      padding: 5px 12px; border-radius: 12px; border: 1px solid var(--border); background: white;
+      font-size: 0.75rem; font-weight: 600; cursor: pointer; color: var(--muted); font-family: inherit;
+    }
+    .filter-chip.active { background: var(--primary); color: white; border-color: var(--primary); }
+    .filter-chip:hover { border-color: var(--accent); }
+    .hidden { display: none !important; }
+    #nextFollowupPrompt {
+      position: fixed; inset: 0; background: rgba(15, 32, 53, 0.45); z-index: 80;
+      display: flex; align-items: center; justify-content: center; padding: 16px;
+    }
+    #nextFollowupPrompt.hidden { display: none !important; }
+    #nextFollowupPrompt .card { max-width: 420px; width: 100%; margin: 0; }
+    .netlify-identity-signup { display: none !important; }
+    input[type="checkbox"] { width: auto; margin-right: 8px; }
+    input[type="number"] { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; font-family: inherit; }
+    @media (max-width: 1100px) {
+      #view-contacts { flex-direction: column; }
+      .detail { width: 100%; max-height: 42vh; border-top: 1px solid var(--border); }
+    }
+  </style>
+</head>
+<body>
+  <div id="loginScreen">
+    <div class="login-card">
+      <h1>CBShippingSolutions</h1>
+      <div class="sub">CRM Portal — Sign in to continue</div>
+      <form id="loginForm" onsubmit="cbssDoLogin(event)" style="text-align:left;">
+        <label style="display:block;font-size:0.82rem;font-weight:600;margin-bottom:5px;">Company email</label>
+        <input type="email" id="loginEmail" autocomplete="username" placeholder="you@cbshippingsolutions.com" required style="width:100%;padding:12px 13px;border:1px solid #d0d7de;border-radius:8px;font-size:1rem;margin-bottom:12px;" />
+        <label style="display:block;font-size:0.82rem;font-weight:600;margin-bottom:5px;">Password</label>
+        <input type="password" id="loginPassword" autocomplete="current-password" placeholder="Password" required style="width:100%;padding:12px 13px;border:1px solid #d0d7de;border-radius:8px;font-size:1rem;margin-bottom:4px;" />
+        <button type="submit">Log In</button>
+      </form>
+      <div class="hint" id="loginHint">Company email only. First login sets your password.</div>
+    </div>
+  </div>
+  <div id="app">
+    <header>
+      <div class="brand">
+        <span class="mark">CB</span>
+        <div>
+          <h1>CBShippingSolutions</h1>
+          <p>Container Sales CRM · build 8</p>
+        </div>
+      </div>
+      <div class="user">
+        <span id="userLabel">—</span>
+        <button onclick="cbssLogout()">Log out</button>
+      </div>
+    </header>
+    <nav>
+      <button class="active" data-view="contacts" onclick="switchView('contacts')">Contacts</button>
+      <button data-view="followups" onclick="switchView('followups')">Follow-ups</button>
+      <button data-view="tasks" onclick="switchView('tasks')">Tasks</button>
+      <button data-view="pipeline" onclick="switchView('pipeline')">Pipeline</button>
+      <button data-view="archive-review" id="archiveReviewNav" class="hidden" onclick="switchView('archive-review')">Archive review</button>
+      <button data-view="meta" id="metaNav" class="hidden" onclick="switchView('meta')">Meta leads</button>
+    </nav>
+    <div id="nextFollowupPrompt" class="hidden">
+      <div class="card">
+        <h2>Task completed</h2>
+        <p id="nextFollowupPromptText" style="font-size:0.92rem;color:#444;margin:10px 0 16px;"></p>
+        <div class="actions">
+          <button type="button" class="btn btn-primary" onclick="acceptNextFollowup()">Schedule another</button>
+          <button type="button" class="btn btn-secondary" onclick="dismissNextFollowup()">Not now</button>
+        </div>
+      </div>
+    </div>
+    <div class="stat-bar" id="statBar"></div>
+    <div class="main" id="view-contacts">
+      <div class="contacts-pane">
+        <div class="toolbar" id="contactFilterBar">
+          <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Search name, company, email, phone, city..." oninput="onSearchInput()" autocomplete="off" />
+          </div>
+          <label class="ctrl">
+            <span>Owner</span>
+            <select id="ownerFilter" onchange="onOwnerFilterChange()" aria-label="Owner filter">
+              <option value="">All owners</option>
+              <option value="__mine__">Mine</option>
+            </select>
+          </label>
+          <div class="filter-bar" role="group" aria-label="Owner scope">
+            <button type="button" class="filter-chip owner-chip active" data-owner="" onclick="setOwnerChip(this)">All</button>
+            <button type="button" class="filter-chip owner-chip" data-owner="__mine__" onclick="setOwnerChip(this)">Mine</button>
+          </div>
+          <label class="ctrl">
+            <span>Sort</span>
+            <select id="nameSort" onchange="filterContacts()" title="Sort contacts" aria-label="Sort contacts">
+              <option value="pipeline" selected>Pipeline</option>
+              <option value="az">A–Z</option>
+              <option value="za">Z–A</option>
+              <option value="recent">Recent</option>
+            </select>
+          </label>
+          <button type="button" class="btn btn-primary" id="addContactBtn" style="margin-left:auto;" onclick="showAddContact()">+ Add Contact</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="contactTable">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Company</th>
+                <th>Phone</th>
+                <th>City</th>
+                <th>Owner</th>
+                <th>Stage</th>
+                <th class="num">Amount</th>
+              </tr>
+            </thead>
+            <tbody id="contactList"></tbody>
+          </table>
+        </div>
+        <div class="table-meta" id="contactListMeta"></div>
+      </div>
+      <div class="detail empty" id="contactDetail">Select a contact to view details</div>
+    </div>
+    <div class="main hidden" id="view-followups">
+      <div class="list-panel" id="followupsScroll">
+        <div class="toolbar" style="background:transparent;border:none;padding:0 0 12px;">
+          <div class="filter-bar" role="group" aria-label="Owner scope">
+            <button type="button" class="filter-chip owner-chip active" data-owner="" onclick="setOwnerChip(this)">All</button>
+            <button type="button" class="filter-chip owner-chip" data-owner="__mine__" onclick="setOwnerChip(this)">Mine</button>
+          </div>
+          <div class="filter-bar" role="group" aria-label="Follow-up filter">
+            <button type="button" class="filter-chip active" data-fu="open" onclick="setFollowFilter('open')">Open / no date</button>
+            <button type="button" class="filter-chip" data-fu="due" onclick="setFollowFilter('due')">Due Today / Overdue</button>
+            <button type="button" class="filter-chip" data-fu="upcoming" onclick="setFollowFilter('upcoming')">Upcoming</button>
+          </div>
+        </div>
+        <div class="card" id="fu-open"><h2>Open / no date</h2><div id="openFollowList"></div></div>
+        <div class="card hidden" id="fu-due"><h2>Due Today / Overdue</h2><div id="followUpList"></div></div>
+        <div class="card hidden" id="fu-upcoming"><h2>Upcoming</h2><div id="upcomingList"></div></div>
+      </div>
+    </div>
+    <div class="main hidden" id="view-tasks">
+      <div class="list-panel">
+        <div class="card">
+          <h2>Create Task</h2>
+          <div style="display:grid;gap:10px;max-width:520px;">
+            <div>
+              <label style="font-size:0.82rem;font-weight:600;">Contact *</label>
+              <input type="text" id="taskContactSearch" placeholder="Type name to search..." oninput="searchTaskContacts()" autocomplete="off" />
+              <div id="taskContactResults" style="max-height:140px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;margin-top:4px;display:none;"></div>
+              <input type="hidden" id="taskContactId" value="" />
+              <div id="taskSelectedContact" style="font-size:0.85rem;color:var(--primary);margin-top:4px;"></div>
+            </div>
+            <div>
+              <label style="font-size:0.82rem;font-weight:600;">Next Action *</label>
+              <input type="text" id="taskAction" placeholder="e.g. Call back about 40ft WWT pricing" />
+            </div>
+            <div>
+              <label style="font-size:0.82rem;font-weight:600;">Due Date & Time</label>
+              <input type="datetime-local" id="taskDate" />
+            </div>
+            <div>
+              <button class="btn btn-primary" onclick="createTask()">Create Task</button>
+              <button class="btn btn-secondary" onclick="cancelTask()">Cancel</button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Tasks & Follow-ups</h2>
+          <div class="filter-bar" style="padding:0 0 10px;">
+            <button type="button" class="filter-chip owner-chip active" data-owner="" onclick="setOwnerChip(this)">All</button>
+            <button type="button" class="filter-chip owner-chip" data-owner="__mine__" onclick="setOwnerChip(this)">Mine</button>
+          </div>
+          <p style="font-size:0.85rem;color:#666;margin-bottom:12px;">Contacts with a follow-up date or next action. All = company book. Mine = your owned rows. Complete clears the task, logs it on the contact, and asks if you want to schedule the next follow-up.</p>
+          <div id="tasksList"></div>
+        </div>
+      </div>
+    </div>
+    <div class="main hidden" id="view-pipeline">
+      <div style="flex:1;overflow:hidden;display:flex;flex-direction:column;"><div class="pipeline-board" id="pipelineBoard"></div></div>
+    </div>
+    <div class="main hidden" id="view-archive-review">
+      <div class="list-panel">
+        <div class="card">
+          <h2>Archive review</h2>
+          <p style="font-size:0.85rem;color:#666;margin-bottom:12px;">Pending archive requests. Approve moves the contact out of working/pipeline. Deny leaves it in the live book. Search still finds approved rows.</p>
+          <div id="archiveReviewList"></div>
+        </div>
+      </div>
+    </div>
+    <div class="main hidden" id="view-meta">
+      <div class="list-panel">
+        <div class="card">
+          <h2>Facebook / Meta leads</h2>
+          <p style="font-size:0.85rem;color:#666;margin-bottom:12px;">Connect Meta Business Suite once. Existing Instant Form leads import into the CRM, new ones keep arriving, and each form is assigned to a rep. Nobody has to flip back to Facebook.</p>
+          <div id="metaStatusBox" style="font-size:0.9rem;margin-bottom:16px;">Loading Meta connection…</div>
+          <ol style="margin:0 0 18px 20px;color:#444;font-size:0.9rem;line-height:1.55;">
+            <li>In <a href="https://business.facebook.com" target="_blank" rel="noopener">Meta Business Suite</a>, open <strong>Settings → Users → System users</strong>. Add an Admin system user if you do not have one.</li>
+            <li>Assign your Facebook Page to that system user (full control).</li>
+            <li>Generate a token. Include <code>leads_retrieval</code>, <code>pages_manage_metadata</code>, <code>pages_show_list</code>, and <code>pages_read_engagement</code>. Paste it below.</li>
+            <li>In <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener">Meta for Developers</a>, copy the App ID and App Secret from the app Settings. Paste them below with the Page token, or send them so the webhook can be registered for you.</li>
+            <li>Click <strong>Connect Page</strong>, assign each Instant Form to a rep, then <strong>Import existing leads</strong>.</li>
+          </ol>
+          <div class="field-row"><span class="label">Webhook URL</span><span id="metaWebhookUrl">—</span></div>
+          <div class="field-row"><span class="label">Verify token</span><span id="metaVerifyToken">—</span></div>
+          <div class="field-row"><span class="label">Page</span><span id="metaPageName">Not connected</span></div>
+          <label class="ctrl" style="display:block;margin:12px 0 8px;max-width:520px;">
+            <span>Page access token</span>
+            <input type="password" id="metaPageToken" placeholder="Paste the system-user Page token" autocomplete="off" />
+          </label>
+          <label class="ctrl" style="display:block;margin:0 0 8px;max-width:320px;">
+            <span>Meta App ID</span>
+            <input type="text" id="metaAppId" placeholder="From the Developer app" autocomplete="off" />
+          </label>
+          <label class="ctrl" style="display:block;margin:0 0 12px;max-width:520px;">
+            <span>Meta App Secret</span>
+            <input type="password" id="metaAppSecret" placeholder="From the Developer app Settings" autocomplete="off" />
+          </label>
+          <label class="ctrl" style="display:block;margin:0 0 12px;max-width:320px;">
+            <span>Default owner if a form is not mapped</span>
+            <select id="metaDefaultOwner">
+              <option>Christopher Banks</option>
+            </select>
+          </label>
+          <div class="actions">
+            <button type="button" class="btn btn-primary" onclick="connectMetaPage()">Connect Page</button>
+            <button type="button" class="btn btn-secondary" onclick="saveMetaRouting()">Save assignment</button>
+            <button type="button" class="btn btn-success" onclick="importMetaLeads()">Import existing leads</button>
+          </div>
+          <p id="metaActionMsg" style="font-size:0.85rem;color:#666;margin-top:10px;"></p>
+          <h2 style="margin-top:22px;">Assign Instant Forms to reps</h2>
+          <div id="metaFormMap">Connect the Page to load forms.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let contacts = [];
+    let selectedId = null;
+    let currentUser = null;
+    let deals = [];
+    let followupsMap = {};
+    let completedTasksMap = {};
+    let clearedFollowupIds = new Set();
+    let archiveRequests = {};
+    let followFilter = 'open';
+    let contactById = new Map();
+    let dealByContactId = new Map();
+    let mappedOwnerCache = null;
+    let searchTimer = null;
+    let notesLoaded = false;
+    const PROPOSAL_ORIGIN = 'https://cbsscompletetool.cbss.workers.dev';
+    const STAGES = ['New Lead', 'Contacted', 'Quote', 'Proposal Sent', 'Flex Buy', 'Won', 'Lost', 'DNC'];
+    const COMPANY_RE = /@cbshippingsolutions\.com$/i;
+    const OWNER_SOURCES = ['Manual', 'Quote Form', 'Drive Deals', 'Proposal Tool'];
+
+    function titleCaseOwner(s) {
+      const raw = String(s == null ? '' : s).trim().replace(/\s+/g, ' ');
+      if (!raw) return '';
+      if (/^contact owner$/i.test(raw)) return '';
+      return raw.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+    }
+
+    const EMAIL_OWNER_ALIASES = {
+      james: ['James'],
+      bryan: ['Bryan Reese', 'Bryan'],
+      christopher: ['Christopher Banks', 'Christopher']
+    };
+
+    function sessionIdentity() {
+      const email = String(currentUser && currentUser.email || '').trim().toLowerCase();
+      const name = String((currentUser && currentUser.user_metadata && currentUser.user_metadata.full_name) || (currentUser && currentUser.name) || '').trim();
+      const local = email.includes('@') ? email.split('@')[0] : '';
+      return { email, name, local };
+    }
+
+    function addOwnerNeedle(set, s) {
+      const t = titleCaseOwner(s);
+      if (t) set.add(t.toLowerCase());
+      const raw = String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      if (raw) set.add(raw);
+    }
+
+    function sessionOwnerNeedles() {
+      const { email, name, local } = sessionIdentity();
+      const needles = new Set();
+      addOwnerNeedle(needles, name);
+      addOwnerNeedle(needles, local);
+      addOwnerNeedle(needles, email);
+      addOwnerNeedle(needles, local.replace(/[._-]+/g, ' '));
+      (EMAIL_OWNER_ALIASES[local] || EMAIL_OWNER_ALIASES[email] || []).forEach(a => addOwnerNeedle(needles, a));
+      return needles;
+    }
+
+    function knownOwners() {
+      const out = new Set();
+      contacts.forEach(c => { const o = titleCaseOwner(c && c.owner); if (o) out.add(o); });
+      deals.forEach(d => { const o = titleCaseOwner(d && d.owner); if (o) out.add(o); });
+      return [...out];
+    }
+
+    function mappedSessionOwners() {
+      if (mappedOwnerCache) return mappedOwnerCache;
+      const needles = sessionOwnerNeedles();
+      const firsts = new Set([...needles].map(n => n.split(' ')[0]).filter(Boolean));
+      const matched = [];
+      knownOwners().forEach(o => {
+        const ol = o.toLowerCase();
+        const first = ol.split(' ')[0];
+        if (needles.has(ol)) { matched.push(o); return; }
+        if (first && firsts.has(first)) matched.push(o);
+      });
+      mappedOwnerCache = [...new Set(matched)];
+      return mappedOwnerCache;
+    }
+
+    function rebuildIndexes() {
+      contactById = new Map();
+      dealByContactId = new Map();
+      mappedOwnerCache = null;
+      contacts.forEach(c => {
+        if (c && c.id != null) contactById.set(String(c.id), c);
+      });
+      deals.forEach(d => {
+        if (!d || d.contactId == null) return;
+        const key = String(d.contactId);
+        const list = dealByContactId.get(key) || [];
+        list.push(d);
+        dealByContactId.set(key, list);
+      });
+    }
+
+    function dealsForContact(id) {
+      return dealByContactId.get(String(id)) || [];
+    }
+
+    function ownerMatchesSession(owner) {
+      const raw = String(owner == null ? '' : owner).trim();
+      if (!raw) return false;
+      const t = titleCaseOwner(raw);
+      const lower = raw.toLowerCase();
+      const { email } = sessionIdentity();
+      if (email && (lower === email || lower.includes(email))) return true;
+      const needles = sessionOwnerNeedles();
+      if (needles.has(t.toLowerCase()) || needles.has(lower)) return true;
+      const mapped = mappedSessionOwners();
+      return mapped.some(m => titleCaseOwner(m) === t);
+    }
+
+    function currentOwnerScope() {
+      return (document.getElementById('ownerFilter') && document.getElementById('ownerFilter').value || '').trim();
+    }
+
+    function contactEverAssignedToScope(c) {
+      if (!c) return false;
+      const scope = currentOwnerScope();
+      if (!scope) return true;
+      if (scope === '__mine__') {
+        if (ownerMatchesSession(c.owner)) return true;
+        return dealsForContact(c.id).some(d => ownerMatchesSession(d && d.owner));
+      }
+      const want = titleCaseOwner(scope);
+      if (titleCaseOwner(c.owner) === want) return true;
+      return dealsForContact(c.id).some(d => titleCaseOwner(d && d.owner) === want);
+    }
+
+    function contactMatchesOwnerScope(c) {
+      const scope = currentOwnerScope();
+      if (!scope) return true;
+      return contactEverAssignedToScope(c);
+    }
+
+    function dealMatchesOwnerScope(d) {
+      const scope = currentOwnerScope();
+      if (!scope) return true;
+      if (scope === '__mine__') {
+        if (ownerMatchesSession(d && d.owner)) return true;
+        const c = contactForId(d && d.contactId);
+        return c ? ownerMatchesSession(c.owner) : false;
+      }
+      const want = titleCaseOwner(scope);
+      if (titleCaseOwner(d && d.owner) === want) return true;
+      const c = contactForId(d && d.contactId);
+      return c ? titleCaseOwner(c.owner) === want : false;
+    }
+
+    function syncOwnerChips() {
+      const owner = currentOwnerScope();
+      document.querySelectorAll('.owner-chip').forEach(b => {
+        b.classList.toggle('active', (b.dataset.owner || '') === owner);
+      });
+    }
+
+    function displayDealAmount(v) {
+      if (v === undefined || v === null) return '';
+      const s = String(v).trim();
+      if (!s) return '';
+      const n = typeof v === 'number' ? v : parseFloat(s.replace(/[$,]/g, ''));
+      if (!Number.isFinite(n)) return s;
+      if (n === 0) return '';
+      const formatted = n.toLocaleString('en-US', { maximumFractionDigits: 2 });
+      return '$' + formatted;
+    }
+
+    function contactForId(id) {
+      return contactById.get(String(id)) || contacts.find(x => String(x.id) === String(id));
+    }
+
+    function contactStage(c) {
+      const list = dealsForContact(c && c.id);
+      const d = list[0];
+      return (d && d.stage) || (c && c.status) || '';
+    }
+
+    function contactAmountRaw(c) {
+      if (c && c.amount !== undefined && c.amount !== null && String(c.amount).trim() !== '') return c.amount;
+      const d = dealsForContact(c && c.id)[0];
+      return d ? d.amount : '';
+    }
+
+    function cityCell(c) {
+      const city = (c && c.city) || '';
+      const st = (c && c.state) || '';
+      if (city && st) return city + ', ' + st;
+      return city || st || '';
+    }
+
+    function telHref(phone) {
+      const digits = String(phone == null ? '' : phone).replace(/\D/g, '');
+      if (digits.length === 11 && digits.charAt(0) === '1') return 'tel:+1' + digits.slice(1);
+      if (digits.length === 10) return 'tel:+1' + digits;
+      return '';
+    }
+
+    function googleVoiceCallBtn(phone) {
+      const href = telHref(phone);
+      if (!href) return '';
+      return '<a class="btn btn-primary" style="padding:5px 10px;font-size:0.78rem;" href="' + esc(href) + '">Call · Google Voice</a>';
+    }
+
+    function googleVoiceTextBtn(phone) {
+      const href = telHref(phone);
+      if (!href) return '';
+      return '<a class="btn btn-primary" style="padding:5px 10px;font-size:0.78rem;" href="' + esc(href.replace('tel:', 'sms:')) + '">Text · Google Voice</a>';
+    }
+
+    function googleVoicePhoneLink(phone) {
+      const raw = String(phone == null ? '' : phone).trim();
+      const href = telHref(raw);
+      if (!href) return esc(raw) || '—';
+      return '<a class="gv-tel" href="' + esc(href) + '" title="Call with Google Voice" onclick="event.stopPropagation()">' + esc(raw) + '</a>';
+    }
+
+    function gmailComposeHref(email) {
+      const raw = String(email == null ? '' : email).trim();
+      if (!raw) return '';
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw)) return '';
+      let url = 'https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(raw);
+      const auth = (typeof currentUser !== 'undefined' && currentUser && currentUser.email)
+        ? String(currentUser.email).trim()
+        : '';
+      if (auth && /@cbshippingsolutions\.com$/i.test(auth)) {
+        url += '&authuser=' + encodeURIComponent(auth);
+      }
+      return url;
+    }
+
+    function contactEmailBtn(email) {
+      const href = gmailComposeHref(email);
+      if (!href) return '';
+      return '<a class="btn btn-primary" style="padding:5px 10px;font-size:0.78rem;" href="' + esc(href) + '" target="_blank" rel="noopener noreferrer">Email</a>';
+    }
+
+    function contactEmailLink(email) {
+      const raw = String(email == null ? '' : email).trim();
+      const href = gmailComposeHref(raw);
+      if (!href) return esc(raw) || '—';
+      return '<a class="gv-tel" href="' + esc(href) + '" target="_blank" rel="noopener noreferrer" title="Email in Gmail" onclick="event.stopPropagation()">' + esc(raw) + '</a>';
+    }
+
+    function isDncContact(c) {
+      if (!c) return false;
+      if (c.dnc) return true;
+      if (String(c.status || '').trim().toUpperCase() === 'DNC') return true;
+      return false;
+    }
+
+    function isDncTask(c) {
+      if (!c) return true;
+      if (isDncContact(c)) return true;
+      if (String(c.nextAction || '').trim().toUpperCase().startsWith('DNC')) return true;
+      return false;
+    }
+
+    function isChristopher() {
+      const ident = sessionIdentity();
+      if (ident.local === 'christopher') return true;
+      return /^christopher banks$/i.test(ident.name || '');
+    }
+
+    function archiveRequestFor(id) {
+      if (id == null) return null;
+      return archiveRequests[id] || archiveRequests[String(id)] || null;
+    }
+
+    function isArchivedContact(c) {
+      if (!c) return false;
+      if (c.archived === true) return true;
+      const req = archiveRequestFor(c.id);
+      return !!(req && req.status === 'approved');
+    }
+
+    function isArchivedId(id) {
+      const c = contactForId(id);
+      if (c && isArchivedContact(c)) return true;
+      const req = archiveRequestFor(id);
+      return !!(req && req.status === 'approved');
+    }
+
+    function pendingArchiveCount() {
+      return Object.keys(archiveRequests).filter(k => {
+        const r = archiveRequests[k];
+        return r && r.status === 'pending';
+      }).length;
+    }
+
+    function updateArchiveReviewNav() {
+      const btn = document.getElementById('archiveReviewNav');
+      if (btn) {
+        const show = isChristopher();
+        btn.classList.toggle('hidden', !show);
+        if (show) {
+          const n = pendingArchiveCount();
+          btn.textContent = n ? ('Archive review (' + n + ')') : 'Archive review';
+        }
+      }
+      const metaBtn = document.getElementById('metaNav');
+      if (metaBtn) metaBtn.classList.toggle('hidden', !isChristopher());
+    }
+
+    function fmtWhen(iso) {
+      if (!iso) return '—';
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return String(iso).replace('T', ' ').slice(0, 16);
+      return d.toLocaleString();
+    }
+
+    let metaStatus = null;
+    function metaOwnerChoices() {
+      const known = ['Christopher Banks', 'James', 'Kawika Pangelinan'];
+      const extra = [...new Set(contacts.map(c => titleCaseOwner(c && c.owner)).filter(Boolean))];
+      return [...new Set(known.concat(extra))];
+    }
+    function fillMetaOwnerSelect(sel, current) {
+      if (!sel) return;
+      const want = current || 'Christopher Banks';
+      const opts = metaOwnerChoices();
+      if (want && !opts.includes(want)) opts.unshift(want);
+      sel.innerHTML = opts.map(o => '<option value="' + esc(o) + '"' + (o === want ? ' selected' : '') + '>' + esc(o) + '</option>').join('');
+    }
+    function renderMetaStatus(status) {
+      metaStatus = status || {};
+      const box = document.getElementById('metaStatusBox');
+      if (box) {
+        if (metaStatus.connected) {
+          box.textContent = 'Connected' + (metaStatus.webhookRegistered ? ' and webhook registered' : '') + '. New Instant Form leads land in the CRM automatically. Last webhook: ' + (metaStatus.lastWebhookAt ? fmtWhen(metaStatus.lastWebhookAt) : 'none yet') + '. Last import: ' + (metaStatus.lastImportAt ? fmtWhen(metaStatus.lastImportAt) : 'none yet') + '.';
+        } else {
+          box.textContent = 'Not connected yet. Paste the Page token, App ID, and App Secret, then Connect Page.';
+        }
+      }
+      const urlEl = document.getElementById('metaWebhookUrl');
+      if (urlEl) urlEl.textContent = metaStatus.webhookUrl || 'https://cbsscrm.cbss.workers.dev/webhooks/meta-leadgen';
+      const tokEl = document.getElementById('metaVerifyToken');
+      if (tokEl) tokEl.textContent = metaStatus.verifyToken || '—';
+      const pageEl = document.getElementById('metaPageName');
+      if (pageEl) pageEl.textContent = metaStatus.pageName ? (metaStatus.pageName + ' · ' + (metaStatus.pageId || '')) : 'Not connected';
+      const appIdEl = document.getElementById('metaAppId');
+      if (appIdEl && metaStatus.appId && !appIdEl.value) appIdEl.value = metaStatus.appId;
+      fillMetaOwnerSelect(document.getElementById('metaDefaultOwner'), metaStatus.defaultOwner);
+      const map = document.getElementById('metaFormMap');
+      const forms = Array.isArray(metaStatus.forms) ? metaStatus.forms : [];
+      if (map && !forms.length) map.textContent = metaStatus.connected ? 'No Instant Forms found on that Page yet.' : 'Connect the Page to load forms.';
+      if (map && forms.length) {
+        const owners = metaStatus.formOwners || {};
+        map.innerHTML = forms.map(function(f) {
+          const current = owners[f.id] || owners[f.name] || metaStatus.defaultOwner || 'Christopher Banks';
+          const opts = metaOwnerChoices().map(o => '<option value="' + esc(o) + '"' + (o === current ? ' selected' : '') + '>' + esc(o) + '</option>').join('');
+          return '<div class="field-row" style="align-items:center;"><span class="label">' + esc(f.name || f.id) + '</span><select data-form-id="' + esc(f.id) + '">' + opts + '</select></div>';
+        }).join('');
+      }
+    }
+    function metaFormOwnersFromUi() {
+      const out = {};
+      document.querySelectorAll('#metaFormMap select[data-form-id]').forEach(function(sel) {
+        if (sel.value) out[sel.getAttribute('data-form-id')] = sel.value;
+      });
+      return out;
+    }
+    function setMetaMsg(text) {
+      const el = document.getElementById('metaActionMsg');
+      if (el) el.textContent = text || '';
+    }
+    async function loadMetaStatus() {
+      if (!isChristopher()) return;
+      const res = await apiSave('getMetaStatus', {});
+      if (!res || res.ok === false) {
+        setMetaMsg((res && res.error) || 'Could not load Meta status.');
+        return;
+      }
+      renderMetaStatus(res);
+    }
+    async function connectMetaPage() {
+      setMetaMsg('Connecting Facebook Page…');
+      const res = await apiSave('connectMeta', {
+        pageAccessToken: (document.getElementById('metaPageToken') || {}).value || '',
+        appId: (document.getElementById('metaAppId') || {}).value || '',
+        appSecret: (document.getElementById('metaAppSecret') || {}).value || '',
+        defaultOwner: (document.getElementById('metaDefaultOwner') || {}).value || 'Christopher Banks',
+        formOwners: metaFormOwnersFromUi()
+      });
+      if (!res || res.ok === false) {
+        setMetaMsg((res && res.error) || 'Could not connect. Check the token and Page permissions.');
+        return;
+      }
+      if (document.getElementById('metaPageToken')) document.getElementById('metaPageToken').value = '';
+      renderMetaStatus(res);
+      setMetaMsg('Page connected. Assign each form, save, then import existing leads.');
+    }
+    async function saveMetaRouting() {
+      setMetaMsg('Saving assignment…');
+      const res = await apiSave('saveMetaConfig', {
+        defaultOwner: (document.getElementById('metaDefaultOwner') || {}).value || 'Christopher Banks',
+        formOwners: metaFormOwnersFromUi()
+      });
+      if (!res || res.ok === false) {
+        setMetaMsg((res && res.error) || 'Could not save assignment.');
+        return;
+      }
+      renderMetaStatus(res);
+      setMetaMsg('Assignment saved. New leads from each form go to that rep.');
+    }
+    async function importMetaLeads() {
+      setMetaMsg('Importing existing Facebook leads. Stay on this page…');
+      const res = await apiSave('importMetaLeads', {});
+      if (!res || res.ok === false) {
+        setMetaMsg((res && res.error) || 'Import failed.');
+        return;
+      }
+      renderMetaStatus(res);
+      setMetaMsg('Imported. Created ' + (res.created || 0) + ', matched existing ' + (res.matched || 0) + ', skipped ' + (res.skipped || 0) + '. Refresh Contacts if they are not on screen yet.');
+      try { await loadData(); } catch (e) { console.warn(e); }
+    }
+    window.connectMetaPage = connectMetaPage;
+    window.saveMetaRouting = saveMetaRouting;
+    window.importMetaLeads = importMetaLeads;
+
+    async function requestArchive(id) {
+      const c = contacts.find(x => String(x.id) === String(id));
+      if (!c) return;
+      if (isArchivedContact(c)) return;
+      const existing = archiveRequestFor(c.id);
+      if (existing && existing.status === 'pending') {
+        selectContact(id);
+        return;
+      }
+      const key = String(c.id);
+      const req = {
+        contactId: key,
+        name: c.name || '',
+        company: c.company || '',
+        owner: c.owner || '',
+        requestedBy: (currentUser && currentUser.user_metadata && currentUser.user_metadata.full_name) || (currentUser && currentUser.email) || '',
+        requestedAt: new Date().toISOString(),
+        status: 'pending',
+        reviewedAt: '',
+        reviewedBy: ''
+      };
+      archiveRequests[key] = req;
+      await apiSave('saveArchiveRequests', { archiveRequests: { [key]: req } });
+      updateArchiveReviewNav();
+      renderArchiveReview();
+      filterContacts();
+      selectContact(id);
+    }
+
+    async function reviewArchive(id, status) {
+      if (!isChristopher()) return;
+      const nextStatus = status === 'approved' ? 'approved' : 'denied';
+      const existing = archiveRequestFor(id);
+      if (!existing || existing.status !== 'pending') return;
+      const key = String(existing.contactId || id);
+      const next = Object.assign({}, existing, {
+        status: nextStatus,
+        reviewedAt: new Date().toISOString(),
+        reviewedBy: (currentUser && currentUser.user_metadata && currentUser.user_metadata.full_name) || (currentUser && currentUser.email) || 'Christopher Banks'
+      });
+      archiveRequests[key] = next;
+      if (archiveRequests[id] && String(id) !== key) archiveRequests[id] = next;
+      await apiSave('saveArchiveRequests', { archiveRequests: { [key]: next } });
+      if (nextStatus === 'approved') {
+        const c = contacts.find(x => String(x.id) === key || String(x.id) === String(id));
+        if (c) c.archived = true;
+      }
+      updateArchiveReviewNav();
+      renderArchiveReview();
+      renderStats();
+      filterContacts();
+      renderFollowUps();
+      renderTasks();
+      renderPipeline();
+      if (selectedId != null && (String(selectedId) === key || String(selectedId) === String(id))) {
+        selectContact(selectedId);
+      }
+    }
+
+    function renderArchiveReview() {
+      const list = document.getElementById('archiveReviewList');
+      if (!list) return;
+      if (!isChristopher()) {
+        list.innerHTML = '<div class="empty-state">Archive review is only available to Christopher.</div>';
+        return;
+      }
+      const pending = Object.keys(archiveRequests).map(k => archiveRequests[k]).filter(r => r && r.status === 'pending');
+      const seen = new Set();
+      const rows = [];
+      pending.forEach(r => {
+        const id = String(r.contactId || '');
+        if (!id || seen.has(id)) return;
+        seen.add(id);
+        rows.push(r);
+      });
+      rows.sort((a, b) => String(b.requestedAt || '').localeCompare(String(a.requestedAt || '')));
+      if (!rows.length) {
+        list.innerHTML = '<div class="empty-state">No pending archive requests.</div>';
+        return;
+      }
+      list.innerHTML = `<table class="data-table" style="min-width:0">
+        <thead><tr><th>Name</th><th>Company</th><th>Owner</th><th>Requested by</th><th>When</th><th>Review</th></tr></thead>
+        <tbody>
+          ${rows.map(r => {
+            const id = String(r.contactId);
+            return `<tr class="contact-row">
+              <td class="name-cell" onclick="switchView('contacts');setTimeout(()=>selectContact(${JSON.stringify(id)}),50)">${esc(r.name) || '(No name)'}</td>
+              <td>${esc(r.company) || '—'}</td>
+              <td>${esc(r.owner) || '—'}</td>
+              <td>${esc(r.requestedBy) || '—'}</td>
+              <td class="nowrap">${esc(fmtWhen(r.requestedAt))}</td>
+              <td>
+                <div class="actions" style="margin:0;">
+                  <button class="btn btn-primary" onclick="event.stopPropagation();reviewArchive(${JSON.stringify(id)}, 'approved')">Approve</button>
+                  <button class="btn btn-secondary" onclick="event.stopPropagation();reviewArchive(${JSON.stringify(id)}, 'denied')">Deny</button>
+                </div>
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+    }
+
+
+    // ---------- Auth (cookie shim; no Netlify Identity) ----------
+    async function cbssMe() {
+      try {
+        const res = await fetch('/auth/me', { credentials: 'include' });
+        if (!res.ok) return null;
+        return await res.json();
+      } catch (e) {
+        return null;
+      }
+    }
+
+    async function cbssDoLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const hint = document.getElementById('loginHint');
+      if (!isCompanyEmail(email)) {
+        if (hint) hint.textContent = 'Company email required (@cbshippingsolutions.com).';
+        return;
+      }
+      try {
+        const res = await fetch('/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          if (hint) hint.textContent = data.error || 'Login failed';
+          return;
+        }
+        onLogin({
+          email: data.email,
+          user_metadata: { full_name: data.name || data.email }
+        });
+      } catch (err) {
+        if (hint) hint.textContent = 'Network error. Try again.';
+      }
+    }
+
+    async function cbssLogout() {
+      try {
+        await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
+      } catch (e) {}
+      currentUser = null;
+      showLogin();
+    }
+
+    function showLogin() {
+      document.getElementById('loginScreen').style.display = 'flex';
+      document.getElementById('app').classList.remove('show');
+    }
+
+    function isCompanyEmail(email) {
+      return COMPANY_RE.test(String(email || '').trim());
+    }
+
+    function onLogin(user) {
+      const email = user && user.email;
+      if (!isCompanyEmail(email)) {
+        const hint = document.getElementById('loginHint');
+        if (hint) hint.textContent = 'Company email required (@cbshippingsolutions.com). This account has been signed out.';
+        showLogin();
+        return;
+      }
+      currentUser = user;
+      const name = user.user_metadata?.full_name || user.email;
+      document.getElementById('userLabel').textContent = name;
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('app').classList.add('show');
+      updateArchiveReviewNav();
+      loadData();
+    }
+
+
+    async function authHeaders() {
+      return { 'Content-Type': 'application/json' };
+    }
+
+    async function apiGet(extra) {
+      try {
+        const qs = new URLSearchParams(Object.assign({ action: 'get' }, extra || {}));
+        const res = await fetch('/crm-data?' + qs.toString(), {
+          headers: await authHeaders(),
+          credentials: 'include'
+        });
+        if (!res.ok) throw new Error('API ' + res.status);
+        return await res.json();
+      } catch (e) {
+        console.warn('Shared API unavailable, using local only', e);
+        return null;
+      }
+    }
+
+    async function apiSave(action, payload) {
+      try {
+        const res = await fetch('/crm-data?action=' + encodeURIComponent(action), {
+          method: 'POST',
+          headers: await authHeaders(),
+          credentials: 'include',
+          body: JSON.stringify(Object.assign({}, payload || {}, { action }))
+        });
+        if (!res.ok) {
+          console.warn('Save failed', res.status);
+          let extra = {};
+          try { extra = await res.json(); } catch (_) {}
+          return Object.assign({ ok: false, status: res.status }, extra);
+        }
+        return await res.json();
+      } catch (e) {
+        console.warn('Save failed', e);
+        return { ok: false };
+      }
+    }
+
+    (async function initAuth() {
+      const me = await cbssMe();
+      if (me && me.email) {
+        onLogin({
+          email: me.email,
+          user_metadata: { full_name: me.name || me.email }
+        });
+      } else {
+        showLogin();
+      }
+    })();
+
+    // ---------- Data ----------
+    function mergeNotes(existing, extra) {
+      const out = (existing || []).slice();
+      const keys = new Set(out.map(n => (n.timestamp || '') + '|' + (n.text || '')));
+      (extra || []).forEach(n => {
+        const k = (n.timestamp || '') + '|' + (n.text || '');
+        if (!keys.has(k)) { out.push(n); keys.add(k); }
+      });
+      function noteSortKey(n) {
+        const ts = String(n && n.timestamp || "");
+        const tag = String(n && n.tag || "");
+        const isImport = /^(Drive Deals|Import|Quote Form)$/i.test(tag);
+        const today = new Date().toISOString().slice(0, 10);
+        if (isImport && ts.slice(0, 10) === today) return "0000";
+        return ts;
+      }
+      out.sort(function(x,y){return noteSortKey(y).localeCompare(noteSortKey(x));});
+      return out;
+    }
+
+    async function loadNotesInBackground() {
+      try {
+        const res = await fetch('/crm-data', {
+          method: 'POST',
+          headers: await authHeaders(),
+          credentials: 'include',
+          body: JSON.stringify({ action: 'getNotes' })
+        });
+        if (!res.ok) return;
+        const shared = await res.json();
+        if (!shared || !shared.notes) return;
+        contacts.forEach(c => {
+          const extra = shared.notes[c.id] || shared.notes[String(c.id)];
+          if (extra && extra.length) c.notes = mergeNotes(c.notes, extra);
+        });
+        notesLoaded = true;
+        if (selectedId) selectContact(selectedId);
+      } catch (e) {
+        console.warn('Notes refresh failed', e);
+      }
+    }
+
+    async function loadData() {
+      try {
+        const bar = document.getElementById('statBar');
+        if (bar) bar.innerHTML = '<span>Loading book…</span>';
+        const shared = await apiGet({ omitNotes: '1' });
+        if (!shared) {
+          alert('Could not load CRM data. Sign in with a company email.');
+          return;
+        }
+        contacts = Array.isArray(shared.contacts) ? shared.contacts.slice() : [];
+        deals = Array.isArray(shared.deals) ? shared.deals : [];
+        deals.forEach(d => { if (d && d.stage === 'Quoted') d.stage = 'Quote'; if (d && (d.stage === 'Connected' || d.stage === 'Connecting')) d.stage = 'Contacted'; });
+
+        if (shared.contactsAdded && shared.contactsAdded.length) {
+          const ids = new Set(contacts.map(c => String(c.id)));
+          shared.contactsAdded.forEach(a => {
+            if (!ids.has(String(a.id))) {
+              contacts.unshift(a);
+              ids.add(String(a.id));
+            }
+          });
+        }
+        if (shared.contactEdits) {
+          contacts.forEach(c => {
+            if (shared.contactEdits[c.id]) Object.assign(c, shared.contactEdits[c.id]);
+            else if (shared.contactEdits[String(c.id)]) Object.assign(c, shared.contactEdits[String(c.id)]);
+          });
+        }
+        contacts.forEach(c => { if (c && c.status === 'Quoted') c.status = 'Quote'; if (c && (c.status === 'Connected' || c.status === 'Connecting')) c.status = 'Contacted'; });
+        contacts.forEach(c => {
+          const next = titleCaseOwner(c.owner);
+          if (!next && String(c.source || '') === 'Quote Form') c.owner = 'Christopher Banks';
+          else if ((c.owner || '') !== next) c.owner = next;
+        });
+        deals.forEach(d => {
+          const next = titleCaseOwner(d.owner);
+          if ((d.owner || '') !== next) d.owner = next;
+        });
+        followupsMap = (shared.followups && typeof shared.followups === 'object') ? Object.assign({}, shared.followups) : {};
+        completedTasksMap = (shared.completedTasks && typeof shared.completedTasks === 'object') ? Object.assign({}, shared.completedTasks) : {};
+        archiveRequests = (shared.archiveRequests && typeof shared.archiveRequests === 'object') ? Object.assign({}, shared.archiveRequests) : {};
+        contacts.forEach(c => {
+          const fu = followupsMap[c.id] || followupsMap[String(c.id)];
+          if (isLiveFollowupRecord(fu)) {
+            c.nextAction = fu.nextAction || '';
+            c.followUpDate = fu.followUpDate || '';
+          } else {
+            c.nextAction = '';
+            c.followUpDate = '';
+          }
+          const done = completedTasksMap[c.id] || completedTasksMap[String(c.id)];
+          c.completedTasks = Array.isArray(done) ? done.slice() : [];
+        });
+        if (shared.notes) {
+          contacts.forEach(c => {
+            const extra = shared.notes[c.id] || shared.notes[String(c.id)];
+            if (extra && extra.length) c.notes = mergeNotes(c.notes, extra);
+          });
+        }
+        if (shared.proposals) {
+          contacts.forEach(c => {
+            c.proposals = shared.proposals[c.id] || shared.proposals[String(c.id)] || c.proposals || [];
+          });
+        }
+        contacts.forEach(c => {
+          const req = archiveRequestFor(c.id);
+          if (req && req.status === 'approved') c.archived = true;
+        });
+        rebuildIndexes();
+        notesLoaded = Boolean(shared.notes);
+
+        renderStats();
+        buildOwnerFilter();
+        filterContacts();
+        updateArchiveReviewNav();
+        loadNotesInBackground();
+      } catch (e) {
+        console.error(e);
+        alert('Could not load contacts data.');
+      }
+    }
+
+    function storageKey(suffix) {
+      return 'cbss_' + (currentUser?.email || 'anon') + '_' + suffix;
+    }
+
+    // ---------- UI ----------
+    function switchView(view) {
+      document.querySelectorAll('nav button').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+      document.getElementById('view-contacts').classList.toggle('hidden', view !== 'contacts');
+      document.getElementById('view-followups').classList.toggle('hidden', view !== 'followups');
+      document.getElementById('view-tasks')?.classList.toggle('hidden', view !== 'tasks');
+      document.getElementById('view-pipeline').classList.toggle('hidden', view !== 'pipeline');
+      const ar = document.getElementById('view-archive-review');
+      if (ar) ar.classList.toggle('hidden', view !== 'archive-review');
+      const mv = document.getElementById('view-meta');
+      if (mv) mv.classList.toggle('hidden', view !== 'meta');
+      if (view === 'followups') { setFollowFilter('open'); renderFollowUps(); const sc = document.getElementById('followupsScroll'); if (sc) sc.scrollTop = 0; }
+      if (view === 'tasks') renderTasks();
+      if (view === 'pipeline') renderPipeline();
+      if (view === 'archive-review') renderArchiveReview();
+      if (view === 'meta') loadMetaStatus();
+    }
+
+    function activeView() {
+      const btn = document.querySelector('nav button.active');
+      return (btn && btn.dataset.view) || 'contacts';
+    }
+
+    function onSearchInput() {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(filterContacts, 120);
+    }
+
+    function renderStats() {
+      const today = new Date().toISOString().slice(0, 10);
+      const withFollow = contacts.filter(c => !isDncTask(c) && (c.followUpDate || (c.nextAction && String(c.nextAction).trim()))).length;
+      const overdue = contacts.filter(c => c.followUpDate && c.followUpDate < today).length;
+      const working = contacts.filter(isWorking).length;
+      const dncSep = contacts.filter(c => isDncContact(c) && !isWorking(c)).length;
+      document.getElementById('statBar').innerHTML = `
+        <span><strong>${working.toLocaleString()}</strong> working</span>
+        <span><strong>${dncSep.toLocaleString()}</strong> DNC</span>
+        <span><strong>${contacts.length.toLocaleString()}</strong> archive</span>
+        <span><strong>${withFollow}</strong> follow-ups</span>
+        <span><strong>${overdue}</strong> overdue</span>
+        <span><strong>${deals.length}</strong> deals</span>
+      `;
+    }
+
+    function buildOwnerFilter() {
+      const owners = [...new Set([
+        ...contacts.map(c => titleCaseOwner(c && c.owner)).filter(Boolean),
+        ...deals.map(d => titleCaseOwner(d && d.owner)).filter(Boolean)
+      ])].sort();
+      const sel = document.getElementById('ownerFilter');
+      if (!sel) return;
+      const current = sel.value;
+      sel.innerHTML = '<option value="">All owners</option>' +
+        '<option value="__mine__">Mine</option>' +
+        owners.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('');
+      if (current === '__mine__' || current === '' || owners.includes(titleCaseOwner(current))) sel.value = current;
+      else sel.value = '';
+      syncOwnerChips();
+    }
+
+    function setOwnerChip(btn) {
+      const owner = btn && btn.dataset ? (btn.dataset.owner || '') : '';
+      const sel = document.getElementById('ownerFilter');
+      if (sel) sel.value = owner;
+      onOwnerFilterChange();
+    }
+
+    function onOwnerFilterChange() {
+      syncOwnerChips();
+      filterContacts();
+      const view = activeView();
+      if (view === 'followups') renderFollowUps();
+      if (view === 'tasks') renderTasks();
+      if (view === 'pipeline') renderPipeline();
+    }
+
+    function isWorking(c) {
+      if (!c) return false;
+      if (c.archived === true) return false;
+      const hasDeal = dealsForContact(c.id).length > 0;
+      if (isDncContact(c) && !hasDeal) return false;
+      if (c.amount !== undefined && c.amount !== null && c.amount !== '') return true;
+      if (c.followUpDate) return true;
+      if (c.nextAction && String(c.nextAction).trim()) return true;
+      if (c.containerSize || c.depot || c.delivery || c.wholesale) return true;
+      const src = String(c.source || '');
+      if (src === 'Drive Deals' || src === 'Proposal Tool' || src === 'Quote Form' || src === 'Manual') return true;
+      if ((c.proposals || []).length) return true;
+      if (hasDeal) return true;
+      return false;
+    }
+
+    function filterContacts() {
+      const q = (document.getElementById('searchInput').value || '').toLowerCase().trim();
+      syncOwnerChips();
+      let filtered = contacts.filter(contactMatchesOwnerScope);
+      if (q) {
+        filtered = filtered.filter(c =>
+          (c.name || '').toLowerCase().includes(q) ||
+          (c.email || '').toLowerCase().includes(q) ||
+          (c.phone || '').includes(q) ||
+          (c.city || '').toLowerCase().includes(q) ||
+          (c.state || '').toLowerCase().includes(q) ||
+          (c.owner || '').toLowerCase().includes(q) ||
+          (c.company || '').toLowerCase().includes(q) ||
+          (c.zip || '').includes(q) ||
+          (c.depot || '').toLowerCase().includes(q)
+        );
+      } else if (!currentOwnerScope()) {
+        filtered = filtered.filter(isWorking);
+      }
+      const dir = (document.getElementById('nameSort') && document.getElementById('nameSort').value) || 'pipeline';
+      if (dir === 'az' || dir === 'za' || dir === 'recent') {
+        filtered = filtered.slice().sort((a, b) => {
+          if (dir === 'recent') {
+            return String(b.created || '').localeCompare(String(a.created || '')) || String(b.id).localeCompare(String(a.id));
+          }
+          const cmp = (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' });
+          return dir === 'za' ? -cmp : cmp;
+        });
+      }
+      const tbody = document.getElementById('contactList');
+      const meta = document.getElementById('contactListMeta');
+      if (!filtered.length) {
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="7">No contacts match. Switch to All to see the company book, or search the archive.</td></tr>';
+      } else {
+        const show = filtered.slice(0, 200);
+        tbody.innerHTML = show.map(c => {
+          const amt = displayDealAmount(contactAmountRaw(c)) || '—';
+          const stage = contactStage(c);
+          return `<tr class="contact-row ${String(c.id) === String(selectedId) ? 'selected' : ''}" data-id="${esc(String(c.id))}" onclick="selectContact(this.getAttribute('data-id'))">
+            <td class="name-cell">${esc(c.name) || '(No name)'}${isDncContact(c) ? ' <span class="badge badge-dnc">DNC</span>' : ''}${archiveBadgeHtml(c)}</td>
+            <td>${esc(c.company) || '—'}</td>
+            <td class="nowrap">${googleVoicePhoneLink(c.phone)}</td>
+            <td>${esc(cityCell(c)) || '—'}</td>
+            <td>${esc(c.owner) || '—'}</td>
+            <td>${stage ? '<span class="stage-pill">' + esc(stage) + '</span>' : '—'}</td>
+            <td class="num">${esc(amt)}</td>
+          </tr>`;
+        }).join('');
+      }
+      if (meta) {
+        let msg = '';
+        if (filtered.length > 200) msg += 'Showing 200 of ' + filtered.length + '. ';
+        if (currentOwnerScope()) msg += 'All leads ever assigned to this owner, including archive.';
+        else if (!q) msg += 'Working deals only. Search to find archive contacts.';
+        meta.textContent = msg;
+      }
+    }
+
+    function selectContact(id) {
+      selectedId = id;
+      const searchBox = document.getElementById('searchInput');
+      // Clicking a row selects that contact. Do not write leftover text into search.
+      if (searchBox) { /* leave search value unchanged */ }
+      document.querySelectorAll('#contactList .contact-row').forEach(el => {
+        el.classList.toggle('selected', el.getAttribute('data-id') === String(id));
+      });
+      const c = contacts.find(x => String(x.id) === String(id));
+      if (!c) return;
+      const detail = document.getElementById('contactDetail');
+      detail.classList.remove('empty');
+
+      const notesHtml = (c.notes || []).slice(0, 40).map(n => `
+        <div class="note">
+          <div class="meta">${esc(n.author)} · ${esc(n.timestamp)}${n.tag ? ' · ' + esc(n.tag) : ''}</div>
+          <div>${esc(n.text)}</div>
+        </div>
+      `).join('') || '<p style="color:#888;font-size:0.88rem;">No notes yet.</p>';
+
+      const proposals = c.proposals || [];
+      const proposalsHtml = proposals.length ? proposals.map(p => {
+        const date = p.at || p.date || p.created || '';
+        const dateDisp = String(date).slice(0, 16).replace('T', ' ');
+        const isFlex = p.paymentMode === 'flex' || p.flexSelected === true || p.flexSelected === 'true' || /flex/i.test(String(p.paymentMode || p.payment || ''));
+        const payment = isFlex
+          ? ('Flex' + (p.flexTermMonths ? ' ' + p.flexTermMonths + 'mo' : ''))
+          : (p.paymentMode || p.payment || '');
+        const container = p.containerDesc || p.container || p.containerSize || '';
+        const amount = (p.amount !== undefined && p.amount !== '') ? p.amount : (p.unitPrice !== undefined && p.unitPrice !== '' ? p.unitPrice : '');
+        const rep = p.repName || p.rep || p.repEmail || '';
+        return `<div class="note">
+          <div class="meta">${esc(dateDisp) || '—'} · ${esc(p.status || 'sent')}</div>
+          <div class="field-row"><span class="label">Amount</span><span>${amount !== '' ? esc(amount) : '—'}</span></div>
+          <div class="field-row"><span class="label">Container</span><span>${esc(container) || '—'}</span></div>
+          <div class="field-row"><span class="label">Depot</span><span>${esc(p.depot) || '—'}</span></div>
+          <div class="field-row"><span class="label">Wholesale</span><span>${p.wholesale !== undefined && p.wholesale !== '' ? esc(p.wholesale) : '—'}</span></div>
+          <div class="field-row"><span class="label">Payment</span><span>${esc(payment) || '—'}</span></div>
+          <div class="field-row"><span class="label">Rep</span><span>${esc(rep) || '—'}</span></div>
+        </div>`;
+      }).join('') : '';
+
+      detail.innerHTML = `
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <h2 style="margin:0;border:none;padding:0;">${esc(c.name)}</h2>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              ${googleVoiceCallBtn(c.phone)}
+              ${googleVoiceTextBtn(c.phone)}
+              ${contactEmailBtn(c.email)}
+              <button class="btn btn-primary" style="padding:5px 10px;font-size:0.78rem;" onclick="openProposalForContact(${JSON.stringify(String(c.id))})">Proposal</button>
+              <button class="btn btn-secondary" style="padding:5px 10px;font-size:0.78rem;" onclick="showEditContact(${c.id})">Edit</button>
+              ${archiveActionHtml(c)}
+            </div>
+          </div>
+          <div class="field-row"><span class="label">Email</span><span>${contactEmailLink(c.email)}</span></div>
+          <div class="field-row"><span class="label">Phone</span><span>${googleVoicePhoneLink(c.phone)}</span></div>
+          <div class="field-row"><span class="label">Location</span><span>${[c.street, c.city, c.state, c.zip].filter(Boolean).map(esc).join(', ') || '—'}</span></div>
+          <div class="field-row"><span class="label">Owner</span><span>${esc(c.owner) || '—'}</span></div>
+          <div class="field-row"><span class="label">Status / Stage</span><span>${esc(c.status) || '—'}${c.dnc ? ' · DNC' : ''}</span></div>
+          <div class="field-row"><span class="label">Created</span><span>${esc(c.created) || '—'}</span></div>
+          <div class="field-row"><span class="label">Company</span><span>${esc(c.company) || '—'}</span></div>
+          <div class="field-row"><span class="label">Source</span><span>${esc(c.source) || '—'}</span></div>
+        </div>
+        ${proposalsHtml ? `<div class="card">
+          <h2>Proposals (${proposals.length})</h2>
+          ${proposalsHtml}
+        </div>` : ''}
+        <div class="card">
+          <h2>Container / Deal</h2>
+          <div class="field-row"><span class="label">Size</span><span>${esc(c.containerSize) || '—'}</span></div>
+          <div class="field-row"><span class="label">Condition</span><span>${esc(c.condition) || '—'}</span></div>
+          <div class="field-row"><span class="label">Depot</span><span>${esc(c.depot) || '—'}</span></div>
+          <div class="field-row"><span class="label">ZIP</span><span>${esc(c.zip) || '—'}</span></div>
+          <div class="field-row"><span class="label">Delivery</span><span>${esc(c.delivery) || '—'}</span></div>
+          <div class="field-row"><span class="label">Payment</span><span>${esc(c.paymentMode) || '—'}</span></div>
+          <div class="field-row"><span class="label">Amount</span><span>${c.amount !== undefined && c.amount !== '' ? esc(c.amount) : '—'}</span></div>
+          <div class="field-row"><span class="label">Wholesale</span><span>${c.wholesale !== undefined && c.wholesale !== '' ? esc(c.wholesale) : '—'}</span></div>
+          <div class="field-row"><span class="label">Client type</span><span>${esc(c.clientType) || '—'}</span></div>
+          <div class="field-row"><span class="label">DNC</span><span>${c.dnc ? 'Yes' : 'No'}</span></div>
+        </div>
+        <div class="card">
+          <h2>Follow-up</h2>
+          <div class="field-row"><span class="label">Next Action</span>
+            <input type="text" id="nextAction" value="${esc(c.nextAction)}" placeholder="e.g. Call about 40ft WWT" />
+          </div>
+          <div class="field-row"><span class="label">Follow-up Date/Time</span>
+            <input type="datetime-local" id="followUpDate" value="${esc(c.followUpDate)}" />
+          </div>
+          <div class="actions">
+            <button class="btn btn-primary" onclick="saveFollowUp(${c.id})">Save Follow-up</button>
+            ${c.nextAction || c.followUpDate ? `<button type="button" class="btn btn-success" data-complete-id="${esc(String(c.id))}">Complete task</button>` : ''}
+          </div>
+        </div>
+        <div class="card">
+          <h2>Completed tasks (${(c.completedTasks || []).length})</h2>
+          ${completedTasksHtml(c)}
+        </div>
+        <div class="card">
+          <h2>Add Note</h2>
+          <textarea id="newNote" rows="3" placeholder="Add a note..."></textarea>
+          <div class="actions"><button class="btn btn-primary" onclick="addNote(${c.id})">Add Note</button></div>
+        </div>
+        <div class="card">
+          <h2>Notes History (${(c.notes || []).length})</h2>
+          ${notesHtml}
+        </div>
+        <div class="card">
+          <h2>Create Deal</h2>
+          <div class="field-row"><span class="label">Deal Name</span>
+            <input type="text" id="dealName" value="${esc(c.name)} - Container" />
+          </div>
+          <div class="field-row"><span class="label">Stage</span>
+            <select id="dealStage">${STAGES.map(s => `<option>${s}</option>`).join('')}</select>
+          </div>
+          <div class="actions"><button class="btn btn-primary" onclick="createDeal(${c.id})">Add to Pipeline</button></div>
+        </div>
+      `;
+    }
+
+    function isCompletedFollowupRecord(value) {
+      if (!value || typeof value !== 'object') return false;
+      return value.completed === true || value.clear === true || String(value.status || '').toLowerCase() === 'completed';
+    }
+
+    function isLiveFollowupRecord(value) {
+      if (!value || typeof value !== 'object' || isCompletedFollowupRecord(value)) return false;
+      return Boolean(String(value.nextAction || '').trim() || String(value.followUpDate || '').trim());
+    }
+
+    function collectFollowupsMap() {
+      const out = Object.assign({}, followupsMap);
+      contacts.forEach(c => {
+        const key = String(c.id);
+        if (clearedFollowupIds.has(key) || isCompletedFollowupRecord(out[key] || out[c.id])) {
+          out[key] = { nextAction: '', followUpDate: '', completed: true, status: 'completed' };
+          return;
+        }
+        const na = c.nextAction && String(c.nextAction).trim();
+        const fd = c.followUpDate || '';
+        if (!na && !fd) return;
+        if (!out[key] && out[c.id] == null) {
+          out[key] = { nextAction: na || '', followUpDate: fd || '' };
+        }
+      });
+      return out;
+    }
+
+    function persistFollowupRecord(contactId, record) {
+      const key = String(contactId);
+      const row = Object.assign({ updatedAt: new Date().toISOString() }, record || {});
+      followupsMap[key] = row;
+      followupsMap[contactId] = row;
+      localStorage.setItem(storageKey('followups'), JSON.stringify(followupsMap));
+      return apiSave('saveFollowups', { followups: { [key]: row } });
+    }
+
+    function persistFollowups() {
+      followupsMap = collectFollowupsMap();
+      if (!Object.keys(followupsMap).length) return;
+      localStorage.setItem(storageKey('followups'), JSON.stringify(followupsMap));
+    }
+
+    function saveFollowUp(id) {
+      const c = contacts.find(x => String(x.id) === String(id));
+      if (!c) return;
+      c.nextAction = document.getElementById('nextAction').value.trim();
+      c.followUpDate = document.getElementById('followUpDate').value;
+      clearedFollowupIds.delete(String(id));
+      persistFollowupRecord(id, { nextAction: c.nextAction, followUpDate: c.followUpDate });
+      renderStats();
+      if (activeView() === 'followups') renderFollowUps();
+      if (activeView() === 'tasks') renderTasks();
+      alert('Follow-up saved');
+    }
+
+    function addNote(id) {
+      const text = document.getElementById('newNote').value.trim();
+      if (!text) return;
+      const c = contacts.find(x => x.id === id);
+      if (!c) return;
+      const author = currentUser?.user_metadata?.full_name || currentUser?.email || 'User';
+      c.notes = c.notes || [];
+      c.notes.unshift({
+        author,
+        timestamp: new Date().toISOString().slice(0, 16).replace('T', ' '),
+        tag: '',
+        text
+      });
+      const localNotes = JSON.parse(localStorage.getItem(storageKey('notes')) || '{}');
+      localNotes[id] = (localNotes[id] || []);
+      localNotes[id].unshift(c.notes[0]);
+      localStorage.setItem(storageKey('notes'), JSON.stringify(localNotes));
+      apiSave('saveNotes', { notes: localNotes });
+      selectContact(id);
+    }
+
+    function createDeal(contactId) {
+      const c = contacts.find(x => x.id === contactId);
+      if (!c) return;
+      const name = document.getElementById('dealName').value.trim() || (c.name + ' - Container');
+      const stage = document.getElementById('dealStage').value;
+      // Update existing deal for this contact instead of creating a duplicate
+      const existing = deals.find(d => d.contactId === contactId);
+      if (existing) {
+        existing.name = name;
+        existing.stage = stage;
+        existing.updated = new Date().toISOString().slice(0, 10);
+        localStorage.setItem(storageKey('deals'), JSON.stringify(deals));
+        apiSave('saveDeals', { deals });
+        renderStats();
+        renderPipeline();
+        alert('Deal updated to: ' + stage);
+        return;
+      }
+      const deal = {
+        id: Date.now(),
+        contactId,
+        contactName: c.name,
+        name,
+        stage,
+        created: new Date().toISOString().slice(0, 10),
+        owner: currentUser?.email || ''
+      };
+      deals.push(deal);
+      localStorage.setItem(storageKey('deals'), JSON.stringify(deals));
+      apiSave('saveDeals', { deals });
+      rebuildIndexes();
+      renderStats();
+      if (activeView() === 'pipeline') renderPipeline();
+      alert('Deal added to pipeline');
+    }
+
+    function updateDealStage(dealId, newStage) {
+      const d = deals.find(x => x.id === dealId);
+      if (!d) return;
+      d.stage = newStage;
+      d.updated = new Date().toISOString().slice(0, 10);
+      localStorage.setItem(storageKey('deals'), JSON.stringify(deals));
+      apiSave('saveDeals', { deals });
+      renderPipeline();
+      renderStats();
+    }
+
+    function removeDeal(dealId) {
+      deals = deals.filter(d => d.id !== dealId);
+      localStorage.setItem(storageKey('deals'), JSON.stringify(deals));
+      renderPipeline();
+      renderStats();
+    }
+
+    function setFollowFilter(which) {
+      followFilter = which || 'open';
+      document.querySelectorAll('#view-followups .filter-chip[data-fu]').forEach(b => {
+        b.classList.toggle('active', b.dataset.fu === followFilter);
+      });
+      const openEl = document.getElementById('fu-open');
+      const dueEl = document.getElementById('fu-due');
+      const upEl = document.getElementById('fu-upcoming');
+      if (openEl) openEl.classList.toggle('hidden', followFilter !== 'open');
+      if (dueEl) dueEl.classList.toggle('hidden', followFilter !== 'due');
+      if (upEl) upEl.classList.toggle('hidden', followFilter !== 'upcoming');
+    }
+
+    function proposalPrefillParams(c) {
+      const params = new URLSearchParams();
+      const name = (c && c.name) ? String(c.name).trim() : '';
+      const company = (c && c.company) ? String(c.company).trim() : '';
+      const email = (c && c.email) ? String(c.email).trim() : '';
+      const phone = (c && c.phone) ? String(c.phone).trim() : '';
+      let zip = (c && c.zip) ? String(c.zip).trim() : '';
+      if (zip) {
+        const digits = zip.replace(/\D/g, '');
+        zip = digits.slice(0, 5);
+      }
+      if (name) params.set('name', name);
+      if (company) params.set('company', company);
+      if (email) params.set('email', email);
+      if (phone) params.set('phone', phone);
+      if (zip) params.set('zip', zip);
+      return params;
+    }
+
+    async function openProposalForContact(id) {
+      const c = contacts.find(x => String(x.id) === String(id));
+      if (!c) return;
+      const params = proposalPrefillParams(c);
+      let hop = '';
+      try {
+        const res = await fetch('/auth/hop', { method: 'POST', credentials: 'include' });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.token) hop = data.token;
+      } catch (_) {}
+      const dest = new URL(hop ? '/auth/hop' : '/', PROPOSAL_ORIGIN);
+      if (hop) dest.searchParams.set('t', hop);
+      params.forEach((v, k) => dest.searchParams.set(k, v));
+      window.open(dest.toString(), '_blank');
+    }
+
+    function renderFollowUps() {
+      const today = new Date().toISOString().slice(0, 10);
+      const pool = contacts.filter(contactMatchesOwnerScope);
+      const due = pool.filter(c => !isArchivedContact(c) && !isDncTask(c) && c.followUpDate && c.followUpDate.slice(0, 10) <= today)
+        .sort((a, b) => a.followUpDate.localeCompare(b.followUpDate));
+      const upcoming = pool.filter(c => !isArchivedContact(c) && !isDncTask(c) && c.followUpDate && c.followUpDate.slice(0, 10) > today)
+        .sort((a, b) => a.followUpDate.localeCompare(b.followUpDate)).slice(0, 40);
+      const open = pool.filter(c => !isArchivedContact(c) && !isDncTask(c) && (!c.followUpDate) && c.nextAction && String(c.nextAction).trim())
+        .sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
+
+      const followTable = (rows, emptyMsg) => {
+        if (!rows.length) return `<div class="empty-state">${emptyMsg}</div>`;
+        return `<table class="data-table" style="min-width:0">
+          <thead><tr><th>Name</th><th>Next action</th><th>Date</th><th>Owner</th><th></th></tr></thead>
+          <tbody>
+            ${rows.map(c => {
+              const overdue = c.followUpDate && c.followUpDate < today;
+              const date = c.followUpDate ? esc((c.followUpDate || '').replace('T', ' ')) : '';
+              const badge = c.followUpDate
+                ? `<span class="badge ${overdue ? 'badge-overdue' : 'badge-follow'}">${date}</span>`
+                : '<span class="badge badge-follow">No date</span>';
+              return `<tr class="contact-row" onclick="switchView('contacts');setTimeout(()=>selectContact(String(${JSON.stringify(String(c.id))})),50)">
+                <td class="name-cell">${esc(c.name)}</td>
+                <td>${esc(c.nextAction) || '—'}</td>
+                <td>${badge}</td>
+                <td>${esc(c.owner) || '—'}</td>
+                <td class="complete-cell" onclick="event.stopPropagation()"><button type="button" class="btn btn-success btn-compact" data-complete-id="${esc(String(c.id))}">Complete</button></td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>`;
+      };
+      document.getElementById('followUpList').innerHTML = followTable(due, 'No follow-ups due.');
+      document.getElementById('upcomingList').innerHTML = followTable(upcoming, 'No upcoming follow-ups.');
+      const openEl = document.getElementById('openFollowList');
+      if (openEl) openEl.innerHTML = followTable(open, 'No open follow-ups.');
+    }
+
+    function searchTaskContacts() {
+      const q = (document.getElementById('taskContactSearch').value || '').toLowerCase().trim();
+      const box = document.getElementById('taskContactResults');
+      if (!q || q.length < 2) {
+        box.style.display = 'none';
+        box.innerHTML = '';
+        return;
+      }
+      const matches = contacts.filter(c =>
+        (c.name || '').toLowerCase().includes(q) ||
+        (c.phone || '').includes(q) ||
+        (c.email || '').toLowerCase().includes(q)
+      ).slice(0, 12);
+      if (!matches.length) {
+        box.style.display = 'block';
+        box.innerHTML = '<div style="padding:8px;color:#888;font-size:0.85rem;">No matches</div>';
+        return;
+      }
+      box.style.display = 'block';
+      box.innerHTML = matches.map(c => `
+        <div style="padding:8px 10px;cursor:pointer;border-bottom:1px solid #f0f0f0;font-size:0.88rem;"
+             onmouseover="this.style.background='#f0f6fc'" onmouseout="this.style.background=''"
+             onclick="selectTaskContact(${c.id}, '${esc(c.name).replace(/'/g, "\\'")}')">
+          <strong>${esc(c.name)}</strong>
+          <span style="color:#888;font-size:0.8rem;"> ${esc(c.phone || '')} ${esc(c.city || '')}</span>
+        </div>
+      `).join('');
+    }
+
+    function selectTaskContact(id, name) {
+      document.getElementById('taskContactId').value = id;
+      document.getElementById('taskSelectedContact').textContent = 'Selected: ' + name;
+      document.getElementById('taskContactSearch').value = name;
+      document.getElementById('taskContactResults').style.display = 'none';
+    }
+
+    function createTask() {
+      const id = document.getElementById('taskContactId').value;
+      const action = document.getElementById('taskAction').value.trim();
+      const date = document.getElementById('taskDate').value;
+      if (!id) { alert('Select a contact first'); return; }
+      if (!action) { alert('Enter a next action'); return; }
+      const c = contactForId(id);
+      if (!c) { alert('Contact not found'); return; }
+      c.nextAction = action;
+      c.followUpDate = date || '';
+      clearedFollowupIds.delete(String(id));
+      persistFollowupRecord(id, { nextAction: c.nextAction, followUpDate: c.followUpDate });
+      cancelTask();
+      if (activeView() === 'tasks') renderTasks();
+      if (activeView() === 'followups') renderFollowUps();
+      renderStats();
+      alert('Task created for ' + c.name);
+    }
+
+    function completedTasksHtml(c) {
+      const rows = Array.isArray(c && c.completedTasks) ? c.completedTasks : [];
+      if (!rows.length) return '<p style="color:#888;font-size:0.88rem;">No completed tasks yet.</p>';
+      return rows.slice(0, 40).map(function(t) {
+        return `<div class="note">
+          <div class="meta">${esc(t.author || 'User')} · ${esc(t.timestamp || '')} · Completed</div>
+          <div>${esc(t.text || 'Follow-up')}</div>
+        </div>`;
+      }).join('');
+    }
+
+    function applyCompletedTaskLocal(c, actionText, serverRows) {
+      const contactId = String(c && c.id);
+      const tombstone = { nextAction: '', followUpDate: '', completed: true, status: 'completed', updatedAt: new Date().toISOString() };
+      followupsMap[contactId] = tombstone;
+      if (c && c.id != null) followupsMap[c.id] = tombstone;
+      clearedFollowupIds.add(contactId);
+      const author = (currentUser && currentUser.user_metadata && currentUser.user_metadata.full_name) || (currentUser && currentUser.email) || 'User';
+      const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+      const row = { text: actionText, author, timestamp, status: 'completed' };
+      const matches = contacts.filter(x => x && String(x.id) === contactId);
+      if (c && matches.indexOf(c) < 0) matches.push(c);
+      matches.forEach(function(target) {
+        target.nextAction = '';
+        target.followUpDate = '';
+        target.completedTasks = Array.isArray(serverRows) && serverRows.length ? serverRows.slice() : (target.completedTasks || []);
+        if (!Array.isArray(serverRows) || !serverRows.length) {
+          target.completedTasks = (target.completedTasks || []).slice();
+          if (!target.completedTasks.some(t => t && t.text === actionText && t.status === 'completed')) {
+            target.completedTasks.unshift(row);
+          }
+        }
+        target.notes = target.notes || [];
+        if (!target.notes.some(n => n && n.text === ('Completed: ' + actionText) && n.timestamp === timestamp)) {
+          target.notes.unshift({
+            author,
+            timestamp,
+            tag: 'Task',
+            text: 'Completed: ' + actionText
+          });
+        }
+      });
+      completedTasksMap[contactId] = (matches[0] && matches[0].completedTasks) || [row];
+    }
+
+    let pendingNextFollowupId = null;
+
+    function offerNextFollowup(c) {
+      if (!c) return;
+      switchView('contacts');
+      selectContact(c.id);
+      setTimeout(function() {
+        const action = document.getElementById('nextAction');
+        if (action) {
+          action.focus();
+          action.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+      }, 50);
+    }
+
+    function showNextFollowupPrompt(c) {
+      pendingNextFollowupId = c && c.id;
+      const text = document.getElementById('nextFollowupPromptText');
+      const box = document.getElementById('nextFollowupPrompt');
+      if (text) text.textContent = 'Schedule another follow-up for ' + ((c && c.name) || 'this contact') + '?';
+      if (box) box.classList.remove('hidden');
+    }
+
+    function dismissNextFollowup() {
+      pendingNextFollowupId = null;
+      const box = document.getElementById('nextFollowupPrompt');
+      if (box) box.classList.add('hidden');
+    }
+
+    function acceptNextFollowup() {
+      const id = pendingNextFollowupId;
+      dismissNextFollowup();
+      offerNextFollowup(contactForId(id));
+    }
+
+    function refreshTaskLists() {
+      try { renderStats(); } catch (e) { console.warn(e); }
+      try { renderTasks(); } catch (e) { console.warn(e); }
+      try { renderFollowUps(); } catch (e) { console.warn(e); }
+    }
+
+    const completingIds = new Set();
+    async function completeTask(id, ev) {
+      if (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+      }
+      if (completingIds.has(String(id))) return;
+      completingIds.add(String(id));
+      const c = contactForId(id);
+      if (!c) {
+        completingIds.delete(String(id));
+        alert('Could not find that contact. Refresh and try again.');
+        return;
+      }
+      const actionText = String(c.nextAction || 'Follow-up').trim() || 'Follow-up';
+      const contactId = String(c.id);
+      const previous = {
+        nextAction: c.nextAction,
+        followUpDate: c.followUpDate,
+        followup: followupsMap[contactId] || followupsMap[c.id]
+      };
+      applyCompletedTaskLocal(c, actionText);
+      refreshTaskLists();
+      let saved = await apiSave('completeFollowup', { contactId, nextAction: actionText });
+      if (!saved || saved.ok === false || saved.completed !== true) {
+        saved = await persistFollowupRecord(contactId, { nextAction: '', followUpDate: '', completed: true, status: 'completed' });
+      }
+      if (!saved || saved.ok === false) {
+        c.nextAction = previous.nextAction;
+        c.followUpDate = previous.followUpDate;
+        if (previous.followup) {
+          followupsMap[contactId] = previous.followup;
+          followupsMap[c.id] = previous.followup;
+        }
+        clearedFollowupIds.delete(contactId);
+        refreshTaskLists();
+        selectContact(c.id);
+        completingIds.delete(contactId);
+        alert('Could not complete the task. Stay on this page and try Complete again.');
+        return;
+      }
+      applyCompletedTaskLocal(c, actionText, saved.completedTasks);
+      refreshTaskLists();
+      selectContact(c.id);
+      showNextFollowupPrompt(c);
+      completingIds.delete(contactId);
+    }
+    window.completeTask = completeTask;
+    document.addEventListener('click', function(ev) {
+      const btn = ev.target && ev.target.closest && ev.target.closest('[data-complete-id]');
+      if (!btn) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+      completeTask(btn.getAttribute('data-complete-id'), ev);
+    }, true);
+
+    function cancelTask() {
+      document.getElementById('taskContactId').value = '';
+      document.getElementById('taskAction').value = '';
+      document.getElementById('taskDate').value = '';
+      document.getElementById('taskContactSearch').value = '';
+      document.getElementById('taskSelectedContact').textContent = '';
+      const box = document.getElementById('taskContactResults');
+      if (box) { box.style.display = 'none'; box.innerHTML = ''; }
+    }
+
+    function renderTasks() {
+      const today = new Date().toISOString().slice(0, 10);
+      const withTasks = contacts
+        .filter(c => contactMatchesOwnerScope(c) && !isArchivedContact(c) && !isDncTask(c) && (c.followUpDate || String(c.nextAction || '').trim()))
+        .sort((a, b) => {
+          const da = a.followUpDate || '9999';
+          const db = b.followUpDate || '9999';
+          return da.localeCompare(db);
+        });
+      const list = document.getElementById('tasksList');
+      if (!list) return;
+      if (!withTasks.length) {
+        list.innerHTML = '<div class="empty-state">No tasks or follow-ups set yet. Open a contact and set a Next Action + date.</div>';
+        return;
+      }
+      list.innerHTML = `<table class="data-table" style="min-width:0">
+        <thead><tr><th>Name</th><th>Next action</th><th>Date</th><th>Owner</th><th></th></tr></thead>
+        <tbody>
+          ${withTasks.map(c => {
+            const overdue = c.followUpDate && c.followUpDate < today;
+            const dueToday = c.followUpDate && c.followUpDate.slice(0, 10) === today;
+            const displayDate = c.followUpDate ? c.followUpDate.replace('T', ' ') : '';
+            const badge = c.followUpDate
+              ? `<span class="badge ${overdue ? 'badge-overdue' : 'badge-follow'}">${esc(displayDate)}${overdue ? ' overdue' : dueToday ? ' today' : ''}</span>`
+              : '<span class="badge badge-follow">No date</span>';
+            return `<tr class="contact-row" onclick="switchView('contacts');setTimeout(()=>selectContact(String(${JSON.stringify(String(c.id))})),50)">
+              <td class="name-cell">${esc(c.name)}</td>
+              <td>${esc(c.nextAction) || 'Follow up'}</td>
+              <td>${badge}</td>
+              <td>${esc(c.owner || '') || '—'}</td>
+              <td class="complete-cell" onclick="event.stopPropagation()"><button type="button" class="btn btn-success btn-compact" data-complete-id="${esc(String(c.id))}">Complete</button></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+    }
+
+    function renderPipeline() {
+      document.getElementById('pipelineBoard').innerHTML = STAGES.map(stage => {
+        const stageDeals = deals.filter(d => dealMatchesOwnerScope(d) && !isArchivedId(d.contactId) && (d.stage === stage || (stage === 'Quote' && d.stage === 'Quoted')));
+        return `<div class="pipeline-col"><h3><span>${esc(stage)}</span><em>${stageDeals.length}</em></h3>
+          <div class="pipeline-col-body">
+          ${stageDeals.map(d => {
+            const c = contactForId(d.contactId);
+            const name = d.contactName || (c && c.name) || d.name || 'Deal';
+            const company = (c && c.company) || d.company || '';
+            const owner = titleCaseOwner(d.owner) || (c && titleCaseOwner(c.owner)) || '';
+            return `<div class="pipeline-card" onclick="switchView('contacts');setTimeout(()=>selectContact(String(${JSON.stringify(String(d.contactId))})),50)">
+              <div class="pc-name">${esc(name)}</div>
+              <div class="pc-company">${esc(company) || '—'}</div>
+              <div class="pc-meta">
+                <span class="pc-amt">${esc(displayDealAmount(d.amount)) || '—'}</span>
+                <span class="pc-owner">${esc(owner) || '—'}</span>
+              </div>
+              <select onchange="updateDealStage(${d.id}, this.value)" onclick="event.stopPropagation()">
+                ${STAGES.map(s => `<option value="${s}" ${s === d.stage ? 'selected' : ''}>${s}</option>`).join('')}
+              </select>
+            </div>`;
+          }).join('') || '<div class="empty-state compact">No deals in this stage</div>'}
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function showAddContact() {
+      document.getElementById('modalTitle').textContent = 'Add Contact';
+      document.getElementById('editContactId').value = '';
+      document.getElementById('mName').value = '';
+      document.getElementById('mEmail').value = '';
+      document.getElementById('mPhone').value = '';
+      document.getElementById('mCity').value = '';
+      document.getElementById('mState').value = '';
+      document.getElementById('mZip').value = '';
+      document.getElementById('mOwner').value = currentUser?.user_metadata?.full_name || currentUser?.email || '';
+      document.getElementById('mCompany').value = '';
+      document.getElementById('mSource').value = 'Manual';
+      document.getElementById('mStatus').value = 'New Lead';
+      document.getElementById('mSize').value = '';
+      document.getElementById('mCondition').value = '';
+      document.getElementById('mDepot').value = '';
+      document.getElementById('mDelivery').value = '';
+      document.getElementById('mPayment').value = '';
+      document.getElementById('mAmount').value = '';
+      document.getElementById('mWholesale').value = '';
+      document.getElementById('mClientType').value = '';
+      document.getElementById('mDnc').checked = false;
+      const m = document.getElementById('contactModal');
+      m.classList.remove('hidden');
+      m.style.display = 'flex';
+    }
+
+    function showEditContact(id) {
+      const c = contacts.find(x => x.id === id);
+      if (!c) return;
+      document.getElementById('modalTitle').textContent = 'Edit Contact';
+      document.getElementById('editContactId').value = id;
+      document.getElementById('mName').value = c.name || '';
+      document.getElementById('mEmail').value = c.email || '';
+      document.getElementById('mPhone').value = c.phone || '';
+      document.getElementById('mCity').value = c.city || '';
+      document.getElementById('mState').value = c.state || '';
+      document.getElementById('mZip').value = c.zip || '';
+      document.getElementById('mOwner').value = c.owner || '';
+      document.getElementById('mCompany').value = c.company || '';
+      document.getElementById('mSource').value = OWNER_SOURCES.includes(c.source) ? c.source : (c.source || 'Manual');
+      document.getElementById('mStatus').value = c.status || '';
+      document.getElementById('mSize').value = c.containerSize || '';
+      document.getElementById('mCondition').value = c.condition || '';
+      document.getElementById('mDepot').value = c.depot || '';
+      document.getElementById('mDelivery').value = c.delivery || '';
+      document.getElementById('mPayment').value = c.paymentMode || '';
+      document.getElementById('mAmount').value = c.amount !== undefined && c.amount !== '' ? c.amount : '';
+      document.getElementById('mWholesale').value = c.wholesale !== undefined && c.wholesale !== '' ? c.wholesale : '';
+      document.getElementById('mClientType').value = c.clientType || '';
+      document.getElementById('mDnc').checked = Boolean(c.dnc);
+      const m = document.getElementById('contactModal');
+      m.classList.remove('hidden');
+      m.style.display = 'flex';
+    }
+
+    function closeContactModal() {
+      const m = document.getElementById('contactModal');
+      m.classList.add('hidden');
+      m.style.display = 'none';
+    }
+
+    function saveContact() {
+      const name = document.getElementById('mName').value.trim();
+      if (!name) { alert('Name is required'); return; }
+      const idVal = document.getElementById('editContactId').value;
+      const payload = {
+        name,
+        email: document.getElementById('mEmail').value.trim(),
+        phone: document.getElementById('mPhone').value.trim(),
+        city: document.getElementById('mCity').value.trim(),
+        state: document.getElementById('mState').value.trim(),
+        zip: document.getElementById('mZip').value.trim(),
+        owner: document.getElementById('mOwner').value.trim(),
+        status: document.getElementById('mStatus').value.trim(),
+        street: '',
+        company: document.getElementById('mCompany').value.trim(),
+        source: document.getElementById('mSource').value.trim() || 'Manual',
+        containerSize: document.getElementById('mSize').value.trim(),
+        condition: document.getElementById('mCondition').value.trim(),
+        depot: document.getElementById('mDepot').value.trim(),
+        delivery: document.getElementById('mDelivery').value.trim(),
+        paymentMode: document.getElementById('mPayment').value.trim(),
+        amount: document.getElementById('mAmount').value.trim(),
+        wholesale: document.getElementById('mWholesale').value.trim(),
+        clientType: document.getElementById('mClientType').value.trim(),
+        dnc: document.getElementById('mDnc').checked
+      };
+      if (payload.dnc && !payload.status) payload.status = 'DNC';
+      if (idVal) {
+        const c = contacts.find(x => x.id === Number(idVal));
+        if (c) Object.assign(c, payload);
+        // persist local edits
+        const edits = JSON.parse(localStorage.getItem(storageKey('contact_edits')) || '{}');
+        edits[idVal] = payload;
+        localStorage.setItem(storageKey('contact_edits'), JSON.stringify(edits));
+        apiSave('saveContactEdits', { contactEdits: edits });
+        closeContactModal();
+        selectContact(Number(idVal));
+        filterContacts();
+        alert('Contact updated');
+      } else {
+        const newId = Date.now();
+        const c = {
+          id: newId,
+          ...payload,
+          created: new Date().toISOString().slice(0, 10),
+          nextAction: '',
+          followUpDate: '',
+          notes: []
+        };
+        contacts.unshift(c);
+        const added = JSON.parse(localStorage.getItem(storageKey('contacts_added')) || '[]');
+        added.unshift(c);
+        localStorage.setItem(storageKey('contacts_added'), JSON.stringify(added));
+        apiSave('saveContactsAdded', { contactsAdded: added });
+        rebuildIndexes();
+        closeContactModal();
+        buildOwnerFilter();
+        filterContacts();
+        selectContact(newId);
+        renderStats();
+        alert('Contact added');
+      }
+    }
+
+    function archiveBadgeHtml(c) {
+      if (isArchivedContact(c)) return ' <span class="badge badge-archived">Archived</span>';
+      const req = archiveRequestFor(c && c.id);
+      if (req && req.status === 'pending') return ' <span class="badge badge-pending">Archive pending</span>';
+      return '';
+    }
+
+    function archiveActionHtml(c) {
+      if (isArchivedContact(c)) return '<span class="badge badge-archived">Archived</span>';
+      const req = archiveRequestFor(c && c.id);
+      if (req && req.status === 'pending') return '<span class="badge badge-pending">Archive pending</span>';
+      return '<button class="btn btn-secondary" style="padding:5px 10px;font-size:0.78rem;" onclick="requestArchive(' + JSON.stringify(String(c.id)) + ')">Archive</button>';
+    }
+
+    function esc(s) {
+      if (!s) return '';
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+  </script>
+
+  <!-- Add / Edit Contact Modal -->
+  <div id="contactModal" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px;">
+    <div style="background:white;border-radius:12px;padding:24px;width:100%;max-width:440px;max-height:90vh;overflow-y:auto;">
+      <h2 id="modalTitle" style="margin-bottom:14px;color:#1F4E79;">Add Contact</h2>
+      <input type="hidden" id="editContactId" value="" />
+      <div style="display:grid;gap:10px;">
+        <div><label style="font-size:0.82rem;font-weight:600;">Name *</label><input type="text" id="mName" /></div>
+        <div><label style="font-size:0.82rem;font-weight:600;">Email</label><input type="text" id="mEmail" /></div>
+        <div><label style="font-size:0.82rem;font-weight:600;">Phone</label><input type="text" id="mPhone" /></div>
+        <div><label style="font-size:0.82rem;font-weight:600;">City</label><input type="text" id="mCity" /></div>
+        <div><label style="font-size:0.82rem;font-weight:600;">State</label><input type="text" id="mState" /></div>
+        <div><label style="font-size:0.82rem;font-weight:600;">Zip</label><input type="text" id="mZip" /></div>
+        <div><label style="font-size:0.82rem;font-weight:600;">Owner</label><input type="text" id="mOwner" placeholder="Your name" /></div>
+        <div><label style="font-size:0.82rem;font-weight:600;">Company</label><input type="text" id="mCompany" /></div>
+        <div><label style="font-size:0.82rem;font-weight:600;">Source</label>
+          <select id="mSource">
+            <option value="Manual">Manual</option>
+            <option value="Quote Form">Quote Form</option>
+            <option value="Drive Deals">Drive Deals</option>
+            <option value="Proposal Tool">Proposal Tool</option>
+          </select>
+        </div>
+        <div><label style="font-size:0.82rem;font-weight:600;">Stage</label>
+          <select id="mStatus">
+            <option value="">—</option>
+            <option>New Lead</option>
+            <option>Contacted</option>
+            <option>Quote</option>
+            <option>Proposal Sent</option>
+            <option>Flex Buy</option>
+            <option>Won</option>
+            <option>Lost</option>
+            <option>DNC</option>
+          </select>
+        </div>
+        <div><label style="font-size:0.82rem;font-weight:600;">Size</label>
+          <select id="mSize">
+            <option value="">—</option>
+            <option>20STD</option>
+            <option>20HC</option>
+            <option>40STD</option>
+            <option>40HC</option>
+            <option>Specialized</option>
+          </select>
+        </div>
+        <div><label style="font-size:0.82rem;font-weight:600;">Condition</label>
+          <select id="mCondition">
+            <option value="">—</option>
+            <option value="CW">CW</option>
+            <option value="WWT">WWT</option>
+            <option value="one-trip">one-trip</option>
+            <option value="as-is">as-is</option>
+          </select>
+        </div>
+        <div><label style="font-size:0.82rem;font-weight:600;">Depot</label><input type="text" id="mDepot" /></div>
+        <div><label style="font-size:0.82rem;font-weight:600;">Delivery</label><input type="text" id="mDelivery" /></div>
+        <div><label style="font-size:0.82rem;font-weight:600;">Payment</label>
+          <select id="mPayment">
+            <option value="">—</option>
+            <option value="cash">Cash</option>
+            <option value="flex">Flex Buy</option>
+          </select>
+        </div>
+        <div><label style="font-size:0.82rem;font-weight:600;">Amount</label><input type="number" id="mAmount" step="0.01" /></div>
+        <div><label style="font-size:0.82rem;font-weight:600;">Wholesale</label><input type="number" id="mWholesale" step="0.01" /></div>
+        <div><label style="font-size:0.82rem;font-weight:600;">Client type</label>
+          <select id="mClientType">
+            <option value="">—</option>
+            <option>Residential</option>
+            <option>Commercial</option>
+          </select>
+        </div>
+        <div><label style="font-size:0.82rem;font-weight:600;"><input type="checkbox" id="mDnc" /> DNC</label></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:16px;">
+        <button class="btn btn-primary" onclick="saveContact()">Save</button>
+        <button class="btn btn-secondary" onclick="closeContactModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
