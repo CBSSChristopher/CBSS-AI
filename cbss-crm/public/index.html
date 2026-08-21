@@ -124,6 +124,7 @@
     .toolbar {
       display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
       padding: 10px 14px; border-bottom: 1px solid var(--border); background: #f7fafc;
+      flex-shrink: 0;
     }
     .ctrl { display: flex; align-items: center; gap: 6px; }
     .ctrl > span {
@@ -255,23 +256,29 @@
     .netlify-identity-signup { display: none !important; }
     input[type="checkbox"] { width: auto; margin-right: 8px; }
     input[type="number"] { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; font-family: inherit; }
-    .bulk-cleanup {
+    .batch-bar {
       display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
-      padding: 8px 12px; background: #fff8ef; border-bottom: 1px solid #f0d2a8;
-      font-size: 0.82rem; color: #9a3412;
+      padding: 8px 14px; background: var(--navy); color: #fff;
+      font-size: 0.82rem; flex-shrink: 0;
     }
-    .bulk-cleanup input[type="password"] {
-      width: 140px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.82rem;
+    .batch-bar.hidden { display: none !important; }
+    .batch-bar input[type="password"] {
+      width: 132px; padding: 6px 8px; border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 6px; font-size: 0.8rem; background: #fff; color: var(--navy);
     }
-    .cleanup-col { width: 88px; white-space: nowrap; }
+    .batch-keepers { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .cleanup-col { width: 36px; padding-left: 10px !important; padding-right: 4px !important; }
     #contactTable:not(.cleanup-on) .cleanup-col { display: none; }
-    .cleanup-pick { display: flex; align-items: center; gap: 4px; }
+    .cleanup-pick { display: flex; align-items: center; justify-content: center; }
     .cleanup-pick input { margin: 0; }
     .keep-btn {
       border: 1px solid var(--border); background: #fff; color: var(--primary);
-      border-radius: 6px; padding: 2px 6px; font-size: 0.7rem; font-weight: 700; cursor: pointer; font-family: inherit;
+      border-radius: 6px; padding: 4px 10px; font-size: 0.75rem; font-weight: 700;
+      cursor: pointer; font-family: inherit; line-height: 1.2;
     }
     .keep-btn.on { background: var(--navy); color: #fff; border-color: var(--navy); }
+    .batch-bar .keep-btn { border-color: rgba(255,255,255,0.35); }
+    .batch-bar .keep-btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
     .admin-cleanup {
       margin-top: 8px; padding: 12px; border: 1px dashed #b45309; border-radius: 8px; background: #fff8ef;
     }
@@ -313,7 +320,7 @@
         <span class="mark">CB</span>
         <div>
           <h1>CBShippingSolutions</h1>
-          <p>Container Sales CRM · build 12</p>
+          <p>Container Sales CRM · build 13</p>
         </div>
       </div>
       <div class="user">
@@ -368,19 +375,21 @@
           </label>
           <button type="button" class="btn btn-primary" id="addContactBtn" style="margin-left:auto;" onclick="showAddContact()">+ Add Contact</button>
         </div>
-        <div id="bulkCleanupBar" class="bulk-cleanup hidden">
+        <div id="bulkCleanupBar" class="batch-bar hidden">
+          <button type="button" class="keep-btn" onclick="selectAllVisibleCleanup()">Select all</button>
           <strong id="bulkCleanupCount">0 selected</strong>
-          <span>Check the extras, mark Keep on the one that stays, then remove the extras. Same fold as Edit Contact.</span>
+          <span>Keep</span>
+          <div id="bulkCleanupKeepers" class="batch-keepers"></div>
           <input type="password" id="bulkCleanupCode" autocomplete="off" placeholder="Admin code" />
-          <button type="button" class="btn btn-primary" onclick="submitBulkCleanup()">Remove extras</button>
-          <button type="button" class="btn btn-secondary" onclick="clearCleanupPicks()">Clear</button>
+          <button type="button" class="keep-btn" onclick="submitBulkCleanup()">Remove extras</button>
+          <button type="button" class="keep-btn" onclick="clearCleanupPicks()">Clear</button>
           <span id="bulkCleanupMsg"></span>
         </div>
         <div class="table-wrap">
           <table class="data-table" id="contactTable">
             <thead>
               <tr>
-                <th class="cleanup-col">Pick</th>
+                <th class="cleanup-col"><input type="checkbox" id="cleanupSelectAll" title="Select visible contacts" onclick="event.stopPropagation(); event.preventDefault(); selectAllVisibleCleanup()" /></th>
                 <th>Name</th>
                 <th>Company</th>
                 <th>Phone</th>
@@ -789,13 +798,52 @@
     function syncCleanupUi() {
       const table = document.getElementById('contactTable');
       const bar = document.getElementById('bulkCleanupBar');
-      const show = isChristopher();
-      if (table) table.classList.toggle('cleanup-on', show);
-      if (bar) bar.classList.toggle('hidden', !show);
+      const showCol = isChristopher();
       const ids = cleanupPickIds();
       if (cleanupKeepId && ids.indexOf(String(cleanupKeepId)) < 0) cleanupKeepId = '';
+      if (table) table.classList.toggle('cleanup-on', showCol);
+      if (bar) bar.classList.toggle('hidden', !showCol || ids.length < 1);
       const count = document.getElementById('bulkCleanupCount');
       if (count) count.textContent = ids.length + ' selected';
+      const keepers = document.getElementById('bulkCleanupKeepers');
+      if (keepers) {
+        keepers.innerHTML = ids.map(function(id) {
+          const c = contactForId(id);
+          const name = (c && c.name) ? c.name : ('#' + id);
+          const on = String(cleanupKeepId) === String(id) ? ' on' : '';
+          return '<button type="button" class="keep-btn' + on + '" data-cleanup-keep="' + esc(id) + '" onclick="markCleanupKeeper(this.getAttribute(\'data-cleanup-keep\'), event)">Keep ' + esc(name) + '</button>';
+        }).join('');
+      }
+      const visible = document.querySelectorAll('#contactList [data-cleanup-pick]');
+      let visibleOn = 0;
+      visible.forEach(function(el) {
+        if (cleanupPicked[el.getAttribute('data-cleanup-pick')]) visibleOn += 1;
+      });
+      const allBox = document.getElementById('cleanupSelectAll');
+      if (allBox) {
+        allBox.checked = visible.length > 0 && visibleOn === visible.length;
+        allBox.indeterminate = visibleOn > 0 && visibleOn < visible.length;
+      }
+    }
+
+    function selectAllVisibleCleanup() {
+      if (!isChristopher()) return;
+      const boxes = document.querySelectorAll('#contactList [data-cleanup-pick]');
+      const ids = [];
+      let allOn = boxes.length > 0;
+      boxes.forEach(function(el) {
+        const id = el.getAttribute('data-cleanup-pick');
+        if (!id) return;
+        ids.push(id);
+        if (!cleanupPicked[id]) allOn = false;
+      });
+      ids.forEach(function(id) {
+        if (allOn) delete cleanupPicked[id];
+        else cleanupPicked[id] = true;
+      });
+      if (!allOn && !cleanupKeepId && ids.length === 1) cleanupKeepId = ids[0];
+      syncCleanupUi();
+      filterContacts();
     }
 
     function toggleCleanupPick(id, ev) {
@@ -1506,7 +1554,7 @@
       const tbody = document.getElementById('contactList');
       const meta = document.getElementById('contactListMeta');
       if (!filtered.length) {
-        tbody.innerHTML = '<tr class="empty-row"><td colspan="8">No contacts match. Switch to All to see the company book, or search the archive.</td></tr>';
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="9">No contacts match. Switch to All to see the company book, or search the archive.</td></tr>';
       } else {
         const show = filtered.slice(0, 200);
         tbody.innerHTML = show.map(c => {
@@ -1514,12 +1562,10 @@
           const stage = contactStage(c);
           const cid = String(c.id);
           const picked = !!cleanupPicked[cid];
-          const isKeep = String(cleanupKeepId) === cid;
           return `<tr class="contact-row ${cid === String(selectedId) ? 'selected' : ''}" data-id="${esc(cid)}" onclick="selectContact(this.getAttribute('data-id'))">
             <td class="cleanup-col" onclick="event.stopPropagation()">
               <div class="cleanup-pick">
                 <input type="checkbox" data-cleanup-pick="${esc(cid)}" ${picked ? 'checked' : ''} onclick="toggleCleanupPick(this.getAttribute('data-cleanup-pick'), event)" />
-                <button type="button" class="keep-btn ${isKeep ? 'on' : ''}" data-cleanup-keep="${esc(cid)}" onclick="markCleanupKeeper(this.getAttribute('data-cleanup-keep'), event)">Keep</button>
               </div>
             </td>
             <td class="name-cell">${esc(c.name) || '(No name)'}${isDncContact(c) ? ' <span class="badge badge-dnc">DNC</span>' : ''}${archiveBadgeHtml(c)}</td>
