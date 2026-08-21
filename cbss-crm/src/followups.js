@@ -190,6 +190,21 @@ export function applyCompleteFollowupState(state, contactId, actionText, author,
   };
 }
 
+export function mergeNotesMap(existing, incoming) {
+  const out = {};
+  if (existing && typeof existing === "object" && !Array.isArray(existing)) {
+    for (const [key, value] of Object.entries(existing)) {
+      if (Array.isArray(value)) out[String(key)] = value;
+    }
+  }
+  if (incoming && typeof incoming === "object" && !Array.isArray(incoming)) {
+    for (const [key, value] of Object.entries(incoming)) {
+      if (Array.isArray(value)) out[String(key)] = value;
+    }
+  }
+  return out;
+}
+
 export function mergeNoteOntoContact(notes, contactId, note) {
   const next = notes && typeof notes === "object" && !Array.isArray(notes)
     ? Object.assign({}, notes)
