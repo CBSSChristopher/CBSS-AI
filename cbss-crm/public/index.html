@@ -176,7 +176,7 @@
     .card h2 { font-size: 0.98rem; color: var(--primary); margin-bottom: 10px; padding-bottom: 5px; border-bottom: 2px solid var(--primary); }
     .field-row { display: grid; grid-template-columns: 110px 1fr; gap: 6px; margin-bottom: 7px; font-size: 0.9rem; }
     .field-row .label { color: var(--muted); font-weight: 500; }
-    .note { border-left: 3px solid var(--accent); padding: 9px 11px; margin-bottom: 8px; background: #f8fbff; border-radius: 0 6px 6px 0; font-size: 0.86rem; }
+    .note { border-left: 3px solid var(--accent); padding: 9px 11px; margin-bottom: 8px; background: #f8fbff; border-radius: 0 6px 6px 0; font-size: 0.86rem; white-space: pre-wrap; }
     .note .meta { font-size: 0.73rem; color: var(--muted); margin-bottom: 3px; }
     textarea, input[type="text"], input[type="date"], input[type="email"], input[type="password"], input[type="datetime-local"], select {
       width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; font-family: inherit;
@@ -321,7 +321,7 @@
         <span class="mark">CB</span>
         <div>
           <h1>CBShippingSolutions</h1>
-          <p>Container Sales CRM · build 14</p>
+          <p>Container Sales CRM · build 15</p>
         </div>
       </div>
       <div class="user">
@@ -1377,6 +1377,28 @@
       return out;
     }
 
+    async function loadNotesForContact(id) {
+      if (id == null) return;
+      try {
+        const res = await fetch('/crm-data', {
+          method: 'POST',
+          headers: await authHeaders(),
+          credentials: 'include',
+          body: JSON.stringify({ action: 'getNotes', contactId: String(id) })
+        });
+        if (!res.ok) return;
+        const shared = await res.json();
+        const extra = shared && shared.notes && (shared.notes[id] || shared.notes[String(id)]);
+        const c = contactForId(id);
+        if (!c || !extra || !extra.length) return;
+        const before = (c.notes || []).length;
+        c.notes = mergeNotes(c.notes, extra);
+        if (String(selectedId) === String(id) && (c.notes || []).length !== before) selectContact(id);
+      } catch (e) {
+        console.warn('Contact notes refresh failed', e);
+      }
+    }
+
     async function loadNotesInBackground() {
       try {
         const res = await fetch('/crm-data', {
@@ -1393,7 +1415,10 @@
           if (extra && extra.length) c.notes = mergeNotes(c.notes, extra);
         });
         notesLoaded = true;
-        if (selectedId) selectContact(selectedId);
+        if (selectedId) {
+          await loadNotesForContact(selectedId);
+          selectContact(selectedId);
+        }
       } catch (e) {
         console.warn('Notes refresh failed', e);
       }
@@ -1657,6 +1682,7 @@
 
     function selectContact(id) {
       selectedId = id;
+      loadNotesForContact(id);
       const searchBox = document.getElementById('searchInput');
       // Clicking a row selects that contact. Do not write leftover text into search.
       if (searchBox) { /* leave search value unchanged */ }

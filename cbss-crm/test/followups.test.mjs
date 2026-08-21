@@ -123,12 +123,17 @@ test("completion note and merge keep existing notes", () => {
   assert.equal(notes["9"][1].text, "old");
 });
 
+test("appendNote stays a known CRM action", () => {
+  assert.equal(resolveCrmAction("POST", "appendNote", { action: "appendNote", contactId: "99" }).action, "appendNote");
+});
+
 test("saveNotes merges contact keys instead of replacing the whole map", () => {
   const next = mergeNotesMap(
     { 4: [{ text: "keep" }], 2621: [{ text: "protected" }] },
     { 99: [{ text: "desk" }], 4: [{ text: "updated" }] }
   );
-  assert.equal(next["4"][0].text, "updated");
+  assert.equal(next["4"].some((n) => n.text === "keep"), true);
+  assert.equal(next["4"].some((n) => n.text === "updated"), true);
   assert.equal(next["99"][0].text, "desk");
   assert.equal(next["2621"][0].text, "protected");
 });
