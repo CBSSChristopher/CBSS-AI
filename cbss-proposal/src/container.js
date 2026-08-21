@@ -221,8 +221,32 @@ export function parseCityState(raw) {
   return { city: m[1].trim(), state: m[2].toUpperCase() };
 }
 
+export function aliasCityState(parsed) {
+  if (!parsed || !parsed.city) return parsed;
+  const c = normPlace(parsed.city);
+  if (c === "saint louis" || c === "st louis") return { city: "St. Louis", state: "MO" };
+  if (c === "kansas city") return { city: "Kansas City", state: "MO" };
+  if (c === "minneapolis" || c.startsWith("minneapolis")) return { city: "Minneapolis", state: parsed.state || "MN" };
+  return parsed;
+}
+
+export function nearestCityHub(lat, lon, hubs = CITY_HUBS) {
+  if (lat == null || lon == null || !Number.isFinite(Number(lat)) || !Number.isFinite(Number(lon))) return null;
+  let best = null;
+  let bestMiles = Infinity;
+  for (const h of hubs) {
+    if (h.lat == null || h.lon == null) continue;
+    const miles = haversineMiles(Number(lat), Number(lon), h.lat, h.lon);
+    if (miles < bestMiles) {
+      bestMiles = miles;
+      best = h;
+    }
+  }
+  return best;
+}
+
 export function findCityHub(text, hubs = CITY_HUBS) {
-  const parsed = parseCityState(text);
+  const parsed = aliasCityState(parseCityState(text));
   if (parsed) {
     const hit = hubs.find((h) => cityKey(h.city, h.state) === cityKey(parsed.city, parsed.state));
     if (hit) return { ...hit };
@@ -289,6 +313,7 @@ export function groupOffersByCity(offers, zipLat, zipLon, hubs = CITY_HUBS) {
     const yard = cleanPlace(o.depot);
     const existing = byCity.get(key);
     if (!existing) {
+      const nearest = !resolved.region && dlat != null && dlon != null ? nearestCityHub(dlat, dlon, hubs) : null;
       byCity.set(key, {
         cityKey: key,
         city: resolved.city,
@@ -297,7 +322,7 @@ export function groupOffersByCity(offers, zipLat, zipLon, hubs = CITY_HUBS) {
         displayLocation: `${resolved.city}, ${resolved.state}`,
         lat: dlat,
         lon: dlon,
-        region: resolved.region || "",
+        region: resolved.region || (nearest && nearest.region) || "",
         miles,
         yards: yard ? [yard] : [],
         fromInventory: true,

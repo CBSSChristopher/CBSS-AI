@@ -7,7 +7,7 @@ import {
   normalizePath,
   optionsResponse,
 } from "./auth.js";
-import { handleInventory } from "./inventory.js";
+import { handleInventory, handleInventoryRefresh, refreshXchangeInventory } from "./inventory.js";
 import { handleSubmitProposal } from "./submit-proposal.js";
 
 export default {
@@ -21,10 +21,17 @@ export default {
       if (request.method === "GET") return handleHopConsume(request, env);
       return handleHopIssue(request, env);
     }
+    if (path === "/inventory/refresh") return handleInventoryRefresh(request, env);
     if (path === "/inventory") return handleInventory(request, env);
     if (path === "/submit-proposal") return handleSubmitProposal(request, env);
     if (request.method === "OPTIONS") return optionsResponse(request);
     if (env.ASSETS) return env.ASSETS.fetch(request);
     return new Response("Not found", { status: 404 });
+  },
+  async scheduled(_event, env) {
+    const result = await refreshXchangeInventory(env);
+    if (!result.ok && !result.keptExisting) {
+      console.log("xChange refresh failed", result.error || "");
+    }
   },
 };
