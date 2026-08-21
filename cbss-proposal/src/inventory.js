@@ -1,5 +1,5 @@
 import { jsonResponse, optionsResponse, readSession } from "./auth.js";
-import { isInventoryStale, pullXchangeOffers, XCHANGE_SOURCE } from "./xchange.js";
+import { isInventoryStale, probeXchange, pullXchangeOffers, XCHANGE_SOURCE } from "./xchange.js";
 
 export const INVENTORY_KV_KEY = "xchange-inventory";
 
@@ -62,12 +62,17 @@ export async function readInventory(env) {
   return body;
 }
 
-export async function refreshXchangeInventory(env, { fetchImpl, now, force } = {}) {
+export async function refreshXchangeInventory(env, { fetchImpl, now, force, allowBrowser } = {}) {
   if (!env || !env.CRM_STORE) return { ok: false, error: "No inventory store" };
   const when = now || new Date();
+  const useBrowser = allowBrowser !== false;
   let offers = [];
   try {
-    offers = await pullXchangeOffers({ fetchImpl: fetchImpl || fetch });
+    offers = await pullXchangeOffers({
+      fetchImpl: fetchImpl || fetch,
+      env,
+      allowBrowser: useBrowser,
+    });
   } catch (err) {
     const existing = await readInventory(env);
     return {
@@ -103,13 +108,15 @@ export async function inventoryForClient(env, { fetchImpl, now, force } = {}) {
   const current = await readInventory(env);
   const stale = !current.offers.length || isInventoryStale(current.pulledAt, now || new Date());
   if (!force && !stale) return current;
-  const pulled = await refreshXchangeInventory(env, { fetchImpl, now, force });
+  // GET only tries a direct pull. A Cloudflare challenge must not block the page;
+  // cron and Pull xChange use the browser session.
+  const pulled = await refreshXchangeInventory(env, { fetchImpl, now, force, allowBrowser: false });
   if (pulled.ok) {
     const fresh = await readInventory(env);
     return { ...fresh, refreshed: true };
   }
   if (current.offers.length) {
-    return { ...current, refreshError: pulled.error };
+    return { ...current, refreshError: pulled.error, stale: true };
   }
   return { offers: [], error: pulled.error, source: XCHANGE_SOURCE };
 }
@@ -120,6 +127,14 @@ export async function handleInventory(request, env) {
   const user = await readSession(request, env);
   if (!user) return jsonResponse(request, 401, { error: "Unauthorized" });
   return jsonResponse(request, 200, await inventoryForClient(env));
+}
+
+export async function handleXchangeProbe(request, env) {
+  if (request.method === "OPTIONS") return optionsResponse(request);
+  if (request.method !== "GET") return jsonResponse(request, 405, { error: "Method not allowed" });
+  const user = await readSession(request, env);
+  if (!user) return jsonResponse(request, 401, { error: "Unauthorized" });
+  return jsonResponse(request, 200, await probeXchange());
 }
 
 export async function handleInventoryRefresh(request, env) {

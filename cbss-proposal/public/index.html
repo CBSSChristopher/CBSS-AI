@@ -1076,7 +1076,7 @@
         btn.disabled = true;
         btn.textContent = "Pulling xChange...";
       }
-      setInventoryStatus("Pulling posted Container Exchange pickup prices. This is not a CBSS quote.");
+      setInventoryStatus("Pulling posted Container Exchange pickup prices. This can take about 20 seconds. That number is theirs, not a CBSS quote.");
       try {
         const res = await fetch("/inventory/refresh", { method: "POST", credentials: "include" });
         const data = await res.json().catch(() => ({}));

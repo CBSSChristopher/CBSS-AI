@@ -101,15 +101,44 @@ function offerKey(o) {
   return [cleanPlace(o.location || o.depot), cleanPlace(o.size), cleanPlace(o.condition), o.wholesaleCost].join("|");
 }
 
-async function fetchJson(fetchImpl, url) {
-  const res = await fetchImpl(url, {
-    headers: {
-      Accept: "application/json,text/plain,*/*",
-      "User-Agent": BROWSER_UA,
-    },
-  });
-  if (!res.ok) throw new Error("xChange " + res.status);
+const XCHANGE_HEADERS = {
+  Accept: "application/json,text/plain,*/*",
+  "Accept-Language": "en-US,en;q=0.9",
+  "User-Agent": BROWSER_UA,
+  Origin: "https://www.container-xchange.com",
+  Referer: "https://www.container-xchange.com/inventory",
+};
+
+export async function fetchXchangeJson(fetchImpl, url) {
+  const res = await fetchImpl(url, { headers: XCHANGE_HEADERS });
+  if (!res.ok) {
+    const snippet = String(await res.text().catch(() => "")).slice(0, 180);
+    const err = new Error("xChange " + res.status);
+    err.status = res.status;
+    err.snippet = snippet;
+    throw err;
+  }
   return res.json();
+}
+
+export async function probeXchange(fetchImpl = fetch) {
+  const url = DEPOT_LOCATIONS_URL;
+  try {
+    const res = await fetchImpl(url, { headers: XCHANGE_HEADERS });
+    const text = await res.text();
+    return {
+      ok: res.ok,
+      status: res.status,
+      snippet: text.slice(0, 180),
+      cfRay: res.headers.get("cf-ray") || "",
+    };
+  } catch (err) {
+    return { ok: false, status: 0, snippet: err && err.message ? err.message : "fetch failed" };
+  }
+}
+
+async function fetchJson(fetchImpl, url) {
+  return fetchXchangeJson(fetchImpl, url);
 }
 
 async function searchCity(fetchImpl, locationName, geo) {
@@ -153,7 +182,22 @@ async function mapPool(items, n, fn) {
   return out;
 }
 
-export async function pullXchangeOffers({ fetchImpl = fetch } = {}) {
+function collectOffers(batches) {
+  const seen = new Set();
+  const offers = [];
+  for (const list of batches) {
+    for (const o of list || []) {
+      if (!o || o.wholesaleCost == null || !(o.wholesaleCost > 0)) continue;
+      const key = offerKey(o);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      offers.push(o);
+    }
+  }
+  return offers;
+}
+
+async function pullXchangeOffersDirect(fetchImpl) {
   const locations = usDepotLocations(await fetchJson(fetchImpl, DEPOT_LOCATIONS_URL));
   if (!locations.length) return [];
   const batches = await mapPool(locations, SEARCH_CONCURRENCY, async (loc) => {
@@ -167,16 +211,87 @@ export async function pullXchangeOffers({ fetchImpl = fetch } = {}) {
       lon: Number.isFinite(lon) ? lon : null,
     });
   });
-  const seen = new Set();
-  const offers = [];
-  for (const list of batches) {
-    for (const o of list || []) {
-      if (!o || o.wholesaleCost == null || !(o.wholesaleCost > 0)) continue;
-      const key = offerKey(o);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      offers.push(o);
-    }
+  return collectOffers(batches);
+}
+
+export async function pullXchangeViaBrowser(env) {
+  if (!env || !env.BROWSER) return [];
+  const puppeteer = await import("@cloudflare/puppeteer");
+  const browser = await puppeteer.launch(env.BROWSER);
+  try {
+    const page = await browser.newPage();
+    await page.goto("https://www.container-xchange.com/inventory", {
+      waitUntil: "domcontentloaded",
+      timeout: 45000,
+    });
+    const raw = await page.evaluate(async () => {
+      const locRes = await fetch("/api/depot-locations", { headers: { Accept: "application/json" } });
+      if (!locRes.ok) return { error: "locations " + locRes.status, cities: [] };
+      const locations = await locRes.json();
+      const us = (Array.isArray(locations) ? locations : []).filter((r) =>
+        String((r && r.unlocode_safe) || "").toUpperCase().startsWith("US")
+      );
+      const cities = [];
+      for (const loc of us) {
+        const name = String((loc && loc.location_name) || "").trim();
+        const names = [name];
+        const city = name.split(",")[0].trim();
+        if (city && city !== name) names.push(city);
+        if (city.includes("/")) names.push(city.split("/")[0].trim());
+        let rows = [];
+        for (const q of names) {
+          const url =
+            "/api/search?location=" +
+            encodeURIComponent(q) +
+            "&dealType=PICK_UP&excludeDamaged=true&limit=80&page=1";
+          const res = await fetch(url, { headers: { Accept: "application/json" } });
+          if (!res.ok) continue;
+          const data = await res.json();
+          const found = Array.isArray(data && data.results) ? data.results : [];
+          if (found.length) {
+            rows = found;
+            break;
+          }
+        }
+        cities.push({
+          location: name,
+          latitude: loc.latitude,
+          longitude: loc.longitude,
+          rows,
+        });
+      }
+      return { cities };
+    });
+    if (raw && raw.error) throw new Error(raw.error);
+    const batches = (raw && raw.cities ? raw.cities : []).map((city) =>
+      offersFromSearchPayload(
+        { results: city.rows || [] },
+        {
+          location: city.location,
+          city: String(city.location || "").split(",")[0].trim(),
+          lat: city.latitude,
+          lon: city.longitude,
+        }
+      )
+    );
+    return collectOffers(batches);
+  } finally {
+    await browser.close();
   }
-  return offers;
+}
+
+export async function pullXchangeOffers({ fetchImpl = fetch, env, allowBrowser } = {}) {
+  let directError = null;
+  try {
+    const offers = await pullXchangeOffersDirect(fetchImpl);
+    if (offers.length) return offers;
+  } catch (err) {
+    directError = err;
+    if (allowBrowser === false || !env || !env.BROWSER) throw err;
+  }
+  if (allowBrowser === false || !env || !env.BROWSER) return [];
+  const viaBrowser = await pullXchangeViaBrowser(env);
+  if (viaBrowser.length) return viaBrowser;
+  if (directError) throw directError;
+  return [];
 }

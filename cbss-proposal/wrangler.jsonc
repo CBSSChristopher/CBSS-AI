@@ -15,5 +15,8 @@
   ],
   "triggers": {
     "crons": ["*/10 * * * *"]
+  },
+  "browser": {
+    "binding": "BROWSER"
   }
 }

@@ -7,7 +7,7 @@ import {
   normalizePath,
   optionsResponse,
 } from "./auth.js";
-import { handleInventory, handleInventoryRefresh, refreshXchangeInventory } from "./inventory.js";
+import { handleInventory, handleInventoryRefresh, handleXchangeProbe, refreshXchangeInventory } from "./inventory.js";
 import { handleSubmitProposal } from "./submit-proposal.js";
 
 export default {
@@ -22,6 +22,7 @@ export default {
       return handleHopIssue(request, env);
     }
     if (path === "/inventory/refresh") return handleInventoryRefresh(request, env);
+    if (path === "/inventory/xchange-probe") return handleXchangeProbe(request, env);
     if (path === "/inventory") return handleInventory(request, env);
     if (path === "/submit-proposal") return handleSubmitProposal(request, env);
     if (request.method === "OPTIONS") return optionsResponse(request);
