@@ -1,0 +1,86 @@
+{
+  "products": {
+    "city_state": "Phoenix, AZ 85001, USA",
+    "1": {
+      "sp_title": "20ft Standard 1 Trip Shipping Container (20ST1TRIP)",
+      "sp_handle": "20ft-standard-1-trip-shipping-container-20st1trip",
+      "city": "Phoenix",
+      "state_code": "AZ",
+      "distance": 1,
+      "final_price": 4108,
+      "final_container_customer_pickup_price": 3499
+    },
+    "3": {
+      "sp_title": "20ft Standard Cargo Worthy Shipping Container (20STCW)",
+      "sp_handle": "20ft-standard-cargo-worthy-shipping-container-20stcw-1",
+      "city": "Phoenix",
+      "state_code": "AZ",
+      "distance": 1,
+      "final_price": 3270,
+      "final_container_customer_pickup_price": 2661
+    },
+    "7": {
+      "sp_title": "20ft Standard Wind & Water Tight Shipping Container (20STWWT)",
+      "sp_handle": "20ft-standard-wind-water-tight-shipping-container-20stwwt",
+      "city": "Phoenix",
+      "state_code": "AZ",
+      "distance": 1,
+      "final_price": 2677,
+      "final_container_customer_pickup_price": 2068
+    },
+    "11": {
+      "sp_title": "40ft High Cube 1 Trip Shipping Container (40HC1TRIP)",
+      "sp_handle": "40ft-high-cube-1-trip-shipping-container-40hc1trip",
+      "city": "Phoenix",
+      "state_code": "AZ",
+      "distance": 1,
+      "final_price": 5274,
+      "final_container_customer_pickup_price": 4665
+    },
+    "9": {
+      "sp_title": "40ft High Cube 1 Trip Blue Shipping Container (40HC1TRIPBLUE)",
+      "sp_handle": "40ft-high-cube-1-trip-blue-shipping-container-40hc1tripblue",
+      "city": "Los Angeles",
+      "state_code": "CA",
+      "distance": 381,
+      "final_price": 6769,
+      "final_container_customer_pickup_price": 4346
+    },
+    "12": {
+      "sp_title": "40ft High Cube Cargo Worthy Shipping Container (40HCCW)",
+      "sp_handle": "40ft-high-cube-cargo-worthy-shipping-container-40hccw",
+      "city": "Phoenix",
+      "state_code": "AZ",
+      "distance": 1,
+      "final_price": 3949,
+      "final_container_customer_pickup_price": 3340
+    },
+    "17": {
+      "sp_title": "40ft High Cube Wind & Water Tight Shipping Container (40HCWWT)",
+      "sp_handle": "40ft-high-cube-wind-water-tight-shipping-container-40hcwwt",
+      "city": "Phoenix",
+      "state_code": "AZ",
+      "distance": 1,
+      "final_price": 3551,
+      "final_container_customer_pickup_price": 2942
+    },
+    "22": {
+      "sp_title": "40ft Standard Wind & Water Tight Shipping Container (40STWWT)",
+      "sp_handle": "40ft-standard-wind-water-tight-shipping-container-40stwwt",
+      "city": "Phoenix",
+      "state_code": "AZ",
+      "distance": 1,
+      "final_price": 3419,
+      "final_container_customer_pickup_price": 2810
+    },
+    "skip": {
+      "sp_title": "20ft Standard Working Refrigerated Shipping Container (20STRFW)",
+      "sp_handle": "20ft-standard-working-refrigerated-shipping-container-20strfw",
+      "city": "Los Angeles",
+      "state_code": "CA",
+      "distance": 381,
+      "final_price": 11539,
+      "final_container_customer_pickup_price": 9116
+    }
+  }
+}

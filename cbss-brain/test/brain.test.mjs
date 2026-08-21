@@ -47,6 +47,8 @@ describe("CBSS Desk rules", () => {
     assert.match(page, /data-job="chat">CBSS AI</);
     assert.match(page, /CBSS AI for Sales/);
     assert.match(page, /Ask CBSS AI/);
+    assert.match(page, /Pull Container One/);
+    assert.match(src, /COMPETITOR CHECK ON A LIVE CALL/);
     assert.match(page, /data-job="live">Call</);
     assert.match(page, /data-job="email">Email templates</);
     assert.match(page, /Custom draft or proposal wording/);

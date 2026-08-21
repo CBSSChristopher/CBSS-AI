@@ -77,6 +77,10 @@ export function pageHtml(): string {
     .bot { align-self: flex-start; background: var(--ok); border: 1px solid var(--ok-line); }
     #composer { display: flex; gap: 8px; align-items: flex-end; }
     #composer textarea { min-height: 48px; resize: vertical; }
+    .comp-bar { display: flex; gap: 8px; align-items: flex-end; margin: 0 0 10px; }
+    .comp-bar .zip-wrap { flex: 0 0 132px; }
+    .comp-bar .zip-wrap label { margin-top: 0; }
+    .comp-bar button { white-space: nowrap; background: #fff; color: var(--navy); border: 1px solid var(--navy); }
     .outbox { white-space: pre-wrap; background: #f7fafc; border: 1px dashed var(--line); border-radius: 8px; padding: 11px; min-height: 5em; font-size: 14px; }
     .more { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
     .more summary { cursor: pointer; color: var(--accent); font-weight: 650; font-size: 13px; }
@@ -88,7 +92,7 @@ export function pageHtml(): string {
   <header>
     <div>
       <div class="brand">CBSS Desk</div>
-      <div class="sub" id="stamp">build 5</div>
+      <div class="sub" id="stamp">build 6</div>
     </div>
     <div class="right">
       <div class="who hide" id="who"></div>
@@ -143,10 +147,17 @@ export function pageHtml(): string {
           <div class="ai-mark">AI</div>
           <div>
             <h2>CBSS AI for Sales</h2>
-            <p class="muted">Your closer-assistant. Talk through a lead, a call, or what to say next.</p>
+            <p class="muted">Your closer-assistant. On a live call, type the client ZIP to pull Container One's posted depot and price.</p>
           </div>
         </div>
         <div class="log" id="log"></div>
+        <div class="comp-bar">
+          <div class="zip-wrap">
+            <label for="comp-zip">Client ZIP</label>
+            <input id="comp-zip" inputmode="numeric" maxlength="10" placeholder="85001" />
+          </div>
+          <button type="button" id="comp-pull">Pull Container One</button>
+        </div>
         <form id="ask">
           <div id="composer">
             <textarea id="q" rows="2" placeholder="Ask your CBSS AI for Sales…" required></textarea>
@@ -276,7 +287,7 @@ export function pageHtml(): string {
     }
     function seedAsk() {
       if (log.childElementCount) return;
-      bubble("assistant", "I am your CBSS AI for Sales. Tell me the lead, the call, or what you need written. I will not invent a price. Use Call when you want scraps saved to the CRM.");
+      bubble("assistant", "I am your CBSS AI for Sales. Tell me the lead, the call, or what you need written. I will not invent a price. On a call, type the client ZIP and pull Container One — that is their posted depot and delivered price, not ours. Use Call when you want scraps saved to the CRM.");
     }
     function bubble(role, text) {
       const d = document.createElement("div");
@@ -296,6 +307,7 @@ export function pageHtml(): string {
       const set = (id, val) => { const el = document.getElementById(id); if (el && !el.value) el.value = val || ""; };
       set("tpl-first", first);
       set("tpl-zip", zip);
+      set("comp-zip", zip);
       set("in-from", picked.email || "");
       set("new-name", picked.name || "");
     }
@@ -488,6 +500,14 @@ export function pageHtml(): string {
     document.getElementById("ask").addEventListener("submit", (e) => {
       e.preventDefault();
       ask(document.getElementById("q").value);
+    });
+    document.getElementById("comp-pull").addEventListener("click", () => {
+      const zip = String(document.getElementById("comp-zip").value || "").trim();
+      if (!zip) {
+        document.getElementById("chat-err").textContent = "Type the client ZIP first.";
+        return;
+      }
+      ask("Pull Container One for ZIP " + zip);
     });
 
     document.querySelectorAll("[data-run]").forEach((b) => {

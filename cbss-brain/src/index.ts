@@ -7,6 +7,7 @@ import {
   readSession,
 } from "./auth";
 import { SYSTEM_PROMPT, clipHistory, jobPrompt, sanitizeReply } from "./brain";
+import { ASK_FOR_ZIP, PULL_FAILED, detectCompetitorPull, pullContainerOne } from "./competitors";
 import {
   appendNoteToMap,
   buildCreatedContact,
@@ -474,6 +475,16 @@ export default {
       }
     }
 
+    if (request.method === "POST" && path === "/comp/container-one") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      const body = await readJson(request);
+      const zip = str(body.zip) || url.searchParams.get("zip") || "";
+      const result = await pullContainerOne(zip);
+      if (!result.ok) return json(200, { ok: false, reply: result.error });
+      return json(200, { ok: true, reply: result.card, zip: result.pull.zip });
+    }
+
     if (request.method === "POST" && (path === "/chat" || path === "/job")) {
       const user = await readSession(request, env);
       if (!user) return json(401, { error: "Sign in first." });
@@ -489,6 +500,19 @@ export default {
       if (message.length > 6000) return json(400, { error: "Keep it shorter." });
 
       const history = clipHistory(body.history);
+      if (path === "/chat") {
+        const intent = detectCompetitorPull(message, history);
+        if (intent) {
+          if ("needZip" in intent) return json(200, { reply: ASK_FOR_ZIP });
+          try {
+            const result = await pullContainerOne(intent.zip);
+            return json(200, { reply: result.ok ? result.card : result.error });
+          } catch (err) {
+            console.error("desk_comp_error", err instanceof Error ? err.message : "unknown");
+            return json(200, { reply: PULL_FAILED });
+          }
+        }
+      }
       try {
         const reply = await runModel(env, message, history, path === "/job" ? 900 : 600);
         return json(200, { reply });
