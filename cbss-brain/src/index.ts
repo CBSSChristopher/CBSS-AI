@@ -24,8 +24,9 @@ import {
   crmSaveContactsAdded,
   crmSaveDeals,
   crmSaveFollowups,
-  crmSaveNotes,
+  crmAppendNote,
   findContact,
+  findExistingContact,
   mergeFollowupMap,
   noteTimestamp,
   searchContacts,
@@ -219,20 +220,29 @@ export default {
           const createRaw = body.create && typeof body.create === "object" ? (body.create as Record<string, unknown>) : {};
           const newName = str(createRaw.name);
           if (!newName) return json(400, { error: "Pick a contact or type a name to add one." });
-          const fresh = buildCreatedContact({
+          const existing = findExistingContact(book, {
             name: newName,
             phone: str(createRaw.phone),
             email: str(createRaw.email),
-            city: str(createRaw.city),
-            state: str(createRaw.state),
-            zip: str(createRaw.zip),
-            owner: user.name || "Desk",
           });
-          const added = [fresh, ...(book.contactsAdded || [])];
-          await crmSaveContactsAdded(env, user.crm, added);
-          book.contactsAdded = added;
-          contactId = String(fresh.id);
-          created = { id: contactId, name: String(fresh.name || newName) };
+          if (existing) {
+            contactId = String(existing.id);
+          } else {
+            const fresh = buildCreatedContact({
+              name: newName,
+              phone: str(createRaw.phone),
+              email: str(createRaw.email),
+              city: str(createRaw.city),
+              state: str(createRaw.state),
+              zip: str(createRaw.zip),
+              owner: user.name || "Desk",
+            });
+            const added = [fresh, ...(book.contactsAdded || [])];
+            await crmSaveContactsAdded(env, user.crm, added);
+            book.contactsAdded = added;
+            contactId = String(fresh.id);
+            created = { id: contactId, name: String(fresh.name || newName) };
+          }
         }
 
         const contact = findContact(book, contactId);
@@ -269,8 +279,7 @@ export default {
           tag: "Desk",
           text: safeNote,
         };
-        const notes = appendNoteToMap(book.notes, contactId, entry);
-        await crmSaveNotes(env, user.crm, notes, book.notes);
+        await crmAppendNote(env, user.crm, contactId, entry, book.notes);
         const followups = mergeFollowupMap(book.followups, contactId, {
           nextAction: schedule.nextAction,
           followUpDate: schedule.followUpDate,
@@ -350,8 +359,7 @@ export default {
             kind: direction === "received" ? kind : undefined,
           }),
         };
-        const notes = appendNoteToMap(book.notes, String(contact.id), note);
-        await crmSaveNotes(env, user.crm, notes, book.notes);
+        await crmAppendNote(env, user.crm, String(contact.id), note, book.notes);
         if (plan.nextAction) {
           await crmSaveFollowups(
             env,
@@ -452,6 +460,7 @@ export default {
               kind,
             }),
           };
+          await crmAppendNote(env, user.crm, String(contact.id), note, notes);
           notes = appendNoteToMap(notes, String(contact.id), note);
           if (plan.nextAction) {
             followups = mergeFollowupMap(followups, String(contact.id), {
@@ -470,7 +479,6 @@ export default {
           results.push({ from, name: String(contact.name || ""), kind });
         }
         if (matched) {
-          await crmSaveNotes(env, user.crm, notes, book.notes);
           await crmSaveFollowups(env, user.crm, followups);
           await crmSaveDeals(env, user.crm, deals);
           await crmSaveContactEdits(env, user.crm, edits);
