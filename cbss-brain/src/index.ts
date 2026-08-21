@@ -7,7 +7,14 @@ import {
   readSession,
 } from "./auth";
 import { SYSTEM_PROMPT, clipHistory, jobPrompt, sanitizeReply } from "./brain";
-import { ASK_FOR_ZIP, PULL_FAILED, detectCompetitorPull, pullContainerOne } from "./competitors";
+import {
+  ASK_FOR_PICK,
+  ASK_FOR_ZIP,
+  PULL_FAILED,
+  answerCompetitorPull,
+  completePick,
+  detectCompetitorPull,
+} from "./competitors";
 import {
   appendNoteToMap,
   buildCreatedContact,
@@ -480,7 +487,13 @@ export default {
       if (!user) return json(401, { error: "Sign in first." });
       const body = await readJson(request);
       const zip = str(body.zip) || url.searchParams.get("zip") || "";
-      const result = await pullContainerOne(zip);
+      const pick = completePick({
+        size: str(body.size),
+        grade: str(body.grade),
+        config: str(body.config),
+      });
+      if (!pick) return json(200, { ok: false, reply: ASK_FOR_PICK });
+      const result = await answerCompetitorPull(zip, pick);
       if (!result.ok) return json(200, { ok: false, reply: result.error });
       return json(200, { ok: true, reply: result.card, zip: result.pull.zip });
     }
@@ -504,8 +517,9 @@ export default {
         const intent = detectCompetitorPull(message, history);
         if (intent) {
           if ("needZip" in intent) return json(200, { reply: ASK_FOR_ZIP });
+          if ("needPick" in intent) return json(200, { reply: ASK_FOR_PICK });
           try {
-            const result = await pullContainerOne(intent.zip);
+            const result = await answerCompetitorPull(intent.zip, intent.pick);
             return json(200, { reply: result.ok ? result.card : result.error });
           } catch (err) {
             console.error("desk_comp_error", err instanceof Error ? err.message : "unknown");

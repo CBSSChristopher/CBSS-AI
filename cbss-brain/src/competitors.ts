@@ -12,7 +12,10 @@ const C1_INTENT =
   /\b(container\s*one|containerone|competitor(?:\s+price)?s?|their\s+price|what\s+are\s+they)\b/i;
 
 export const ASK_FOR_ZIP =
-  "Type the client ZIP and I will pull Container One's posted depot and delivered price. Those numbers are what they posted — not a CBSS quote.";
+  "Type the client ZIP and pick the size, grade, and configuration. I will pull that one Container One posted price — not a CBSS quote.";
+
+export const ASK_FOR_PICK =
+  "Pick the size, grade, and configuration, then pull. I will only post that one Container One figure — not a CBSS quote.";
 
 export const PULL_FAILED =
   "Could not pull Container One just now. Open containerone.net, enter the client ZIP, and read their posted depot and price. Do not invent a number.";
@@ -23,6 +26,8 @@ type CoreCode =
   | "20STUSED"
   | "20STMT"
   | "20ST1TRIP"
+  | "20STDD1TRIP"
+  | "20STSD1TRIP"
   | "40STWWT"
   | "40STCW"
   | "40STUSED"
@@ -31,31 +36,44 @@ type CoreCode =
   | "40HCCW"
   | "40HCUSED"
   | "40HCMT"
-  | "40HC1TRIP";
+  | "40HC1TRIP"
+  | "40HCDD1TRIP"
+  | "40HCSD1TRIP";
 
-const CORE: Record<CoreCode, { size: string; grade: string; order: number }> = {
-  "20STWWT": { size: "20STD", grade: "WWT", order: 10 },
-  "20STCW": { size: "20STD", grade: "CW", order: 11 },
-  "20STUSED": { size: "20STD", grade: "Economy", order: 12 },
-  "20STMT": { size: "20STD", grade: "Multi-Trip", order: 13 },
-  "20ST1TRIP": { size: "20STD", grade: "One-Trip", order: 14 },
-  "40STWWT": { size: "40STD", grade: "WWT", order: 20 },
-  "40STCW": { size: "40STD", grade: "CW", order: 21 },
-  "40STUSED": { size: "40STD", grade: "Economy", order: 22 },
-  "40ST1TRIP": { size: "40STD", grade: "One-Trip", order: 23 },
-  "40HCWWT": { size: "40HC", grade: "WWT", order: 30 },
-  "40HCCW": { size: "40HC", grade: "CW", order: 31 },
-  "40HCUSED": { size: "40HC", grade: "Economy", order: 32 },
-  "40HCMT": { size: "40HC", grade: "Multi-Trip", order: 33 },
-  "40HC1TRIP": { size: "40HC", grade: "One-Trip", order: 34 },
+const CORE: Record<CoreCode, { size: string; grade: string; config: string; order: number }> = {
+  "20STWWT": { size: "20STD", grade: "WWT", config: "Standard", order: 10 },
+  "20STCW": { size: "20STD", grade: "CW", config: "Standard", order: 11 },
+  "20STUSED": { size: "20STD", grade: "Economy", config: "Standard", order: 12 },
+  "20STMT": { size: "20STD", grade: "Multi-Trip", config: "Standard", order: 13 },
+  "20ST1TRIP": { size: "20STD", grade: "One-Trip", config: "Standard", order: 14 },
+  "20STDD1TRIP": { size: "20STD", grade: "One-Trip", config: "Double door", order: 15 },
+  "20STSD1TRIP": { size: "20STD", grade: "One-Trip", config: "Side door", order: 16 },
+  "40STWWT": { size: "40STD", grade: "WWT", config: "Standard", order: 20 },
+  "40STCW": { size: "40STD", grade: "CW", config: "Standard", order: 21 },
+  "40STUSED": { size: "40STD", grade: "Economy", config: "Standard", order: 22 },
+  "40ST1TRIP": { size: "40STD", grade: "One-Trip", config: "Standard", order: 23 },
+  "40HCWWT": { size: "40HC", grade: "WWT", config: "Standard", order: 30 },
+  "40HCCW": { size: "40HC", grade: "CW", config: "Standard", order: 31 },
+  "40HCUSED": { size: "40HC", grade: "Economy", config: "Standard", order: 32 },
+  "40HCMT": { size: "40HC", grade: "Multi-Trip", config: "Standard", order: 33 },
+  "40HC1TRIP": { size: "40HC", grade: "One-Trip", config: "Standard", order: 34 },
+  "40HCDD1TRIP": { size: "40HC", grade: "One-Trip", config: "Double door", order: 35 },
+  "40HCSD1TRIP": { size: "40HC", grade: "One-Trip", config: "Side door", order: 36 },
 };
 
 const CORE_CODES = Object.keys(CORE) as CoreCode[];
+
+export type CompetitorPick = {
+  size: string;
+  grade: string;
+  config: string;
+};
 
 export type CompetitorLine = {
   code: CoreCode;
   size: string;
   grade: string;
+  config: string;
   delivered: number;
   pickup: number;
   depot: string;
@@ -84,30 +102,65 @@ export function wantsContainerOne(text: string): boolean {
   return C1_INTENT.test(String(text || ""));
 }
 
+export function parseCompetitorPick(text: string): Partial<CompetitorPick> {
+  const src = String(text || "");
+  const pick: Partial<CompetitorPick> = {};
+  if (/\b40\s*(?:ft\s*)?(?:hc|high\s*cube)\b/i.test(src) || /\b40hc\b/i.test(src)) pick.size = "40HC";
+  else if (/\b40\s*(?:ft\s*)?(?:std|standard)\b/i.test(src) || /\b40std\b/i.test(src)) pick.size = "40STD";
+  else if (/\b20\s*(?:ft\s*)?(?:hc|high\s*cube)\b/i.test(src) || /\b20hc\b/i.test(src)) pick.size = "20HC";
+  else if (/\b20\s*(?:ft\s*)?(?:std|standard)\b/i.test(src) || /\b20std\b/i.test(src) || /\b20'\b/i.test(src)) {
+    pick.size = "20STD";
+  }
+  if (/\b(?:wwt|wind\s*(?:and|&)\s*water)\b/i.test(src)) pick.grade = "WWT";
+  else if (/\b(?:multi[-\s]?trip)\b/i.test(src)) pick.grade = "Multi-Trip";
+  else if (/\b(?:one[-\s]?trip|1[-\s]?trip)\b/i.test(src)) pick.grade = "One-Trip";
+  else if (/\b(?:economy|as[-\s]?is)\b/i.test(src)) pick.grade = "Economy";
+  else if (/\b(?:cargo\s*worthy|\bcw\b)/i.test(src)) pick.grade = "CW";
+  if (/\bdouble\s*door\b/i.test(src)) pick.config = "Double door";
+  else if (/\bside\s*door\b/i.test(src)) pick.config = "Side door";
+  else if (pick.size && pick.grade) pick.config = "Standard";
+  return pick;
+}
+
+export function completePick(raw: Partial<CompetitorPick> | null | undefined): CompetitorPick | null {
+  const size = String(raw?.size || "").trim();
+  const grade = String(raw?.grade || "").trim();
+  const config = String(raw?.config || "").trim() || "Standard";
+  if (!size || !grade) return null;
+  return { size, grade, config };
+}
+
 export function detectCompetitorPull(
   message: string,
   history: Array<{ role?: string; content?: string }> = [],
-): { vendor: "container-one"; zip: string } | { vendor: "container-one"; needZip: true } | null {
+):
+  | { vendor: "container-one"; needZip: true }
+  | { vendor: "container-one"; zip: string; needPick: true }
+  | { vendor: "container-one"; zip: string; pick: CompetitorPick }
+  | null {
   const text = String(message || "").trim();
   if (!text) return null;
   const zip = normalizeZip(text);
+  const pick = completePick(parseCompetitorPick(text));
   if (wantsContainerOne(text)) {
-    return zip ? { vendor: "container-one", zip } : { vendor: "container-one", needZip: true };
+    if (!zip) return { vendor: "container-one", needZip: true };
+    if (!pick) return { vendor: "container-one", zip, needPick: true };
+    return { vendor: "container-one", zip, pick };
   }
   const last = [...history].reverse().find((m) => m && m.role === "assistant");
   const asked = String(last?.content || "").includes("Type the client ZIP");
   if (asked && zip && /^\d{5}(?:-\d{4})?$/.test(text.replace(/\s+/g, ""))) {
-    return { vendor: "container-one", zip };
+    return { vendor: "container-one", zip, needPick: true };
   }
   return null;
 }
 
 export function coreCodeFromTitle(title: string, handle = ""): CoreCode | "" {
   const blob = `${title} ${handle}`.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (/BLUE/.test(blob) || /RFW/.test(blob) || /RFNW/.test(blob)) return "";
   const hits = CORE_CODES.filter((code) => blob.includes(code));
   if (!hits.length) return "";
   hits.sort((a, b) => b.length - a.length);
-  if (hits[0] === "40HC1TRIP" && /BLUE/.test(blob)) return "";
   return hits[0];
 }
 
@@ -157,6 +210,7 @@ export function parseContainerOne(raw: unknown, zip: string, now = new Date()): 
       code,
       size: meta.size,
       grade: meta.grade,
+      config: meta.config,
       delivered,
       pickup: num(row.final_container_customer_pickup_price),
       depot,
@@ -174,6 +228,17 @@ export function parseContainerOne(raw: unknown, zip: string, now = new Date()): 
   };
 }
 
+export function applyCompetitorPick(pull: CompetitorPull, pick: CompetitorPick): CompetitorPull {
+  const lines = pull.lines.filter(
+    (line) => line.size === pick.size && line.grade === pick.grade && line.config === pick.config,
+  );
+  return { ...pull, lines };
+}
+
+export function missingCombo(zip: string, pick: CompetitorPick): string {
+  return `Container One did not post a ${pick.size} ${pick.grade} · ${pick.config} for ZIP ${zip}. Try another grade or configuration, or check containerone.net. Do not invent a number.`;
+}
+
 export function formatCompetitorCard(pull: CompetitorPull): string {
   const when = pull.pulledAt.replace("T", " ").replace(/\.\d+Z$/, " UTC");
   const where = pull.cityState ? `They resolved the ZIP as ${pull.cityState}.` : "";
@@ -181,7 +246,7 @@ export function formatCompetitorCard(pull: CompetitorPull): string {
     const depot = line.depot || "depot not posted";
     const miles = line.miles == null ? "" : ` · ${line.miles} mi`;
     const pickup = line.pickup >= 50 ? `  pickup ${money(line.pickup)}` : "";
-    return `${line.size} ${line.grade}  ${money(line.delivered)} delivered  ${depot}${miles}${pickup}`;
+    return `${line.size} ${line.grade} · ${line.config}  ${money(line.delivered)} delivered  ${depot}${miles}${pickup}`;
   });
   return [
     "CONTAINER ONE — posted live (not a CBSS price)",
@@ -190,7 +255,7 @@ export function formatCompetitorCard(pull: CompetitorPull): string {
     "",
     ...rows,
     "",
-    "These are their all-in delivered figures as posted. Do not read them as our quote. Text Christopher at 870-323-2593 for a CBSS number.",
+    "That is their posted figure. Do not read it as our quote. Text Christopher at 870-323-2593 for a CBSS number.",
   ].join("\n");
 }
 
@@ -279,4 +344,18 @@ export async function pullContainerOne(
   } finally {
     clearTimeout(timer);
   }
+}
+
+export async function answerCompetitorPull(
+  zipRaw: string,
+  pickRaw: Partial<CompetitorPick> | null,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ ok: true; pull: CompetitorPull; card: string } | { ok: false; error: string }> {
+  const pick = completePick(pickRaw);
+  if (!pick) return { ok: false, error: ASK_FOR_PICK };
+  const result = await pullContainerOne(zipRaw, fetchImpl);
+  if (!result.ok) return result;
+  const filtered = applyCompetitorPick(result.pull, pick);
+  if (!filtered.lines.length) return { ok: false, error: missingCombo(result.pull.zip, pick) };
+  return { ok: true, pull: filtered, card: formatCompetitorCard(filtered) };
 }

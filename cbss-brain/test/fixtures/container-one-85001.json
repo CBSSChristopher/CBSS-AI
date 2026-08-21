@@ -73,6 +73,15 @@
       "final_price": 3419,
       "final_container_customer_pickup_price": 2810
     },
+    "dd": {
+      "sp_title": "40ft High Cube 1 Trip Double Door Shipping Container (40HCDD1TRIP)",
+      "sp_handle": "40ft-high-cube-1-trip-double-door-shipping-container-40hcdd1trip",
+      "city": "El Paso",
+      "state_code": "TX",
+      "distance": 419,
+      "final_price": 6875,
+      "final_container_customer_pickup_price": 4876
+    },
     "skip": {
       "sp_title": "20ft Standard Working Refrigerated Shipping Container (20STRFW)",
       "sp_handle": "20ft-standard-working-refrigerated-shipping-container-20strfw",

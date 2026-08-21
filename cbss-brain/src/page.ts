@@ -77,10 +77,18 @@ export function pageHtml(): string {
     .bot { align-self: flex-start; background: var(--ok); border: 1px solid var(--ok-line); }
     #composer { display: flex; gap: 8px; align-items: flex-end; }
     #composer textarea { min-height: 48px; resize: vertical; }
-    .comp-bar { display: flex; gap: 8px; align-items: flex-end; margin: 0 0 10px; }
+    .comp-bar { display: flex; gap: 8px; align-items: flex-end; margin: 8px 0 0; }
     .comp-bar .zip-wrap { flex: 0 0 132px; }
     .comp-bar .zip-wrap label { margin-top: 0; }
-    .comp-bar button { white-space: nowrap; background: #fff; color: var(--navy); border: 1px solid var(--navy); }
+    .comp-bar > button { white-space: nowrap; background: #fff; color: var(--navy); border: 1px solid var(--navy); }
+    .picks { margin: 0 0 8px; }
+    .picks .lbl { font-size: 12px; font-weight: 700; color: #3d4d5c; margin: 8px 0 5px; }
+    .picks .btns { display: flex; flex-wrap: wrap; gap: 6px; }
+    .picks .pick {
+      background: #fff; color: var(--navy); border: 1px solid var(--line);
+      padding: 7px 10px; font-size: 13px; font-weight: 650;
+    }
+    .picks .pick.on { background: var(--navy); color: #fff; border-color: var(--navy); }
     .outbox { white-space: pre-wrap; background: #f7fafc; border: 1px dashed var(--line); border-radius: 8px; padding: 11px; min-height: 5em; font-size: 14px; }
     .more { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
     .more summary { cursor: pointer; color: var(--accent); font-weight: 650; font-size: 13px; }
@@ -92,7 +100,7 @@ export function pageHtml(): string {
   <header>
     <div>
       <div class="brand">CBSS Desk</div>
-      <div class="sub" id="stamp">build 6</div>
+      <div class="sub" id="stamp">build 7</div>
     </div>
     <div class="right">
       <div class="who hide" id="who"></div>
@@ -147,10 +155,32 @@ export function pageHtml(): string {
           <div class="ai-mark">AI</div>
           <div>
             <h2>CBSS AI for Sales</h2>
-            <p class="muted">Your closer-assistant. On a live call, type the client ZIP to pull Container One's posted depot and price.</p>
+            <p class="muted">Your closer-assistant. On a live call, pick size, grade, and configuration, then pull Container One for the client ZIP.</p>
           </div>
         </div>
         <div class="log" id="log"></div>
+        <div class="picks" id="comp-picks">
+          <div class="lbl">Size</div>
+          <div class="btns">
+            <button type="button" class="pick" data-pick="size" data-val="20STD">20STD</button>
+            <button type="button" class="pick" data-pick="size" data-val="40STD">40STD</button>
+            <button type="button" class="pick on" data-pick="size" data-val="40HC">40HC</button>
+          </div>
+          <div class="lbl">Grade</div>
+          <div class="btns">
+            <button type="button" class="pick" data-pick="grade" data-val="WWT">WWT</button>
+            <button type="button" class="pick on" data-pick="grade" data-val="CW">CW</button>
+            <button type="button" class="pick" data-pick="grade" data-val="Economy">Economy</button>
+            <button type="button" class="pick" data-pick="grade" data-val="Multi-Trip">Multi-Trip</button>
+            <button type="button" class="pick" data-pick="grade" data-val="One-Trip">One-Trip</button>
+          </div>
+          <div class="lbl">Configuration</div>
+          <div class="btns">
+            <button type="button" class="pick on" data-pick="config" data-val="Standard">Standard</button>
+            <button type="button" class="pick" data-pick="config" data-val="Double door">Double door</button>
+            <button type="button" class="pick" data-pick="config" data-val="Side door">Side door</button>
+          </div>
+        </div>
         <div class="comp-bar">
           <div class="zip-wrap">
             <label for="comp-zip">Client ZIP</label>
@@ -258,6 +288,7 @@ export function pageHtml(): string {
     const log = document.getElementById("log");
     const history = [];
     const panels = ["chat", "live", "email"];
+    const compPick = { size: "40HC", grade: "CW", config: "Standard" };
     let picked = null;
     let searchTimer = 0;
     let templateList = [];
@@ -287,7 +318,7 @@ export function pageHtml(): string {
     }
     function seedAsk() {
       if (log.childElementCount) return;
-      bubble("assistant", "I am your CBSS AI for Sales. Tell me the lead, the call, or what you need written. I will not invent a price. On a call, type the client ZIP and pull Container One — that is their posted depot and delivered price, not ours. Use Call when you want scraps saved to the CRM.");
+      bubble("assistant", "I am your CBSS AI for Sales. Tell me the lead, the call, or what you need written. I will not invent a price. On a call, pick size, grade, and configuration, then pull Container One for the client ZIP. That one posted number is theirs, not ours. Use Call when you want scraps saved to the CRM.");
     }
     function bubble(role, text) {
       const d = document.createElement("div");
@@ -501,13 +532,24 @@ export function pageHtml(): string {
       e.preventDefault();
       ask(document.getElementById("q").value);
     });
+    document.querySelectorAll("#comp-picks .pick").forEach((b) => {
+      b.addEventListener("click", () => {
+        const kind = b.getAttribute("data-pick");
+        const val = b.getAttribute("data-val");
+        if (!kind || !val) return;
+        compPick[kind] = val;
+        document.querySelectorAll('#comp-picks .pick[data-pick="' + kind + '"]').forEach((el) => {
+          el.classList.toggle("on", el.getAttribute("data-val") === val);
+        });
+      });
+    });
     document.getElementById("comp-pull").addEventListener("click", () => {
       const zip = String(document.getElementById("comp-zip").value || "").trim();
       if (!zip) {
         document.getElementById("chat-err").textContent = "Type the client ZIP first.";
         return;
       }
-      ask("Pull Container One for ZIP " + zip);
+      ask("Pull Container One for ZIP " + zip + " — " + compPick.size + " " + compPick.grade + " " + compPick.config);
     });
 
     document.querySelectorAll("[data-run]").forEach((b) => {
