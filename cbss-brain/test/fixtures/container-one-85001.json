@@ -82,7 +82,7 @@
       "final_price": 6875,
       "final_container_customer_pickup_price": 4876
     },
-    "skip": {
+    "rfw20": {
       "sp_title": "20ft Standard Working Refrigerated Shipping Container (20STRFW)",
       "sp_handle": "20ft-standard-working-refrigerated-shipping-container-20strfw",
       "city": "Los Angeles",
@@ -90,6 +90,15 @@
       "distance": 381,
       "final_price": 11539,
       "final_container_customer_pickup_price": 9116
+    },
+    "rfnw40": {
+      "sp_title": "40ft High Cube Non-Working Refrigerated Shipping Container (40HCRFNW)",
+      "sp_handle": "40ft-high-cube-non-working-refrigerated-shipping-container-40hcrfnw",
+      "city": "Los Angeles",
+      "state_code": "CA",
+      "distance": 381,
+      "final_price": 8677,
+      "final_container_customer_pickup_price": 6254
     }
   }
 }

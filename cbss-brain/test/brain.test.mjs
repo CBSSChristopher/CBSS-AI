@@ -51,6 +51,7 @@ describe("CBSS Desk rules", () => {
     assert.match(page, /data-pick="size"/);
     assert.match(page, /data-pick="grade"/);
     assert.match(page, /data-pick="config"/);
+    assert.match(page, /Reefer working/);
     assert.match(src, /COMPETITOR CHECK ON A LIVE CALL/);
     assert.match(page, /data-job="live">Call</);
     assert.match(page, /data-job="email">Email templates</);

@@ -100,7 +100,7 @@ export function pageHtml(): string {
   <header>
     <div>
       <div class="brand">CBSS Desk</div>
-      <div class="sub" id="stamp">build 7</div>
+      <div class="sub" id="stamp">build 8</div>
     </div>
     <div class="right">
       <div class="who hide" id="who"></div>
@@ -179,6 +179,8 @@ export function pageHtml(): string {
             <button type="button" class="pick on" data-pick="config" data-val="Standard">Standard</button>
             <button type="button" class="pick" data-pick="config" data-val="Double door">Double door</button>
             <button type="button" class="pick" data-pick="config" data-val="Side door">Side door</button>
+            <button type="button" class="pick" data-pick="config" data-val="Reefer working">Reefer working</button>
+            <button type="button" class="pick" data-pick="config" data-val="Reefer non-working">Reefer non-working</button>
           </div>
         </div>
         <div class="comp-bar">

@@ -38,7 +38,13 @@ type CoreCode =
   | "40HCMT"
   | "40HC1TRIP"
   | "40HCDD1TRIP"
-  | "40HCSD1TRIP";
+  | "40HCSD1TRIP"
+  | "20STRFW"
+  | "20STRFNW"
+  | "40STRFW"
+  | "40STRFNW"
+  | "40HCRFW"
+  | "40HCRFNW";
 
 const CORE: Record<CoreCode, { size: string; grade: string; config: string; order: number }> = {
   "20STWWT": { size: "20STD", grade: "WWT", config: "Standard", order: 10 },
@@ -48,10 +54,14 @@ const CORE: Record<CoreCode, { size: string; grade: string; config: string; orde
   "20ST1TRIP": { size: "20STD", grade: "One-Trip", config: "Standard", order: 14 },
   "20STDD1TRIP": { size: "20STD", grade: "One-Trip", config: "Double door", order: 15 },
   "20STSD1TRIP": { size: "20STD", grade: "One-Trip", config: "Side door", order: 16 },
+  "20STRFW": { size: "20STD", grade: "Reefer", config: "Reefer working", order: 17 },
+  "20STRFNW": { size: "20STD", grade: "Reefer", config: "Reefer non-working", order: 18 },
   "40STWWT": { size: "40STD", grade: "WWT", config: "Standard", order: 20 },
   "40STCW": { size: "40STD", grade: "CW", config: "Standard", order: 21 },
   "40STUSED": { size: "40STD", grade: "Economy", config: "Standard", order: 22 },
   "40ST1TRIP": { size: "40STD", grade: "One-Trip", config: "Standard", order: 23 },
+  "40STRFW": { size: "40STD", grade: "Reefer", config: "Reefer working", order: 24 },
+  "40STRFNW": { size: "40STD", grade: "Reefer", config: "Reefer non-working", order: 25 },
   "40HCWWT": { size: "40HC", grade: "WWT", config: "Standard", order: 30 },
   "40HCCW": { size: "40HC", grade: "CW", config: "Standard", order: 31 },
   "40HCUSED": { size: "40HC", grade: "Economy", config: "Standard", order: 32 },
@@ -59,6 +69,8 @@ const CORE: Record<CoreCode, { size: string; grade: string; config: string; orde
   "40HC1TRIP": { size: "40HC", grade: "One-Trip", config: "Standard", order: 34 },
   "40HCDD1TRIP": { size: "40HC", grade: "One-Trip", config: "Double door", order: 35 },
   "40HCSD1TRIP": { size: "40HC", grade: "One-Trip", config: "Side door", order: 36 },
+  "40HCRFW": { size: "40HC", grade: "Reefer", config: "Reefer working", order: 37 },
+  "40HCRFNW": { size: "40HC", grade: "Reefer", config: "Reefer non-working", order: 38 },
 };
 
 const CORE_CODES = Object.keys(CORE) as CoreCode[];
@@ -118,14 +130,21 @@ export function parseCompetitorPick(text: string): Partial<CompetitorPick> {
   else if (/\b(?:cargo\s*worthy|\bcw\b)/i.test(src)) pick.grade = "CW";
   if (/\bdouble\s*door\b/i.test(src)) pick.config = "Double door";
   else if (/\bside\s*door\b/i.test(src)) pick.config = "Side door";
-  else if (pick.size && pick.grade) pick.config = "Standard";
+  else if (/\breefer\b/i.test(src)) {
+    pick.grade = "Reefer";
+    pick.config = /\bnon[-\s]?working\b|\bnw\b/i.test(src) ? "Reefer non-working" : "Reefer working";
+  } else if (pick.size && pick.grade) pick.config = "Standard";
   return pick;
+}
+
+export function isReeferConfig(config: string): boolean {
+  return /^Reefer /i.test(String(config || ""));
 }
 
 export function completePick(raw: Partial<CompetitorPick> | null | undefined): CompetitorPick | null {
   const size = String(raw?.size || "").trim();
-  const grade = String(raw?.grade || "").trim();
   const config = String(raw?.config || "").trim() || "Standard";
+  const grade = isReeferConfig(config) ? "Reefer" : String(raw?.grade || "").trim();
   if (!size || !grade) return null;
   return { size, grade, config };
 }
@@ -157,7 +176,7 @@ export function detectCompetitorPull(
 
 export function coreCodeFromTitle(title: string, handle = ""): CoreCode | "" {
   const blob = `${title} ${handle}`.toUpperCase().replace(/[^A-Z0-9]/g, "");
-  if (/BLUE/.test(blob) || /RFW/.test(blob) || /RFNW/.test(blob)) return "";
+  if (/BLUE/.test(blob)) return "";
   const hits = CORE_CODES.filter((code) => blob.includes(code));
   if (!hits.length) return "";
   hits.sort((a, b) => b.length - a.length);
@@ -229,14 +248,21 @@ export function parseContainerOne(raw: unknown, zip: string, now = new Date()): 
 }
 
 export function applyCompetitorPick(pull: CompetitorPull, pick: CompetitorPick): CompetitorPull {
-  const lines = pull.lines.filter(
-    (line) => line.size === pick.size && line.grade === pick.grade && line.config === pick.config,
-  );
+  const lines = pull.lines.filter((line) => {
+    if (line.size !== pick.size) return false;
+    if (isReeferConfig(pick.config)) return line.config === pick.config;
+    return line.grade === pick.grade && line.config === pick.config;
+  });
   return { ...pull, lines };
 }
 
+function boxLabel(size: string, grade: string, config: string): string {
+  if (isReeferConfig(config)) return `${size} · ${config}`;
+  return `${size} ${grade} · ${config}`;
+}
+
 export function missingCombo(zip: string, pick: CompetitorPick): string {
-  return `Container One did not post a ${pick.size} ${pick.grade} · ${pick.config} for ZIP ${zip}. Try another grade or configuration, or check containerone.net. Do not invent a number.`;
+  return `Container One did not post a ${boxLabel(pick.size, pick.grade, pick.config)} for ZIP ${zip}. Try another grade or configuration, or check containerone.net. Do not invent a number.`;
 }
 
 export function formatCompetitorCard(pull: CompetitorPull): string {
@@ -246,7 +272,7 @@ export function formatCompetitorCard(pull: CompetitorPull): string {
     const depot = line.depot || "depot not posted";
     const miles = line.miles == null ? "" : ` · ${line.miles} mi`;
     const pickup = line.pickup >= 50 ? `  pickup ${money(line.pickup)}` : "";
-    return `${line.size} ${line.grade} · ${line.config}  ${money(line.delivered)} delivered  ${depot}${miles}${pickup}`;
+    return `${boxLabel(line.size, line.grade, line.config)}  ${money(line.delivered)} delivered  ${depot}${miles}${pickup}`;
   });
   return [
     "CONTAINER ONE — posted live (not a CBSS price)",
