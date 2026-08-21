@@ -5,6 +5,7 @@ import {
   DEFAULT_ADMIN_CLEANUP_CODE,
   adminCleanupCodeOk,
   applyContactCleanup,
+  applyContactCleanups,
   contactById,
   fillKeeperFromDuplicate,
   cleanupAuditNote,
@@ -127,6 +128,48 @@ test("cleanupContact is a known CRM action, not a complete", () => {
     code: "x"
   });
   assert.equal(resolved.action, "cleanupContact");
+});
+
+test("cleanupContacts folds several extras into one keeper", () => {
+  const extra = {
+    id: 303,
+    name: "Dup Probe Two",
+    email: "",
+    phone: "",
+    city: "",
+    owner: "James"
+  };
+  const state = baseState();
+  state.contactsAdded = [keep, source, extra];
+  state.notes[303] = [{ author: "James", text: "second copy", timestamp: "2026-08-20 10:00" }];
+  const result = applyContactCleanups(state, [], {
+    keepId: 101,
+    sourceIds: [202, 303, 101, ""],
+    author: "Christopher Banks",
+    timestamp: "2026-08-21 10:00"
+  });
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.sourceIds, ["202", "303"]);
+  assert.equal(result.state.contactEdits["202"].folded, true);
+  assert.equal(result.state.contactEdits["202"].owner, "");
+  assert.equal(result.state.contactEdits["303"].folded, true);
+  assert.equal(result.state.contactEdits["303"].owner, "");
+  assert.equal(result.state.contactEdits["101"].owner, "Christopher Banks");
+  assert.equal(result.state.notes["101"].some((n) => n.text === "left voicemail"), true);
+  assert.equal(result.state.notes["101"].some((n) => n.text === "second copy"), true);
+  assert.equal(result.state.followups["101"].nextAction, "Call about 40ft");
+  assert.equal(applyContactCleanups(baseState(), [], { keepId: 101, sourceIds: [101] }).ok, false);
+});
+
+test("cleanupContacts is a known CRM action, not a complete", () => {
+  const resolved = resolveCrmAction("POST", "cleanupContacts", {
+    action: "cleanupContacts",
+    keepId: "101",
+    sourceIds: ["202", "303"],
+    contactId: "202",
+    code: "x"
+  });
+  assert.equal(resolved.action, "cleanupContacts");
 });
 
 test("folded copies leave the assigned owner and stay folded after later edits", () => {

@@ -44,7 +44,12 @@ test("tasks tab exposes a Complete button and completeTask handler", () => {
   assert.match(html, /Schedule another follow-up/);
   assert.match(html, /function offerNextFollowup\(/);
   assert.match(html, /function showNextFollowupPrompt\(/);
-  assert.match(html, /build 11/);
+  assert.match(html, /build 12/);
+  assert.match(html, /id="bulkCleanupBar"/);
+  assert.match(html, /function submitBulkCleanup\(/);
+  assert.match(html, /data-cleanup-pick=/);
+  assert.match(html, /Remove extras/);
+  assert.match(html, /apiSave\('cleanupContacts'/);
   assert.match(html, /Meta leads/);
   assert.match(html, /function connectMetaPage\(/);
   assert.match(html, /function importMetaLeads\(/);
@@ -63,9 +68,10 @@ test("worker still serves the CRM data routes used by the desk", async () => {
   const wrangler = readFileSync(new URL("../wrangler.jsonc", import.meta.url), "utf8");
   assert.match(wrangler, /"enabled": false/);
   assert.match(worker, /action === "completeFollowup"/);
-  assert.match(worker, /crmBuild: 11/);
-  assert.match(worker, /x-crm-build", "11"/);
+  assert.match(worker, /crmBuild: 12/);
+  assert.match(worker, /x-crm-build", "12"/);
   assert.match(worker, /action === "cleanupContact"/);
+  assert.match(worker, /action === "cleanupContacts"/);
   assert.match(worker, /Only Christopher can clean up contacts/);
   assert.doesNotMatch(html, /DEFAULT_ADMIN_CLEANUP_CODE/);
   assert.doesNotMatch(html, /2621/);

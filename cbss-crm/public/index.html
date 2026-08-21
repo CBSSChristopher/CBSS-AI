@@ -255,6 +255,23 @@
     .netlify-identity-signup { display: none !important; }
     input[type="checkbox"] { width: auto; margin-right: 8px; }
     input[type="number"] { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; font-family: inherit; }
+    .bulk-cleanup {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+      padding: 8px 12px; background: #fff8ef; border-bottom: 1px solid #f0d2a8;
+      font-size: 0.82rem; color: #9a3412;
+    }
+    .bulk-cleanup input[type="password"] {
+      width: 140px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.82rem;
+    }
+    .cleanup-col { width: 88px; white-space: nowrap; }
+    #contactTable:not(.cleanup-on) .cleanup-col { display: none; }
+    .cleanup-pick { display: flex; align-items: center; gap: 4px; }
+    .cleanup-pick input { margin: 0; }
+    .keep-btn {
+      border: 1px solid var(--border); background: #fff; color: var(--primary);
+      border-radius: 6px; padding: 2px 6px; font-size: 0.7rem; font-weight: 700; cursor: pointer; font-family: inherit;
+    }
+    .keep-btn.on { background: var(--navy); color: #fff; border-color: var(--navy); }
     .admin-cleanup {
       margin-top: 8px; padding: 12px; border: 1px dashed #b45309; border-radius: 8px; background: #fff8ef;
     }
@@ -296,7 +313,7 @@
         <span class="mark">CB</span>
         <div>
           <h1>CBShippingSolutions</h1>
-          <p>Container Sales CRM · build 11</p>
+          <p>Container Sales CRM · build 12</p>
         </div>
       </div>
       <div class="user">
@@ -351,10 +368,19 @@
           </label>
           <button type="button" class="btn btn-primary" id="addContactBtn" style="margin-left:auto;" onclick="showAddContact()">+ Add Contact</button>
         </div>
+        <div id="bulkCleanupBar" class="bulk-cleanup hidden">
+          <strong id="bulkCleanupCount">0 selected</strong>
+          <span>Check the extras, mark Keep on the one that stays, then remove the extras. Same fold as Edit Contact.</span>
+          <input type="password" id="bulkCleanupCode" autocomplete="off" placeholder="Admin code" />
+          <button type="button" class="btn btn-primary" onclick="submitBulkCleanup()">Remove extras</button>
+          <button type="button" class="btn btn-secondary" onclick="clearCleanupPicks()">Clear</button>
+          <span id="bulkCleanupMsg"></span>
+        </div>
         <div class="table-wrap">
           <table class="data-table" id="contactTable">
             <thead>
               <tr>
+                <th class="cleanup-col">Pick</th>
                 <th>Name</th>
                 <th>Company</th>
                 <th>Phone</th>
@@ -488,6 +514,8 @@
   <script>
     let contacts = [];
     let selectedId = null;
+    let cleanupPicked = {};
+    let cleanupKeepId = '';
     let currentUser = null;
     let deals = [];
     let followupsMap = {};
@@ -754,6 +782,85 @@
       return archiveRequests[id] || archiveRequests[String(id)] || null;
     }
 
+    function cleanupPickIds() {
+      return Object.keys(cleanupPicked).filter(function(id) { return cleanupPicked[id]; });
+    }
+
+    function syncCleanupUi() {
+      const table = document.getElementById('contactTable');
+      const bar = document.getElementById('bulkCleanupBar');
+      const show = isChristopher();
+      if (table) table.classList.toggle('cleanup-on', show);
+      if (bar) bar.classList.toggle('hidden', !show);
+      const ids = cleanupPickIds();
+      if (cleanupKeepId && ids.indexOf(String(cleanupKeepId)) < 0) cleanupKeepId = '';
+      const count = document.getElementById('bulkCleanupCount');
+      if (count) count.textContent = ids.length + ' selected';
+    }
+
+    function toggleCleanupPick(id, ev) {
+      if (ev) ev.stopPropagation();
+      id = String(id || '');
+      if (!id || !isChristopher()) return;
+      if (cleanupPicked[id]) delete cleanupPicked[id];
+      else cleanupPicked[id] = true;
+      if (cleanupKeepId && !cleanupPicked[cleanupKeepId]) cleanupKeepId = '';
+      if (!cleanupKeepId && cleanupPickIds().length === 1) cleanupKeepId = cleanupPickIds()[0];
+      syncCleanupUi();
+    }
+
+    function markCleanupKeeper(id, ev) {
+      if (ev) ev.stopPropagation();
+      id = String(id || '');
+      if (!id || !isChristopher()) return;
+      cleanupPicked[id] = true;
+      cleanupKeepId = id;
+      syncCleanupUi();
+      filterContacts();
+    }
+
+    function clearCleanupPicks() {
+      cleanupPicked = {};
+      cleanupKeepId = '';
+      const code = document.getElementById('bulkCleanupCode');
+      const msg = document.getElementById('bulkCleanupMsg');
+      if (code) code.value = '';
+      if (msg) msg.textContent = '';
+      syncCleanupUi();
+      filterContacts();
+    }
+
+    async function submitBulkCleanup() {
+      const msg = document.getElementById('bulkCleanupMsg');
+      const setMsg = function(text) { if (msg) msg.textContent = text || ''; };
+      if (!isChristopher()) {
+        setMsg('Only Christopher can clean up contacts.');
+        return;
+      }
+      const ids = cleanupPickIds();
+      const keepId = String(cleanupKeepId || '').trim();
+      const extras = ids.filter(function(id) { return id !== keepId; });
+      const code = String((document.getElementById('bulkCleanupCode') || {}).value || '').trim();
+      if (!keepId || extras.length < 1) {
+        setMsg('Check the extras and mark Keep on the contact that stays.');
+        return;
+      }
+      if (!code) {
+        setMsg('Enter the admin approval code to submit.');
+        return;
+      }
+      setMsg('Removing extras…');
+      const res = await apiSave('cleanupContacts', { keepId: keepId, sourceIds: extras, code: code });
+      if (!res || res.ok === false) {
+        setMsg((res && res.error) || 'Cleanup did not save.');
+        return;
+      }
+      clearCleanupPicks();
+      try { await loadData(); } catch (e) { console.warn(e); }
+      if (res.keepId) selectContact(res.keepId);
+      alert('Extras folded into the keeper and taken off the assigned list.');
+    }
+
     function isFoldedContact(c) {
       if (!c) return false;
       if (c.folded === true || c.mergedAway === true) return true;
@@ -796,6 +903,7 @@
       }
       const metaBtn = document.getElementById('metaNav');
       if (metaBtn) metaBtn.classList.toggle('hidden', !isChristopher());
+      syncCleanupUi();
     }
 
     function fmtWhen(iso) {
@@ -1398,13 +1506,22 @@
       const tbody = document.getElementById('contactList');
       const meta = document.getElementById('contactListMeta');
       if (!filtered.length) {
-        tbody.innerHTML = '<tr class="empty-row"><td colspan="7">No contacts match. Switch to All to see the company book, or search the archive.</td></tr>';
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="8">No contacts match. Switch to All to see the company book, or search the archive.</td></tr>';
       } else {
         const show = filtered.slice(0, 200);
         tbody.innerHTML = show.map(c => {
           const amt = displayDealAmount(contactAmountRaw(c)) || '—';
           const stage = contactStage(c);
-          return `<tr class="contact-row ${String(c.id) === String(selectedId) ? 'selected' : ''}" data-id="${esc(String(c.id))}" onclick="selectContact(this.getAttribute('data-id'))">
+          const cid = String(c.id);
+          const picked = !!cleanupPicked[cid];
+          const isKeep = String(cleanupKeepId) === cid;
+          return `<tr class="contact-row ${cid === String(selectedId) ? 'selected' : ''}" data-id="${esc(cid)}" onclick="selectContact(this.getAttribute('data-id'))">
+            <td class="cleanup-col" onclick="event.stopPropagation()">
+              <div class="cleanup-pick">
+                <input type="checkbox" data-cleanup-pick="${esc(cid)}" ${picked ? 'checked' : ''} onclick="toggleCleanupPick(this.getAttribute('data-cleanup-pick'), event)" />
+                <button type="button" class="keep-btn ${isKeep ? 'on' : ''}" data-cleanup-keep="${esc(cid)}" onclick="markCleanupKeeper(this.getAttribute('data-cleanup-keep'), event)">Keep</button>
+              </div>
+            </td>
             <td class="name-cell">${esc(c.name) || '(No name)'}${isDncContact(c) ? ' <span class="badge badge-dnc">DNC</span>' : ''}${archiveBadgeHtml(c)}</td>
             <td>${esc(c.company) || '—'}</td>
             <td class="nowrap">${googleVoicePhoneLink(c.phone)}</td>
@@ -1422,6 +1539,7 @@
         else if (!q) msg += 'Working deals only. Search to find archive contacts.';
         meta.textContent = msg;
       }
+      syncCleanupUi();
     }
 
     function selectContact(id) {

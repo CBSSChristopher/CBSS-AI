@@ -239,3 +239,30 @@ export function applyContactCleanup(state, archive, input) {
     }
   };
 }
+
+export function applyContactCleanups(state, archive, input) {
+  const keepId = String(input && input.keepId || "").trim();
+  const raw = Array.isArray(input && input.sourceIds) ? input.sourceIds : [];
+  const sourceIds = [];
+  const seen = new Set();
+  for (const id of raw) {
+    const next = String(id == null ? "" : id).trim();
+    if (!next || next === keepId || seen.has(next)) continue;
+    seen.add(next);
+    sourceIds.push(next);
+  }
+  if (!keepId) return { ok: false, error: "Pick the contact to keep." };
+  if (!sourceIds.length) return { ok: false, error: "Pick at least one extra contact to remove." };
+  let current = state;
+  for (const sourceId of sourceIds) {
+    const result = applyContactCleanup(current, archive, {
+      sourceId,
+      keepId,
+      author: input && input.author,
+      timestamp: input && input.timestamp
+    });
+    if (!result.ok) return result;
+    current = Object.assign({}, current, result.state);
+  }
+  return { ok: true, keepId, sourceIds, state: current };
+}
