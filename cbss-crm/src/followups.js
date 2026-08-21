@@ -65,6 +65,7 @@ const KNOWN_CRM_ACTIONS = new Set([
   "saveArchiveRequests",
   "saveDeals",
   "saveNotes",
+  "appendNote",
   "saveContactsAdded",
   "saveContactEdits",
   "saveProposals",
@@ -192,16 +193,41 @@ export function applyCompleteFollowupState(state, contactId, actionText, author,
   };
 }
 
+export function noteIdentity(note) {
+  if (!note || typeof note !== "object") return "";
+  return String(note.timestamp || "") + "|" + String(note.text || "");
+}
+
+export function mergeNoteLists(existing, incoming) {
+  const out = [];
+  const seen = new Set();
+  const push = (list) => {
+    if (!Array.isArray(list)) return;
+    for (const note of list) {
+      if (!note || typeof note !== "object") continue;
+      const key = noteIdentity(note);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      out.push(note);
+    }
+  };
+  push(incoming);
+  push(existing);
+  return out;
+}
+
 export function mergeNotesMap(existing, incoming) {
   const out = {};
   if (existing && typeof existing === "object" && !Array.isArray(existing)) {
     for (const [key, value] of Object.entries(existing)) {
-      if (Array.isArray(value)) out[String(key)] = value;
+      if (Array.isArray(value)) out[String(key)] = value.slice();
     }
   }
   if (incoming && typeof incoming === "object" && !Array.isArray(incoming)) {
     for (const [key, value] of Object.entries(incoming)) {
-      if (Array.isArray(value)) out[String(key)] = value;
+      if (!Array.isArray(value)) continue;
+      const id = String(key);
+      out[id] = mergeNoteLists(out[id], value);
     }
   }
   return out;

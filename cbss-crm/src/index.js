@@ -1,4 +1,4 @@
-import { applyCompleteFollowupState, applyFollowupPatch, completedActionText, mergeNotesMap, resolveCrmAction } from "./followups.js";
+import { applyCompleteFollowupState, applyFollowupPatch, completedActionText, mergeNoteOntoContact, mergeNotesMap, resolveCrmAction } from "./followups.js";
 import { adminCleanupCodeOk, applyContactCleanup, applyContactCleanups, preserveFoldedFlags } from "./cleanup.js";
 import {
   META_CONFIG_KEY,
@@ -452,7 +452,7 @@ async function serveAssets(request, env) {
     headers.set("CDN-Cache-Control", "no-store");
     headers.set("Cloudflare-CDN-Cache-Control", "no-store");
     headers.set("Pragma", "no-cache");
-    headers.set("x-crm-build", "14");
+    headers.set("x-crm-build", "15");
     return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
   }
   return res;
@@ -841,6 +841,25 @@ function applyEdits(contacts, edits) {
   });
 }
 __name(applyEdits, "applyEdits");
+function attachStoredNotes(contacts, notes) {
+  if (!Array.isArray(contacts) || !notes || typeof notes !== "object") return;
+  contacts.forEach((c) => {
+    if (!c || c.id == null) return;
+    const extra = notes[c.id] || notes[String(c.id)];
+    if (!Array.isArray(extra) || !extra.length) return;
+    const have = Array.isArray(c.notes) ? c.notes : [];
+    const seen = new Set(have.map((n) => String((n && n.timestamp) || "") + "|" + String((n && n.text) || "")));
+    const merged = have.slice();
+    extra.forEach((n) => {
+      const key = String((n && n.timestamp) || "") + "|" + String((n && n.text) || "");
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      merged.push(n);
+    });
+    c.notes = merged;
+  });
+}
+__name(attachStoredNotes, "attachStoredNotes");
 function ingestOne(state, archive, payload, source) {
   const email = payload.email || payload.contactEmail || "";
   const phone = payload.phone || payload.contactPhone || "";
@@ -999,7 +1018,36 @@ async function handleCrmData(request, env) {
     const store = openStore(env);
     if (action === "getNotes") {
       const notes = await store.get("notes", { type: "json" });
-      return jsonResponse(request, 200, { notes: notes && typeof notes === "object" ? notes : {} });
+      const map = notes && typeof notes === "object" ? notes : {};
+      const contactId = String(body.contactId || url.searchParams.get("contactId") || "").trim();
+      if (contactId) {
+        const list = Array.isArray(map[contactId]) ? map[contactId] : Array.isArray(map[Number(contactId)]) ? map[Number(contactId)] : [];
+        return jsonResponse(request, 200, { notes: { [contactId]: list }, contactId });
+      }
+      return jsonResponse(request, 200, { notes: map });
+    }
+    if (action === "appendNote") {
+      const contactId = String(body.contactId || body.id || "").trim();
+      const incoming = body.note && typeof body.note === "object" ? body.note : body;
+      const text = String(incoming.text || incoming.note || "").trim();
+      if (!contactId) return jsonResponse(request, 400, { error: "contactId required" });
+      if (!text) return jsonResponse(request, 400, { error: "note text required" });
+      const notes = await store.get("notes", { type: "json" });
+      const note = {
+        author: String(incoming.author || (user && (user.name || user.email)) || "Desk"),
+        timestamp: String(incoming.timestamp || nowStamp()),
+        tag: String(incoming.tag || "Desk"),
+        text
+      };
+      const next = mergeNoteOntoContact(notes, contactId, note);
+      await store.setJSON("notes", next);
+      return jsonResponse(request, 200, {
+        ok: true,
+        crmBuild: 15,
+        contactId,
+        note,
+        notes: next[contactId] || next[String(contactId)] || []
+      });
     }
     if (action === "completeFollowup") {
       const contactId = String(body.contactId || body.id || "").trim();
@@ -1028,7 +1076,7 @@ async function handleCrmData(request, env) {
       ]);
       return jsonResponse(request, 200, {
         ok: true,
-        crmBuild: 14,
+        crmBuild: 15,
         contactId,
         completed: true,
         completedTasks: next.completedTasks[contactId] || []
@@ -1046,9 +1094,11 @@ async function handleCrmData(request, env) {
       applyApprovedArchives(state);
       applyEdits(archive, state.contactEdits);
       applyEdits(state.contactsAdded, state.contactEdits);
+      attachStoredNotes(archive, state.notes);
+      attachStoredNotes(state.contactsAdded, state.notes);
       const omitNotes = url.searchParams.get("omitNotes") === "1" || body.omitNotes === true || body.omitNotes === "1";
       const payload = {
-        crmBuild: 14,
+        crmBuild: 15,
         deals: state.deals,
         followups: state.followups,
         contactsAdded: state.contactsAdded,
@@ -1739,7 +1789,7 @@ var index_default = {
     const path = normalizePath(url.pathname);
     if (path === "/__bust" && ctx && ctx.cache && typeof ctx.cache.purge === "function") {
       try { await ctx.cache.purge({ purgeEverything: true }); } catch (_) {}
-      return new Response("ok", { status: 200, headers: { "Cache-Control": "private, no-store", "x-crm-build": "14" } });
+      return new Response("ok", { status: 200, headers: { "Cache-Control": "private, no-store", "x-crm-build": "15" } });
     }
     if (path === "/auth/login") return handleLogin(request, env);
     if (path === "/auth/me") return handleMe(request, env);
