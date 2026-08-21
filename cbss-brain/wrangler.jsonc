@@ -17,6 +17,6 @@
     { "binding": "CRM", "service": "cbsscrm" }
   ],
   "vars": {
-    "PUBLIC_TITLE": "CBSS Brain"
+    "PUBLIC_TITLE": "CBSS Desk"
   }
 }

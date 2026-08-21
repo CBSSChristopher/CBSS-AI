@@ -94,8 +94,8 @@ describe("Live call CRM + CTE", () => {
   });
 
   it("lets a rep search their book and writes the CRM from Live call", () => {
-    assert.match(page, /Live call/);
-    assert.match(page, /Summarize &amp; save to CRM/);
+    assert.match(page, />Call</);
+    assert.match(page, /Save to CRM/);
     assert.match(page, /Still in CTE/);
     assert.match(page, /Past CTE/);
     assert.match(index, /path === "\/contacts"/);
