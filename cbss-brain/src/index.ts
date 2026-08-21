@@ -270,7 +270,7 @@ export default {
           text: safeNote,
         };
         const notes = appendNoteToMap(book.notes, contactId, entry);
-        await crmSaveNotes(env, user.crm, notes);
+        await crmSaveNotes(env, user.crm, notes, book.notes);
         const followups = mergeFollowupMap(book.followups, contactId, {
           nextAction: schedule.nextAction,
           followUpDate: schedule.followUpDate,
@@ -351,7 +351,7 @@ export default {
           }),
         };
         const notes = appendNoteToMap(book.notes, String(contact.id), note);
-        await crmSaveNotes(env, user.crm, notes);
+        await crmSaveNotes(env, user.crm, notes, book.notes);
         if (plan.nextAction) {
           await crmSaveFollowups(
             env,
@@ -470,7 +470,7 @@ export default {
           results.push({ from, name: String(contact.name || ""), kind });
         }
         if (matched) {
-          await crmSaveNotes(env, user.crm, notes);
+          await crmSaveNotes(env, user.crm, notes, book.notes);
           await crmSaveFollowups(env, user.crm, followups);
           await crmSaveDeals(env, user.crm, deals);
           await crmSaveContactEdits(env, user.crm, edits);

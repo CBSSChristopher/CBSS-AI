@@ -90,7 +90,24 @@ describe("Live call CRM + CTE", () => {
     assert.equal(next["1787085799283"][0].text, "Gary note");
     assert.equal(next["99"][0].text, "Live call");
     assert.match(crmSrc, /PROTECTED_NOTE_KEY = "2621"/);
+    assert.match(crmSrc, /notesSafeToSave/);
     assert.match(crmSrc, /Refusing to write notes: protected note key is missing/);
+    assert.match(index, /crmSaveNotes\(env, user\.crm, notes, book\.notes\)/);
+  });
+
+  it("still writes when CRM already lost the protected note key", () => {
+    function notesSafeToSave(previous, next) {
+      if (!previous["2621"]) return true;
+      return Boolean(next["2621"]);
+    }
+    const kept = appendNoteToMap(
+      { 2621: [{ author: "Christopher Banks", timestamp: "2026-08-17 17:24", tag: "", text: "Already purchased via RTO MCR" }] },
+      "99",
+      { author: "Desk", timestamp: "2026-08-21 01:00", tag: "Desk", text: "Live call" },
+    );
+    assert.equal(notesSafeToSave({ 2621: kept["2621"] }, kept), true);
+    assert.equal(notesSafeToSave({ 2621: kept["2621"] }, { 99: kept["99"] }), false);
+    assert.equal(notesSafeToSave({}, { 99: [{ author: "Desk", timestamp: "2026-08-21 01:00", tag: "Desk", text: "Live call" }] }), true);
   });
 
   it("lets a rep search their book and writes the CRM from Live call", () => {

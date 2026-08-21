@@ -289,8 +289,21 @@ async function crmSave(env: Env, token: string, action: string, payload: Record<
   }
 }
 
-export async function crmSaveNotes(env: Env, token: string, notes: Record<string, CrmNote[]>): Promise<void> {
-  if (!notes[PROTECTED_NOTE_KEY]) {
+export function notesSafeToSave(
+  previous: Record<string, CrmNote[]>,
+  next: Record<string, CrmNote[]>,
+): boolean {
+  if (!previous[PROTECTED_NOTE_KEY]) return true;
+  return Boolean(next[PROTECTED_NOTE_KEY]);
+}
+
+export async function crmSaveNotes(
+  env: Env,
+  token: string,
+  notes: Record<string, CrmNote[]>,
+  previous?: Record<string, CrmNote[]>,
+): Promise<void> {
+  if (previous ? !notesSafeToSave(previous, notes) : !notes[PROTECTED_NOTE_KEY]) {
     throw new Error("Refusing to write notes: protected note key is missing");
   }
   await crmSave(env, token, "saveNotes", { notes });
