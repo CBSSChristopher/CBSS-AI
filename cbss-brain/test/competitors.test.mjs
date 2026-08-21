@@ -108,6 +108,7 @@ function formatCompetitorCard(pull) {
 
 describe("Container One live pull", () => {
   it("uses their public ZIP widget only and labels the numbers as theirs", () => {
+    assert.match(src, /container-one\.myshopify\.com\/apps\/migraton\/controller\.php/);
     assert.match(src, /containerone\.net\/apps\/migraton\/controller\.php/);
     assert.match(src, /both_google_location_high_charges_pricing_zipcode_for_product/);
     assert.match(src, /not a CBSS price/);

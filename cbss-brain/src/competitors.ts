@@ -1,4 +1,7 @@
-const C1_URL = "https://containerone.net/apps/migraton/controller.php";
+const C1_URLS = [
+  "https://container-one.myshopify.com/apps/migraton/controller.php",
+  "https://containerone.net/apps/migraton/controller.php",
+];
 const C1_SHOP = "container-one.myshopify.com";
 const C1_ACTION = "both_google_location_high_charges_pricing_zipcode_for_product";
 const CACHE_MS = 10 * 60 * 1000;
@@ -198,15 +201,6 @@ export function competitorAmounts(pull: CompetitorPull): string {
     .join(" ");
 }
 
-async function readJson(res: Response): Promise<unknown> {
-  const text = await res.text();
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
-}
-
 export async function pullContainerOne(
   zipRaw: string,
   fetchImpl: typeof fetch = fetch,
@@ -233,31 +227,54 @@ export async function pullContainerOne(
   const timer = setTimeout(() => ctrl.abort(), FETCH_MS);
   lastPullAt = Date.now();
   try {
-    const res = await fetchImpl(C1_URL, {
-      method: "POST",
-      headers: {
-        Accept: "*/*",
-        Origin: "https://containerone.net",
-        Referer: "https://containerone.net/products/40ft-standard-wind-water-tight-shipping-container-40stwwt",
-        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-      },
-      body,
-      signal: ctrl.signal,
-    });
-    if (!res.ok) return { ok: false, error: PULL_FAILED };
-    const parsed = parseContainerOne(await readJson(res), zip);
-    if (!parsed) {
-      return {
-        ok: false,
-        error:
-          "Container One did not post a delivered price for that ZIP. Their page may want a custom quote. Open containerone.net and check, or text Christopher at 870-323-2593.",
-      };
+    let lastStatus = 0;
+    for (const url of C1_URLS) {
+      const res = await fetchImpl(url, {
+        method: "POST",
+        redirect: "manual",
+        headers: {
+          Accept: "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        },
+        body: body.toString(),
+        signal: ctrl.signal,
+      });
+      lastStatus = res.status;
+      if (res.status >= 300 && res.status < 400) {
+        console.error("c1_pull_redirect", url, res.status);
+        continue;
+      }
+      const rawText = await res.text();
+      if (!res.ok) {
+        console.error("c1_pull_http", url, res.status, rawText.slice(0, 160));
+        continue;
+      }
+      let payload: unknown = null;
+      try {
+        payload = JSON.parse(rawText);
+      } catch {
+        console.error("c1_pull_not_json", url, res.status, rawText.slice(0, 160));
+        continue;
+      }
+      const parsed = parseContainerOne(payload, zip);
+      if (!parsed) {
+        console.error("c1_pull_empty", zip, url);
+        return {
+          ok: false,
+          error:
+            "Container One did not post a delivered price for that ZIP. Their page may want a custom quote. Open containerone.net and check, or text Christopher at 870-323-2593.",
+        };
+      }
+      cache.set(zip, { at: Date.now(), pull: parsed });
+      return { ok: true, pull: parsed, card: formatCompetitorCard(parsed) };
     }
-    cache.set(zip, { at: Date.now(), pull: parsed });
-    return { ok: true, pull: parsed, card: formatCompetitorCard(parsed) };
-  } catch {
+    console.error("c1_pull_exhausted", lastStatus);
+    return { ok: false, error: PULL_FAILED };
+  } catch (err) {
+    console.error("c1_pull_error", err instanceof Error ? err.message : "unknown");
     return { ok: false, error: PULL_FAILED };
   } finally {
     clearTimeout(timer);
