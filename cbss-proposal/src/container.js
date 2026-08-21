@@ -15,6 +15,8 @@ export const CONFIGS = [
   { value: "standard", label: "Standard" },
   { value: "tri-door", label: "Tri-door" },
   { value: "double-door", label: "Double door" },
+  { value: "side-os-2d", label: "Side door (OS 2D)" },
+  { value: "side-os-4d", label: "Side door (OS 4D)" },
   { value: "side-door", label: "Side door" },
   { value: "full-open-side", label: "Full open side" },
   { value: "other", label: "Other / specialized" },
@@ -90,15 +92,54 @@ export function parseOfferSpec(raw) {
     height = "HC";
   }
 
-  let config = "standard";
-  if (n.includes("tridoor") || n.includes("3door")) config = "tri-door";
-  else if (n.includes("doubledoor") || n.includes("tunnel")) config = "double-door";
-  else if (n.includes("fullopen") || n.includes("openside") || n.includes("hcos") || /(^|[^a-z])os([^a-z]|$)/.test(n)) config = "full-open-side";
-  else if (n.includes("sidedoor")) config = "side-door";
-  else if (n.includes("reefer") || n.includes("refrigerat")) config = "other";
-  else if (n.includes("specialized") || n.includes("modified") || n.includes("custom")) config = "other";
+  return { size, height, config: parseOfferConfig(raw) };
+}
 
-  return { size, height, config };
+export function parseOfferConfig(raw) {
+  const n = compact(raw);
+  if (!n) return "standard";
+  if (n.includes("tridoor") || n.includes("3door")) return "tri-door";
+  if (n.includes("fullopen") || n.includes("opensidefull") || n.includes("fullopenside")) return "full-open-side";
+  if (n.includes("opentop")) return "other";
+
+  const openSide =
+    n.includes("openside") ||
+    n.includes("sidedoor") ||
+    n.includes("os2d") ||
+    n.includes("os4d") ||
+    n.includes("os2door") ||
+    n.includes("os4door") ||
+    n.includes("hcos") ||
+    /(^|[^a-z])os([^a-z]|$)/.test(n);
+
+  if (openSide) {
+    if (
+      n.includes("os2d") ||
+      n.includes("os2door") ||
+      n.includes("openside2") ||
+      n.includes("sidedoor2") ||
+      n.includes("2doors") ||
+      /(?:os|openside|sidedoor)2d/.test(n)
+    ) {
+      return "side-os-2d";
+    }
+    if (
+      n.includes("os4d") ||
+      n.includes("os4door") ||
+      n.includes("openside4") ||
+      n.includes("sidedoor4") ||
+      n.includes("4doors") ||
+      /(?:os|openside|sidedoor)4d/.test(n)
+    ) {
+      return "side-os-4d";
+    }
+    return "side-door";
+  }
+
+  if (n.includes("doubledoor") || n.includes("tunnel")) return "double-door";
+  if (n.includes("reefer") || n.includes("refrigerat")) return "other";
+  if (n.includes("specialized") || n.includes("modified") || n.includes("custom")) return "other";
+  return "standard";
 }
 
 export function specsCompatible(want, got) {

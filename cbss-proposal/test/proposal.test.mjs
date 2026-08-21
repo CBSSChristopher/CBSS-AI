@@ -49,7 +49,12 @@ describe("Proposal tool picker, depot, and cash price", () => {
     assert.deepEqual(parseOfferSpec("40' Standard"), { size: "40", height: "DC", config: "standard" });
     assert.deepEqual(parseOfferSpec("20ft DC"), { size: "20", height: "DC", config: "standard" });
     assert.deepEqual(parseOfferSpec("40 HC side door"), { size: "40", height: "HC", config: "side-door" });
-    assert.deepEqual(parseOfferSpec("40HC OS 4D"), { size: "40", height: "HC", config: "full-open-side" });
+    assert.deepEqual(parseOfferSpec("40HC OS 2D"), { size: "40", height: "HC", config: "side-os-2d" });
+    assert.deepEqual(parseOfferSpec("40HC OS 4D"), { size: "40", height: "HC", config: "side-os-4d" });
+    assert.deepEqual(parseOfferSpec("20DC Open Side 2 Doors"), { size: "20", height: "DC", config: "side-os-2d" });
+    assert.deepEqual(parseOfferSpec("40HC Open Side 4 Doors"), { size: "40", height: "HC", config: "side-os-4d" });
+    assert.deepEqual(parseOfferSpec("40HC Open Side Full Open"), { size: "40", height: "HC", config: "full-open-side" });
+    assert.equal(parseOfferSpec("40DC Open Top").config, "other");
     assert.equal(parseOfferSpec("40HC Reefer").config, "other");
     assert.equal(rateSheetSize("40", "standard"), "40ft");
     assert.equal(rateSheetSize("20", "standard"), "20ft");
@@ -171,8 +176,31 @@ describe("Proposal tool picker, depot, and cash price", () => {
     assert.match(page, /id="pullXchangeBtn"/);
     assert.match(page, /Pull xChange/);
     assert.match(page, /pulledAt/);
-    assert.match(page, /build 2/);
+    assert.match(page, /build 3/);
     assert.match(page, /Do not invent/);
+    assert.match(page, /data-val="side-os-2d"/);
+    assert.match(page, /data-val="side-os-4d"/);
+    assert.match(page, /Side door \(OS 2D\)/);
+    assert.match(page, /Side door \(OS 4D\)/);
+    assert.match(page, /OS 2D and OS 4D are side-door units/);
+    assert.doesNotMatch(page, /n\.includes\("openside"\) \|\| n\.includes\("hcos"\)/);
+  });
+
+  it("does not price a full open side from an OS 2D or OS 4D row", () => {
+    const offers = [
+      { size: "40HC Open Side 4 Doors", condition: "New", depot: "Memphis, TN", location: "Memphis, TN", wholesaleCost: 5475, qty: 2 },
+      { size: "40HC Open Side Full Open", condition: "New", depot: "Memphis, TN", location: "Memphis, TN", wholesaleCost: 9175, qty: 5 },
+      { size: "20DC Open Side 2 Doors", condition: "New", depot: "Memphis, TN", location: "Memphis, TN", wholesaleCost: 3770, qty: 10 },
+    ];
+    const city = cityKey("Memphis", "TN");
+    const os4 = pickWholesaleOffer(offers, { size: "40", height: "HC", config: "side-os-4d", grade: "OneTrip", qty: 1, cityKey: city });
+    const full = pickWholesaleOffer(offers, { size: "40", height: "HC", config: "full-open-side", grade: "OneTrip", qty: 1, cityKey: city });
+    const os2 = pickWholesaleOffer(offers, { size: "20", height: "DC", config: "side-os-2d", grade: "OneTrip", qty: 1, cityKey: city });
+    assert.equal(os4.wholesaleCost, 5475);
+    assert.equal(full.wholesaleCost, 9175);
+    assert.equal(os2.wholesaleCost, 3770);
+    assert.equal(pickWholesaleOffer(offers, { size: "40", height: "HC", config: "side-os-2d", grade: "OneTrip", qty: 1, cityKey: city }), null);
+    assert.equal(pickWholesaleOffer(offers, { size: "40", height: "HC", config: "full-open-side", grade: "CW", qty: 1, cityKey: city }), null);
   });
 
   it("maps Saint Louis and Kansas City xChange names onto our hubs", () => {

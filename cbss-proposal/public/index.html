@@ -290,7 +290,7 @@
   <div class="container">
     <header>
       <h1>CBShippingSolutions</h1>
-      <p>Proposal Builder · One depot · Delivered cash · build 2</p>
+      <p>Proposal Builder · One depot · Delivered cash · build 3</p>
     </header>
 
     <form id="proposalForm" onsubmit="submitProposal(event)">
@@ -321,10 +321,12 @@
         <div class="btns">
           <button type="button" class="pick on" data-pick="config" data-val="standard">Standard</button>
           <button type="button" class="pick" data-pick="config" data-val="double-door">Double door</button>
-          <button type="button" class="pick" data-pick="config" data-val="side-door">Side door</button>
+          <button type="button" class="pick" data-pick="config" data-val="side-os-2d">Side door (OS 2D)</button>
+          <button type="button" class="pick" data-pick="config" data-val="side-os-4d">Side door (OS 4D)</button>
           <button type="button" class="pick" data-pick="config" data-val="tri-door">Tri-door</button>
           <button type="button" class="pick" data-pick="config" data-val="full-open-side">Full open side</button>
         </div>
+        <p class="note">OS 2D and OS 4D are side-door units on xChange. Full open side is a different box and usually costs more. Do not mix them.</p>
       </div>
       <div class="row">
         <div>
@@ -354,6 +356,8 @@
         <option value="standard" selected>Standard</option>
         <option value="tri-door">Tri-door</option>
         <option value="double-door">Double door</option>
+        <option value="side-os-2d">Side door (OS 2D)</option>
+        <option value="side-os-4d">Side door (OS 4D)</option>
         <option value="side-door">Side door</option>
         <option value="full-open-side">Full open side</option>
         <option value="other">Other / specialized</option>
@@ -771,14 +775,51 @@
       else if (n.includes("10")) size = "10";
       let height = "DC";
       if (n.includes("highcube") || n.includes("40hc") || n.includes("20hc") || n.includes("45hc") || n.includes("hq") || /(^|[^a-z])hc([^a-z]|$)/.test(n)) height = "HC";
-      let config = "standard";
-      if (n.includes("tridoor") || n.includes("3door")) config = "tri-door";
-      else if (n.includes("doubledoor") || n.includes("tunnel")) config = "double-door";
-      else if (n.includes("fullopen") || n.includes("openside") || n.includes("hcos") || /(^|[^a-z])os([^a-z]|$)/.test(n)) config = "full-open-side";
-      else if (n.includes("sidedoor")) config = "side-door";
-      else if (n.includes("reefer") || n.includes("refrigerat")) config = "other";
-      else if (n.includes("specialized") || n.includes("modified") || n.includes("custom")) config = "other";
-      return { size, height, config };
+      return { size, height, config: parseOfferConfig(raw) };
+    }
+
+    function parseOfferConfig(raw) {
+      const n = compactSpec(raw);
+      if (!n) return "standard";
+      if (n.includes("tridoor") || n.includes("3door")) return "tri-door";
+      if (n.includes("fullopen") || n.includes("opensidefull") || n.includes("fullopenside")) return "full-open-side";
+      if (n.includes("opentop")) return "other";
+      const openSide =
+        n.includes("openside") ||
+        n.includes("sidedoor") ||
+        n.includes("os2d") ||
+        n.includes("os4d") ||
+        n.includes("os2door") ||
+        n.includes("os4door") ||
+        n.includes("hcos") ||
+        /(^|[^a-z])os([^a-z]|$)/.test(n);
+      if (openSide) {
+        if (
+          n.includes("os2d") ||
+          n.includes("os2door") ||
+          n.includes("openside2") ||
+          n.includes("sidedoor2") ||
+          n.includes("2doors") ||
+          /(?:os|openside|sidedoor)2d/.test(n)
+        ) {
+          return "side-os-2d";
+        }
+        if (
+          n.includes("os4d") ||
+          n.includes("os4door") ||
+          n.includes("openside4") ||
+          n.includes("sidedoor4") ||
+          n.includes("4doors") ||
+          /(?:os|openside|sidedoor)4d/.test(n)
+        ) {
+          return "side-os-4d";
+        }
+        return "side-door";
+      }
+      if (n.includes("doubledoor") || n.includes("tunnel")) return "double-door";
+      if (n.includes("reefer") || n.includes("refrigerat")) return "other";
+      if (n.includes("specialized") || n.includes("modified") || n.includes("custom")) return "other";
+      return "standard";
     }
 
     function specsCompatible(want, got) {
@@ -867,7 +908,7 @@
     function describeContainer(size, height, config, grade) {
       const sizeLabel = size + " ft";
       const heightLabel = height === "HC" ? "High Cube" : "Standard";
-      const configMap = { standard: "Standard", "tri-door": "Tri-door", "double-door": "Double door", "side-door": "Side door", "full-open-side": "Full open side", other: "Specialized" };
+      const configMap = { standard: "Standard", "tri-door": "Tri-door", "double-door": "Double door", "side-os-2d": "Side door (OS 2D)", "side-os-4d": "Side door (OS 4D)", "side-door": "Side door", "full-open-side": "Full open side", other: "Specialized" };
       const gradeMap = { CW: "Cargo Worthy (CW)", IICL: "IICL/Multi-Trip", WWT: "Wind & Water Tight (WWT)", OneTrip: "One-Trip / New", AsIs: "As-Is" };
       const bits = [sizeLabel, heightLabel];
       if (config && config !== "standard") bits.push(configMap[config] || config);
