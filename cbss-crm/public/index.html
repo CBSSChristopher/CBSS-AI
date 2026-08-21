@@ -233,6 +233,9 @@
     .pipeline-card select { margin-top: 8px; font-size: 0.72rem; padding: 4px 6px; }
     .empty-state { color: var(--muted); font-size: 0.88rem; padding: 22px 8px; text-align: center; }
     .empty-state.compact { padding: 16px 8px; font-size: 0.8rem; }
+    .work-list {
+      flex: 1; min-width: 0; min-height: 0; border-right: 1px solid var(--border);
+    }
     .list-panel {
       padding: 16px 18px 24px; flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
       background: #e8eef4; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
@@ -294,8 +297,9 @@
       background: white; cursor: pointer; font-size: 0.8rem; font-family: inherit;
     }
     #cleanupKeepResults button:hover { background: #eef5fb; }
+    .pipeline-card.selected { border-color: var(--primary); box-shadow: inset 3px 0 0 var(--primary); }
     @media (max-width: 1100px) {
-      #view-contacts { flex-direction: column; }
+      #work-main { flex-direction: column; overflow: auto; }
       .detail { width: 100%; max-height: 42vh; border-top: 1px solid var(--border); }
     }
   </style>
@@ -321,7 +325,7 @@
         <span class="mark">CB</span>
         <div>
           <h1>CBShippingSolutions</h1>
-          <p>Container Sales CRM · build 15</p>
+          <p>Container Sales CRM · build 16</p>
         </div>
       </div>
       <div class="user">
@@ -348,8 +352,8 @@
       </div>
     </div>
     <div class="stat-bar" id="statBar"></div>
-    <div class="main" id="view-contacts">
-      <div class="contacts-pane">
+    <div class="main" id="work-main">
+      <div class="contacts-pane" id="view-contacts">
         <div class="toolbar" id="contactFilterBar">
           <div class="search-box">
             <form id="contactSearchForm" action="#" autocomplete="off" onsubmit="return false;">
@@ -407,10 +411,8 @@
         </div>
         <div class="table-meta" id="contactListMeta"></div>
       </div>
-      <div class="detail empty" id="contactDetail">Select a contact to view details</div>
-    </div>
-    <div class="main hidden" id="view-followups">
-      <div class="list-panel" id="followupsScroll">
+    <div class="list-panel work-list hidden" id="view-followups">
+      <div id="followupsScroll">
         <div class="toolbar" style="background:transparent;border:none;padding:0 0 12px;">
           <div class="filter-bar" role="group" aria-label="Owner scope">
             <button type="button" class="filter-chip owner-chip active" data-owner="" onclick="setOwnerChip(this)">All</button>
@@ -422,13 +424,13 @@
             <button type="button" class="filter-chip" data-fu="upcoming" onclick="setFollowFilter('upcoming')">Upcoming</button>
           </div>
         </div>
+        <p style="font-size:0.85rem;color:#666;margin:0 0 12px;">Click a name to open that contact here. Phone, notes, and the next follow-up stay on this screen.</p>
         <div class="card" id="fu-open"><h2>Open / no date</h2><div id="openFollowList"></div></div>
         <div class="card hidden" id="fu-due"><h2>Due Today / Overdue</h2><div id="followUpList"></div></div>
         <div class="card hidden" id="fu-upcoming"><h2>Upcoming</h2><div id="upcomingList"></div></div>
       </div>
     </div>
-    <div class="main hidden" id="view-tasks">
-      <div class="list-panel">
+    <div class="list-panel work-list hidden" id="view-tasks">
         <div class="card">
           <h2>Create Task</h2>
           <div style="display:grid;gap:10px;max-width:520px;">
@@ -459,10 +461,11 @@
             <button type="button" class="filter-chip owner-chip active" data-owner="" onclick="setOwnerChip(this)">All</button>
             <button type="button" class="filter-chip owner-chip" data-owner="__mine__" onclick="setOwnerChip(this)">Mine</button>
           </div>
-          <p style="font-size:0.85rem;color:#666;margin-bottom:12px;">Contacts with a follow-up date or next action. All = company book. Mine = your owned rows. Complete clears the task, logs it on the contact, and asks if you want to schedule the next follow-up.</p>
+          <p style="font-size:0.85rem;color:#666;margin-bottom:12px;">Click a name to open that contact here. Complete the task, save the next follow-up, or call without leaving this list.</p>
           <div id="tasksList"></div>
         </div>
-      </div>
+    </div>
+      <div class="detail empty" id="contactDetail">Select a contact to view details</div>
     </div>
     <div class="main hidden" id="view-pipeline">
       <div class="pipeline-shell"><div class="pipeline-board" id="pipelineBoard"></div></div>
@@ -1159,8 +1162,8 @@
         <tbody>
           ${rows.map(r => {
             const id = String(r.contactId);
-            return `<tr class="contact-row">
-              <td class="name-cell" onclick="switchView('contacts');setTimeout(()=>selectContact(${JSON.stringify(id)}),50)">${esc(r.name) || '(No name)'}</td>
+            return `<tr class="contact-row" data-work-id="${esc(id)}" onclick="openWorkContact(this.getAttribute('data-work-id'), event)">
+              <td class="name-cell">${esc(r.name) || '(No name)'}</td>
               <td>${esc(r.company) || '—'}</td>
               <td>${esc(r.owner) || '—'}</td>
               <td>${esc(r.requestedBy) || '—'}</td>
@@ -1513,6 +1516,9 @@
     // ---------- UI ----------
     function switchView(view) {
       document.querySelectorAll('nav button').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+      const workViews = { contacts: 1, followups: 1, tasks: 1 };
+      const work = document.getElementById('work-main');
+      if (work) work.classList.toggle('hidden', !workViews[view]);
       document.getElementById('view-contacts').classList.toggle('hidden', view !== 'contacts');
       document.getElementById('view-followups').classList.toggle('hidden', view !== 'followups');
       document.getElementById('view-tasks')?.classList.toggle('hidden', view !== 'tasks');
@@ -1521,11 +1527,28 @@
       if (ar) ar.classList.toggle('hidden', view !== 'archive-review');
       const mv = document.getElementById('view-meta');
       if (mv) mv.classList.toggle('hidden', view !== 'meta');
-      if (view === 'followups') { setFollowFilter('open'); renderFollowUps(); const sc = document.getElementById('followupsScroll'); if (sc) sc.scrollTop = 0; }
+      if (view === 'followups') { setFollowFilter('open'); renderFollowUps(); const sc = document.getElementById('view-followups'); if (sc) sc.scrollTop = 0; }
       if (view === 'tasks') renderTasks();
       if (view === 'pipeline') renderPipeline();
       if (view === 'archive-review') renderArchiveReview();
       if (view === 'meta') loadMetaStatus();
+      if (workViews[view] && selectedId) highlightWorkRows(selectedId);
+    }
+
+    function highlightWorkRows(id) {
+      const want = String(id || '');
+      document.querySelectorAll('[data-work-id]').forEach(function(el) {
+        el.classList.toggle('selected', el.getAttribute('data-work-id') === want);
+      });
+    }
+
+    function openWorkContact(id, ev) {
+      if (ev) ev.stopPropagation();
+      const view = activeView();
+      if (view !== 'contacts' && view !== 'followups' && view !== 'tasks') {
+        switchView('contacts');
+      }
+      selectContact(id);
     }
 
     function activeView() {
@@ -1689,8 +1712,16 @@
       document.querySelectorAll('#contactList .contact-row').forEach(el => {
         el.classList.toggle('selected', el.getAttribute('data-id') === String(id));
       });
-      const c = contacts.find(x => String(x.id) === String(id));
-      if (!c) return;
+      highlightWorkRows(id);
+      const c = contactForId(id);
+      if (!c) {
+        const missing = document.getElementById('contactDetail');
+        if (missing) {
+          missing.classList.add('empty');
+          missing.textContent = 'Contact not found. Search Contacts if this person is in the archive.';
+        }
+        return;
+      }
       const detail = document.getElementById('contactDetail');
       detail.classList.remove('empty');
 
@@ -2001,7 +2032,7 @@
               const badge = c.followUpDate
                 ? `<span class="badge ${overdue ? 'badge-overdue' : 'badge-follow'}">${date}</span>`
                 : '<span class="badge badge-follow">No date</span>';
-              return `<tr class="contact-row" onclick="switchView('contacts');setTimeout(()=>selectContact(String(${JSON.stringify(String(c.id))})),50)">
+              return `<tr class="contact-row" data-work-id="${esc(String(c.id))}" onclick="openWorkContact(this.getAttribute('data-work-id'), event)">
                 <td class="name-cell">${esc(c.name)}</td>
                 <td>${esc(c.nextAction) || '—'}</td>
                 <td>${badge}</td>
@@ -2052,6 +2083,7 @@
       document.getElementById('taskSelectedContact').textContent = 'Selected: ' + name;
       document.getElementById('taskContactSearch').value = name;
       document.getElementById('taskContactResults').style.display = 'none';
+      openWorkContact(id);
     }
 
     function createTask() {
@@ -2122,8 +2154,7 @@
 
     function offerNextFollowup(c) {
       if (!c) return;
-      switchView('contacts');
-      selectContact(c.id);
+      openWorkContact(c.id);
       setTimeout(function() {
         const action = document.getElementById('nextAction');
         if (action) {
@@ -2252,7 +2283,7 @@
             const badge = c.followUpDate
               ? `<span class="badge ${overdue ? 'badge-overdue' : 'badge-follow'}">${esc(displayDate)}${overdue ? ' overdue' : dueToday ? ' today' : ''}</span>`
               : '<span class="badge badge-follow">No date</span>';
-            return `<tr class="contact-row" onclick="switchView('contacts');setTimeout(()=>selectContact(String(${JSON.stringify(String(c.id))})),50)">
+            return `<tr class="contact-row" data-work-id="${esc(String(c.id))}" onclick="openWorkContact(this.getAttribute('data-work-id'), event)">
               <td class="name-cell">${esc(c.name)}</td>
               <td>${esc(c.nextAction) || 'Follow up'}</td>
               <td>${badge}</td>
@@ -2274,7 +2305,7 @@
             const name = d.contactName || (c && c.name) || d.name || 'Deal';
             const company = (c && c.company) || d.company || '';
             const owner = titleCaseOwner(d.owner) || (c && titleCaseOwner(c.owner)) || '';
-            return `<div class="pipeline-card" onclick="switchView('contacts');setTimeout(()=>selectContact(String(${JSON.stringify(String(d.contactId))})),50)">
+            return `<div class="pipeline-card" data-work-id="${esc(String(d.contactId))}" onclick="openWorkContact(this.getAttribute('data-work-id'), event)">
               <div class="pc-name">${esc(name)}</div>
               <div class="pc-company">${esc(company) || '—'}</div>
               <div class="pc-meta">

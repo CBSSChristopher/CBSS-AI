@@ -47,7 +47,16 @@ test("tasks tab exposes a Complete button and completeTask handler", () => {
   assert.match(html, /Schedule another follow-up/);
   assert.match(html, /function offerNextFollowup\(/);
   assert.match(html, /function showNextFollowupPrompt\(/);
-  assert.match(html, /build 15/);
+  assert.match(html, /build 16/);
+  assert.match(html, /class="main" id="work-main"/);
+  assert.match(html, /class="contacts-pane" id="view-contacts"/);
+  assert.match(html, /class="list-panel work-list hidden" id="view-followups"/);
+  assert.match(html, /class="list-panel work-list hidden" id="view-tasks"/);
+  assert.match(html, /function openWorkContact\(/);
+  assert.match(html, /data-work-id=/);
+  assert.match(html, /#work-main \{ flex-direction: column; overflow: auto; \}/);
+  assert.match(html, /Click a name to open that contact here/);
+  assert.doesNotMatch(html, /onclick="switchView\('contacts'\);setTimeout\(\(\)=>selectContact/);
   assert.match(html, /function loadNotesForContact\(/);
   assert.match(html, /white-space: pre-wrap/);
   assert.match(html, /function armLoginFields\(/);
@@ -88,8 +97,8 @@ test("worker still serves the CRM data routes used by the desk", async () => {
   const wrangler = readFileSync(new URL("../wrangler.jsonc", import.meta.url), "utf8");
   assert.match(wrangler, /"enabled": false/);
   assert.match(worker, /action === "completeFollowup"/);
-  assert.match(worker, /crmBuild: 15/);
-  assert.match(worker, /x-crm-build", "15"/);
+  assert.match(worker, /crmBuild: 16/);
+  assert.match(worker, /x-crm-build", "16"/);
   assert.match(worker, /action === "appendNote"/);
   assert.match(worker, /function attachStoredNotes\(/);
   assert.match(worker, /action === "cleanupContact"/);
