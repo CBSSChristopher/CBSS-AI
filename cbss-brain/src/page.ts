@@ -28,6 +28,7 @@ export function pageHtml(): string {
     header .brand { font-weight: 700; letter-spacing: .02em; }
     header .sub { color: #B8C4D0; font-size: 12px; font-weight: 500; }
     header .who { font-size: 13px; color: #d5deea; }
+    header .right { display: flex; align-items: center; gap: 10px; }
     main { max-width: 820px; margin: 0 auto; padding: 16px 14px 28px; }
     .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
     h1 { font-size: 20px; margin: 0 0 6px; color: var(--accent); }
@@ -79,8 +80,10 @@ export function pageHtml(): string {
       <div class="brand">CBSS Desk</div>
       <div class="sub" id="stamp">build 2</div>
     </div>
-    <div class="who hide" id="who"></div>
-    <button type="button" class="secondary hide" id="out">Sign out</button>
+    <div class="right">
+      <div class="who hide" id="who"></div>
+      <button type="button" class="secondary hide" id="out">Sign out</button>
+    </div>
   </header>
   <main>
     <section id="login" class="card">
@@ -215,7 +218,7 @@ export function pageHtml(): string {
           <p class="err" id="chat-err"></p>
         </form>
       </div>
-      <footer>CBGC LLC DBA CBShippingSolutions · Desk build 2</footer>
+      <footer>CBGC LLC DBA CBShippingSolutions</footer>
     </section>
   </main>
   <script>
