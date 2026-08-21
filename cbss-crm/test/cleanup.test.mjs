@@ -7,7 +7,9 @@ import {
   applyContactCleanup,
   contactById,
   fillKeeperFromDuplicate,
-  cleanupAuditNote
+  cleanupAuditNote,
+  isFoldedEdit,
+  preserveFoldedFlags
 } from "../src/cleanup.js";
 
 const keep = {
@@ -79,7 +81,11 @@ test("applyContactCleanup merges the duplicate into the keeper and archives it",
   assert.equal(result.ok, true);
   const next = result.state;
   assert.equal(next.contactEdits["202"].archived, true);
+  assert.equal(next.contactEdits["202"].folded, true);
+  assert.equal(next.contactEdits["202"].mergedAway, true);
+  assert.equal(next.contactEdits["202"].owner, "");
   assert.equal(next.contactEdits["202"].mergedInto, "101");
+  assert.equal(next.contactEdits["101"].owner, "Christopher Banks");
   assert.equal(next.contactEdits["101"].phone, "8705550100");
   assert.equal(next.contactEdits["101"].dnc, true);
   assert.equal(next.archiveRequests["202"].status, "approved");
@@ -121,6 +127,17 @@ test("cleanupContact is a known CRM action, not a complete", () => {
     code: "x"
   });
   assert.equal(resolved.action, "cleanupContact");
+});
+
+test("folded copies leave the assigned owner and stay folded after later edits", () => {
+  const result = applyContactCleanup(baseState(), [], { sourceId: 202, keepId: 101, timestamp: "2026-08-21 10:00" });
+  assert.equal(isFoldedEdit(result.state.contactEdits["202"]), true);
+  const later = preserveFoldedFlags(result.state.contactEdits, { 101: { name: "Keep Probe", owner: "Christopher Banks" } });
+  assert.equal(later["202"].folded, true);
+  assert.equal(later["202"].owner, "");
+  assert.equal(later["202"].mergedInto, "101");
+  assert.equal(later["202"].archived, true);
+  assert.equal(later["101"].name, "Keep Probe");
 });
 
 test("contactById and audit note stay factual", () => {

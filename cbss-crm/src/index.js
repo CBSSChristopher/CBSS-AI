@@ -1,5 +1,5 @@
 import { applyCompleteFollowupState, applyFollowupPatch, completedActionText, mergeNotesMap, resolveCrmAction } from "./followups.js";
-import { adminCleanupCodeOk, applyContactCleanup } from "./cleanup.js";
+import { adminCleanupCodeOk, applyContactCleanup, preserveFoldedFlags } from "./cleanup.js";
 import {
   META_CONFIG_KEY,
   META_SOURCE,
@@ -452,7 +452,7 @@ async function serveAssets(request, env) {
     headers.set("CDN-Cache-Control", "no-store");
     headers.set("Cloudflare-CDN-Cache-Control", "no-store");
     headers.set("Pragma", "no-cache");
-    headers.set("x-crm-build", "10");
+    headers.set("x-crm-build", "11");
     return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
   }
   return res;
@@ -1028,7 +1028,7 @@ async function handleCrmData(request, env) {
       ]);
       return jsonResponse(request, 200, {
         ok: true,
-        crmBuild: 10,
+        crmBuild: 11,
         contactId,
         completed: true,
         completedTasks: next.completedTasks[contactId] || []
@@ -1048,7 +1048,7 @@ async function handleCrmData(request, env) {
       applyEdits(state.contactsAdded, state.contactEdits);
       const omitNotes = url.searchParams.get("omitNotes") === "1" || body.omitNotes === true || body.omitNotes === "1";
       const payload = {
-        crmBuild: 10,
+        crmBuild: 11,
         deals: state.deals,
         followups: state.followups,
         contactsAdded: state.contactsAdded,
@@ -1171,7 +1171,7 @@ async function handleCrmData(request, env) {
       if (!user) return jsonResponse(request, 401, { error: "Unauthorized" });
       const [key, value] = writers[action];
       if (key === "contactEdits") {
-        await store.setJSON(key, preserveArchivedFlags(state.contactEdits, value));
+        await store.setJSON(key, preserveFoldedFlags(state.contactEdits, value));
       } else if (key === "notes") {
         await store.setJSON(key, mergeNotesMap(state.notes, value));
       } else {
@@ -1713,7 +1713,7 @@ var index_default = {
     const path = normalizePath(url.pathname);
     if (path === "/__bust" && ctx && ctx.cache && typeof ctx.cache.purge === "function") {
       try { await ctx.cache.purge({ purgeEverything: true }); } catch (_) {}
-      return new Response("ok", { status: 200, headers: { "Cache-Control": "private, no-store", "x-crm-build": "10" } });
+      return new Response("ok", { status: 200, headers: { "Cache-Control": "private, no-store", "x-crm-build": "11" } });
     }
     if (path === "/auth/login") return handleLogin(request, env);
     if (path === "/auth/me") return handleMe(request, env);

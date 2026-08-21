@@ -13,6 +13,10 @@ test("edit contact exposes admin-only coded cleanup", () => {
   assert.match(html, /apiSave\('cleanupContact'/);
   assert.match(html, /resetAdminCleanup\(true\)/);
   assert.match(html, /Boolean\(editing && isChristopher\(\)\)/);
+  assert.match(html, /function isFoldedContact\(/);
+  assert.match(html, /!isFoldedContact\(c\) && contactMatchesOwnerScope/);
+  assert.match(html, /if \(isFoldedContact\(c\)\) return '';/);
+  assert.match(html, /taken off the assigned list/);
   assert.match(html, /data-cleanup-id=/);
   assert.doesNotMatch(html, /onclick="pickCleanupKeeper\(/);
   assert.doesNotMatch(html, /CRM_ADMIN_CODE/);
@@ -40,7 +44,7 @@ test("tasks tab exposes a Complete button and completeTask handler", () => {
   assert.match(html, /Schedule another follow-up/);
   assert.match(html, /function offerNextFollowup\(/);
   assert.match(html, /function showNextFollowupPrompt\(/);
-  assert.match(html, /build 10/);
+  assert.match(html, /build 11/);
   assert.match(html, /Meta leads/);
   assert.match(html, /function connectMetaPage\(/);
   assert.match(html, /function importMetaLeads\(/);
@@ -59,8 +63,8 @@ test("worker still serves the CRM data routes used by the desk", async () => {
   const wrangler = readFileSync(new URL("../wrangler.jsonc", import.meta.url), "utf8");
   assert.match(wrangler, /"enabled": false/);
   assert.match(worker, /action === "completeFollowup"/);
-  assert.match(worker, /crmBuild: 10/);
-  assert.match(worker, /x-crm-build", "10"/);
+  assert.match(worker, /crmBuild: 11/);
+  assert.match(worker, /x-crm-build", "11"/);
   assert.match(worker, /action === "cleanupContact"/);
   assert.match(worker, /Only Christopher can clean up contacts/);
   assert.doesNotMatch(html, /DEFAULT_ADMIN_CLEANUP_CODE/);

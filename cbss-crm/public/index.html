@@ -296,7 +296,7 @@
         <span class="mark">CB</span>
         <div>
           <h1>CBShippingSolutions</h1>
-          <p>Container Sales CRM · build 10</p>
+          <p>Container Sales CRM · build 11</p>
         </div>
       </div>
       <div class="user">
@@ -603,7 +603,7 @@
     }
 
     function contactEverAssignedToScope(c) {
-      if (!c) return false;
+      if (!c || isFoldedContact(c)) return false;
       const scope = currentOwnerScope();
       if (!scope) return true;
       if (scope === '__mine__') {
@@ -754,8 +754,17 @@
       return archiveRequests[id] || archiveRequests[String(id)] || null;
     }
 
+    function isFoldedContact(c) {
+      if (!c) return false;
+      if (c.folded === true || c.mergedAway === true) return true;
+      if (c.mergedInto || c.duplicateOf) return true;
+      const req = archiveRequestFor(c.id);
+      return !!(req && String(req.reason || '') === 'duplicate' && req.mergedInto);
+    }
+
     function isArchivedContact(c) {
       if (!c) return false;
+      if (isFoldedContact(c)) return true;
       if (c.archived === true) return true;
       const req = archiveRequestFor(c.id);
       return !!(req && req.status === 'approved');
@@ -1343,7 +1352,7 @@
 
     function isWorking(c) {
       if (!c) return false;
-      if (c.archived === true) return false;
+      if (isFoldedContact(c) || c.archived === true) return false;
       const hasDeal = dealsForContact(c.id).length > 0;
       if (isDncContact(c) && !hasDeal) return false;
       if (c.amount !== undefined && c.amount !== null && c.amount !== '') return true;
@@ -1360,7 +1369,7 @@
     function filterContacts() {
       const q = (document.getElementById('searchInput').value || '').toLowerCase().trim();
       syncOwnerChips();
-      let filtered = contacts.filter(contactMatchesOwnerScope);
+      let filtered = contacts.filter(c => !isFoldedContact(c) && contactMatchesOwnerScope(c));
       if (q) {
         filtered = filtered.filter(c =>
           (c.name || '').toLowerCase().includes(q) ||
@@ -2247,7 +2256,7 @@
       closeContactModal();
       try { await loadData(); } catch (e) { console.warn(e); }
       if (res.keepId) selectContact(res.keepId);
-      alert('Duplicate folded into the keeper and archived.');
+      alert('Duplicate folded into the keeper and taken off the assigned list.');
     }
 
     function saveContact() {
@@ -2315,6 +2324,7 @@
     }
 
     function archiveBadgeHtml(c) {
+      if (isFoldedContact(c)) return '';
       if (isArchivedContact(c)) return ' <span class="badge badge-archived">Archived</span>';
       const req = archiveRequestFor(c && c.id);
       if (req && req.status === 'pending') return ' <span class="badge badge-pending">Archive pending</span>';
@@ -2322,6 +2332,7 @@
     }
 
     function archiveActionHtml(c) {
+      if (isFoldedContact(c)) return '';
       if (isArchivedContact(c)) return '<span class="badge badge-archived">Archived</span>';
       const req = archiveRequestFor(c && c.id);
       if (req && req.status === 'pending') return '<span class="badge badge-pending">Archive pending</span>';
@@ -2412,7 +2423,7 @@
         <h3>Admin cleanup</h3>
         <button type="button" class="btn btn-secondary" id="adminCleanupToggle" onclick="toggleAdminCleanup()">Clean up duplicate</button>
         <div id="adminCleanupForm" class="hidden" style="margin-top:10px;">
-          <p>Use this to fold a duplicate into the contact you want to keep. Notes, tasks, deals, and proposals move to the keeper. The extra copy is archived. Submit needs the admin approval code.</p>
+          <p>Use this to fold a duplicate into the contact you want to keep. Notes, tasks, deals, and the assigned owner move to the keeper. The extra copy leaves the sales rep’s assigned list. It is not left sitting as Archived next to their name. Submit needs the admin approval code.</p>
           <label style="font-size:0.82rem;font-weight:600;display:block;margin-bottom:6px;">
             <input type="radio" name="cleanupRole" value="duplicate" checked /> This record is the extra copy
           </label>

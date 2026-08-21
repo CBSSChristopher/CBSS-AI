@@ -33,6 +33,38 @@ export function adminCleanupCodeOk(env, provided) {
   return diff === 0;
 }
 
+export function isFoldedEdit(row) {
+  if (!row || typeof row !== "object") return false;
+  if (row.folded === true || row.mergedAway === true) return true;
+  if (row.mergedInto || row.duplicateOf) return true;
+  return false;
+}
+
+export function preserveFoldedFlags(current, incoming) {
+  const merged = incoming && typeof incoming === "object" && !Array.isArray(incoming) ? Object.assign({}, incoming) : {};
+  const prev = current && typeof current === "object" ? current : {};
+  for (const key of Object.keys(prev)) {
+    const row = prev[key];
+    if (!row || typeof row !== "object") continue;
+    const folded = isFoldedEdit(row);
+    if (row.archived !== true && !folded) continue;
+    const keep = Object.assign({}, merged[key] || {});
+    if (row.archived === true || folded) keep.archived = true;
+    if (folded) {
+      keep.folded = true;
+      keep.mergedAway = true;
+      keep.owner = "";
+      if (row.mergedInto) keep.mergedInto = row.mergedInto;
+      if (row.duplicateOf) keep.duplicateOf = row.duplicateOf;
+    }
+    merged[key] = keep;
+    if (String(key) !== key) {
+      merged[String(key)] = Object.assign({}, merged[String(key)] || {}, keep);
+    }
+  }
+  return merged;
+}
+
 export function contactById(pools, id) {
   const want = String(id == null ? "" : id).trim();
   if (!want) return null;
@@ -137,6 +169,9 @@ export function applyContactCleanup(state, archive, input) {
   edits[keepId] = filled;
   edits[sourceId] = Object.assign({}, sourceOverlay, {
     archived: true,
+    folded: true,
+    mergedAway: true,
+    owner: "",
     mergedInto: keepId,
     duplicateOf: keepId
   });
