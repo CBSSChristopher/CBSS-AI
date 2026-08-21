@@ -46,6 +46,7 @@ test("worker still serves the CRM data routes used by the desk", async () => {
   assert.match(wrangler, /"enabled": false/);
   assert.match(worker, /action === "completeFollowup"/);
   assert.match(worker, /crmBuild: 9/);
+  assert.match(worker, /x-crm-build", "9"/);
   assert.match(worker, /getMetaStatus/);
   assert.match(worker, /importMetaLeads/);
   assert.match(worker, /Cloudflare-CDN-Cache-Control/);
