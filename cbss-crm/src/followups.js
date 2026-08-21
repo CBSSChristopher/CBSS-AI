@@ -75,7 +75,8 @@ const KNOWN_CRM_ACTIONS = new Set([
   "saveMetaConfig",
   "connectMeta",
   "importMetaLeads",
-  "cleanupContact"
+  "cleanupContact",
+  "cleanupContacts"
 ]);
 
 export function resolveCrmAction(method, urlAction, body) {

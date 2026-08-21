@@ -1,5 +1,5 @@
 import { applyCompleteFollowupState, applyFollowupPatch, completedActionText, mergeNotesMap, resolveCrmAction } from "./followups.js";
-import { adminCleanupCodeOk, applyContactCleanup, preserveFoldedFlags } from "./cleanup.js";
+import { adminCleanupCodeOk, applyContactCleanup, applyContactCleanups, preserveFoldedFlags } from "./cleanup.js";
 import {
   META_CONFIG_KEY,
   META_SOURCE,
@@ -452,7 +452,7 @@ async function serveAssets(request, env) {
     headers.set("CDN-Cache-Control", "no-store");
     headers.set("Cloudflare-CDN-Cache-Control", "no-store");
     headers.set("Pragma", "no-cache");
-    headers.set("x-crm-build", "11");
+    headers.set("x-crm-build", "13");
     return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
   }
   return res;
@@ -1028,7 +1028,7 @@ async function handleCrmData(request, env) {
       ]);
       return jsonResponse(request, 200, {
         ok: true,
-        crmBuild: 11,
+        crmBuild: 13,
         contactId,
         completed: true,
         completedTasks: next.completedTasks[contactId] || []
@@ -1048,7 +1048,7 @@ async function handleCrmData(request, env) {
       applyEdits(state.contactsAdded, state.contactEdits);
       const omitNotes = url.searchParams.get("omitNotes") === "1" || body.omitNotes === true || body.omitNotes === "1";
       const payload = {
-        crmBuild: 11,
+        crmBuild: 13,
         deals: state.deals,
         followups: state.followups,
         contactsAdded: state.contactsAdded,
@@ -1084,6 +1084,32 @@ async function handleCrmData(request, env) {
         cleanup: true,
         keepId: result.keepId,
         sourceId: result.sourceId
+      });
+    }
+    if (action === "cleanupContacts") {
+      if (!isChristopherUser(user)) return jsonResponse(request, 403, { error: "Only Christopher can clean up contacts." });
+      if (!adminCleanupCodeOk(env, body.code || body.approvalCode)) {
+        return jsonResponse(request, 403, { error: "Approval code is wrong." });
+      }
+      applyApprovedArchives(state);
+      applyEdits(archive, state.contactEdits);
+      applyEdits(state.contactsAdded, state.contactEdits);
+      const sourceIds = Array.isArray(body.sourceIds) ? body.sourceIds : (body.sourceId || body.duplicateId ? [body.sourceId || body.duplicateId] : []);
+      const result = applyContactCleanups(state, archive, {
+        keepId: body.keepId || body.keeperId,
+        sourceIds,
+        author: user && (user.name || user.email) || "Christopher Banks",
+        timestamp: nowStamp()
+      });
+      if (!result.ok) return jsonResponse(request, 400, { error: result.error });
+      Object.assign(state, result.state);
+      await persistState(store, state);
+      await store.setJSON("archiveRequests", state.archiveRequests);
+      return jsonResponse(request, 200, {
+        ok: true,
+        cleanup: true,
+        keepId: result.keepId,
+        sourceIds: result.sourceIds
       });
     }
     if (action === "saveFollowups") {
@@ -1713,7 +1739,7 @@ var index_default = {
     const path = normalizePath(url.pathname);
     if (path === "/__bust" && ctx && ctx.cache && typeof ctx.cache.purge === "function") {
       try { await ctx.cache.purge({ purgeEverything: true }); } catch (_) {}
-      return new Response("ok", { status: 200, headers: { "Cache-Control": "private, no-store", "x-crm-build": "11" } });
+      return new Response("ok", { status: 200, headers: { "Cache-Control": "private, no-store", "x-crm-build": "13" } });
     }
     if (path === "/auth/login") return handleLogin(request, env);
     if (path === "/auth/me") return handleMe(request, env);
