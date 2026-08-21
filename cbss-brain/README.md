@@ -6,12 +6,11 @@ Live URL: `https://cbssbrain.cbss.workers.dev`
 
 ## Jobs
 
-- **Call** — dump scraps; it writes the CRM note and books CTE or one follow-up
-- **Email** — Chris-voice templates; copy, send from Gmail, save to the CRM
-- **Inbox** — paste a customer reply; it matches the lead and books the next step
 - **Ask** — talk through a lead or a messy note
+- **Call** — dump scraps; it writes the CRM note and books CTE or one follow-up
+- **Email templates** — Chris-voice outbound mail, or **Log a reply** to paste a customer email and save it to the CRM
 
-Custom email / proposal wording sits under Email → *Custom draft or proposal wording*.
+Custom email / proposal wording sits under Email templates → *Custom draft or proposal wording*.
 
 CTE means Call, then Text, then Email. That is first outreach. Past CTE books one real follow-up instead. The CRM has one follow-up slot per contact; the full CTE plan is stored in the note.
 

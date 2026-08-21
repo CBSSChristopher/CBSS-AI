@@ -409,7 +409,7 @@ export default {
           ok: true,
           matched: 0,
           skipped: 0,
-          note: "Paste the customer email on Inbox.",
+          note: "Paste the customer email under Email templates → Log a reply.",
         });
       }
       try {

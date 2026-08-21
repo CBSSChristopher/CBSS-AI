@@ -48,7 +48,7 @@ export function pageHtml(): string {
     .hide { display: none !important; }
     .tabs { display: flex; gap: 4px; margin: 12px 0 0; padding: 0; }
     .tabs button {
-      flex: 1; background: #f4f7fa; color: var(--muted); border: 1px solid transparent; padding: 9px 8px;
+      flex: 1; background: #f4f7fa; color: var(--muted); border: 1px solid transparent; padding: 9px 8px; white-space: nowrap;
     }
     .tabs button.on { background: #fff; color: var(--accent); border-color: var(--line); box-shadow: 0 1px 0 #fff; }
     .contact-bar { margin-top: 12px; }
@@ -78,7 +78,7 @@ export function pageHtml(): string {
   <header>
     <div>
       <div class="brand">CBSS Desk</div>
-      <div class="sub" id="stamp">build 2</div>
+      <div class="sub" id="stamp">build 3</div>
     </div>
     <div class="right">
       <div class="who hide" id="who"></div>
@@ -102,10 +102,9 @@ export function pageHtml(): string {
     <section id="desk" class="hide">
       <div class="card">
         <div class="tabs" role="tablist">
-          <button type="button" class="on" data-job="live">Call</button>
-          <button type="button" data-job="email">Email</button>
-          <button type="button" data-job="inbox">Inbox</button>
-          <button type="button" data-job="chat">Ask</button>
+          <button type="button" class="on" data-job="chat">Ask</button>
+          <button type="button" data-job="live">Call</button>
+          <button type="button" data-job="email">Email templates</button>
         </div>
         <div class="contact-bar">
           <label for="contact-q">Working contact</label>
@@ -129,7 +128,20 @@ export function pageHtml(): string {
         </div>
       </div>
 
-      <div id="panel-live" class="card" style="margin-top:12px">
+      <div id="panel-chat" class="card" style="margin-top:12px">
+        <h2>Ask</h2>
+        <p class="muted">Talk through a lead, a call, or a messy note.</p>
+        <div class="log" id="log"></div>
+        <form id="ask">
+          <div id="composer">
+            <textarea id="q" rows="2" placeholder="What do you need?" required></textarea>
+            <button type="submit">Ask</button>
+          </div>
+          <p class="err" id="chat-err"></p>
+        </form>
+      </div>
+
+      <div id="panel-live" class="card hide" style="margin-top:12px">
         <h2>Call</h2>
         <p class="muted">Dump scraps. The desk writes the CRM note and books CTE or one follow-up.</p>
         <label for="scraps">Call scraps</label>
@@ -148,75 +160,66 @@ export function pageHtml(): string {
       </div>
 
       <div id="panel-email" class="card hide" style="margin-top:12px">
-        <h2>Email</h2>
-        <p class="muted">Chris-voice templates. Copy, send from Gmail, then save to the CRM.</p>
-        <label for="tpl-id">Template</label>
-        <select id="tpl-id"></select>
-        <p class="muted" id="tpl-when"></p>
-        <div class="split">
-          <div class="field-wrap" data-need="firstName"><label>First name</label><input id="tpl-first" /></div>
-          <div class="field-wrap" data-need="zip"><label>ZIP</label><input id="tpl-zip" /></div>
+        <h2>Email templates</h2>
+        <p class="muted">Write a Chris-voice email, or paste their reply and save it to the CRM.</p>
+        <div class="choice">
+          <label><input type="radio" name="mail-mode" value="write" checked /> Write a template</label>
+          <label><input type="radio" name="mail-mode" value="reply" /> Log a reply</label>
         </div>
-        <div class="field-wrap" data-need="what"><label>What they want</label><input id="tpl-what" placeholder="40HC wind and water tight" /></div>
-        <div class="split">
-          <div class="field-wrap" data-need="day"><label>Day</label><input id="tpl-day" placeholder="Monday" /></div>
-          <div class="field-wrap" data-need="note"><label>After-call note</label><input id="tpl-note" placeholder="delivering once your property closes" /></div>
-        </div>
-        <div class="field-wrap" data-need="price"><label>Delivered cash already quoted</label><input id="tpl-price" placeholder="Leave blank unless a number is already on the table" /></div>
-        <div class="field-wrap" data-need="site"><label>Site notes</label><input id="tpl-site" /></div>
-        <div class="row">
-          <button type="button" id="tpl-render">Fill</button>
-          <button type="button" class="secondary" id="tpl-copy">Copy</button>
-          <button type="button" class="secondary" id="tpl-gmail">Open Gmail</button>
-          <button type="button" id="tpl-log">Save sent to CRM</button>
-        </div>
-        <label>Subject</label>
-        <input id="tpl-subject" />
-        <label>Body</label>
-        <textarea id="tpl-body" rows="10"></textarea>
-        <p class="err" id="err-email"></p>
-        <div class="outbox" id="out-email"></div>
-        <details class="more">
-          <summary>Custom draft or proposal wording</summary>
-          <p class="muted">Only if a template does not fit. Price only if Christopher already set one.</p>
-          <label>Facts for a custom draft</label>
-          <textarea id="custom-facts" rows="3" placeholder="First name, what they asked for, ZIP, proposal attached yes/no…"></textarea>
+        <div id="mail-write">
+          <label for="tpl-id">Template</label>
+          <select id="tpl-id"></select>
+          <p class="muted" id="tpl-when"></p>
+          <div class="split">
+            <div class="field-wrap" data-need="firstName"><label>First name</label><input id="tpl-first" /></div>
+            <div class="field-wrap" data-need="zip"><label>ZIP</label><input id="tpl-zip" /></div>
+          </div>
+          <div class="field-wrap" data-need="what"><label>What they want</label><input id="tpl-what" placeholder="40HC wind and water tight" /></div>
+          <div class="split">
+            <div class="field-wrap" data-need="day"><label>Day</label><input id="tpl-day" placeholder="Monday" /></div>
+            <div class="field-wrap" data-need="note"><label>After-call note</label><input id="tpl-note" placeholder="delivering once your property closes" /></div>
+          </div>
+          <div class="field-wrap" data-need="price"><label>Delivered cash already quoted</label><input id="tpl-price" placeholder="Leave blank unless a number is already on the table" /></div>
+          <div class="field-wrap" data-need="site"><label>Site notes</label><input id="tpl-site" /></div>
           <div class="row">
-            <button type="button" data-run="email">Write email</button>
-            <button type="button" data-run="proposal">Write proposal copy</button>
-            <button type="button" class="secondary" data-copy="custom">Copy</button>
-            <button type="button" id="custom-log">Save sent to CRM</button>
+            <button type="button" id="tpl-render">Fill</button>
+            <button type="button" class="secondary" id="tpl-copy">Copy</button>
+            <button type="button" class="secondary" id="tpl-gmail">Open Gmail</button>
+            <button type="button" id="tpl-log">Save sent to CRM</button>
           </div>
-          <p class="err" id="err-custom"></p>
-          <div class="outbox" id="out-custom"></div>
-        </details>
-      </div>
-
-      <div id="panel-inbox" class="card hide" style="margin-top:12px">
-        <h2>Inbox</h2>
-        <p class="muted">Paste a customer reply. The desk matches the lead and books the next step.</p>
-        <label>Their email</label>
-        <input id="in-from" placeholder="customer@email.com" />
-        <label>Subject</label>
-        <input id="in-subject" />
-        <label>Their message</label>
-        <textarea id="in-body" rows="8" placeholder="Paste the reply"></textarea>
-        <div class="row"><button type="button" id="in-log">Write to CRM</button></div>
-        <p class="err" id="err-inbox"></p>
-        <div class="outbox" id="out-inbox"></div>
-      </div>
-
-      <div id="panel-chat" class="card hide" style="margin-top:12px">
-        <h2>Ask</h2>
-        <p class="muted">Talk through a lead, a call, or a messy note.</p>
-        <div class="log" id="log"></div>
-        <form id="ask">
-          <div id="composer">
-            <textarea id="q" rows="2" placeholder="What do you need?" required></textarea>
-            <button type="submit">Ask</button>
-          </div>
-          <p class="err" id="chat-err"></p>
-        </form>
+          <label>Subject</label>
+          <input id="tpl-subject" />
+          <label>Body</label>
+          <textarea id="tpl-body" rows="10"></textarea>
+          <p class="err" id="err-email"></p>
+          <div class="outbox" id="out-email"></div>
+          <details class="more">
+            <summary>Custom draft or proposal wording</summary>
+            <p class="muted">Only if a template does not fit. Price only if Christopher already set one.</p>
+            <label>Facts for a custom draft</label>
+            <textarea id="custom-facts" rows="3" placeholder="First name, what they asked for, ZIP, proposal attached yes/no…"></textarea>
+            <div class="row">
+              <button type="button" data-run="email">Write email</button>
+              <button type="button" data-run="proposal">Write proposal copy</button>
+              <button type="button" class="secondary" data-copy="custom">Copy</button>
+              <button type="button" id="custom-log">Save sent to CRM</button>
+            </div>
+            <p class="err" id="err-custom"></p>
+            <div class="outbox" id="out-custom"></div>
+          </details>
+        </div>
+        <div id="mail-reply" class="hide">
+          <p class="muted">Paste what they wrote. The desk matches the lead and books the next step.</p>
+          <label>Their email</label>
+          <input id="in-from" placeholder="customer@email.com" />
+          <label>Subject</label>
+          <input id="in-subject" />
+          <label>Their message</label>
+          <textarea id="in-body" rows="8" placeholder="Paste the reply"></textarea>
+          <div class="row"><button type="button" id="in-log">Save reply to CRM</button></div>
+          <p class="err" id="err-inbox"></p>
+          <div class="outbox" id="out-inbox"></div>
+        </div>
       </div>
       <footer>CBGC LLC DBA CBShippingSolutions</footer>
     </section>
@@ -228,7 +231,7 @@ export function pageHtml(): string {
     const who = document.getElementById("who");
     const log = document.getElementById("log");
     const history = [];
-    const panels = ["live", "email", "inbox", "chat"];
+    const panels = ["chat", "live", "email"];
     let picked = null;
     let searchTimer = 0;
     let templateList = [];
@@ -241,6 +244,11 @@ export function pageHtml(): string {
     }
     function greet(name) {
       who.textContent = name || "Rep";
+    }
+    function setMailMode(mode) {
+      const reply = mode === "reply";
+      document.getElementById("mail-write").classList.toggle("hide", reply);
+      document.getElementById("mail-reply").classList.toggle("hide", !reply);
     }
     function openJob(job) {
       panels.forEach((id) => {
@@ -370,7 +378,7 @@ export function pageHtml(): string {
     async function enterDesk(name) {
       greet(name);
       show("desk");
-      openJob("live");
+      openJob("chat");
       loadTemplates();
     }
 
@@ -412,6 +420,12 @@ export function pageHtml(): string {
 
     document.querySelectorAll(".tabs button").forEach((b) => {
       b.addEventListener("click", () => openJob(b.getAttribute("data-job")));
+    });
+    document.querySelectorAll('input[name="mail-mode"]').forEach((el) => {
+      el.addEventListener("change", () => {
+        const pickedMode = document.querySelector('input[name="mail-mode"]:checked');
+        setMailMode(pickedMode && pickedMode.value);
+      });
     });
 
     async function ask(text) {

@@ -45,21 +45,23 @@ describe("Desk templates and mail", () => {
   });
 });
 
-describe("Desk UI is four jobs, not seven tiles", () => {
-  it("uses a compact tab bar", () => {
-    assert.match(page, /data-job="live">Call</);
-    assert.match(page, /data-job="email">Email</);
-    assert.match(page, /data-job="inbox">Inbox</);
-    assert.match(page, /data-job="chat">Ask</);
+describe("Desk UI is three jobs", () => {
+  it("puts Ask first and folds reply into Email templates", () => {
+    const askAt = page.indexOf('data-job="chat">Ask<');
+    const callAt = page.indexOf('data-job="live">Call<');
+    const emailAt = page.indexOf('data-job="email">Email templates<');
+    assert.ok(askAt > 0 && askAt < callAt && callAt < emailAt);
+    assert.match(page, /Write a template/);
+    assert.match(page, /Log a reply/);
+    assert.match(page, /Save reply to CRM/);
     assert.match(page, /Working contact/);
     assert.match(page, /Save to CRM/);
-    assert.match(page, /Still in CTE/);
-    assert.match(page, /Past CTE/);
     assert.match(page, /id="tpl-id"/);
+    assert.doesNotMatch(page, /data-job="inbox"/);
     assert.doesNotMatch(page, /data-job="crm_note"/);
     assert.doesNotMatch(page, /data-job="templates"/);
     assert.doesNotMatch(page, /data-job="proposal"/);
     assert.doesNotMatch(page, /class="tile"/);
-    assert.doesNotMatch(page, /I am your CBSS desk/);
+    assert.match(page, /openJob\("chat"\)/);
   });
 });
