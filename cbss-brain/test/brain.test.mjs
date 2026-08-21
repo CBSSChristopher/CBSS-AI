@@ -44,7 +44,9 @@ describe("CBSS Desk rules", () => {
     assert.match(src, /CRM NOTE FORMAT/);
     assert.match(src, /With thanks and my blessings/);
     assert.match(src, /Call writes the CRM note/);
-    assert.match(page, /data-job="chat">Ask</);
+    assert.match(page, /data-job="chat">CBSS AI</);
+    assert.match(page, /CBSS AI for Sales/);
+    assert.match(page, /Ask CBSS AI/);
     assert.match(page, /data-job="live">Call</);
     assert.match(page, /data-job="email">Email templates</);
     assert.match(page, /Custom draft or proposal wording/);

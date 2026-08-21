@@ -6,7 +6,7 @@ Live URL: `https://cbssbrain.cbss.workers.dev`
 
 ## Jobs
 
-- **Ask** — talk through a lead or a messy note
+- **CBSS AI** — your CBSS AI for Sales. Talk through a lead, a call, or what to say next. Does not write the CRM.
 - **Call** — dump scraps; it writes the CRM note and books CTE or one follow-up
 - **Email templates** — Chris-voice outbound mail, or **Log a reply** to paste a customer email and save it to the CRM. Missed-call emails are labeled **CTE1–CTE4**. The other picks are grouped: form lead, sending a proposal, or they wrote back.
 

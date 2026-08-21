@@ -56,8 +56,8 @@ describe("Desk templates and mail", () => {
 });
 
 describe("Desk UI is three jobs", () => {
-  it("puts Ask first and folds reply into Email templates", () => {
-    const askAt = page.indexOf('data-job="chat">Ask<');
+  it("puts CBSS AI first and folds reply into Email templates", () => {
+    const askAt = page.indexOf('data-job="chat">CBSS AI<');
     const callAt = page.indexOf('data-job="live">Call<');
     const emailAt = page.indexOf('data-job="email">Email templates<');
     assert.ok(askAt > 0 && askAt < callAt && callAt < emailAt);

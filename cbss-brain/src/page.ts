@@ -51,7 +51,17 @@ export function pageHtml(): string {
       flex: 1; background: #f4f7fa; color: var(--muted); border: 1px solid transparent; padding: 9px 8px; white-space: nowrap;
     }
     .tabs button.on { background: #fff; color: var(--accent); border-color: var(--line); box-shadow: 0 1px 0 #fff; }
+    .tabs button[data-job="chat"].on { background: var(--navy); color: #fff; border-color: var(--navy); }
     .contact-bar { margin-top: 12px; }
+    .ai-head { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
+    .ai-mark {
+      width: 42px; height: 42px; border-radius: 10px; background: var(--navy); color: #fff;
+      display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 11px; letter-spacing: .04em; flex-shrink: 0;
+    }
+    .ai-head h2 { margin: 0; }
+    .ai-head .muted { margin: 3px 0 0; }
+    #panel-chat .log { min-height: 36vh; background: #f4f7fa; border-radius: 8px; padding: 12px; }
+    #composer button.ai-send { background: var(--navy); min-width: 132px; }
     .sel { background: var(--ok); border: 1px solid var(--ok-line); border-radius: 8px; padding: 9px 11px; margin-top: 8px; font-size: 14px; }
     .hits { border: 1px solid var(--line); border-radius: 8px; max-height: 200px; overflow: auto; margin-top: 6px; }
     .hit { display: block; width: 100%; text-align: left; padding: 9px 11px; border: 0; border-bottom: 1px solid var(--line); background: #fff; color: var(--ink); cursor: pointer; font-weight: 500; }
@@ -78,7 +88,7 @@ export function pageHtml(): string {
   <header>
     <div>
       <div class="brand">CBSS Desk</div>
-      <div class="sub" id="stamp">build 4</div>
+      <div class="sub" id="stamp">build 5</div>
     </div>
     <div class="right">
       <div class="who hide" id="who"></div>
@@ -102,11 +112,11 @@ export function pageHtml(): string {
     <section id="desk" class="hide">
       <div class="card">
         <div class="tabs" role="tablist">
-          <button type="button" class="on" data-job="chat">Ask</button>
+          <button type="button" class="on" data-job="chat">CBSS AI</button>
           <button type="button" data-job="live">Call</button>
           <button type="button" data-job="email">Email templates</button>
         </div>
-        <div class="contact-bar">
+        <div class="contact-bar hide" id="contact-bar">
           <label for="contact-q">Working contact</label>
           <input id="contact-q" placeholder="Name, phone, email, ZIP" />
           <div id="contact-hits" class="hits hide"></div>
@@ -129,13 +139,18 @@ export function pageHtml(): string {
       </div>
 
       <div id="panel-chat" class="card" style="margin-top:12px">
-        <h2>Ask</h2>
-        <p class="muted">Talk through a lead, a call, or a messy note.</p>
+        <div class="ai-head">
+          <div class="ai-mark">AI</div>
+          <div>
+            <h2>CBSS AI for Sales</h2>
+            <p class="muted">Your closer-assistant. Talk through a lead, a call, or what to say next.</p>
+          </div>
+        </div>
         <div class="log" id="log"></div>
         <form id="ask">
           <div id="composer">
-            <textarea id="q" rows="2" placeholder="What do you need?" required></textarea>
-            <button type="submit">Ask</button>
+            <textarea id="q" rows="2" placeholder="Ask your CBSS AI for Sales…" required></textarea>
+            <button type="submit" class="ai-send">Ask CBSS AI</button>
           </div>
           <p class="err" id="chat-err"></p>
         </form>
@@ -257,6 +272,11 @@ export function pageHtml(): string {
       document.querySelectorAll(".tabs button").forEach((b) => {
         b.classList.toggle("on", b.getAttribute("data-job") === job);
       });
+      document.getElementById("contact-bar").classList.toggle("hide", job === "chat");
+    }
+    function seedAsk() {
+      if (log.childElementCount) return;
+      bubble("assistant", "I am your CBSS AI for Sales. Tell me the lead, the call, or what you need written. I will not invent a price. Use Call when you want scraps saved to the CRM.");
     }
     function bubble(role, text) {
       const d = document.createElement("div");
@@ -394,6 +414,7 @@ export function pageHtml(): string {
       greet(name);
       show("desk");
       openJob("chat");
+      seedAsk();
       loadTemplates();
     }
 
