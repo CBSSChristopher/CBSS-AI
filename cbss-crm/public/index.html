@@ -255,6 +255,20 @@
     .netlify-identity-signup { display: none !important; }
     input[type="checkbox"] { width: auto; margin-right: 8px; }
     input[type="number"] { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; font-family: inherit; }
+    .admin-cleanup {
+      margin-top: 8px; padding: 12px; border: 1px dashed #b45309; border-radius: 8px; background: #fff8ef;
+    }
+    .admin-cleanup h3 { font-size: 0.82rem; color: #9a3412; margin-bottom: 8px; }
+    .admin-cleanup p { font-size: 0.8rem; color: #5b6b7c; margin-bottom: 10px; }
+    #cleanupKeepResults {
+      max-height: 140px; overflow-y: auto; border: 1px solid var(--border);
+      border-radius: 6px; margin-top: 4px; display: none; background: white;
+    }
+    #cleanupKeepResults button {
+      display: block; width: 100%; text-align: left; padding: 7px 9px; border: none;
+      background: white; cursor: pointer; font-size: 0.8rem; font-family: inherit;
+    }
+    #cleanupKeepResults button:hover { background: #eef5fb; }
     @media (max-width: 1100px) {
       #view-contacts { flex-direction: column; }
       .detail { width: 100%; max-height: 42vh; border-top: 1px solid var(--border); }
@@ -282,7 +296,7 @@
         <span class="mark">CB</span>
         <div>
           <h1>CBShippingSolutions</h1>
-          <p>Container Sales CRM · build 9</p>
+          <p>Container Sales CRM · build 11</p>
         </div>
       </div>
       <div class="user">
@@ -589,7 +603,7 @@
     }
 
     function contactEverAssignedToScope(c) {
-      if (!c) return false;
+      if (!c || isFoldedContact(c)) return false;
       const scope = currentOwnerScope();
       if (!scope) return true;
       if (scope === '__mine__') {
@@ -740,8 +754,17 @@
       return archiveRequests[id] || archiveRequests[String(id)] || null;
     }
 
+    function isFoldedContact(c) {
+      if (!c) return false;
+      if (c.folded === true || c.mergedAway === true) return true;
+      if (c.mergedInto || c.duplicateOf) return true;
+      const req = archiveRequestFor(c.id);
+      return !!(req && String(req.reason || '') === 'duplicate' && req.mergedInto);
+    }
+
     function isArchivedContact(c) {
       if (!c) return false;
+      if (isFoldedContact(c)) return true;
       if (c.archived === true) return true;
       const req = archiveRequestFor(c.id);
       return !!(req && req.status === 'approved');
@@ -1329,7 +1352,7 @@
 
     function isWorking(c) {
       if (!c) return false;
-      if (c.archived === true) return false;
+      if (isFoldedContact(c) || c.archived === true) return false;
       const hasDeal = dealsForContact(c.id).length > 0;
       if (isDncContact(c) && !hasDeal) return false;
       if (c.amount !== undefined && c.amount !== null && c.amount !== '') return true;
@@ -1346,7 +1369,7 @@
     function filterContacts() {
       const q = (document.getElementById('searchInput').value || '').toLowerCase().trim();
       syncOwnerChips();
-      let filtered = contacts.filter(contactMatchesOwnerScope);
+      let filtered = contacts.filter(c => !isFoldedContact(c) && contactMatchesOwnerScope(c));
       if (q) {
         filtered = filtered.filter(c =>
           (c.name || '').toLowerCase().includes(q) ||
@@ -2033,6 +2056,7 @@
       document.getElementById('mWholesale').value = '';
       document.getElementById('mClientType').value = '';
       document.getElementById('mDnc').checked = false;
+      resetAdminCleanup(false);
       const m = document.getElementById('contactModal');
       m.classList.remove('hidden');
       m.style.display = 'flex';
@@ -2062,6 +2086,7 @@
       document.getElementById('mWholesale').value = c.wholesale !== undefined && c.wholesale !== '' ? c.wholesale : '';
       document.getElementById('mClientType').value = c.clientType || '';
       document.getElementById('mDnc').checked = Boolean(c.dnc);
+      resetAdminCleanup(true);
       const m = document.getElementById('contactModal');
       m.classList.remove('hidden');
       m.style.display = 'flex';
@@ -2071,6 +2096,167 @@
       const m = document.getElementById('contactModal');
       m.classList.add('hidden');
       m.style.display = 'none';
+      resetAdminCleanup(false);
+    }
+
+    function resetAdminCleanup(editing) {
+      const box = document.getElementById('adminCleanupBox');
+      const form = document.getElementById('adminCleanupForm');
+      const msg = document.getElementById('cleanupMsg');
+      const search = document.getElementById('cleanupKeepSearch');
+      const results = document.getElementById('cleanupKeepResults');
+      const picked = document.getElementById('cleanupKeepPicked');
+      const keepId = document.getElementById('cleanupKeepId');
+      const code = document.getElementById('cleanupCode');
+      const show = Boolean(editing && isChristopher());
+      if (box) box.classList.toggle('hidden', !show);
+      if (form) form.classList.add('hidden');
+      if (msg) msg.textContent = '';
+      if (search) search.value = '';
+      if (results) { results.innerHTML = ''; results.style.display = 'none'; }
+      if (picked) picked.textContent = '';
+      if (keepId) keepId.value = '';
+      if (code) code.value = '';
+      const dup = document.querySelector('input[name="cleanupRole"][value="duplicate"]');
+      if (dup) dup.checked = true;
+    }
+
+    function toggleAdminCleanup() {
+      if (!isChristopher()) return;
+      const form = document.getElementById('adminCleanupForm');
+      if (!form) return;
+      form.classList.toggle('hidden');
+      if (!form.classList.contains('hidden')) {
+        suggestCleanupKeepers();
+        const search = document.getElementById('cleanupKeepSearch');
+        if (search) search.focus();
+      }
+    }
+
+    function cleanupCurrentId() {
+      return String(document.getElementById('editContactId').value || '').trim();
+    }
+
+    function cleanupDigits(value) {
+      return String(value || '').replace(/\D/g, '');
+    }
+
+    function likelyCleanupMatches(excludeId) {
+      const current = contacts.find(x => String(x.id) === String(excludeId));
+      if (!current) return [];
+      const email = String(current.email || '').trim().toLowerCase();
+      const phone = cleanupDigits(current.phone).slice(-10);
+      const name = String(current.name || '').trim().toLowerCase();
+      return contacts.filter(c => {
+        if (!c || String(c.id) === String(excludeId)) return false;
+        if (isArchivedContact(c)) return false;
+        const em = String(c.email || '').trim().toLowerCase();
+        const ph = cleanupDigits(c.phone).slice(-10);
+        const nm = String(c.name || '').trim().toLowerCase();
+        if (email && em && em === email) return true;
+        if (phone.length >= 10 && ph.length >= 10 && ph === phone) return true;
+        if (name && nm && nm === name) return true;
+        return false;
+      }).slice(0, 8);
+    }
+
+    function searchCleanupKeepers() {
+      const excludeId = cleanupCurrentId();
+      const q = String((document.getElementById('cleanupKeepSearch') || {}).value || '').trim().toLowerCase();
+      const digits = cleanupDigits(q);
+      let rows = [];
+      if (!q) rows = likelyCleanupMatches(excludeId);
+      else {
+        rows = contacts.filter(c => {
+          if (!c || String(c.id) === excludeId) return false;
+          if (isArchivedContact(c)) return false;
+          const hay = [c.name, c.email, c.phone, c.company, c.city].map(v => String(v || '').toLowerCase()).join(' ');
+          if (hay.includes(q)) return true;
+          if (digits.length >= 4 && cleanupDigits(c.phone).includes(digits)) return true;
+          return false;
+        }).slice(0, 8);
+      }
+      renderCleanupKeepers(rows, !q);
+    }
+
+    function suggestCleanupKeepers() {
+      renderCleanupKeepers(likelyCleanupMatches(cleanupCurrentId()), true);
+    }
+
+    function renderCleanupKeepers(rows, suggested) {
+      const box = document.getElementById('cleanupKeepResults');
+      if (!box) return;
+      if (!rows.length) {
+        box.innerHTML = '';
+        box.style.display = 'none';
+        return;
+      }
+      box.style.display = 'block';
+      box.innerHTML = (suggested ? '<div style="padding:6px 9px;font-size:0.72rem;color:#5b6b7c;">Possible duplicates</div>' : '') +
+        rows.map(c => '<button type="button" data-cleanup-id="' + esc(String(c.id)) + '">' +
+          esc(c.name || '(No name)') + ' · ' + esc(c.email || c.phone || c.company || '') +
+          (c.owner ? ' · ' + esc(c.owner) : '') + '</button>').join('');
+      box.querySelectorAll('button[data-cleanup-id]').forEach(function(btn) {
+        btn.addEventListener('click', function() { pickCleanupKeeper(btn.getAttribute('data-cleanup-id')); });
+      });
+    }
+
+    function pickCleanupKeeper(id) {
+      const c = contacts.find(x => String(x.id) === String(id));
+      const keepId = document.getElementById('cleanupKeepId');
+      const picked = document.getElementById('cleanupKeepPicked');
+      const results = document.getElementById('cleanupKeepResults');
+      if (keepId) keepId.value = String(id);
+      if (picked) picked.textContent = c ? ('Using ' + (c.name || id)) : ('Using ' + id);
+      if (results) results.style.display = 'none';
+    }
+
+    async function submitAdminCleanup() {
+      const msg = document.getElementById('cleanupMsg');
+      const setMsg = (text) => { if (msg) msg.textContent = text || ''; };
+      if (!isChristopher()) {
+        setMsg('Only Christopher can clean up contacts.');
+        return;
+      }
+      const currentId = cleanupCurrentId();
+      let otherId = String((document.getElementById('cleanupKeepId') || {}).value || '').trim();
+      if (!otherId) {
+        const typed = String((document.getElementById('cleanupKeepSearch') || {}).value || '').trim().toLowerCase();
+        const matches = contacts.filter(c => {
+          if (!c || String(c.id) === currentId || isArchivedContact(c)) return false;
+          const name = String(c.name || '').trim().toLowerCase();
+          const em = String(c.email || '').trim().toLowerCase();
+          return typed && (name === typed || em === typed || name.includes(typed) || em.includes(typed));
+        });
+        if (matches.length === 1) {
+          otherId = String(matches[0].id);
+          pickCleanupKeeper(otherId);
+        }
+      }
+      const code = String((document.getElementById('cleanupCode') || {}).value || '').trim();
+      const roleEl = document.querySelector('input[name="cleanupRole"]:checked');
+      const currentIsDuplicate = !roleEl || roleEl.value === 'duplicate';
+      if (!currentId || !otherId) {
+        setMsg('Pick the other contact first.');
+        return;
+      }
+      if (!code) {
+        setMsg('Enter the admin approval code to submit.');
+        return;
+      }
+      const sourceId = currentIsDuplicate ? currentId : otherId;
+      const keepId = currentIsDuplicate ? otherId : currentId;
+      setMsg('Submitting cleanup…');
+      const res = await apiSave('cleanupContact', { sourceId, keepId, code });
+      if (!res || res.ok === false) {
+        setMsg((res && res.error) || 'Cleanup did not save.');
+        return;
+      }
+      if (document.getElementById('cleanupCode')) document.getElementById('cleanupCode').value = '';
+      closeContactModal();
+      try { await loadData(); } catch (e) { console.warn(e); }
+      if (res.keepId) selectContact(res.keepId);
+      alert('Duplicate folded into the keeper and taken off the assigned list.');
     }
 
     function saveContact() {
@@ -2138,6 +2324,7 @@
     }
 
     function archiveBadgeHtml(c) {
+      if (isFoldedContact(c)) return '';
       if (isArchivedContact(c)) return ' <span class="badge badge-archived">Archived</span>';
       const req = archiveRequestFor(c && c.id);
       if (req && req.status === 'pending') return ' <span class="badge badge-pending">Archive pending</span>';
@@ -2145,6 +2332,7 @@
     }
 
     function archiveActionHtml(c) {
+      if (isFoldedContact(c)) return '';
       if (isArchivedContact(c)) return '<span class="badge badge-archived">Archived</span>';
       const req = archiveRequestFor(c && c.id);
       if (req && req.status === 'pending') return '<span class="badge badge-pending">Archive pending</span>';
@@ -2230,6 +2418,34 @@
           </select>
         </div>
         <div><label style="font-size:0.82rem;font-weight:600;"><input type="checkbox" id="mDnc" /> DNC</label></div>
+      </div>
+      <div id="adminCleanupBox" class="admin-cleanup hidden">
+        <h3>Admin cleanup</h3>
+        <button type="button" class="btn btn-secondary" id="adminCleanupToggle" onclick="toggleAdminCleanup()">Clean up duplicate</button>
+        <div id="adminCleanupForm" class="hidden" style="margin-top:10px;">
+          <p>Use this to fold a duplicate into the contact you want to keep. Notes, tasks, deals, and the assigned owner move to the keeper. The extra copy leaves the sales rep’s assigned list. It is not left sitting as Archived next to their name. Submit needs the admin approval code.</p>
+          <label style="font-size:0.82rem;font-weight:600;display:block;margin-bottom:6px;">
+            <input type="radio" name="cleanupRole" value="duplicate" checked /> This record is the extra copy
+          </label>
+          <label style="font-size:0.82rem;font-weight:600;display:block;margin-bottom:10px;">
+            <input type="radio" name="cleanupRole" value="keep" /> This record is the one to keep
+          </label>
+          <div>
+            <label style="font-size:0.82rem;font-weight:600;">Other contact</label>
+            <input type="text" id="cleanupKeepSearch" placeholder="Type name, email, or phone" oninput="searchCleanupKeepers()" autocomplete="off" />
+            <div id="cleanupKeepResults"></div>
+            <input type="hidden" id="cleanupKeepId" value="" />
+            <div id="cleanupKeepPicked" style="font-size:0.82rem;color:var(--primary);margin-top:4px;"></div>
+          </div>
+          <div style="margin-top:10px;">
+            <label style="font-size:0.82rem;font-weight:600;">Approval code</label>
+            <input type="password" id="cleanupCode" autocomplete="off" placeholder="Admin code to submit" />
+          </div>
+          <div class="actions">
+            <button type="button" class="btn btn-primary" onclick="submitAdminCleanup()">Submit cleanup</button>
+          </div>
+          <div id="cleanupMsg" style="font-size:0.8rem;color:#9a3412;margin-top:8px;"></div>
+        </div>
       </div>
       <div style="display:flex;gap:8px;margin-top:16px;">
         <button class="btn btn-primary" onclick="saveContact()">Save</button>

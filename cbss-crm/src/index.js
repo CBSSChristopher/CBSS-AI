@@ -1,4 +1,5 @@
 import { applyCompleteFollowupState, applyFollowupPatch, completedActionText, mergeNotesMap, resolveCrmAction } from "./followups.js";
+import { adminCleanupCodeOk, applyContactCleanup, preserveFoldedFlags } from "./cleanup.js";
 import {
   META_CONFIG_KEY,
   META_SOURCE,
@@ -451,7 +452,7 @@ async function serveAssets(request, env) {
     headers.set("CDN-Cache-Control", "no-store");
     headers.set("Cloudflare-CDN-Cache-Control", "no-store");
     headers.set("Pragma", "no-cache");
-    headers.set("x-crm-build", "9");
+    headers.set("x-crm-build", "11");
     return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
   }
   return res;
@@ -1027,7 +1028,7 @@ async function handleCrmData(request, env) {
       ]);
       return jsonResponse(request, 200, {
         ok: true,
-        crmBuild: 9,
+        crmBuild: 11,
         contactId,
         completed: true,
         completedTasks: next.completedTasks[contactId] || []
@@ -1047,7 +1048,7 @@ async function handleCrmData(request, env) {
       applyEdits(state.contactsAdded, state.contactEdits);
       const omitNotes = url.searchParams.get("omitNotes") === "1" || body.omitNotes === true || body.omitNotes === "1";
       const payload = {
-        crmBuild: 9,
+        crmBuild: 11,
         deals: state.deals,
         followups: state.followups,
         contactsAdded: state.contactsAdded,
@@ -1059,6 +1060,31 @@ async function handleCrmData(request, env) {
       };
       if (!omitNotes) payload.notes = state.notes;
       return jsonResponse(request, 200, payload);
+    }
+    if (action === "cleanupContact") {
+      if (!isChristopherUser(user)) return jsonResponse(request, 403, { error: "Only Christopher can clean up contacts." });
+      if (!adminCleanupCodeOk(env, body.code || body.approvalCode)) {
+        return jsonResponse(request, 403, { error: "Approval code is wrong." });
+      }
+      applyApprovedArchives(state);
+      applyEdits(archive, state.contactEdits);
+      applyEdits(state.contactsAdded, state.contactEdits);
+      const result = applyContactCleanup(state, archive, {
+        sourceId: body.sourceId || body.duplicateId,
+        keepId: body.keepId || body.keeperId,
+        author: user && (user.name || user.email) || "Christopher Banks",
+        timestamp: nowStamp()
+      });
+      if (!result.ok) return jsonResponse(request, 400, { error: result.error });
+      Object.assign(state, result.state);
+      await persistState(store, state);
+      await store.setJSON("archiveRequests", state.archiveRequests);
+      return jsonResponse(request, 200, {
+        ok: true,
+        cleanup: true,
+        keepId: result.keepId,
+        sourceId: result.sourceId
+      });
     }
     if (action === "saveFollowups") {
       const incoming = body.followups && typeof body.followups === "object" && !Array.isArray(body.followups) ? body.followups : {};
@@ -1145,7 +1171,7 @@ async function handleCrmData(request, env) {
       if (!user) return jsonResponse(request, 401, { error: "Unauthorized" });
       const [key, value] = writers[action];
       if (key === "contactEdits") {
-        await store.setJSON(key, preserveArchivedFlags(state.contactEdits, value));
+        await store.setJSON(key, preserveFoldedFlags(state.contactEdits, value));
       } else if (key === "notes") {
         await store.setJSON(key, mergeNotesMap(state.notes, value));
       } else {
@@ -1687,7 +1713,7 @@ var index_default = {
     const path = normalizePath(url.pathname);
     if (path === "/__bust" && ctx && ctx.cache && typeof ctx.cache.purge === "function") {
       try { await ctx.cache.purge({ purgeEverything: true }); } catch (_) {}
-      return new Response("ok", { status: 200, headers: { "Cache-Control": "private, no-store", "x-crm-build": "9" } });
+      return new Response("ok", { status: 200, headers: { "Cache-Control": "private, no-store", "x-crm-build": "11" } });
     }
     if (path === "/auth/login") return handleLogin(request, env);
     if (path === "/auth/me") return handleMe(request, env);
