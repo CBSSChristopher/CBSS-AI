@@ -86,8 +86,9 @@ describe("CBSS Pay · Veem", () => {
     assert.match(index, /\/pay\/list/);
     assert.match(index, /\/pay\/cancel/);
     assert.match(page, /Create Veem request/);
-    assert.match(page, /build 1/);
+    assert.match(page, /build 2/);
     assert.match(page, /veem-warn/);
+    assert.match(src, /restricted and cannot generate API tokens/);
     assert.doesNotMatch(src, /xChange/);
   });
 
@@ -128,5 +129,21 @@ describe("CBSS Pay · Veem", () => {
     assert.match(text, /\$3990\.00/);
     assert.match(text, /https:\/\/apps\.veem\.com\/pay\/159776/);
     assert.equal(parseInvoice({ amount: { number: 10 } }), null);
+  });
+
+  it("maps a restricted Veem account instead of blaming the keys", () => {
+    const raw = JSON.stringify({
+      error: "server_error",
+      error_description: "Account is Restricted, cannot generate tokens.",
+    });
+    function tokenError(text) {
+      const parsed = JSON.parse(text);
+      const desc = String(parsed.error_description || parsed.error || "");
+      if (/restricted/i.test(desc) || /cannot generate tokens/i.test(desc)) {
+        return "Veem says this account is restricted and cannot generate API tokens. Ask Veem support to enable API access on the CBGC LLC account.";
+      }
+      return desc;
+    }
+    assert.match(tokenError(raw), /restricted and cannot generate API tokens/);
   });
 });

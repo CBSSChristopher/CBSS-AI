@@ -166,6 +166,23 @@ export function veemReady(env: Env): boolean {
   return Boolean(env.VEEM_CLIENT_ID && env.VEEM_CLIENT_SECRET);
 }
 
+export function tokenError(raw: string): string {
+  let desc = "";
+  try {
+    const parsed = JSON.parse(raw) as { error?: string; error_description?: string; message?: string };
+    desc = String(parsed.error_description || parsed.message || parsed.error || "").trim();
+  } catch {
+    desc = String(raw || "").trim();
+  }
+  if (/restricted/i.test(desc) || /cannot generate tokens/i.test(desc)) {
+    return "Veem says this account is restricted and cannot generate API tokens. Ask Veem support to enable API access on the CBGC LLC account.";
+  }
+  if (/invalid_client/i.test(desc) || /unauthorized/i.test(desc)) {
+    return "Veem rejected the API keys. Check the Client ID and Secret in Settings > Integrations.";
+  }
+  return desc ? desc.slice(0, 240) : "Veem login failed. Check the API keys.";
+}
+
 async function getToken(env: Env, fetchImpl: typeof fetch): Promise<string> {
   if (tokenCache && Date.now() < tokenCache.exp) return tokenCache.token;
   const id = env.VEEM_CLIENT_ID || "";
@@ -183,7 +200,7 @@ async function getToken(env: Env, fetchImpl: typeof fetch): Promise<string> {
   const raw = await res.text();
   if (!res.ok) {
     console.error("veem_token_http", res.status, raw.slice(0, 180));
-    throw new Error("Veem login failed. Check the API keys.");
+    throw new Error(tokenError(raw));
   }
   let data: { access_token?: string; expires_in?: number } = {};
   try {
@@ -275,7 +292,7 @@ export async function listPayments(
     return { ok: true, cards: invoiceRows(result.body) };
   } catch (err) {
     console.error("veem_list_error", err instanceof Error ? err.message : "unknown");
-    return { ok: false, error: "Could not list Veem invoices." };
+    return { ok: false, error: err instanceof Error ? err.message : "Could not list Veem invoices." };
   }
 }
 
