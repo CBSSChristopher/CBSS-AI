@@ -70,7 +70,11 @@ const KNOWN_CRM_ACTIONS = new Set([
   "saveProposals",
   "ingestProposal",
   "importDeals",
-  "importContacts"
+  "importContacts",
+  "getMetaStatus",
+  "saveMetaConfig",
+  "connectMeta",
+  "importMetaLeads"
 ]);
 
 export function resolveCrmAction(method, urlAction, body) {

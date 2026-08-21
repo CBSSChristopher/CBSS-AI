@@ -1,4 +1,19 @@
 import { applyCompleteFollowupState, applyFollowupPatch, completedActionText, resolveCrmAction } from "./followups.js";
+import {
+  META_CONFIG_KEY,
+  META_SOURCE,
+  META_WEBHOOK_PATH,
+  GRAPH,
+  collectLeadgenEvents,
+  ensureVerifyToken,
+  facebookLeadTask,
+  fieldMap,
+  hasIdentity,
+  mapLead,
+  normalizeMetaConfig,
+  publicMetaStatus,
+  verifyHandshake
+} from "./meta.js";
 
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
@@ -434,7 +449,7 @@ async function serveAssets(request, env) {
     headers.set("CDN-Cache-Control", "no-store");
     headers.set("Cloudflare-CDN-Cache-Control", "no-store");
     headers.set("Pragma", "no-cache");
-    headers.set("x-crm-build", "6");
+    headers.set("x-crm-build", "7");
     return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
   }
   return res;
@@ -1010,7 +1025,7 @@ async function handleCrmData(request, env) {
       ]);
       return jsonResponse(request, 200, {
         ok: true,
-        crmBuild: 6,
+        crmBuild: 7,
         contactId,
         completed: true,
         completedTasks: next.completedTasks[contactId] || []
@@ -1030,7 +1045,7 @@ async function handleCrmData(request, env) {
       applyEdits(state.contactsAdded, state.contactEdits);
       const omitNotes = url.searchParams.get("omitNotes") === "1" || body.omitNotes === true || body.omitNotes === "1";
       const payload = {
-        crmBuild: 6,
+        crmBuild: 7,
         deals: state.deals,
         followups: state.followups,
         contactsAdded: state.contactsAdded,
@@ -1263,6 +1278,23 @@ async function handleCrmData(request, env) {
         contactIds: seen.size
       });
     }
+    if (action === "getMetaStatus" || action === "saveMetaConfig" || action === "connectMeta" || action === "importMetaLeads") {
+      if (!isChristopherUser(user)) return jsonResponse(request, 403, { error: "Only Christopher can manage Meta leads" });
+      if (action === "getMetaStatus") {
+        const status = await getMetaStatusPayload(request, env);
+        return jsonResponse(request, 200, status);
+      }
+      if (action === "saveMetaConfig") {
+        const saved = await saveMetaConfigFromBody(env, body);
+        return jsonResponse(request, 200, { ok: true, ...saved });
+      }
+      if (action === "connectMeta") {
+        const connected = await connectMetaPage(env, body);
+        return jsonResponse(request, connected.ok ? 200 : 400, connected);
+      }
+      const imported = await importMetaLeads(env);
+      return jsonResponse(request, imported.ok ? 200 : 400, imported);
+    }
     if (action === "importContacts") {
       const rows = Array.isArray(body.contacts) ? body.contacts : [];
       let created = 0;
@@ -1296,70 +1328,169 @@ async function handleCrmData(request, env) {
 __name(handleCrmData, "handleCrmData");
 
 // src/meta-leadgen.js
-var SOURCE = "Facebook Instant Form";
 var SEEN_KEY = "meta-leadgen-seen";
-var GRAPH = "https://graph.facebook.com/v21.0/";
-function verifyToken(env) {
-  return String(env && env.META_VERIFY_TOKEN || "").trim();
+function webhookUrlFor(request) {
+  try {
+    return new URL(META_WEBHOOK_PATH, request.url).toString();
+  } catch (_) {
+    return "https://cbsscrm.cbss.workers.dev" + META_WEBHOOK_PATH;
+  }
 }
-__name(verifyToken, "verifyToken");
-function pageToken(env) {
-  return String(env && env.META_PAGE_ACCESS_TOKEN || "").trim();
+__name(webhookUrlFor, "webhookUrlFor");
+async function readMetaConfig(env) {
+  const store = openStore(env);
+  const raw = await store.get(META_CONFIG_KEY, { type: "json" });
+  const cfg = ensureVerifyToken(normalizeMetaConfig(raw));
+  if (!cfg.pageAccessToken) cfg.pageAccessToken = String(env && env.META_PAGE_ACCESS_TOKEN || "").trim();
+  if (!cfg.appSecret) cfg.appSecret = String(env && env.META_APP_SECRET || "").trim();
+  if (!cfg.verifyToken) cfg.verifyToken = String(env && env.META_VERIFY_TOKEN || "").trim();
+  return cfg;
 }
-__name(pageToken, "pageToken");
-function appSecret(env) {
-  return String(env && env.META_APP_SECRET || "").trim();
+__name(readMetaConfig, "readMetaConfig");
+async function writeMetaConfig(env, cfg) {
+  const store = openStore(env);
+  const next = normalizeMetaConfig(cfg);
+  await store.setJSON(META_CONFIG_KEY, next);
+  return next;
 }
-__name(appSecret, "appSecret");
-function ingestSecret(env) {
-  return String(env && env.META_INGEST_SECRET || verifyToken(env) || "").trim();
+__name(writeMetaConfig, "writeMetaConfig");
+async function getMetaStatusPayload(request, env) {
+  let cfg = await readMetaConfig(env);
+  if (!String(cfg.verifyToken || "").trim()) {
+    cfg = ensureVerifyToken(cfg);
+    cfg = await writeMetaConfig(env, cfg);
+  }
+  return publicMetaStatus(cfg, webhookUrlFor(request));
 }
-__name(ingestSecret, "ingestSecret");
-function pickStr(v) {
-  if (v == null) return "";
-  if (Array.isArray(v)) return pickStr(v[0]);
-  return String(v).trim();
+__name(getMetaStatusPayload, "getMetaStatusPayload");
+async function saveMetaConfigFromBody(env, body) {
+  const current = await readMetaConfig(env);
+  const incoming = body && typeof body === "object" ? body : {};
+  if (incoming.pageAccessToken) current.pageAccessToken = String(incoming.pageAccessToken).trim();
+  if (incoming.appSecret) current.appSecret = String(incoming.appSecret).trim();
+  if (incoming.verifyToken) current.verifyToken = String(incoming.verifyToken).trim();
+  if (incoming.defaultOwner) current.defaultOwner = String(incoming.defaultOwner).trim();
+  if (incoming.formOwners && typeof incoming.formOwners === "object") current.formOwners = incoming.formOwners;
+  const saved = await writeMetaConfig(env, current);
+  return publicMetaStatus(saved, "https://cbsscrm.cbss.workers.dev" + META_WEBHOOK_PATH);
 }
-__name(pickStr, "pickStr");
-function fieldMap(fieldData) {
-  const out = {};
-  if (!Array.isArray(fieldData)) return out;
-  for (const row of fieldData) {
-    if (!row) continue;
-    const key = String(row.name || row.field || "").trim().toLowerCase();
-    const val = pickStr(row.values != null ? row.values : row.value);
-    if (key && val) out[key] = val;
+__name(saveMetaConfigFromBody, "saveMetaConfigFromBody");
+async function graphFetch(path, token, extra) {
+  const url = new URL(path.startsWith("http") ? path : GRAPH + path.replace(/^\//, ""));
+  if (token) url.searchParams.set("access_token", token);
+  if (extra) Object.keys(extra).forEach((k) => {
+    if (extra[k] != null && extra[k] !== "") url.searchParams.set(k, extra[k]);
+  });
+  const res = await fetch(url.toString());
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data && data.error && data.error.message || "Graph " + res.status);
+    err.code = "GRAPH";
+    throw err;
+  }
+  return data;
+}
+__name(graphFetch, "graphFetch");
+async function listLeadForms(pageId, token) {
+  const data = await graphFetch(pageId + "/leadgen_forms", token, { fields: "id,name,status,leads_count", limit: "100" });
+  return (data.data || []).map((f) => ({
+    id: String(f.id || ""),
+    name: String(f.name || ""),
+    status: String(f.status || ""),
+    leadsCount: Number(f.leads_count || 0) || 0
+  })).filter((f) => f.id);
+}
+__name(listLeadForms, "listLeadForms");
+async function connectMetaPage(env, body) {
+  const current = await readMetaConfig(env);
+  const token = String(body && body.pageAccessToken || current.pageAccessToken || "").trim();
+  if (!token) return { ok: false, error: "Paste a Facebook Page access token first." };
+  try {
+    const me = await graphFetch("me", token, { fields: "id,name" });
+    current.pageAccessToken = token;
+    current.pageId = String(me.id || "");
+    current.pageName = String(me.name || "");
+    if (body && body.defaultOwner) current.defaultOwner = String(body.defaultOwner).trim();
+    if (body && body.appSecret) current.appSecret = String(body.appSecret).trim();
+    const posted = await fetch(GRAPH + current.pageId + "/subscribed_apps", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ access_token: token, subscribed_fields: "leadgen" }).toString()
+    });
+    const postedJson = await posted.json().catch(() => ({}));
+    if (!posted.ok && !(postedJson.success === true)) {
+      return {
+        ok: false,
+        error: (postedJson.error && postedJson.error.message) || "Could not subscribe the Page to new Facebook leads."
+      };
+    }
+    current.forms = await listLeadForms(current.pageId, token);
+    const saved = await writeMetaConfig(env, current);
+    return { ok: true, ...publicMetaStatus(saved, "https://cbsscrm.cbss.workers.dev" + META_WEBHOOK_PATH) };
+  } catch (err) {
+    return { ok: false, error: err.message || "Could not connect that Facebook Page token." };
+  }
+}
+__name(connectMetaPage, "connectMetaPage");
+async function fetchAllFormLeads(formId, token, cap) {
+  const out = [];
+  let url = GRAPH + encodeURIComponent(formId) + "/leads?fields=id,created_time,field_data,form_id&limit=100&access_token=" + encodeURIComponent(token);
+  while (url && out.length < cap) {
+    const res = await fetch(url);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data && data.error && data.error.message || "Graph " + res.status);
+    for (const row of data.data || []) out.push(row);
+    url = data.paging && data.paging.next || "";
   }
   return out;
 }
-__name(fieldMap, "fieldMap");
-function mapLead(fields, extra) {
-  const f = fields || {};
-  const first = pickStr(f.first_name || f.firstname);
-  const last = pickStr(f.last_name || f.lastname);
-  const full = pickStr(f.full_name || f.fullname || f.name || [first, last].filter(Boolean).join(" "));
-  const email = pickStr(f.email || f.email_address || f.work_email);
-  const phone = pickStr(f.phone_number || f.phone || f.mobile || f.mobile_number);
-  const company = pickStr(f.company_name || f.company || f.business_name);
-  const zip = pickStr(f.zip_code || f.zip || f.post_code || f.postal_code);
-  const payload = {
-    name: full,
-    email,
-    phone,
-    company,
-    zip,
-    source: SOURCE,
-    stage: "New Lead",
-    notes: extra || ""
-  };
-  Object.keys(payload).forEach((k) => {
-    if (payload[k] === "") delete payload[k];
-  });
-  payload.source = SOURCE;
-  payload.stage = "New Lead";
-  return payload;
+__name(fetchAllFormLeads, "fetchAllFormLeads");
+async function importMetaLeads(env) {
+  const cfg = await readMetaConfig(env);
+  if (!cfg.pageAccessToken || !cfg.pageId) return { ok: false, error: "Connect the Facebook Page first." };
+  try {
+    const forms = await listLeadForms(cfg.pageId, cfg.pageAccessToken);
+    cfg.forms = forms;
+    let created = 0;
+    let matched = 0;
+    let skipped = 0;
+    const results = [];
+    for (const form of forms) {
+      const leads = await fetchAllFormLeads(form.id, cfg.pageAccessToken, 2000);
+      for (const lead of leads) {
+        const fields = fieldMap(lead.field_data);
+        const payload = mapLead(
+          fields,
+          "Facebook Instant Form · " + (form.name || form.id) + " · " + (lead.id || ""),
+          cfg,
+          { formId: form.id, formName: form.name }
+        );
+        if (!hasIdentity(payload)) {
+          skipped += 1;
+          continue;
+        }
+        const r = await upsertFromPayload(env, payload, String(lead.id || ""), { createdTask: true });
+        if (r.duplicate) skipped += 1;
+        else if (r.created) created += 1;
+        else matched += 1;
+        results.push({ id: lead.id, form: form.name, ...r });
+      }
+    }
+    cfg.lastImportAt = (/* @__PURE__ */ new Date()).toISOString();
+    await writeMetaConfig(env, cfg);
+    return {
+      ok: true,
+      created,
+      matched,
+      skipped,
+      forms: forms.length,
+      ...publicMetaStatus(cfg, "https://cbsscrm.cbss.workers.dev" + META_WEBHOOK_PATH)
+    };
+  } catch (err) {
+    return { ok: false, error: err.message || "Import failed." };
+  }
 }
-__name(mapLead, "mapLead");
+__name(importMetaLeads, "importMetaLeads");
 async function hmacHex(secret, body) {
   const enc = new TextEncoder();
   const key = await crypto.subtle.importKey(
@@ -1373,8 +1504,8 @@ async function hmacHex(secret, body) {
   return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 __name(hmacHex, "hmacHex");
-async function signatureOk(request, env, raw) {
-  const secret = appSecret(env);
+async function signatureOk(request, env, raw, cfg) {
+  const secret = String(cfg && cfg.appSecret || env && env.META_APP_SECRET || "").trim();
   if (!secret) return true;
   const hdr = request.headers.get("X-Hub-Signature-256") || request.headers.get("x-hub-signature-256") || "";
   const got = hdr.replace(/^sha256=/i, "").trim().toLowerCase();
@@ -1386,33 +1517,6 @@ async function signatureOk(request, env, raw) {
   return diff === 0;
 }
 __name(signatureOk, "signatureOk");
-function collectLeadgenIds(body) {
-  const ids = [];
-  const entries = body && body.entry || [];
-  for (const entry of entries) {
-    const changes = entry && entry.changes || [];
-    for (const ch of changes) {
-      const v = ch && ch.value;
-      const id = v && (v.leadgen_id || v.lead_id);
-      if (id) ids.push(String(id));
-    }
-  }
-  if (body && body.leadgen_id) ids.push(String(body.leadgen_id));
-  return [...new Set(ids.filter(Boolean))];
-}
-__name(collectLeadgenIds, "collectLeadgenIds");
-async function fetchGraphLead(id, token) {
-  const url = GRAPH + encodeURIComponent(id) + "?access_token=" + encodeURIComponent(token);
-  const res = await fetch(url);
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const err = new Error(data && data.error && data.error.message || "Graph " + res.status);
-    err.code = "GRAPH";
-    throw err;
-  }
-  return data;
-}
-__name(fetchGraphLead, "fetchGraphLead");
 async function alreadySeen(store, id) {
   const seen = await store.get(SEEN_KEY, { type: "json" }) || {};
   return !!(seen && seen[id]);
@@ -1424,38 +1528,41 @@ async function markSeen(store, id, contactId) {
   await store.setJSON(SEEN_KEY, seen);
 }
 __name(markSeen, "markSeen");
-async function upsertFromPayload(env, payload, leadId) {
+async function upsertFromPayload(env, payload, leadId, opts) {
   const store = openStore(env);
   const archive = await loadArchive(store);
   const state = await readState(store);
   if (leadId && await alreadySeen(store, leadId)) {
     return { created: false, duplicate: true, contactId: (await store.get(SEEN_KEY, { type: "json" }))[leadId].contactId };
   }
-  const result = ingestOne(state, archive, payload, SOURCE);
+  const result = ingestOne(state, archive, payload, META_SOURCE);
+  if (result.created && opts && opts.createdTask && result.contact && result.contact.id != null) {
+    const key = String(result.contact.id);
+    const task = facebookLeadTask();
+    state.followups = state.followups && typeof state.followups === "object" ? state.followups : {};
+    state.followups[key] = task;
+  }
   await persistState(store, state);
   if (leadId) await markSeen(store, leadId, result.contact && result.contact.id);
   return {
     created: result.created,
     contactId: result.contact && result.contact.id,
-    dealId: result.deal && result.deal.id
+    dealId: result.deal && result.deal.id,
+    owner: result.contact && result.contact.owner || payload.owner || ""
   };
 }
 __name(upsertFromPayload, "upsertFromPayload");
-function hasIdentity(payload) {
-  return !!(payload && (payload.email || payload.phone || payload.name));
-}
-__name(hasIdentity, "hasIdentity");
 async function handleMetaLeadgen(request, env) {
   const url = new URL(request.url);
+  const cfg = await readMetaConfig(env);
   if (request.method === "OPTIONS") return optionsResponse(request);
   if (request.method === "GET") {
-    const mode = url.searchParams.get("hub.mode") || url.searchParams.get("hub_mode") || "";
-    const token = url.searchParams.get("hub.verify_token") || url.searchParams.get("hub_verify_token") || "";
-    const challenge = url.searchParams.get("hub.challenge") || url.searchParams.get("hub_challenge") || "";
-    const expected = verifyToken(env);
-    if (mode === "subscribe" && expected && token === expected && challenge) {
-      return new Response(challenge, { status: 200, headers: { "Content-Type": "text/plain" } });
-    }
+    const checked = verifyHandshake({
+      mode: url.searchParams.get("hub.mode") || url.searchParams.get("hub_mode") || "",
+      token: url.searchParams.get("hub.verify_token") || url.searchParams.get("hub_verify_token") || "",
+      challenge: url.searchParams.get("hub.challenge") || url.searchParams.get("hub_challenge") || ""
+    }, cfg.verifyToken);
+    if (checked.ok) return new Response(checked.challenge, { status: 200, headers: { "Content-Type": "text/plain" } });
     return jsonResponse(request, 403, { error: "Verify failed", ok: false });
   }
   if (request.method !== "POST") {
@@ -1472,40 +1579,52 @@ async function handleMetaLeadgen(request, env) {
   }
   const looksMeta = !!(body.object || body.entry || body.leadgen_id);
   if (looksMeta) {
-    if (!await signatureOk(request, env, raw)) {
+    if (!await signatureOk(request, env, raw, cfg)) {
       return jsonResponse(request, 403, { error: "Bad signature" });
     }
-    const ids = collectLeadgenIds(body);
-    if (!ids.length) return jsonResponse(request, 200, { ok: true, ingested: 0 });
-    const token = pageToken(env);
+    const events = collectLeadgenEvents(body);
+    if (!events.length) return jsonResponse(request, 200, { ok: true, ingested: 0 });
+    const token = cfg.pageAccessToken;
     if (!token) {
       return jsonResponse(request, 200, {
         ok: true,
         ingested: 0,
-        pending: ids,
-        need: "META_PAGE_ACCESS_TOKEN"
+        pending: events.map((e) => e.id),
+        need: "pageAccessToken"
       });
     }
+    const formsById = {};
+    (cfg.forms || []).forEach((f) => {
+      if (f && f.id) formsById[f.id] = f.name || "";
+    });
     const results = [];
-    for (const id of ids) {
+    for (const ev of events) {
       try {
-        const lead = await fetchGraphLead(id, token);
+        const lead = await graphFetch(ev.id, token, { fields: "id,created_time,ad_id,form_id,field_data" });
         const fields2 = fieldMap(lead.field_data);
-        const payload2 = mapLead(fields2, "Facebook Instant Form lead " + id);
+        const formId = ev.formId || String(lead.form_id || "");
+        const payload2 = mapLead(
+          fields2,
+          "Facebook Instant Form lead " + ev.id,
+          cfg,
+          { formId, formName: formsById[formId] || "" }
+        );
         if (!hasIdentity(payload2)) {
-          results.push({ id, skipped: "no name/email/phone in form data" });
+          results.push({ id: ev.id, skipped: "no name/email/phone in form data" });
           continue;
         }
-        const r2 = await upsertFromPayload(env, payload2, id);
-        results.push({ id, ...r2 });
+        const r2 = await upsertFromPayload(env, payload2, ev.id, { createdTask: true });
+        results.push({ id: ev.id, ...r2 });
       } catch (err) {
-        results.push({ id, error: err.message || "fetch failed" });
+        results.push({ id: ev.id, error: err.message || "fetch failed" });
       }
     }
+    cfg.lastWebhookAt = (/* @__PURE__ */ new Date()).toISOString();
+    await writeMetaConfig(env, cfg);
     return jsonResponse(request, 200, { ok: true, results });
   }
-  const secret = ingestSecret(env);
-  const got = (request.headers.get("x-ingest-secret") || url.searchParams.get("secret") || pickStr(body.secret) || "").trim();
+  const secret = String(env && env.META_INGEST_SECRET || cfg.verifyToken || "").trim();
+  const got = (request.headers.get("x-ingest-secret") || url.searchParams.get("secret") || String(body.secret || "")).trim();
   if (secret && got !== secret) {
     return jsonResponse(request, 401, { error: "Unauthorized" });
   }
@@ -1514,14 +1633,15 @@ async function handleMetaLeadgen(request, env) {
     email: body.email,
     phone_number: body.phone || body.phone_number,
     company_name: body.company || body.company_name,
-    zip_code: body.zip || body.zip_code
+    zip_code: body.zip || body.zip_code,
+    owner: body.owner || body.rep
   };
-  const payload = mapLead(fields, pickStr(body.notes));
+  const payload = mapLead(fields, String(body.notes || "").trim(), cfg, { formId: body.form_id, formName: body.form_name });
   if (!hasIdentity(payload)) {
     return jsonResponse(request, 400, { error: "Need an existing name, email, or phone" });
   }
-  const leadId = pickStr(body.leadgen_id || body.id);
-  const r = await upsertFromPayload(env, payload, leadId || "");
+  const leadId = String(body.leadgen_id || body.id || "").trim();
+  const r = await upsertFromPayload(env, payload, leadId || "", { createdTask: true });
   return jsonResponse(request, 200, { ok: true, ...r });
 }
 __name(handleMetaLeadgen, "handleMetaLeadgen");
@@ -1533,7 +1653,7 @@ var index_default = {
     const path = normalizePath(url.pathname);
     if (path === "/__bust" && ctx && ctx.cache && typeof ctx.cache.purge === "function") {
       try { await ctx.cache.purge({ purgeEverything: true }); } catch (_) {}
-      return new Response("ok", { status: 200, headers: { "Cache-Control": "private, no-store", "x-crm-build": "6" } });
+      return new Response("ok", { status: 200, headers: { "Cache-Control": "private, no-store", "x-crm-build": "7" } });
     }
     if (path === "/auth/login") return handleLogin(request, env);
     if (path === "/auth/me") return handleMe(request, env);

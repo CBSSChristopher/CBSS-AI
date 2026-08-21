@@ -247,7 +247,7 @@
         <span class="mark">CB</span>
         <div>
           <h1>CBShippingSolutions</h1>
-          <p>Container Sales CRM · build 6</p>
+          <p>Container Sales CRM · build 7</p>
         </div>
       </div>
       <div class="user">
@@ -261,6 +261,7 @@
       <button data-view="tasks" onclick="switchView('tasks')">Tasks</button>
       <button data-view="pipeline" onclick="switchView('pipeline')">Pipeline</button>
       <button data-view="archive-review" id="archiveReviewNav" class="hidden" onclick="switchView('archive-review')">Archive review</button>
+      <button data-view="meta" id="metaNav" class="hidden" onclick="switchView('meta')">Meta leads</button>
     </nav>
     <div id="nextFollowupPrompt" class="hidden">
       <div class="card">
@@ -385,6 +386,43 @@
           <h2>Archive review</h2>
           <p style="font-size:0.85rem;color:#666;margin-bottom:12px;">Pending archive requests. Approve moves the contact out of working/pipeline. Deny leaves it in the live book. Search still finds approved rows.</p>
           <div id="archiveReviewList"></div>
+        </div>
+      </div>
+    </div>
+    <div class="main hidden" id="view-meta">
+      <div class="list-panel">
+        <div class="card">
+          <h2>Facebook / Meta leads</h2>
+          <p style="font-size:0.85rem;color:#666;margin-bottom:12px;">Connect Meta Business Suite once. Existing Instant Form leads import into the CRM, new ones keep arriving, and each form is assigned to a rep. Nobody has to flip back to Facebook.</p>
+          <div id="metaStatusBox" style="font-size:0.9rem;margin-bottom:16px;">Loading Meta connection…</div>
+          <ol style="margin:0 0 18px 20px;color:#444;font-size:0.9rem;line-height:1.55;">
+            <li>In <a href="https://business.facebook.com" target="_blank" rel="noopener">Meta Business Suite</a>, open <strong>Settings → Users → System users</strong>. Add an Admin system user if you do not have one.</li>
+            <li>Assign your Facebook Page to that system user (full control).</li>
+            <li>Generate a token. Include <code>leads_retrieval</code>, <code>pages_manage_metadata</code>, <code>pages_show_list</code>, and <code>pages_read_engagement</code>. Paste it below.</li>
+            <li>In <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener">Meta for Developers</a>, open your Business app → <strong>Webhooks → Page</strong>. Callback URL is copied below. Verify token is copied below. Subscribe to <code>leadgen</code>.</li>
+            <li>Click <strong>Connect Page</strong>, assign each Instant Form to a rep, then <strong>Import existing leads</strong>.</li>
+          </ol>
+          <div class="field-row"><span class="label">Webhook URL</span><span id="metaWebhookUrl">—</span></div>
+          <div class="field-row"><span class="label">Verify token</span><span id="metaVerifyToken">—</span></div>
+          <div class="field-row"><span class="label">Page</span><span id="metaPageName">Not connected</span></div>
+          <label class="ctrl" style="display:block;margin:12px 0 8px;max-width:520px;">
+            <span>Page access token</span>
+            <input type="password" id="metaPageToken" placeholder="Paste the system-user Page token" autocomplete="off" />
+          </label>
+          <label class="ctrl" style="display:block;margin:0 0 12px;max-width:320px;">
+            <span>Default owner if a form is not mapped</span>
+            <select id="metaDefaultOwner">
+              <option>Christopher Banks</option>
+            </select>
+          </label>
+          <div class="actions">
+            <button type="button" class="btn btn-primary" onclick="connectMetaPage()">Connect Page</button>
+            <button type="button" class="btn btn-secondary" onclick="saveMetaRouting()">Save assignment</button>
+            <button type="button" class="btn btn-success" onclick="importMetaLeads()">Import existing leads</button>
+          </div>
+          <p id="metaActionMsg" style="font-size:0.85rem;color:#666;margin-top:10px;"></p>
+          <h2 style="margin-top:22px;">Assign Instant Forms to reps</h2>
+          <div id="metaFormMap">Connect the Page to load forms.</div>
         </div>
       </div>
     </div>
@@ -682,12 +720,16 @@
 
     function updateArchiveReviewNav() {
       const btn = document.getElementById('archiveReviewNav');
-      if (!btn) return;
-      const show = isChristopher();
-      btn.classList.toggle('hidden', !show);
-      if (!show) return;
-      const n = pendingArchiveCount();
-      btn.textContent = n ? ('Archive review (' + n + ')') : 'Archive review';
+      if (btn) {
+        const show = isChristopher();
+        btn.classList.toggle('hidden', !show);
+        if (show) {
+          const n = pendingArchiveCount();
+          btn.textContent = n ? ('Archive review (' + n + ')') : 'Archive review';
+        }
+      }
+      const metaBtn = document.getElementById('metaNav');
+      if (metaBtn) metaBtn.classList.toggle('hidden', !isChristopher());
     }
 
     function fmtWhen(iso) {
@@ -696,6 +738,111 @@
       if (Number.isNaN(d.getTime())) return String(iso).replace('T', ' ').slice(0, 16);
       return d.toLocaleString();
     }
+
+    let metaStatus = null;
+    function metaOwnerChoices() {
+      const known = ['Christopher Banks', 'James', 'Kawika Pangelinan'];
+      const extra = [...new Set(contacts.map(c => titleCaseOwner(c && c.owner)).filter(Boolean))];
+      return [...new Set(known.concat(extra))];
+    }
+    function fillMetaOwnerSelect(sel, current) {
+      if (!sel) return;
+      const want = current || 'Christopher Banks';
+      const opts = metaOwnerChoices();
+      if (want && !opts.includes(want)) opts.unshift(want);
+      sel.innerHTML = opts.map(o => '<option value="' + esc(o) + '"' + (o === want ? ' selected' : '') + '>' + esc(o) + '</option>').join('');
+    }
+    function renderMetaStatus(status) {
+      metaStatus = status || {};
+      const box = document.getElementById('metaStatusBox');
+      if (box) {
+        if (metaStatus.connected) {
+          box.textContent = 'Connected. New Instant Form leads land in the CRM automatically. Last webhook: ' + (metaStatus.lastWebhookAt ? fmtWhen(metaStatus.lastWebhookAt) : 'none yet') + '. Last import: ' + (metaStatus.lastImportAt ? fmtWhen(metaStatus.lastImportAt) : 'none yet') + '.';
+        } else {
+          box.textContent = 'Not connected yet. Follow the steps below. Keep this CRM tab as the place reps work leads.';
+        }
+      }
+      const urlEl = document.getElementById('metaWebhookUrl');
+      if (urlEl) urlEl.textContent = metaStatus.webhookUrl || 'https://cbsscrm.cbss.workers.dev/webhooks/meta-leadgen';
+      const tokEl = document.getElementById('metaVerifyToken');
+      if (tokEl) tokEl.textContent = metaStatus.verifyToken || '—';
+      const pageEl = document.getElementById('metaPageName');
+      if (pageEl) pageEl.textContent = metaStatus.pageName ? (metaStatus.pageName + ' · ' + (metaStatus.pageId || '')) : 'Not connected';
+      fillMetaOwnerSelect(document.getElementById('metaDefaultOwner'), metaStatus.defaultOwner);
+      const map = document.getElementById('metaFormMap');
+      const forms = Array.isArray(metaStatus.forms) ? metaStatus.forms : [];
+      if (map && !forms.length) map.textContent = metaStatus.connected ? 'No Instant Forms found on that Page yet.' : 'Connect the Page to load forms.';
+      if (map && forms.length) {
+        const owners = metaStatus.formOwners || {};
+        map.innerHTML = forms.map(function(f) {
+          const current = owners[f.id] || owners[f.name] || metaStatus.defaultOwner || 'Christopher Banks';
+          const opts = metaOwnerChoices().map(o => '<option value="' + esc(o) + '"' + (o === current ? ' selected' : '') + '>' + esc(o) + '</option>').join('');
+          return '<div class="field-row" style="align-items:center;"><span class="label">' + esc(f.name || f.id) + '</span><select data-form-id="' + esc(f.id) + '">' + opts + '</select></div>';
+        }).join('');
+      }
+    }
+    function metaFormOwnersFromUi() {
+      const out = {};
+      document.querySelectorAll('#metaFormMap select[data-form-id]').forEach(function(sel) {
+        if (sel.value) out[sel.getAttribute('data-form-id')] = sel.value;
+      });
+      return out;
+    }
+    function setMetaMsg(text) {
+      const el = document.getElementById('metaActionMsg');
+      if (el) el.textContent = text || '';
+    }
+    async function loadMetaStatus() {
+      if (!isChristopher()) return;
+      const res = await apiSave('getMetaStatus', {});
+      if (!res || res.ok === false) {
+        setMetaMsg((res && res.error) || 'Could not load Meta status.');
+        return;
+      }
+      renderMetaStatus(res);
+    }
+    async function connectMetaPage() {
+      setMetaMsg('Connecting Facebook Page…');
+      const res = await apiSave('connectMeta', {
+        pageAccessToken: (document.getElementById('metaPageToken') || {}).value || '',
+        defaultOwner: (document.getElementById('metaDefaultOwner') || {}).value || 'Christopher Banks',
+        formOwners: metaFormOwnersFromUi()
+      });
+      if (!res || res.ok === false) {
+        setMetaMsg((res && res.error) || 'Could not connect. Check the token and Page permissions.');
+        return;
+      }
+      if (document.getElementById('metaPageToken')) document.getElementById('metaPageToken').value = '';
+      renderMetaStatus(res);
+      setMetaMsg('Page connected. Assign each form, save, then import existing leads.');
+    }
+    async function saveMetaRouting() {
+      setMetaMsg('Saving assignment…');
+      const res = await apiSave('saveMetaConfig', {
+        defaultOwner: (document.getElementById('metaDefaultOwner') || {}).value || 'Christopher Banks',
+        formOwners: metaFormOwnersFromUi()
+      });
+      if (!res || res.ok === false) {
+        setMetaMsg((res && res.error) || 'Could not save assignment.');
+        return;
+      }
+      renderMetaStatus(res);
+      setMetaMsg('Assignment saved. New leads from each form go to that rep.');
+    }
+    async function importMetaLeads() {
+      setMetaMsg('Importing existing Facebook leads. Stay on this page…');
+      const res = await apiSave('importMetaLeads', {});
+      if (!res || res.ok === false) {
+        setMetaMsg((res && res.error) || 'Import failed.');
+        return;
+      }
+      renderMetaStatus(res);
+      setMetaMsg('Imported. Created ' + (res.created || 0) + ', matched existing ' + (res.matched || 0) + ', skipped ' + (res.skipped || 0) + '. Refresh Contacts if they are not on screen yet.');
+      try { await loadData(); } catch (e) { console.warn(e); }
+    }
+    window.connectMetaPage = connectMetaPage;
+    window.saveMetaRouting = saveMetaRouting;
+    window.importMetaLeads = importMetaLeads;
 
     async function requestArchive(id) {
       const c = contacts.find(x => String(x.id) === String(id));
@@ -906,7 +1053,9 @@
         });
         if (!res.ok) {
           console.warn('Save failed', res.status);
-          return { ok: false, status: res.status };
+          let extra = {};
+          try { extra = await res.json(); } catch (_) {}
+          return Object.assign({ ok: false, status: res.status }, extra);
         }
         return await res.json();
       } catch (e) {
@@ -1064,10 +1213,13 @@
       document.getElementById('view-pipeline').classList.toggle('hidden', view !== 'pipeline');
       const ar = document.getElementById('view-archive-review');
       if (ar) ar.classList.toggle('hidden', view !== 'archive-review');
+      const mv = document.getElementById('view-meta');
+      if (mv) mv.classList.toggle('hidden', view !== 'meta');
       if (view === 'followups') { setFollowFilter('open'); renderFollowUps(); const sc = document.getElementById('followupsScroll'); if (sc) sc.scrollTop = 0; }
       if (view === 'tasks') renderTasks();
       if (view === 'pipeline') renderPipeline();
       if (view === 'archive-review') renderArchiveReview();
+      if (view === 'meta') loadMetaStatus();
     }
 
     function activeView() {
