@@ -290,7 +290,7 @@
   <div class="container">
     <header>
       <h1>CBShippingSolutions</h1>
-      <p>Proposal Builder · One depot · Delivered cash · build 3</p>
+      <p>Proposal Builder · One depot · Delivered cash · build 4</p>
     </header>
 
     <form id="proposalForm" onsubmit="submitProposal(event)">
@@ -695,11 +695,25 @@
       { name: "Newark, NJ", lat: 40.74, lon: -74.17, region: "East Coast" },
       { name: "New York, NY", lat: 40.71, lon: -74.01, region: "East Coast" },
       { name: "Boston, MA", lat: 42.36, lon: -71.06, region: "East Coast" },
+      { name: "Wilmington, NC", lat: 34.23, lon: -77.94, region: "East Coast" },
+      { name: "Chesapeake, VA", lat: 36.77, lon: -76.29, region: "East Coast" },
+      { name: "Cincinnati, OH", lat: 39.10, lon: -84.51, region: "Midwest" },
+      { name: "Minneapolis, MN", lat: 44.98, lon: -93.27, region: "Midwest" },
+      { name: "Nashville, TN", lat: 36.16, lon: -86.78, region: "Midwest" },
+      { name: "Omaha, NE", lat: 41.26, lon: -95.93, region: "Midwest" },
+      { name: "Mobile, AL", lat: 30.70, lon: -88.04, region: "East Coast" },
+      { name: "New Orleans, LA", lat: 29.95, lon: -90.07, region: "East Coast" },
       { name: "Houston, TX", lat: 29.76, lon: -95.37, region: "West Coast" },
       { name: "Dallas, TX", lat: 32.78, lon: -96.80, region: "West Coast" },
+      { name: "San Antonio, TX", lat: 29.42, lon: -98.49, region: "West Coast" },
+      { name: "El Paso, TX", lat: 31.76, lon: -106.49, region: "West Coast" },
       { name: "Los Angeles, CA", lat: 34.05, lon: -118.24, region: "West Coast" },
+      { name: "Long Beach, CA", lat: 33.77, lon: -118.19, region: "West Coast" },
       { name: "Oakland, CA", lat: 37.80, lon: -122.27, region: "West Coast" },
+      { name: "San Francisco, CA", lat: 37.77, lon: -122.42, region: "West Coast" },
+      { name: "Bakersfield, CA", lat: 35.37, lon: -119.02, region: "West Coast" },
       { name: "Seattle, WA", lat: 47.61, lon: -122.33, region: "West Coast" },
+      { name: "Tacoma, WA", lat: 47.25, lon: -122.44, region: "West Coast" },
       { name: "Portland, OR", lat: 45.52, lon: -122.68, region: "West Coast" },
       { name: "Phoenix, AZ", lat: 33.45, lon: -112.07, region: "West Coast" },
       { name: "Denver, CO", lat: 39.74, lon: -104.99, region: "West Coast" },
@@ -736,6 +750,8 @@
     let inventoryMeta = { pulledAt: "", source: "" };
     let inventoryLoaded = false;
     let inventoryActive = false;
+    let lastZipGeo = null;
+    let skippedNearestCity = null;
     const DEFAULT_SIZE_OPTIONS = [
       { value: "20ft", label: "20ft Standard" },
       { value: "40ft", label: "40ft Standard / High Cube" },
@@ -850,8 +866,24 @@
       return { city: m[1].trim(), state: m[2].toUpperCase() };
     }
 
+    function aliasCityState(parsed) {
+      if (!parsed || !parsed.city) return parsed;
+      const c = cleanPlace(parsed.city).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+      const st = String(parsed.state || "").toUpperCase();
+      if (c === "saint louis" || c === "st louis") return { city: "St. Louis", state: "MO" };
+      if (c === "kansas city") return { city: "Kansas City", state: "MO" };
+      if (c === "minneapolis" || c.indexOf("minneapolis") === 0 || c === "saint paul" || c === "st paul") {
+        return { city: "Minneapolis", state: "MN" };
+      }
+      if (c === "fort worth") return { city: "Dallas", state: "TX" };
+      if (c === "jersey city" || c === "elizabeth") return { city: "Newark", state: "NJ" };
+      if (c === "san pedro" || (c === "wilmington" && st === "CA")) return { city: "Long Beach", state: "CA" };
+      if (c === "newport news" || c === "portsmouth" || c === "virginia beach") return { city: "Norfolk", state: "VA" };
+      return parsed;
+    }
+
     function findCityHub(text) {
-      const parsed = parseCityState(text);
+      const parsed = aliasCityState(parseCityState(text));
       if (parsed) {
         const hit = DEPOTS.find((d) => {
           const parts = d.name.split(",");
@@ -865,6 +897,14 @@
       if (/raines\s*road/i.test(n) || /lanport/i.test(n) || /mrs-?cmc/i.test(n)) {
         const mem = DEPOTS.find((d) => d.name.indexOf("Memphis") === 0);
         return mem ? { city: "Memphis", state: "TN", lat: mem.lat, lon: mem.lon, region: mem.region } : { city: "Memphis", state: "TN", lat: null, lon: null, region: "" };
+      }
+      if (/san\s*pedro/i.test(n)) {
+        const lb = DEPOTS.find((d) => d.name.indexOf("Long Beach") === 0);
+        return lb ? { city: "Long Beach", state: "CA", lat: lb.lat, lon: lb.lon, region: lb.region } : { city: "Long Beach", state: "CA", lat: null, lon: null, region: "" };
+      }
+      if (/port\s*newark/i.test(n) || /elizabeth\s*marine/i.test(n)) {
+        const nwk = DEPOTS.find((d) => d.name.indexOf("Newark") === 0);
+        return nwk ? { city: "Newark", state: "NJ", lat: nwk.lat, lon: nwk.lon, region: nwk.region } : { city: "Newark", state: "NJ", lat: null, lon: null, region: "" };
       }
       const hubs = DEPOTS.map((d) => {
         const parts = d.name.split(",");
@@ -1213,6 +1253,32 @@
         if (b.miles == null) return -1;
         return a.miles - b.miles;
       });
+      const want = currentBox();
+      const qty = currentQty();
+      skippedNearestCity = null;
+      for (let i = 0; i < list.length; i++) {
+        const city = list[i];
+        if (city.miles != null && city.miles > 800) continue;
+        const key = city.cityKey || cityKey(city.city, city.state);
+        const hit = inventoryOffers.some((o) => {
+          if (offerQty(o) === 0) return false;
+          const q = offerQty(o);
+          if (q != null && q < qty) return false;
+          if (!offerWholesale(o)) return false;
+          const resolved = resolveOfferCity(o);
+          const oKey = resolved ? cityKey(resolved.city, resolved.state) : "";
+          if (oKey !== key) return false;
+          const spec = parseOfferSpec(o.size || "");
+          if (!specsCompatible(want, spec)) return false;
+          const grade = mapOfferCondition(o.condition);
+          if (want.grade && (!grade || grade !== want.grade)) return false;
+          return true;
+        });
+        if (hit) {
+          if (i > 0) skippedNearestCity = list[0];
+          return [city];
+        }
+      }
       return list.slice(0, 1);
     }
 
@@ -1248,18 +1314,59 @@
         : ((selectedDepot && selectedDepot.yards) || []).join(" | ");
       const cityLabel = selectedDepot ? displayCityState(selectedDepot) : "";
       if (withCost) {
+        const skip = skippedNearestCity ? displayCityState(skippedNearestCity) : "";
+        const skipNote = skip && skip !== cityLabel
+          ? (" " + skip + " did not post this box.")
+          : "";
         setInventoryStatus(
           "Using lowest posted " + cityLabel + " xChange wholesale for this box and qty (" + matches.length +
-          " match" + (matches.length === 1 ? "" : "es") + "). " + pulledLabel() + ". Not a CBSS quote."
+          " match" + (matches.length === 1 ? "" : "es") + ")." + skipNote + " " + pulledLabel() + ". Not a CBSS quote."
         );
       } else if (cityLabel) {
         setInventoryStatus(
-          "No matching posted xChange box in " + cityLabel + " for this size/grade/qty. Pull xChange again or type a number you actually have. Do not invent one. " + pulledLabel() + "."
+          "No matching posted xChange box in " + cityLabel + " for this size/grade/qty within 800 miles. Pull xChange again or type a number you actually have. Do not invent one. " + pulledLabel() + "."
         );
       }
     }
 
+    function renderDepotCards() {
+      const list = document.getElementById('depotList');
+      if (!list) return;
+      list.innerHTML = "";
+      rankedDepots.forEach((d) => {
+        const milesLabel = d.miles != null ? (d.miles + " miles") : "distance unknown";
+        const displayName = displayCityState(d) || d.name;
+        const card = document.createElement('div');
+        card.className = "depot-card selected";
+        card.innerHTML = `
+            <div class="depot-name">This is your depot: ${escapeHtml(displayName)}</div>
+            <div class="depot-meta">This is how far: ${milesLabel}</div>
+          `;
+        list.appendChild(card);
+      });
+    }
+
+    function reselectDepotFromZip() {
+      if (!lastZipGeo) return;
+      const cityRanked = DEPOTS.map(d => {
+        const miles = Math.round(haversine(lastZipGeo.lat, lastZipGeo.lon, d.lat, d.lon));
+        return { ...d, miles };
+      }).sort((a,b) => a.miles - b.miles);
+      if (inventoryActive) {
+        rankedDepots = depotsFromInventory(lastZipGeo.lat, lastZipGeo.lon);
+        if (!rankedDepots.length) rankedDepots = cityRanked.slice(0, 1);
+      } else {
+        rankedDepots = cityRanked.slice(0, 1);
+      }
+      rankedDepots = rankedDepots.map(asDisplayDepot).filter(Boolean);
+      selectedDepot = rankedDepots[0] || null;
+      selectedPurchasingDepot = selectedDepot && selectedDepot.yards ? selectedDepot.yards.join(" | ") : "";
+      document.getElementById('depotSection').classList.remove('hidden');
+      renderDepotCards();
+    }
+
     function onSizeOrConditionChange() {
+      if (lastZipGeo) reselectDepotFromZip();
       applyWholesaleFromOffer();
       recalcIfReady();
       updateFlexMode();
@@ -1319,41 +1426,10 @@
         const lon = parseFloat(data.places[0].longitude);
         const place = data.places[0]["place name"] + ", " + data.places[0]["state abbreviation"];
         status.textContent = "Location: " + place;
+        lastZipGeo = { lat, lon, place };
 
         await loadInventory();
-        const cityRanked = DEPOTS.map(d => {
-          const miles = Math.round(haversine(lat, lon, d.lat, d.lon));
-          return { ...d, miles };
-        }).sort((a,b) => a.miles - b.miles);
-
-        if (inventoryActive) {
-          rankedDepots = depotsFromInventory(lat, lon);
-          if (!rankedDepots.length) rankedDepots = cityRanked.slice(0, 1);
-        } else {
-          rankedDepots = cityRanked.slice(0, 1);
-        }
-
-        const size = document.getElementById('size').value;
-        const list = document.getElementById('depotList');
-        list.innerHTML = "";
-
-        rankedDepots = rankedDepots.map(asDisplayDepot).filter(Boolean);
-
-        rankedDepots.forEach((d, i) => {
-          const milesLabel = d.miles != null ? (d.miles + " miles") : "distance unknown";
-          const displayName = displayCityState(d) || d.name;
-          const card = document.createElement('div');
-          card.className = "depot-card selected";
-          card.innerHTML = `
-            <div class="depot-name">This is your depot: ${escapeHtml(displayName)}</div>
-            <div class="depot-meta">This is how far: ${milesLabel}</div>
-          `;
-          list.appendChild(card);
-        });
-
-        selectedDepot = rankedDepots[0] || null;
-        selectedPurchasingDepot = selectedDepot && selectedDepot.yards ? selectedDepot.yards.join(" | ") : "";
-        document.getElementById('depotSection').classList.remove('hidden');
+        reselectDepotFromZip();
         applyWholesaleFromOffer();
         recalcIfReady();
 
