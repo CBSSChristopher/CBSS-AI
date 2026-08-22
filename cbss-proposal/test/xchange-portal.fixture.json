@@ -1,0 +1,89 @@
+{
+  "listings": [
+    {
+      "Listing_ID": 823314,
+      "Location": "Houston, TX",
+      "location_unlocode": "USHOU",
+      "Type": "20DC",
+      "container_type_readable": "20DC",
+      "Condition": "CW",
+      "container_condition_readable": "CW",
+      "Quantity": 2,
+      "Price": 835,
+      "Deal_Type": "PICK_UP",
+      "Damaged_Unit": 0
+    },
+    {
+      "Listing_ID": 811144,
+      "Location": "Houston, TX",
+      "location_unlocode": "USHOU",
+      "Type": "20DC",
+      "container_type_readable": "20DC",
+      "Condition": "CW",
+      "container_condition_readable": "CW",
+      "Quantity": 4,
+      "Price": 925,
+      "Deal_Type": "PICK_UP",
+      "Damaged_Unit": 0
+    },
+    {
+      "Listing_ID": 1,
+      "Location": "Houston, TX",
+      "location_unlocode": "USHOU",
+      "Type": "20DC",
+      "container_type_readable": "20DC",
+      "Condition": "CW",
+      "container_condition_readable": "CW",
+      "Quantity": 10,
+      "Price": 900,
+      "Deal_Type": "GATE_BUY",
+      "Damaged_Unit": 0
+    },
+    {
+      "Listing_ID": 2,
+      "Location": "Toronto, ON",
+      "location_unlocode": "CATOR",
+      "Type": "20DC",
+      "container_type_readable": "20DC",
+      "Condition": "CW",
+      "container_condition_readable": "CW",
+      "Quantity": 8,
+      "Price": 1100,
+      "Deal_Type": "PICK_UP",
+      "Damaged_Unit": 0
+    },
+    {
+      "Listing_ID": 3,
+      "Location": "Los Angeles, CA",
+      "location_unlocode": "USLAX",
+      "Type": "40HC",
+      "container_type_readable": "40HC",
+      "Condition": "CW",
+      "container_condition_readable": "CW",
+      "Quantity": 6,
+      "Price": 1225,
+      "Deal_Type": "PICK_UP",
+      "Damaged_Unit": 0
+    },
+    {
+      "Listing_ID": 4,
+      "Location": "Houston, TX",
+      "location_unlocode": "USHOU",
+      "Type": "20DC OS 2D",
+      "container_type_readable": "20DC Open Side 2 Doors",
+      "Condition": "New",
+      "container_condition_readable": "New",
+      "Quantity": 3,
+      "Price": 2645,
+      "Deal_Type": "PICK_UP",
+      "Damaged_Unit": 0
+    }
+  ],
+  "locations": {
+    "success": true,
+    "locations": [
+      { "location_name": "Houston", "unlocode": "USHOU", "latitude": 29.7604, "longitude": -95.3698 },
+      { "location_name": "Los Angeles", "unlocode": "USLAX", "latitude": 33.9425, "longitude": -118.408 }
+    ]
+  }
+}

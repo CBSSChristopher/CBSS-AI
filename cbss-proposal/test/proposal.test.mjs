@@ -21,7 +21,9 @@ import {
 import { normalizeOffer, refreshXchangeInventory } from "../src/inventory.js";
 import {
   isInventoryStale,
+  offersFromPortalInventory,
   offersFromSearchPayload,
+  portalListingToOffer,
   postedPickupPrice,
   pullXchangeOffers,
   SEARCH_PAGE_CAP,
@@ -179,7 +181,7 @@ describe("Proposal tool picker, depot, and cash price", () => {
     assert.match(page, /id="pullXchangeBtn"/);
     assert.match(page, /Pull xChange/);
     assert.match(page, /pulledAt/);
-    assert.match(page, /build 4/);
+    assert.match(page, /build 5/);
     assert.match(page, /did not post this box/);
     assert.match(page, /lastZipGeo/);
     assert.match(page, /Do not invent/);
@@ -337,5 +339,47 @@ describe("xChange posted-price pull", () => {
     assert.match(src, /limit=80&page=" \+\s*pageNo/);
     assert.doesNotMatch(src, /limit=80&page=1"/);
     assert.match(src, /r\.unlocode_safe \|\| r\.unlocode \|\| r\.country_code/);
+  });
+
+  it("reads posted pickup from the signed-in buyer portal and keeps city min only", async () => {
+    const portalFixture = JSON.parse(
+      readFileSync(new URL("./xchange-portal.fixture.json", import.meta.url), "utf8")
+    );
+    const geo = {
+      USHOU: { lat: 29.7604, lon: -95.3698 },
+      USLAX: { lat: 33.9425, lon: -118.408 },
+    };
+    const houston = portalListingToOffer(portalFixture.listings[0], geo);
+    assert.equal(houston.size, "20DC");
+    assert.equal(houston.condition, "CW");
+    assert.equal(houston.wholesaleCost, 835);
+    assert.equal(houston.lat, 29.7604);
+    assert.equal(portalListingToOffer(portalFixture.listings[2], geo), null);
+    assert.equal(portalListingToOffer(portalFixture.listings[3], geo), null);
+    const offers = offersFromPortalInventory(portalFixture.listings, geo);
+    const houCw = offers.find((o) => o.location === "Houston, TX" && o.size === "20DC" && o.condition === "CW");
+    assert.equal(houCw.wholesaleCost, 835);
+    assert.equal(houCw.qty, 6);
+    assert.ok(offers.some((o) => o.size === "20DC Open Side 2 Doors" && o.wholesaleCost === 2645));
+    assert.ok(!offers.some((o) => o.location.startsWith("Toronto")));
+    assert.ok(!offers.some((o) => o.wholesaleCost === 1100));
+
+    const pulled = await pullXchangeOffers({
+      env: { XCHANGE_SESSION: "test-session", XCHANGE_USER_HASH: "abc123" },
+      fetchImpl: async (url, init) => {
+        const u = String(url);
+        const cookie = init && init.headers && init.headers.Cookie;
+        if (u.includes("my-inventory") && u.includes("/api/inventory")) {
+          assert.match(String(cookie || ""), /xchange_verified_session=test-session/);
+          return { ok: true, json: async () => portalFixture.listings };
+        }
+        if (u.includes("my-inventory") && u.includes("/api/locations")) {
+          return { ok: true, json: async () => portalFixture.locations };
+        }
+        throw new Error("portal pull must not fall back to www search");
+      },
+    });
+    assert.equal(pulled.length, 3);
+    assert.ok(pulled.some((o) => o.location === "Los Angeles, CA" && o.wholesaleCost === 1225 && o.lat === 33.9425));
   });
 });
