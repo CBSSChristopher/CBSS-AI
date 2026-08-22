@@ -1,4 +1,7 @@
-export const XCHANGE_SOURCE = "container-xchange.com/api/search";
+export const XCHANGE_SOURCE = "my-inventory.container-xchange.com/api/inventory";
+export const PORTAL_ORIGIN = "https://my-inventory.container-xchange.com";
+export const PORTAL_INVENTORY_URL = PORTAL_ORIGIN + "/api/inventory";
+export const PORTAL_LOCATIONS_URL = PORTAL_ORIGIN + "/api/locations";
 export const DEPOT_LOCATIONS_URL = "https://www.container-xchange.com/api/depot-locations";
 export const SEARCH_URL = "https://www.container-xchange.com/api/search";
 export const STALE_MS = 15 * 60 * 1000;
@@ -109,8 +112,30 @@ const XCHANGE_HEADERS = {
   Referer: "https://www.container-xchange.com/inventory",
 };
 
-export async function fetchXchangeJson(fetchImpl, url) {
-  const res = await fetchImpl(url, { headers: XCHANGE_HEADERS });
+export function portalHeaders(env) {
+  const headers = {
+    Accept: "application/json,text/plain,*/*",
+    "Accept-Language": "en-US,en;q=0.9",
+    "User-Agent": BROWSER_UA,
+    Origin: PORTAL_ORIGIN,
+    Referer: PORTAL_ORIGIN + "/",
+  };
+  const user = env && env.XCHANGE_USER_HASH ? String(env.XCHANGE_USER_HASH).trim() : "";
+  const contact = env && env.XCHANGE_CONTACT_HASH ? String(env.XCHANGE_CONTACT_HASH).trim() : "";
+  if (user) {
+    const q = new URLSearchParams({ user });
+    if (contact) q.set("contact", contact);
+    headers.Referer = PORTAL_ORIGIN + "/?" + q.toString();
+  }
+  const session = env && env.XCHANGE_SESSION ? String(env.XCHANGE_SESSION).trim() : "";
+  if (session) {
+    headers.Cookie = session.includes("=") ? session.split(";")[0].trim() : "xchange_verified_session=" + session;
+  }
+  return headers;
+}
+
+export async function fetchXchangeJson(fetchImpl, url, headers = XCHANGE_HEADERS) {
+  const res = await fetchImpl(url, { headers });
   if (!res.ok) {
     const snippet = String(await res.text().catch(() => "")).slice(0, 180);
     const err = new Error("xChange " + res.status);
@@ -119,6 +144,86 @@ export async function fetchXchangeJson(fetchImpl, url) {
     throw err;
   }
   return res.json();
+}
+
+export function portalListingRows(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (payload && Array.isArray(payload.results)) return payload.results;
+  if (payload && Array.isArray(payload.inventory)) return payload.inventory;
+  if (payload && Array.isArray(payload.listings)) return payload.listings;
+  return [];
+}
+
+export function geoByUnlocode(payload) {
+  const rows = Array.isArray(payload)
+    ? payload
+    : payload && Array.isArray(payload.locations)
+      ? payload.locations
+      : [];
+  const out = {};
+  for (const row of rows) {
+    const code = String((row && (row.unlocode || row.unlocode_safe || row.location_unlocode)) || "").toUpperCase();
+    if (!code) continue;
+    const lat = parseFloat(row.latitude != null ? row.latitude : row.lat);
+    const lon = parseFloat(row.longitude != null ? row.longitude : row.lon);
+    out[code] = {
+      lat: Number.isFinite(lat) ? lat : null,
+      lon: Number.isFinite(lon) ? lon : null,
+      name: cleanPlace(row.location_name || row.name || ""),
+    };
+  }
+  return out;
+}
+
+/**
+ * Buyer-portal listing → posted pickup offer. US PICK_UP only.
+ * Uses the listing Price, never a city starting_price.
+ */
+export function portalListingToOffer(row, geoByCode = {}) {
+  if (!row || typeof row !== "object") return null;
+  const code = String(row.location_unlocode || row.unlocode_safe || row.unlocode || "").toUpperCase();
+  if (code && !code.startsWith("US")) return null;
+  if (!code) {
+    const country = String(row.country || row.Country || row.country_code || "").trim().toUpperCase();
+    if (country && country !== "US" && country !== "USA" && country !== "UNITED STATES") return null;
+  }
+  if (row.Damaged_Unit === true || row.Damaged_Unit === 1 || row.Damaged === true) return null;
+  const geo = (code && geoByCode[code]) || {};
+  const location = cleanPlace(row.Location || row.location || geo.name || "");
+  return searchRowToOffer(
+    {
+      Deal_Type: row.Deal_Type || row.dealType || row.deal_type,
+      Type: row.container_type_readable || row.Type || row.type,
+      Condition: row.container_condition_readable || row.Condition || row.condition,
+      Location: location,
+      Total_Quantity: row.Quantity != null ? row.Quantity : row.Total_Quantity,
+      Price: row.Price,
+      Min_Price: row.Min_Price != null ? row.Min_Price : row.Price,
+    },
+    {
+      location,
+      city: location.split(",")[0].trim(),
+      lat: geo.lat,
+      lon: geo.lon,
+    }
+  );
+}
+
+export function offersFromPortalInventory(payload, geoByCode = {}) {
+  const grouped = new Map();
+  for (const row of portalListingRows(payload)) {
+    const offer = portalListingToOffer(row, geoByCode);
+    if (!offer) continue;
+    const key = [cleanPlace(offer.location), cleanPlace(offer.size), cleanPlace(offer.condition)].join("|");
+    const prev = grouped.get(key);
+    if (!prev) {
+      grouped.set(key, { ...offer, qty: offer.qty != null ? offer.qty : 0 });
+      continue;
+    }
+    if (offer.wholesaleCost < prev.wholesaleCost) prev.wholesaleCost = offer.wholesaleCost;
+    if (offer.qty != null) prev.qty = (prev.qty || 0) + offer.qty;
+  }
+  return [...grouped.values()];
 }
 
 export async function probeXchange(fetchImpl = fetch) {
@@ -214,6 +319,18 @@ async function pullXchangeOffersDirect(fetchImpl) {
   return collectOffers(batches);
 }
 
+async function pullXchangeOffersPortal(fetchImpl, env) {
+  const headers = portalHeaders(env);
+  const inventory = await fetchXchangeJson(fetchImpl, PORTAL_INVENTORY_URL, headers);
+  let geo = {};
+  try {
+    geo = geoByUnlocode(await fetchXchangeJson(fetchImpl, PORTAL_LOCATIONS_URL, headers));
+  } catch (_) {
+    geo = {};
+  }
+  return collectOffers([offersFromPortalInventory(inventory, geo)]);
+}
+
 export async function pullXchangeViaBrowser(env) {
   if (!env || !env.BROWSER) return [];
   const puppeteer = await import("@cloudflare/puppeteer");
@@ -290,17 +407,28 @@ export async function pullXchangeViaBrowser(env) {
 }
 
 export async function pullXchangeOffers({ fetchImpl = fetch, env, allowBrowser } = {}) {
+  let portalError = null;
+  try {
+    const viaPortal = await pullXchangeOffersPortal(fetchImpl, env);
+    if (viaPortal.length) return viaPortal;
+  } catch (err) {
+    portalError = err;
+  }
   let directError = null;
   try {
     const offers = await pullXchangeOffersDirect(fetchImpl);
     if (offers.length) return offers;
   } catch (err) {
     directError = err;
-    if (allowBrowser === false || !env || !env.BROWSER) throw err;
+    if (allowBrowser === false || !env || !env.BROWSER) {
+      if (portalError) throw portalError;
+      throw err;
+    }
   }
   if (allowBrowser === false || !env || !env.BROWSER) return [];
   const viaBrowser = await pullXchangeViaBrowser(env);
   if (viaBrowser.length) return viaBrowser;
+  if (portalError) throw portalError;
   if (directError) throw directError;
   return [];
 }
