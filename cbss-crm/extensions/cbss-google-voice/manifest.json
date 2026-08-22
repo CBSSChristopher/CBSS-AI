@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "CBSS Google Voice",
+  "version": "1.0.0",
+  "description": "When you click Call or Text in the CBSS CRM, reuse your open Google Voice tab and start that number.",
+  "permissions": ["tabs"],
+  "host_permissions": ["https://voice.google.com/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://cbsscrm.cbss.workers.dev/*"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ]
+}
