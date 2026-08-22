@@ -452,7 +452,7 @@ async function serveAssets(request, env) {
     headers.set("CDN-Cache-Control", "no-store");
     headers.set("Cloudflare-CDN-Cache-Control", "no-store");
     headers.set("Pragma", "no-cache");
-    headers.set("x-crm-build", "16");
+    headers.set("x-crm-build", "17");
     return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
   }
   return res;
@@ -564,7 +564,7 @@ function realCompany(v) {
   return s;
 }
 __name(realCompany, "realCompany");
-var CANONICAL_STAGES = ["New Lead", "Contacted", "Quote", "Proposal Sent", "Flex Buy", "Won", "Lost", "DNC"];
+var CANONICAL_STAGES = ["New Lead", "Contacted", "CTE in progress", "Follow up in progress", "Email campaign", "Quote", "Proposal Sent", "Flex Buy", "Won", "Lost", "DNC"];
 var STAGE_ALIASES = {
   connected: "Contacted",
   connecting: "Contacted",
@@ -1043,7 +1043,7 @@ async function handleCrmData(request, env) {
       await store.setJSON("notes", next);
       return jsonResponse(request, 200, {
         ok: true,
-        crmBuild: 16,
+        crmBuild: 17,
         contactId,
         note,
         notes: next[contactId] || next[String(contactId)] || []
@@ -1076,7 +1076,7 @@ async function handleCrmData(request, env) {
       ]);
       return jsonResponse(request, 200, {
         ok: true,
-        crmBuild: 16,
+        crmBuild: 17,
         contactId,
         completed: true,
         completedTasks: next.completedTasks[contactId] || []
@@ -1098,7 +1098,7 @@ async function handleCrmData(request, env) {
       attachStoredNotes(state.contactsAdded, state.notes);
       const omitNotes = url.searchParams.get("omitNotes") === "1" || body.omitNotes === true || body.omitNotes === "1";
       const payload = {
-        crmBuild: 16,
+        crmBuild: 17,
         deals: state.deals,
         followups: state.followups,
         contactsAdded: state.contactsAdded,
@@ -1789,7 +1789,7 @@ var index_default = {
     const path = normalizePath(url.pathname);
     if (path === "/__bust" && ctx && ctx.cache && typeof ctx.cache.purge === "function") {
       try { await ctx.cache.purge({ purgeEverything: true }); } catch (_) {}
-      return new Response("ok", { status: 200, headers: { "Cache-Control": "private, no-store", "x-crm-build": "16" } });
+      return new Response("ok", { status: 200, headers: { "Cache-Control": "private, no-store", "x-crm-build": "17" } });
     }
     if (path === "/auth/login") return handleLogin(request, env);
     if (path === "/auth/me") return handleMe(request, env);
