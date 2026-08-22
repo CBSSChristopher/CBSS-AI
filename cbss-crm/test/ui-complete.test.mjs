@@ -47,7 +47,12 @@ test("tasks tab exposes a Complete button and completeTask handler", () => {
   assert.match(html, /Schedule another follow-up/);
   assert.match(html, /function offerNextFollowup\(/);
   assert.match(html, /function showNextFollowupPrompt\(/);
-  assert.match(html, /build 16/);
+  assert.match(html, /build 17/);
+  assert.match(html, /id="mStatus"/);
+  assert.match(html, /<option>CTE in progress<\/option>/);
+  assert.match(html, /<option>Follow up in progress<\/option>/);
+  assert.match(html, /<option>Email campaign<\/option>/);
+  assert.match(html, /const STAGES = \['New Lead', 'Contacted', 'Quote', 'Proposal Sent', 'Flex Buy', 'Won', 'Lost', 'DNC'\]/);
   assert.match(html, /class="main" id="work-main"/);
   assert.match(html, /class="contacts-pane" id="view-contacts"/);
   assert.match(html, /class="list-panel work-list hidden" id="view-followups"/);
@@ -97,8 +102,11 @@ test("worker still serves the CRM data routes used by the desk", async () => {
   const wrangler = readFileSync(new URL("../wrangler.jsonc", import.meta.url), "utf8");
   assert.match(wrangler, /"enabled": false/);
   assert.match(worker, /action === "completeFollowup"/);
-  assert.match(worker, /crmBuild: 16/);
-  assert.match(worker, /x-crm-build", "16"/);
+  assert.match(worker, /crmBuild: 17/);
+  assert.match(worker, /x-crm-build", "17"/);
+  assert.match(worker, /"CTE in progress"/);
+  assert.match(worker, /"Follow up in progress"/);
+  assert.match(worker, /"Email campaign"/);
   assert.match(worker, /action === "appendNote"/);
   assert.match(worker, /function attachStoredNotes\(/);
   assert.match(worker, /action === "cleanupContact"/);
