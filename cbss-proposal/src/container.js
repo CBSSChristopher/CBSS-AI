@@ -226,11 +226,25 @@ export const CITY_HUBS = [
   { city: "Newark", state: "NJ", lat: 40.74, lon: -74.17, region: "East Coast" },
   { city: "New York", state: "NY", lat: 40.71, lon: -74.01, region: "East Coast" },
   { city: "Boston", state: "MA", lat: 42.36, lon: -71.06, region: "East Coast" },
+  { city: "Wilmington", state: "NC", lat: 34.23, lon: -77.94, region: "East Coast" },
+  { city: "Chesapeake", state: "VA", lat: 36.77, lon: -76.29, region: "East Coast" },
+  { city: "Cincinnati", state: "OH", lat: 39.10, lon: -84.51, region: "Midwest" },
+  { city: "Minneapolis", state: "MN", lat: 44.98, lon: -93.27, region: "Midwest" },
+  { city: "Nashville", state: "TN", lat: 36.16, lon: -86.78, region: "Midwest" },
+  { city: "Omaha", state: "NE", lat: 41.26, lon: -95.93, region: "Midwest" },
+  { city: "Mobile", state: "AL", lat: 30.70, lon: -88.04, region: "East Coast" },
+  { city: "New Orleans", state: "LA", lat: 29.95, lon: -90.07, region: "East Coast" },
   { city: "Houston", state: "TX", lat: 29.76, lon: -95.37, region: "West Coast" },
   { city: "Dallas", state: "TX", lat: 32.78, lon: -96.80, region: "West Coast" },
+  { city: "San Antonio", state: "TX", lat: 29.42, lon: -98.49, region: "West Coast" },
+  { city: "El Paso", state: "TX", lat: 31.76, lon: -106.49, region: "West Coast" },
   { city: "Los Angeles", state: "CA", lat: 34.05, lon: -118.24, region: "West Coast" },
+  { city: "Long Beach", state: "CA", lat: 33.77, lon: -118.19, region: "West Coast" },
   { city: "Oakland", state: "CA", lat: 37.80, lon: -122.27, region: "West Coast" },
+  { city: "San Francisco", state: "CA", lat: 37.77, lon: -122.42, region: "West Coast" },
+  { city: "Bakersfield", state: "CA", lat: 35.37, lon: -119.02, region: "West Coast" },
   { city: "Seattle", state: "WA", lat: 47.61, lon: -122.33, region: "West Coast" },
+  { city: "Tacoma", state: "WA", lat: 47.25, lon: -122.44, region: "West Coast" },
   { city: "Portland", state: "OR", lat: 45.52, lon: -122.68, region: "West Coast" },
   { city: "Phoenix", state: "AZ", lat: 33.45, lon: -112.07, region: "West Coast" },
   { city: "Denver", state: "CO", lat: 39.74, lon: -104.99, region: "West Coast" },
@@ -241,6 +255,8 @@ const YARD_CITY_HINTS = [
   { test: /raines\s*road/i, city: "Memphis", state: "TN" },
   { test: /lanport/i, city: "Memphis", state: "TN" },
   { test: /mrs-?cmc/i, city: "Memphis", state: "TN" },
+  { test: /san\s*pedro/i, city: "Long Beach", state: "CA" },
+  { test: /port\s*newark|elizabeth\s*marine/i, city: "Newark", state: "NJ" },
 ];
 
 function cleanPlace(raw) {
@@ -265,9 +281,16 @@ export function parseCityState(raw) {
 export function aliasCityState(parsed) {
   if (!parsed || !parsed.city) return parsed;
   const c = normPlace(parsed.city);
+  const st = String(parsed.state || "").toUpperCase();
   if (c === "saint louis" || c === "st louis") return { city: "St. Louis", state: "MO" };
   if (c === "kansas city") return { city: "Kansas City", state: "MO" };
-  if (c === "minneapolis" || c.startsWith("minneapolis")) return { city: "Minneapolis", state: parsed.state || "MN" };
+  if (c === "minneapolis" || c.startsWith("minneapolis") || c === "saint paul" || c === "st paul") {
+    return { city: "Minneapolis", state: "MN" };
+  }
+  if (c === "fort worth") return { city: "Dallas", state: "TX" };
+  if (c === "jersey city" || c === "elizabeth") return { city: "Newark", state: "NJ" };
+  if (c === "san pedro" || (c === "wilmington" && st === "CA")) return { city: "Long Beach", state: "CA" };
+  if (c === "newport news" || c === "portsmouth" || c === "virginia beach") return { city: "Norfolk", state: "VA" };
   return parsed;
 }
 
@@ -389,6 +412,22 @@ function offerCost(o) {
   const v = o && (o.wholesaleCost != null ? o.wholesaleCost : o.wholesale != null ? o.wholesale : o.cost != null ? o.cost : o.price);
   const n = Number(v);
   return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+export function pickNearestPostedCity(offers, zipLat, zipLon, want, hubs = CITY_HUBS) {
+  const cities = groupOffersByCity(offers, zipLat, zipLon, hubs);
+  let nearest = cities[0] || null;
+  for (const city of cities) {
+    const offer = pickWholesaleOffer(offers, { ...want, cityKey: city.cityKey });
+    if (offer) {
+      return {
+        city,
+        offer,
+        skipped: city === nearest ? null : nearest,
+      };
+    }
+  }
+  return { city: nearest, offer: null, skipped: null };
 }
 
 export function pickWholesaleOffer(offers, want) {

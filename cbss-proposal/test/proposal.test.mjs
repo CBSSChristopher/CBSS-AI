@@ -12,6 +12,7 @@ import {
   mapGrade,
   parseOfferSpec,
   pickClosestDepot,
+  pickNearestPostedCity,
   pickWholesaleOffer,
   rateSheetSize,
   uniqueGrades,
@@ -22,6 +23,7 @@ import {
   offersFromSearchPayload,
   postedPickupPrice,
   pullXchangeOffers,
+  SEARCH_PAGE_CAP,
   searchRowToOffer,
   usDepotLocations,
 } from "../src/xchange.js";
@@ -176,7 +178,9 @@ describe("Proposal tool picker, depot, and cash price", () => {
     assert.match(page, /id="pullXchangeBtn"/);
     assert.match(page, /Pull xChange/);
     assert.match(page, /pulledAt/);
-    assert.match(page, /build 3/);
+    assert.match(page, /build 4/);
+    assert.match(page, /did not post this box/);
+    assert.match(page, /lastZipGeo/);
     assert.match(page, /Do not invent/);
     assert.match(page, /data-val="side-os-2d"/);
     assert.match(page, /data-val="side-os-4d"/);
@@ -206,6 +210,41 @@ describe("Proposal tool picker, depot, and cash price", () => {
   it("maps Saint Louis and Kansas City xChange names onto our hubs", () => {
     assert.equal(findCityHub("Saint Louis, MO").city, "St. Louis");
     assert.equal(findCityHub("Kansas City, KS").state, "MO");
+    assert.equal(findCityHub("Fort Worth, TX").city, "Dallas");
+    assert.equal(findCityHub("Jersey City, NJ").city, "Newark");
+    assert.equal(findCityHub("San Pedro, CA").city, "Long Beach");
+    assert.equal(findCityHub("St. Paul, MN").city, "Minneapolis");
+    assert.equal(findCityHub("Tacoma, WA").region, "West Coast");
+    assert.equal(findCityHub("Cincinnati, OH").region, "Midwest");
+    assert.equal(findCityHub("Chesapeake, VA").region, "East Coast");
+  });
+
+  it("uses the nearest city that posted the box instead of blanking a nearest-city miss", () => {
+    const offers = [
+      { size: "40HC", condition: "CW", depot: "Phoenix, AZ", location: "Phoenix, AZ", wholesaleCost: 2900, qty: 1, lat: 33.45, lon: -112.07 },
+      { size: "20DC", condition: "CW", depot: "Los Angeles, CA", location: "Los Angeles, CA", wholesaleCost: 925, qty: 4, lat: 34.05, lon: -118.24 },
+      { size: "40HC", condition: "CW", depot: "Portland, OR", location: "Portland, OR", wholesaleCost: 1800, qty: 2, lat: 45.52, lon: -122.68 },
+      { size: "20DC", condition: "CW", depot: "Tacoma, WA", location: "Tacoma, WA", wholesaleCost: 1550, qty: 5, lat: 47.25, lon: -122.44 },
+    ];
+    const want20 = { size: "20", height: "DC", config: "standard", grade: "CW", qty: 1 };
+    const phoenix = pickNearestPostedCity(offers, 33.4484, -112.074, want20);
+    assert.equal(phoenix.city.city, "Los Angeles");
+    assert.equal(phoenix.offer.wholesaleCost, 925);
+    assert.equal(phoenix.skipped.city, "Phoenix");
+    const portland = pickNearestPostedCity(offers, 45.5152, -122.6784, want20);
+    assert.equal(portland.city.city, "Tacoma");
+    assert.equal(portland.offer.wholesaleCost, 1550);
+    assert.equal(portland.skipped.city, "Portland");
+    const local40 = pickNearestPostedCity(offers, 33.4484, -112.074, {
+      size: "40",
+      height: "HC",
+      config: "standard",
+      grade: "CW",
+      qty: 1,
+    });
+    assert.equal(local40.city.city, "Phoenix");
+    assert.equal(local40.offer.wholesaleCost, 2900);
+    assert.equal(local40.skipped, null);
   });
 
   it("keeps the login script valid", () => {
@@ -284,5 +323,14 @@ describe("xChange posted-price pull", () => {
     });
     assert.ok(pulled.some((o) => o.size === "40HC" && o.condition === "CW" && o.wholesaleCost === 1375));
     assert.ok(usDepotLocations([{ unlocode_safe: "USHOU" }, { unlocode_safe: "CATOR" }]).length === 1);
+  });
+
+  it("pages past the first 80 search rows in the browser pull", () => {
+    const src = readFileSync(new URL("../src/xchange.js", import.meta.url), "utf8");
+    assert.equal(SEARCH_PAGE_CAP, 5);
+    assert.match(src, /pageNo <= 5/);
+    assert.match(src, /limit=80&page=" \+\s*pageNo/);
+    assert.doesNotMatch(src, /limit=80&page=1"/);
+    assert.match(src, /r\.unlocode_safe \|\| r\.unlocode \|\| r\.country_code/);
   });
 });

@@ -3,8 +3,8 @@ export const DEPOT_LOCATIONS_URL = "https://www.container-xchange.com/api/depot-
 export const SEARCH_URL = "https://www.container-xchange.com/api/search";
 export const STALE_MS = 15 * 60 * 1000;
 
-const SEARCH_LIMIT = 80;
-const SEARCH_PAGE_CAP = 5;
+export const SEARCH_LIMIT = 80;
+export const SEARCH_PAGE_CAP = 5;
 const SEARCH_CONCURRENCY = 6;
 const BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36";
@@ -228,9 +228,12 @@ export async function pullXchangeViaBrowser(env) {
       const locRes = await fetch("/api/depot-locations", { headers: { Accept: "application/json" } });
       if (!locRes.ok) return { error: "locations " + locRes.status, cities: [] };
       const locations = await locRes.json();
-      const us = (Array.isArray(locations) ? locations : []).filter((r) =>
-        String((r && r.unlocode_safe) || "").toUpperCase().startsWith("US")
-      );
+      const us = (Array.isArray(locations) ? locations : []).filter((r) => {
+        const code = String((r && (r.unlocode_safe || r.unlocode || r.country_code)) || "").toUpperCase();
+        if (code.startsWith("US")) return true;
+        const country = String((r && (r.country || r.Country)) || "").trim().toUpperCase();
+        return country === "US" || country === "USA" || country === "UNITED STATES";
+      });
       const cities = [];
       for (const loc of us) {
         const name = String((loc && loc.location_name) || "").trim();
@@ -240,14 +243,20 @@ export async function pullXchangeViaBrowser(env) {
         if (city.includes("/")) names.push(city.split("/")[0].trim());
         let rows = [];
         for (const q of names) {
-          const url =
-            "/api/search?location=" +
-            encodeURIComponent(q) +
-            "&dealType=PICK_UP&excludeDamaged=true&limit=80&page=1";
-          const res = await fetch(url, { headers: { Accept: "application/json" } });
-          if (!res.ok) continue;
-          const data = await res.json();
-          const found = Array.isArray(data && data.results) ? data.results : [];
+          const found = [];
+          for (let pageNo = 1; pageNo <= 5; pageNo++) {
+            const url =
+              "/api/search?location=" +
+              encodeURIComponent(q) +
+              "&dealType=PICK_UP&excludeDamaged=true&limit=80&page=" +
+              pageNo;
+            const res = await fetch(url, { headers: { Accept: "application/json" } });
+            if (!res.ok) break;
+            const data = await res.json();
+            const batch = Array.isArray(data && data.results) ? data.results : [];
+            found.push(...batch);
+            if (!batch.length || batch.length < 80) break;
+          }
           if (found.length) {
             rows = found;
             break;
