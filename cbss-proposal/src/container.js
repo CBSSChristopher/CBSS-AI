@@ -414,10 +414,13 @@ function offerCost(o) {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+export const MAX_POSTED_CITY_MILES = 800;
+
 export function pickNearestPostedCity(offers, zipLat, zipLon, want, hubs = CITY_HUBS) {
   const cities = groupOffersByCity(offers, zipLat, zipLon, hubs);
   let nearest = cities[0] || null;
   for (const city of cities) {
+    if (city.miles != null && city.miles > MAX_POSTED_CITY_MILES) continue;
     const offer = pickWholesaleOffer(offers, { ...want, cityKey: city.cityKey });
     if (offer) {
       return {

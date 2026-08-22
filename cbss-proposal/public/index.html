@@ -1258,6 +1258,7 @@
       skippedNearestCity = null;
       for (let i = 0; i < list.length; i++) {
         const city = list[i];
+        if (city.miles != null && city.miles > 800) continue;
         const key = city.cityKey || cityKey(city.city, city.state);
         const hit = inventoryOffers.some((o) => {
           if (offerQty(o) === 0) return false;
@@ -1323,7 +1324,7 @@
         );
       } else if (cityLabel) {
         setInventoryStatus(
-          "No matching posted xChange box in " + cityLabel + " for this size/grade/qty. Pull xChange again or type a number you actually have. Do not invent one. " + pulledLabel() + "."
+          "No matching posted xChange box in " + cityLabel + " for this size/grade/qty within 800 miles. Pull xChange again or type a number you actually have. Do not invent one. " + pulledLabel() + "."
         );
       }
     }

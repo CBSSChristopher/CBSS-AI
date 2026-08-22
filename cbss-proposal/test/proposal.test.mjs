@@ -11,6 +11,7 @@ import {
   groupOffersByCity,
   mapGrade,
   parseOfferSpec,
+  MAX_POSTED_CITY_MILES,
   pickClosestDepot,
   pickNearestPostedCity,
   pickWholesaleOffer,
@@ -245,6 +246,10 @@ describe("Proposal tool picker, depot, and cash price", () => {
     assert.equal(local40.city.city, "Phoenix");
     assert.equal(local40.offer.wholesaleCost, 2900);
     assert.equal(local40.skipped, null);
+    assert.equal(MAX_POSTED_CITY_MILES, 800);
+    const honolulu = pickNearestPostedCity(offers, 21.3069, -157.8583, want20);
+    assert.equal(honolulu.offer, null);
+    assert.match(page, /city\.miles > 800/);
   });
 
   it("keeps the login script valid", () => {
