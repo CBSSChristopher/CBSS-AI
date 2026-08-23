@@ -47,7 +47,10 @@ test("tasks tab exposes a Complete button and completeTask handler", () => {
   assert.match(html, /Schedule another follow-up/);
   assert.match(html, /function offerNextFollowup\(/);
   assert.match(html, /function showNextFollowupPrompt\(/);
-  assert.match(html, /build 18/);
+  assert.match(html, /build 19/);
+  assert.match(html, /function roadPhoneBtns\(/);
+  assert.match(html, /@media \(max-width: 720px\)/);
+  assert.match(html, /viewport-fit=cover/);
   assert.match(html, /function openGoogleVoice\(/);
   assert.match(html, /function googleVoiceUrl\(/);
   assert.match(html, /voice\.google\.com\/u\/' \+ slot \+ '\/calls\?a=nc,%2B/);
