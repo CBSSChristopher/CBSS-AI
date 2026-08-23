@@ -3,7 +3,8 @@ export function pageHtml(): string {
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f1c2e" />
   <meta name="robots" content="noindex,nofollow" />
   <title>CBSS Desk</title>
   <style>
@@ -68,7 +69,23 @@ export function pageHtml(): string {
     .hit:last-child { border-bottom: 0; }
     .hit:hover, .hit.on { background: #e8f0f7; }
     .split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    @media (max-width: 640px) { .split { grid-template-columns: 1fr; } .tabs button { font-size: 13px; padding: 9px 4px; } }
+    button, .hit, .pick { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+    @media (max-width: 640px) {
+      html, body { height: auto; min-height: 100dvh; }
+      header { flex-wrap: wrap; padding: 10px 12px; padding-top: max(10px, env(safe-area-inset-top)); }
+      header .right { width: 100%; justify-content: space-between; }
+      main { padding: 12px 10px max(24px, env(safe-area-inset-bottom)); }
+      .card { padding: 14px 12px; }
+      input, textarea, select { font-size: 16px; min-height: 44px; }
+      button, .hit, .picks .pick { min-height: 44px; }
+      .split { grid-template-columns: 1fr; }
+      .tabs button { font-size: 14px; padding: 12px 10px; white-space: normal; min-height: 44px; }
+      #composer { flex-direction: column; align-items: stretch; }
+      #composer button.ai-send { min-width: 0; width: 100%; }
+      .comp-bar .zip-wrap { flex: 1 1 100%; }
+      .comp-bar > button { flex: 1 1 calc(50% - 4px); }
+      #panel-chat .log, .log { min-height: 12rem; }
+    }
     .choice { display: flex; gap: 16px; flex-wrap: wrap; margin: 4px 0 2px; }
     .choice label { font-weight: 500; display: flex; gap: 6px; align-items: center; margin: 0; font-size: 14px; }
     .log { display: flex; flex-direction: column; gap: 8px; min-height: 24vh; margin: 8px 0 12px; }
@@ -100,7 +117,7 @@ export function pageHtml(): string {
   <header>
     <div>
       <div class="brand">CBSS Desk</div>
-      <div class="sub" id="stamp">build 11</div>
+      <div class="sub" id="stamp">build 12</div>
     </div>
     <div class="right">
       <div class="who hide" id="who"></div>

@@ -231,7 +231,9 @@ describe("Container One live pull", () => {
     assert.match(page, /Pull Container One/);
     assert.match(page, /Pull USA Containers/);
     assert.match(src, /20STRFW/);
-    assert.match(page, /build 11/);
+    assert.match(page, /build 12/);
+    assert.match(page, /viewport-fit=cover/);
+    assert.match(page, /#composer \{ flex-direction: column/);
     assert.doesNotMatch(src, /xChange/);
   });
 
