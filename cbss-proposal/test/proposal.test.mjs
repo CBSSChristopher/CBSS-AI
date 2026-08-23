@@ -181,7 +181,9 @@ describe("Proposal tool picker, depot, and cash price", () => {
     assert.match(page, /id="pullXchangeBtn"/);
     assert.match(page, /Pull xChange/);
     assert.match(page, /pulledAt/);
-    assert.match(page, /build 5/);
+    assert.match(page, /build 6/);
+    assert.match(page, /viewport-fit=cover/);
+    assert.match(page, /@media \(max-width: 600px\)/);
     assert.match(page, /did not post this box/);
     assert.match(page, /lastZipGeo/);
     assert.match(page, /Do not invent/);
