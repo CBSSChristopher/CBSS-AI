@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f1c2e" />
   <title>CBShippingSolutions – Proposal Builder</title>
   <style>
     :root {
@@ -60,7 +61,18 @@
       gap: 14px;
       margin-bottom: 12px;
     }
-    @media (max-width: 600px) { .row { grid-template-columns: 1fr; } }
+    @media (max-width: 600px) {
+      .row { grid-template-columns: 1fr; }
+      body { padding: 0; padding-bottom: env(safe-area-inset-bottom); }
+      .container { border-radius: 0; }
+      header { padding: 18px 16px; padding-top: max(18px, env(safe-area-inset-top)); }
+      form, .body { padding: 18px 16px 28px; }
+      .zip-actions { flex-direction: column; }
+      .zip-actions .btn { width: 100%; }
+      .picks .pick, .btn { min-height: 44px; }
+      input, select, textarea { font-size: 16px; min-height: 44px; }
+      .flex-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    }
     label {
       display: block;
       font-size: 0.85rem;
@@ -290,7 +302,7 @@
   <div class="container">
     <header>
       <h1>CBShippingSolutions</h1>
-      <p>Proposal Builder · One depot · Delivered cash · build 5</p>
+      <p>Proposal Builder · One depot · Delivered cash · build 6</p>
     </header>
 
     <form id="proposalForm" onsubmit="submitProposal(event)">
