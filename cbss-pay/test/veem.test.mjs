@@ -86,7 +86,9 @@ describe("CBSS Pay · Veem", () => {
     assert.match(index, /\/pay\/list/);
     assert.match(index, /\/pay\/cancel/);
     assert.match(page, /Create Veem request/);
-    assert.match(page, /build 3/);
+    assert.match(page, /build 4/);
+    assert.match(page, /viewport-fit=cover/);
+    assert.match(page, /Type the amount Christopher set/);
     assert.match(page, /veem-warn/);
     assert.match(src, /clientservices@veem\.com/);
     assert.match(src, /sandbox\.veem\.com/);

@@ -3,7 +3,9 @@ export function pageHtml(): string {
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f1c2e" />
+  <meta name="format-detection" content="telephone=no" />
   <meta name="robots" content="noindex,nofollow" />
   <title>CBSS Pay</title>
   <style>
@@ -47,8 +49,22 @@ export function pageHtml(): string {
     .err { color: #8A1F1F; font-size: 13px; min-height: 1.1em; margin: 8px 0 0; }
     .hide { display: none !important; }
     .split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    @media (max-width: 640px) { .split { grid-template-columns: 1fr; } }
-    .outbox { white-space: pre-wrap; background: #f7fafc; border: 1px dashed var(--line); border-radius: 8px; padding: 11px; min-height: 5em; font-size: 14px; }
+    .outbox { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; background: #f7fafc; border: 1px dashed var(--line); border-radius: 8px; padding: 11px; min-height: 5em; font-size: 14px; }
+    button { touch-action: manipulation; }
+    @media (max-width: 640px) {
+      .split { grid-template-columns: 1fr; }
+      header { flex-wrap: wrap; padding: 10px 12px; padding-top: max(10px, env(safe-area-inset-top)); }
+      header .right { width: 100%; justify-content: space-between; }
+      main { padding: 12px 12px max(24px, env(safe-area-inset-bottom)); }
+      .card { padding: 14px; }
+      input, textarea, select { font-size: 16px; min-height: 44px; }
+      textarea { min-height: 88px; }
+      button { min-height: 44px; }
+      .row { flex-direction: column; align-items: stretch; }
+      .row button { width: 100%; }
+      .hit { padding: 12px; }
+      footer { font-size: 12px; }
+    }
     .hits { border: 1px solid var(--line); border-radius: 8px; margin-top: 10px; }
     .hit { padding: 10px 11px; border-bottom: 1px solid var(--line); }
     .hit:last-child { border-bottom: 0; }
@@ -61,7 +77,7 @@ export function pageHtml(): string {
   <header>
     <div>
       <div class="brand">CBSS Pay</div>
-      <div class="sub" id="stamp">build 3 · Veem</div>
+      <div class="sub" id="stamp">build 4 · Veem</div>
     </div>
     <div class="right">
       <div class="who hide" id="who"></div>
@@ -92,14 +108,14 @@ export function pageHtml(): string {
             <div><label for="name">Customer name</label><input id="name" required placeholder="First Last" /></div>
             <div><label for="pay-email">Customer email</label><input id="pay-email" type="email" required /></div>
             <div><label for="phone">Phone</label><input id="phone" inputmode="tel" required placeholder="8703232593" /></div>
-            <div><label for="amount">Amount USD</label><input id="amount" inputmode="decimal" required placeholder="3990.00" /></div>
+            <div><label for="amount">Amount USD</label><input id="amount" inputmode="decimal" autocomplete="off" required placeholder="3990.00" /></div>
             <div><label for="city">City</label><input id="city" required /></div>
             <div><label for="state">State</label><input id="state" maxlength="2" required placeholder="AR" /></div>
             <div><label for="zip">ZIP</label><input id="zip" inputmode="numeric" maxlength="10" required placeholder="72201" /></div>
             <div><label for="street">Street (optional)</label><input id="street" placeholder="Delivery site" /></div>
           </div>
           <label for="notes">What this is for</label>
-          <textarea id="notes" rows="2" required placeholder="40HC CW delivered — paid before the truck"></textarea>
+          <textarea id="notes" rows="3" required placeholder="40HC CW delivered — paid before the truck"></textarea>
           <div class="row">
             <button type="submit">Create Veem request</button>
             <button type="button" class="secondary" id="copy-card">Copy card</button>
@@ -198,8 +214,12 @@ export function pageHtml(): string {
 
     document.getElementById("copy-card").addEventListener("click", async () => {
       const text = document.getElementById("card").textContent || "";
+      const btn = document.getElementById("copy-card");
       if (!text || text === "The pay card lands here.") return;
       try { await navigator.clipboard.writeText(text); } catch {}
+      const prev = btn.textContent;
+      btn.textContent = "Copied";
+      setTimeout(() => { btn.textContent = prev || "Copy card"; }, 1500);
     });
 
     async function refresh() {
