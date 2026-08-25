@@ -28,6 +28,16 @@ function splitName(raw) {
   if (parts.length === 1) return { firstName: parts[0], lastName: "" };
   return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
 }
+function parseAddress(raw, label) {
+  const street = String(raw?.street || "").trim();
+  const city = String(raw?.city || "").trim();
+  const state = String(raw?.state || "").trim().toUpperCase();
+  const zip = String(raw?.zip || "").replace(/\D/g, "").slice(0, 5);
+  if (!street || !city || !/^[A-Z]{2}$/.test(state) || zip.length !== 5) {
+    return { error: `Type the ${label} street, city, two-letter state, and ZIP.` };
+  }
+  return { street, city, state, zip };
+}
 function completeDraft(raw) {
   const fromName = raw.name ? splitName(raw.name) : { firstName: "", lastName: "" };
   const firstName = String(raw.firstName || fromName.firstName || "").trim();
@@ -36,19 +46,34 @@ function completeDraft(raw) {
   const phone = parsePhone(String(raw.phone || ""));
   const amount = typeof raw.amount === "number" ? raw.amount : parseAmount(String(raw.amountRaw || ""));
   const notes = String(raw.notes || "").trim().slice(0, 160);
-  const city = String(raw.city || "").trim();
-  const state = String(raw.state || "").trim().toUpperCase();
-  const zip = String(raw.zip || "").replace(/\D/g, "").slice(0, 5);
-  const street = String(raw.street || "").trim();
   if (!firstName || !lastName) return { error: "Type the customer first and last name." };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Type the customer email." };
   if (phone.length !== 10) return { error: "Type a 10-digit US phone." };
   if (amount == null) return { error: "Type the exact dollar amount Christopher set. Do not invent one." };
   if (!notes) return { error: "Type what this invoice is for." };
-  if (!city || !/^[A-Z]{2}$/.test(state) || zip.length !== 5) {
-    return { error: "Type city, two-letter state, and ZIP." };
-  }
-  return { firstName, lastName, email, phone, amount, notes, city, state, zip, street: street || "Delivery site" };
+  const billing = parseAddress(
+    {
+      street: raw.billingStreet || raw.street,
+      city: raw.billingCity || raw.city,
+      state: raw.billingState || raw.state,
+      zip: raw.billingZip || raw.zip,
+    },
+    "billing",
+  );
+  if (billing.error) return billing;
+  const delivery = raw.sameAsBilling
+    ? billing
+    : parseAddress(
+        {
+          street: raw.deliveryStreet,
+          city: raw.deliveryCity,
+          state: raw.deliveryState,
+          zip: raw.deliveryZip,
+        },
+        "delivery",
+      );
+  if (delivery.error) return delivery;
+  return { firstName, lastName, email, phone, amount, notes, billing, delivery };
 }
 
 function waaveSignature(secret, url, body) {
@@ -65,7 +90,10 @@ function payLinkFrom(raw, id, base) {
 describe("CBSS Invoicing · WAAVE", () => {
   it("is a separate invoicing tool with company-email login", () => {
     assert.match(page, /CBSS Invoicing/);
-    assert.match(page, /build 2 · WAAVE/);
+    assert.match(page, /build 3 · WAAVE/);
+    assert.match(page, /Billing address/);
+    assert.match(page, /Delivery address/);
+    assert.match(page, /Delivery is the same as billing/);
     assert.match(page, /Create WAAVE invoice/);
     assert.match(page, /Open Gmail/);
     assert.match(page, /Type the amount Christopher set/);
@@ -100,21 +128,53 @@ describe("CBSS Invoicing · WAAVE", () => {
       completeDraft({ name: "Gary", email: "gary@test.com", phone: "8703232593", amountRaw: "3990", notes: "40HC", city: "Jonesboro", state: "AR", zip: "72401" }).error,
       "Type the customer first and last name.",
     );
+    assert.equal(
+      completeDraft({
+        name: "Gary Smith",
+        email: "gary@test.com",
+        phone: "1-870-323-2593",
+        amountRaw: "$3,990",
+        notes: "40HC CW delivered",
+        city: "Jonesboro",
+        state: "ar",
+        zip: "72401",
+      }).error,
+      "Type the billing street, city, two-letter state, and ZIP.",
+    );
     const ok = completeDraft({
       name: "Gary Smith",
       email: "gary@test.com",
       phone: "1-870-323-2593",
       amountRaw: "$3,990",
       notes: "40HC CW delivered",
-      city: "Jonesboro",
-      state: "ar",
-      zip: "72401",
+      billingStreet: "100 Office Rd",
+      billingCity: "Jonesboro",
+      billingState: "ar",
+      billingZip: "72401",
+      deliveryStreet: "400 Job Site",
+      deliveryCity: "Paragould",
+      deliveryState: "AR",
+      deliveryZip: "72450",
     });
     assert.equal(ok.firstName, "Gary");
     assert.equal(ok.lastName, "Smith");
     assert.equal(ok.phone, "8703232593");
     assert.equal(ok.amount, 3990);
-    assert.equal(ok.state, "AR");
+    assert.equal(ok.billing.state, "AR");
+    assert.equal(ok.delivery.city, "Paragould");
+    const same = completeDraft({
+      name: "Gary Smith",
+      email: "gary@test.com",
+      phone: "8703232593",
+      amountRaw: "3990",
+      notes: "40HC CW delivered",
+      billingStreet: "100 Office Rd",
+      billingCity: "Jonesboro",
+      billingState: "AR",
+      billingZip: "72401",
+      sameAsBilling: true,
+    });
+    assert.deepEqual(same.delivery, same.billing);
   });
 
   it("posts the WAAVE pay link as their invoice, not our quote", () => {
@@ -163,5 +223,64 @@ describe("CBSS Invoicing · WAAVE", () => {
     assert.match(page, /CCs Christopher, Aliyah, and you/);
     assert.match(src, /cc_emails/);
     assert.match(index, /createInvoice\(env, draft, url\.origin, user\.email\)/);
+  });
+
+  it("keeps billing and delivery on the invoice, card, and Gmail copy", async () => {
+    const { completeDraft, invoicePayload, gmailDraft, formatInvoiceCard, formatAddress } = await import("../src/waave.ts");
+    const draft = completeDraft({
+      name: "Gary Smith",
+      email: "gary@test.com",
+      phone: "8703232593",
+      amountRaw: "3990",
+      notes: "40HC CW delivered",
+      billingStreet: "100 Office Rd",
+      billingCity: "Jonesboro",
+      billingState: "AR",
+      billingZip: "72401",
+      deliveryStreet: "400 Job Site",
+      deliveryCity: "Paragould",
+      deliveryState: "AR",
+      deliveryZip: "72450",
+    });
+    assert.equal(draft.billing.street, "100 Office Rd");
+    assert.equal(draft.delivery.city, "Paragould");
+    const payload = invoicePayload(draft, "12345", "https://cbssinvoice.cbss.workers.dev", "james@example.invalid");
+    assert.equal(payload.customer.address_1, "100 Office Rd");
+    assert.equal(payload.customer.city, "Jonesboro");
+    assert.equal(payload.billing_address.postcode, "72401");
+    assert.equal(payload.shipping_address.city, "Paragould");
+    assert.equal(payload.delivery_address.address_1, "400 Job Site");
+    assert.match(String(payload.description), /Billing:/);
+    assert.match(String(payload.description), /Delivery:/);
+    assert.equal(payload.amount, 3990);
+    const bill = formatAddress(draft.billing);
+    const del = formatAddress(draft.delivery);
+    const link = gmailDraft("gary@test.com", "Gary Smith", 3990, "https://pg.getwaave.co/pay/x", "40HC CW", [], bill, del);
+    const decoded = decodeURIComponent(link);
+    assert.match(decoded, /Billing: 100 Office Rd, Jonesboro, AR 72401/);
+    assert.match(decoded, /Delivery: 400 Job Site, Paragould, AR 72450/);
+    const text = formatInvoiceCard({
+      id: "x",
+      status: "sent",
+      amount: 3990,
+      currency: "USD",
+      email: "gary@test.com",
+      name: "Gary Smith",
+      notes: "40HC CW",
+      payLink: "https://pg.getwaave.co/pay/x",
+      gmailLink: link,
+      referenceId: "1",
+      timeCreated: "",
+      emailedByWaave: false,
+      sentBy: "",
+      ccEmails: [],
+      billing: draft.billing,
+      delivery: draft.delivery,
+    });
+    assert.match(text, /Billing: 100 Office Rd, Jonesboro, AR 72401/);
+    assert.match(text, /Delivery: 400 Job Site, Paragould, AR 72450/);
+    assert.match(index, /billingStreet/);
+    assert.match(index, /deliveryStreet/);
+    assert.match(index, /sameAsBilling/);
   });
 });

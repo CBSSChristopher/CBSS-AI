@@ -4,7 +4,7 @@ Standalone WAAVE invoice tool. It does not merge with Desk, CRM, Pay, or Proposa
 
 Live: `https://cbssinvoice.cbss.workers.dev`
 
-Sign in with the same company email and CRM password. Type the amount Christopher set. The tool asks WAAVE for a pay link. It does not invent a price. It does not collect a card number. It does not send from Gmail. Open Gmail to send the pay link; that draft CCs Christopher, Aliyah, and the signed-in rep. WAAVE may also email the customer when the payment-request send succeeds.
+Sign in with the same company email and CRM password. Type the amount Christopher set. Type the billing address and the delivery address (or check that they are the same). The tool asks WAAVE for a pay link. It does not invent a price. It does not collect a card number. It does not send from Gmail. Open Gmail to send the pay link; that draft CCs Christopher, Aliyah, and the signed-in rep, and includes both addresses. WAAVE may also email the customer when the payment-request send succeeds.
 
 ## WAAVE keys
 

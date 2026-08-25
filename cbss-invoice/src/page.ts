@@ -35,6 +35,7 @@ export function pageHtml(): string {
     .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
     h1 { font-size: 20px; margin: 0 0 6px; color: var(--accent); }
     h2 { font-size: 16px; margin: 0 0 10px; color: var(--navy); }
+    h3 { font-size: 14px; margin: 16px 0 4px; color: var(--navy); }
     p { line-height: 1.4; }
     .muted { color: var(--muted); font-size: 13px; margin: 0 0 10px; }
     label { display: block; font-size: 12px; font-weight: 700; margin: 10px 0 5px; color: #3d4d5c; }
@@ -49,9 +50,13 @@ export function pageHtml(): string {
     .err { color: #8A1F1F; font-size: 13px; min-height: 1.1em; margin: 8px 0 0; }
     .hide { display: none !important; }
     .split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .split3 { display: grid; grid-template-columns: 2fr 90px 1fr; gap: 10px; }
+    .check { display: flex; align-items: center; gap: 8px; margin: 12px 0 0; font-size: 14px; font-weight: 600; color: #3d4d5c; }
+    .check input { width: auto; margin: 0; }
+    input:disabled { background: #f3f6f8; color: #5b6b7c; }
     .outbox { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; background: #f7fafc; border: 1px dashed var(--line); border-radius: 8px; padding: 11px; min-height: 5em; font-size: 14px; }
     @media (max-width: 640px) {
-      .split { grid-template-columns: 1fr; }
+      .split, .split3 { grid-template-columns: 1fr; }
       header { flex-wrap: wrap; padding: 10px 12px; padding-top: max(10px, env(safe-area-inset-top)); }
       header .right { width: 100%; justify-content: space-between; }
       main { padding: 12px 12px max(24px, env(safe-area-inset-bottom)); }
@@ -75,7 +80,7 @@ export function pageHtml(): string {
   <header>
     <div>
       <div class="brand">CBSS Invoicing</div>
-      <div class="sub" id="stamp">build 2 · WAAVE</div>
+      <div class="sub" id="stamp">build 3 · WAAVE</div>
     </div>
     <div class="right">
       <div class="who hide" id="who"></div>
@@ -99,7 +104,7 @@ export function pageHtml(): string {
     <section id="desk" class="hide">
       <div class="card">
         <h2>Create a WAAVE invoice</h2>
-        <p class="muted">Type the amount Christopher set. WAAVE makes the pay link. Open Gmail to send it — that draft CCs Christopher, Aliyah, and you. This is not a CBSS quote.</p>
+        <p class="muted">Type the amount Christopher set. Type the billing address and the delivery address. WAAVE makes the pay link. Open Gmail to send it — that draft CCs Christopher, Aliyah, and you. This is not a CBSS quote.</p>
         <p class="err hide" id="waave-warn">WAAVE is not connected yet. Christopher: in the WAAVE merchant dashboard copy the public/access key, secret key, and venue id, then add WAAVE_API_KEY, WAAVE_API_SECRET, and WAAVE_VENUE_ID on this Worker.</p>
         <form id="inv-form">
           <div class="split">
@@ -107,10 +112,23 @@ export function pageHtml(): string {
             <div><label for="pay-email">Customer email</label><input id="pay-email" type="email" required /></div>
             <div><label for="phone">Phone</label><input id="phone" inputmode="tel" required placeholder="8703232593" /></div>
             <div><label for="amount">Amount USD</label><input id="amount" inputmode="decimal" autocomplete="off" required placeholder="3990.00" /></div>
-            <div><label for="city">City</label><input id="city" required /></div>
-            <div><label for="state">State</label><input id="state" maxlength="2" required placeholder="AR" /></div>
-            <div><label for="zip">ZIP</label><input id="zip" inputmode="numeric" maxlength="10" required placeholder="72201" /></div>
-            <div><label for="street">Street (optional)</label><input id="street" placeholder="Delivery site" /></div>
+          </div>
+          <h3>Billing address</h3>
+          <label for="bill-street">Street</label>
+          <input id="bill-street" required autocomplete="billing street-address" placeholder="123 Main St" />
+          <div class="split3">
+            <div><label for="bill-city">City</label><input id="bill-city" required autocomplete="billing address-level2" /></div>
+            <div><label for="bill-state">State</label><input id="bill-state" maxlength="2" required autocomplete="billing address-level1" placeholder="AR" /></div>
+            <div><label for="bill-zip">ZIP</label><input id="bill-zip" inputmode="numeric" maxlength="10" required autocomplete="billing postal-code" placeholder="72201" /></div>
+          </div>
+          <label class="check"><input id="same-addr" type="checkbox" /> Delivery is the same as billing</label>
+          <h3>Delivery address</h3>
+          <label for="del-street">Street</label>
+          <input id="del-street" required autocomplete="shipping street-address" placeholder="Job site or drop yard" />
+          <div class="split3">
+            <div><label for="del-city">City</label><input id="del-city" required autocomplete="shipping address-level2" /></div>
+            <div><label for="del-state">State</label><input id="del-state" maxlength="2" required autocomplete="shipping address-level1" placeholder="AR" /></div>
+            <div><label for="del-zip">ZIP</label><input id="del-zip" inputmode="numeric" maxlength="10" required autocomplete="shipping postal-code" placeholder="72201" /></div>
           </div>
           <label for="notes">What this invoice is for</label>
           <textarea id="notes" rows="3" required placeholder="40HC CW delivered — paid before the truck"></textarea>
@@ -150,6 +168,27 @@ export function pageHtml(): string {
     function waaveBanner(ready) {
       document.getElementById("waave-warn").classList.toggle("hide", Boolean(ready));
     }
+    function val(id) { return document.getElementById(id).value; }
+    function copyBillingToDelivery() {
+      document.getElementById("del-street").value = val("bill-street");
+      document.getElementById("del-city").value = val("bill-city");
+      document.getElementById("del-state").value = val("bill-state");
+      document.getElementById("del-zip").value = val("bill-zip");
+    }
+    function syncSameAddr() {
+      const same = document.getElementById("same-addr").checked;
+      ["del-street", "del-city", "del-state", "del-zip"].forEach((id) => {
+        document.getElementById(id).disabled = same;
+        document.getElementById(id).required = !same;
+      });
+      if (same) copyBillingToDelivery();
+    }
+    document.getElementById("same-addr").addEventListener("change", syncSameAddr);
+    ["bill-street", "bill-city", "bill-state", "bill-zip"].forEach((id) => {
+      document.getElementById(id).addEventListener("input", () => {
+        if (document.getElementById("same-addr").checked) copyBillingToDelivery();
+      });
+    });
 
     async function boot() {
       const r = await fetch("/session", { credentials: "same-origin" });
@@ -200,10 +239,15 @@ export function pageHtml(): string {
           phone: document.getElementById("phone").value,
           amountRaw: document.getElementById("amount").value,
           notes: document.getElementById("notes").value,
-          city: document.getElementById("city").value,
-          state: document.getElementById("state").value,
-          zip: document.getElementById("zip").value,
-          street: document.getElementById("street").value,
+          billingStreet: val("bill-street"),
+          billingCity: val("bill-city"),
+          billingState: val("bill-state"),
+          billingZip: val("bill-zip"),
+          deliveryStreet: val("del-street"),
+          deliveryCity: val("del-city"),
+          deliveryState: val("del-state"),
+          deliveryZip: val("del-zip"),
+          sameAsBilling: document.getElementById("same-addr").checked,
         }),
       });
       const j = await r.json().catch(() => ({}));
@@ -248,7 +292,9 @@ export function pageHtml(): string {
           ? "<div class=\\"row\\"><button type=\\"button\\" class=\\"secondary\\" data-cancel=\\"" + c.id + "\\">Cancel</button></div>"
           : "";
         const cc = Array.isArray(c.ccEmails) && c.ccEmails.length ? "<div>CC " + c.ccEmails.join(", ") + "</div>" : "";
-        return "<div class=\\"hit\\"><strong>" + (c.name || "Customer") + " · $" + Number(c.amount).toLocaleString("en-US", { minimumFractionDigits: 2 }) + " · " + (c.status || "") + "</strong><div>" + (c.notes || "") + "</div>" + link + gmail + cc + cancel + "</div>";
+        const bill = c.billing && (c.billing.street || c.billing.city) ? "<div>Billing: " + [c.billing.street, c.billing.city, [c.billing.state, c.billing.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ") + "</div>" : "";
+        const del = c.delivery && (c.delivery.street || c.delivery.city) ? "<div>Delivery: " + [c.delivery.street, c.delivery.city, [c.delivery.state, c.delivery.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ") + "</div>" : "";
+        return "<div class=\\"hit\\"><strong>" + (c.name || "Customer") + " · $" + Number(c.amount).toLocaleString("en-US", { minimumFractionDigits: 2 }) + " · " + (c.status || "") + "</strong><div>" + (c.notes || "") + "</div>" + bill + del + link + gmail + cc + cancel + "</div>";
       }).join("");
     }
     document.getElementById("refresh").addEventListener("click", refresh);

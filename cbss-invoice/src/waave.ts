@@ -3,6 +3,13 @@ const TX_PATH = "/waavepay/api/transaction";
 const CREATE_PATHS = [TX_PATH];
 const LIST_KEY = "invoices";
 
+export type Address = {
+  street: string;
+  city: string;
+  state: string;
+  zip: string;
+};
+
 export type InvoiceDraft = {
   firstName: string;
   lastName: string;
@@ -10,10 +17,26 @@ export type InvoiceDraft = {
   phone: string;
   amount: number;
   notes: string;
-  city: string;
-  state: string;
-  zip: string;
-  street: string;
+  billing: Address;
+  delivery: Address;
+};
+
+export type InvoiceInput = Partial<InvoiceDraft> & {
+  name?: string;
+  amountRaw?: string;
+  street?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  billingStreet?: string;
+  billingCity?: string;
+  billingState?: string;
+  billingZip?: string;
+  deliveryStreet?: string;
+  deliveryCity?: string;
+  deliveryState?: string;
+  deliveryZip?: string;
+  sameAsBilling?: boolean;
 };
 
 export type InvoiceCard = {
@@ -31,6 +54,8 @@ export type InvoiceCard = {
   emailedByWaave: boolean;
   sentBy: string;
   ccEmails: string[];
+  billing?: Address;
+  delivery?: Address;
 };
 
 export function parseAmount(raw: string): number | null {
@@ -59,7 +84,26 @@ export function splitName(raw: string): { firstName: string; lastName: string } 
   return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
 }
 
-export function completeDraft(raw: Partial<InvoiceDraft> & { name?: string; amountRaw?: string }): InvoiceDraft | { error: string } {
+export function parseAddress(
+  raw: { street?: string; city?: string; state?: string; zip?: string } | undefined,
+  label: string,
+): Address | { error: string } {
+  const street = String(raw?.street || "").trim().slice(0, 120);
+  const city = String(raw?.city || "").trim().slice(0, 80);
+  const state = String(raw?.state || "").trim().toUpperCase();
+  const zip = String(raw?.zip || "").replace(/\D/g, "").slice(0, 5);
+  if (!street || !city || !/^[A-Z]{2}$/.test(state) || zip.length !== 5) {
+    return { error: `Type the ${label} street, city, two-letter state, and ZIP.` };
+  }
+  return { street, city, state, zip };
+}
+
+export function formatAddress(addr?: Address | null): string {
+  if (!addr?.city || !addr.state || !addr.zip) return "";
+  return [addr.street, addr.city, `${addr.state} ${addr.zip}`].filter(Boolean).join(", ");
+}
+
+export function completeDraft(raw: InvoiceInput): InvoiceDraft | { error: string } {
   const fromName = raw.name ? splitName(raw.name) : { firstName: "", lastName: "" };
   const firstName = String(raw.firstName || fromName.firstName || "").trim();
   const lastName = String(raw.lastName || fromName.lastName || "").trim();
@@ -67,19 +111,34 @@ export function completeDraft(raw: Partial<InvoiceDraft> & { name?: string; amou
   const phone = parsePhone(String(raw.phone || ""));
   const amount = typeof raw.amount === "number" ? raw.amount : parseAmount(String(raw.amountRaw || ""));
   const notes = String(raw.notes || "").trim().slice(0, 160);
-  const city = String(raw.city || "").trim();
-  const state = String(raw.state || "").trim().toUpperCase();
-  const zip = String(raw.zip || "").replace(/\D/g, "").slice(0, 5);
-  const street = String(raw.street || "").trim();
   if (!firstName || !lastName) return { error: "Type the customer first and last name." };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Type the customer email." };
   if (phone.length !== 10) return { error: "Type a 10-digit US phone." };
   if (amount == null) return { error: "Type the exact dollar amount Christopher set. Do not invent one." };
   if (!notes) return { error: "Type what this invoice is for." };
-  if (!city || !/^[A-Z]{2}$/.test(state) || zip.length !== 5) {
-    return { error: "Type city, two-letter state, and ZIP." };
-  }
-  return { firstName, lastName, email, phone, amount, notes, city, state, zip, street: street || "Delivery site" };
+  const billing = parseAddress(
+    raw.billing || {
+      street: raw.billingStreet || raw.street,
+      city: raw.billingCity || raw.city,
+      state: raw.billingState || raw.state,
+      zip: raw.billingZip || raw.zip,
+    },
+    "billing",
+  );
+  if ("error" in billing) return billing;
+  const delivery = raw.sameAsBilling
+    ? billing
+    : parseAddress(
+        raw.delivery || {
+          street: raw.deliveryStreet,
+          city: raw.deliveryCity,
+          state: raw.deliveryState,
+          zip: raw.deliveryZip,
+        },
+        "delivery",
+      );
+  if ("error" in delivery) return delivery;
+  return { firstName, lastName, email, phone, amount, notes, billing, delivery };
 }
 
 export function money(n: number): string {
@@ -131,6 +190,16 @@ export function invoiceCopyEmails(senderEmail: string): string[] {
   return out;
 }
 
+function addressBlock(addr: Address): Record<string, string> {
+  return {
+    address_1: addr.street,
+    city: addr.city,
+    state: addr.state,
+    postcode: addr.zip,
+    country: "US",
+  };
+}
+
 export function invoicePayload(
   draft: InvoiceDraft,
   venueId: string,
@@ -139,6 +208,13 @@ export function invoicePayload(
 ): Record<string, unknown> {
   const referenceId = String(Date.now());
   const ccEmails = invoiceCopyEmails(senderEmail);
+  const billing = addressBlock(draft.billing);
+  const shipping = addressBlock(draft.delivery);
+  const description = [
+    draft.notes,
+    `Billing: ${formatAddress(draft.billing)}`,
+    `Delivery: ${formatAddress(draft.delivery)}`,
+  ].join(" · ");
   return {
     venue_id: venueId,
     amount: draft.amount,
@@ -146,8 +222,8 @@ export function invoicePayload(
     reference_id: referenceId,
     return_url: `${origin}/paid`,
     cancel_url: `${origin}/`,
-    description: draft.notes,
-    notes: draft.notes,
+    description,
+    notes: description,
     email: draft.email,
     customer_email: draft.email,
     first_name: draft.firstName,
@@ -165,12 +241,11 @@ export function invoicePayload(
       first_name: draft.firstName,
       last_name: draft.lastName,
       phone: draft.phone,
-      address_1: draft.street,
-      city: draft.city,
-      state: draft.state,
-      postcode: draft.zip,
-      country: "US",
+      ...billing,
     },
+    billing_address: billing,
+    shipping_address: shipping,
+    delivery_address: shipping,
   };
 }
 
@@ -205,6 +280,8 @@ export function gmailDraft(
   payLink: string,
   notes: string,
   ccEmails: string[] = [],
+  billing = "",
+  delivery = "",
 ): string {
   const subject = `CBShippingSolutions invoice ${money(amount)}`;
   const copies = ccEmails.filter(Boolean);
@@ -213,6 +290,8 @@ export function gmailDraft(
     "",
     `Invoice for ${notes}. Amount due: ${money(amount)} USD.`,
     "Pay with the WAAVE link below. This is the invoice amount already set — not a new quote.",
+    billing ? `Billing: ${billing}` : "",
+    delivery ? `Delivery: ${delivery}` : "",
     "",
     payLink,
     "",
@@ -240,7 +319,18 @@ export function withInvoiceCopies(card: InvoiceCard, senderEmail: string): Invoi
     sentBy,
     ccEmails,
     gmailLink:
-      card.email && card.payLink ? gmailDraft(card.email, card.name, card.amount, card.payLink, card.notes, ccEmails) : card.gmailLink,
+      card.email && card.payLink
+        ? gmailDraft(
+            card.email,
+            card.name,
+            card.amount,
+            card.payLink,
+            card.notes,
+            ccEmails,
+            formatAddress(card.billing),
+            formatAddress(card.delivery),
+          )
+        : card.gmailLink,
   };
 }
 
@@ -272,12 +362,14 @@ export function parseInvoice(raw: unknown, draft?: InvoiceDraft, base = PROD_API
     name,
     notes,
     payLink,
-    gmailLink: email && payLink ? gmailDraft(email, name, amount, payLink, notes) : "",
+    gmailLink: email && payLink ? gmailDraft(email, name, amount, payLink, notes, [], formatAddress(draft?.billing), formatAddress(draft?.delivery)) : "",
     referenceId: String(nested.reference_id || rec.reference_id || ""),
     timeCreated: String(nested.created_at || rec.created_at || new Date().toISOString()),
     emailedByWaave,
     sentBy: "",
     ccEmails: [],
+    billing: draft?.billing,
+    delivery: draft?.delivery,
   };
 }
 
@@ -287,6 +379,8 @@ export function formatInvoiceCard(card: InvoiceCard): string {
     "WAAVE INVOICE — not a CBSS quote",
     `${card.name}  ${card.email}  ${money(card.amount)} ${card.currency}  ${card.status}`,
     card.notes,
+    formatAddress(card.billing) ? `Billing: ${formatAddress(card.billing)}` : "",
+    formatAddress(card.delivery) ? `Delivery: ${formatAddress(card.delivery)}` : "",
     card.payLink ? `Pay link: ${card.payLink}` : "WAAVE did not return a pay link. Open the WAAVE merchant dashboard and check.",
     card.emailedByWaave
       ? "WAAVE emailed the customer the payment request."
@@ -427,6 +521,8 @@ export async function listInvoices(
         payLink: next.payLink || row.payLink,
         sentBy: row.sentBy || next.sentBy,
         ccEmails: row.ccEmails?.length ? row.ccEmails : next.ccEmails,
+        billing: row.billing || next.billing,
+        delivery: row.delivery || next.delivery,
       };
       refreshed.push(withInvoiceCopies(merged, merged.sentBy));
     } catch {

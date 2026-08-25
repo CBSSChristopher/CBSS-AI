@@ -102,10 +102,15 @@ export default {
         phone: str(body.phone),
         amountRaw: str(body.amountRaw) || str(body.amount),
         notes: str(body.notes),
-        city: str(body.city),
-        state: str(body.state),
-        zip: str(body.zip),
-        street: str(body.street),
+        billingStreet: str(body.billingStreet) || str(body.street),
+        billingCity: str(body.billingCity) || str(body.city),
+        billingState: str(body.billingState) || str(body.state),
+        billingZip: str(body.billingZip) || str(body.zip),
+        deliveryStreet: str(body.deliveryStreet),
+        deliveryCity: str(body.deliveryCity),
+        deliveryState: str(body.deliveryState),
+        deliveryZip: str(body.deliveryZip),
+        sameAsBilling: body.sameAsBilling === true || body.sameAsBilling === "true",
       });
       if ("error" in draft) return json(200, { ok: false, error: draft.error });
       const result = await createInvoice(env, draft, url.origin, user.email);
