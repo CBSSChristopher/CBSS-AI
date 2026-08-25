@@ -117,13 +117,16 @@ describe("Live call CRM + CTE", () => {
     assert.match(page, /Past CTE/);
     assert.match(index, /path === "\/contacts"/);
     assert.match(index, /path === "\/call\/save"/);
+    assert.match(index, /path === "\/contact\/create"/);
     assert.match(index, /crmAppendNote/);
     assert.match(crmSrc, /function crmAppendNote/);
     assert.match(crmSrc, /findExistingContact/);
+    assert.match(crmSrc, /findReusableContact/);
     assert.match(index, /crmSaveFollowups/);
     assert.match(index, /function publicUser/);
     assert.match(index, /crm: Boolean\(user\.crm\)/);
     assert.match(crmSrc, /ownerMatchesSession/);
+    assert.match(page, /Save contact to CRM/);
     assert.doesNotMatch(index, /saveNotes[\s\S]{0,80}notes: \{/);
   });
 });

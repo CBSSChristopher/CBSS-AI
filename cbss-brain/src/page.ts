@@ -117,7 +117,7 @@ export function pageHtml(): string {
   <header>
     <div>
       <div class="brand">CBSS Desk</div>
-      <div class="sub" id="stamp">build 12</div>
+      <div class="sub" id="stamp">build 13</div>
     </div>
     <div class="right">
       <div class="who hide" id="who"></div>
@@ -163,6 +163,9 @@ export function pageHtml(): string {
               <div><label>State</label><input id="new-state" /></div>
               <div><label>ZIP</label><input id="new-zip" /></div>
             </div>
+            <p class="muted">Saves a real CRM contact now. Call scraps are optional.</p>
+            <div class="row"><button type="button" id="new-save">Save contact to CRM</button></div>
+            <p class="err" id="err-new"></p>
           </div>
         </div>
       </div>
@@ -616,10 +619,28 @@ export function pageHtml(): string {
       clearTimeout(searchTimer);
       searchTimer = setTimeout(() => searchContacts(q), 280);
     });
+    function readCreate() {
+      return {
+        name: document.getElementById("new-name").value.trim(),
+        phone: document.getElementById("new-phone").value,
+        email: document.getElementById("new-email").value,
+        city: document.getElementById("new-city").value,
+        state: document.getElementById("new-state").value,
+        zip: document.getElementById("new-zip").value,
+      };
+    }
+    function applyCreated(contact) {
+      if (!contact || !contact.id) return;
+      picked = Object.assign({}, picked || {}, contact);
+      document.getElementById("new-box").classList.add("hide");
+      renderPicked();
+    }
     document.getElementById("new-toggle").addEventListener("click", () => {
       picked = null;
       renderPicked();
       document.getElementById("new-box").classList.toggle("hide");
+      const status = document.getElementById("err-new");
+      if (status) status.textContent = "";
     });
     document.getElementById("contact-clear").addEventListener("click", () => {
       picked = null;
@@ -628,11 +649,29 @@ export function pageHtml(): string {
       document.getElementById("new-box").classList.add("hide");
       renderPicked();
     });
+    document.getElementById("new-save").addEventListener("click", async () => {
+      const err = document.getElementById("err-new");
+      err.textContent = "";
+      const create = readCreate();
+      if (!create.name) { err.textContent = "Name the contact first."; return; }
+      const r = await fetch("/contact/create", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ create }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (r.status === 401) { show("login"); return; }
+      if (!r.ok) { err.textContent = j.error || "Could not save the contact."; return; }
+      applyCreated(j.contact);
+      err.textContent = j.created ? "Saved to CRM." : "That contact is already on your book.";
+    });
     document.getElementById("call-save").addEventListener("click", async () => {
       const err = document.getElementById("err-live");
       const box = document.getElementById("out-live");
       err.textContent = "";
-      box.textContent = "Summarizing and saving…";
+      const scraps = String(document.getElementById("scraps").value || "").trim();
+      box.textContent = scraps ? "Summarizing and saving…" : "Saving the contact to CRM…";
       const past = document.querySelector('input[name="cte"]:checked');
       const body = {
         scraps: document.getElementById("scraps").value,
@@ -642,16 +681,9 @@ export function pageHtml(): string {
       };
       if (picked && picked.id) body.contactId = picked.id;
       else {
-        const name = document.getElementById("new-name").value.trim();
-        if (!name) { err.textContent = "Pick a contact or add a name."; box.textContent = ""; return; }
-        body.create = {
-          name,
-          phone: document.getElementById("new-phone").value,
-          email: document.getElementById("new-email").value,
-          city: document.getElementById("new-city").value,
-          state: document.getElementById("new-state").value,
-          zip: document.getElementById("new-zip").value,
-        };
+        const create = readCreate();
+        if (!create.name) { err.textContent = "Pick a contact or add a name."; box.textContent = ""; return; }
+        body.create = create;
       }
       const r = await fetch("/call/save", {
         method: "POST",
@@ -662,8 +694,12 @@ export function pageHtml(): string {
       const j = await r.json().catch(() => ({}));
       if (r.status === 401) { show("login"); return; }
       if (!r.ok) { err.textContent = j.error || "Could not save."; box.textContent = ""; return; }
-      if (j.contact) picked = Object.assign({}, picked || {}, j.contact);
-      renderPicked();
+      if (j.contact) applyCreated(j.contact);
+      else renderPicked();
+      if (!j.note) {
+        box.textContent = j.summary || (j.created ? "Added a new CRM contact." : "Contact is on the CRM.");
+        return;
+      }
       const cte = (j.ctePlan || []).map((item) => item.channel.toUpperCase() + " " + String(item.when || "").replace("T", " ") + " — " + item.label).join("\\n");
       box.textContent = [
         j.created ? "Added a new CRM contact." : "Updated the CRM contact.",
