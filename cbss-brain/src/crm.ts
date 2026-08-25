@@ -1,3 +1,5 @@
+import { canonicalizeOwner, resolveSessionOwner, STAFF_OWNERS, titleCaseWords } from "./owners";
+
 export type CrmNote = {
   author: string;
   timestamp: string;
@@ -63,14 +65,10 @@ export type PublicContact = {
 
 const CRM_ORIGIN = "https://cbsscrm.cbss.workers.dev";
 export const PROTECTED_NOTE_KEY = "2621";
+export { canonicalizeOwner, resolveSessionOwner } from "./owners";
 
 export function titleCaseOwner(value: string): string {
-  return String(value || "")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(" ");
+  return canonicalizeOwner(value) || titleCaseWords(value);
 }
 
 export function emailLocalPart(email: string): string {
@@ -95,12 +93,30 @@ function ownerNeedles(email: string, name: string): Set<string> {
   add(local);
   add(local.replace(/[._-]+/g, " "));
   add(email);
+  add(canonicalizeOwner(name));
+  add(canonicalizeOwner(email));
+  add(canonicalizeOwner(local));
   const aliases: Record<string, string[]> = {
     james: ["James"],
     bryan: ["Bryan Reese", "Bryan"],
     christopher: ["Christopher Banks", "Christopher"],
+    matthew: ["Matthew Brent", "Matthew"],
+    veeka: ["Kawika Pangelinan", "Kawika"],
+    veek: ["Kawika Pangelinan", "Kawika"],
+    ivyanna: ["Ivyanna"],
+    aliyah: ["Aliyah"],
+    kyle: ["Kyle"],
+    mery: ["Mery"],
+    terrell: ["Terrell"],
+    joshua: ["Joshua"],
   };
   for (const alias of aliases[local] || []) add(alias);
+  for (const [key, named] of Object.entries(STAFF_OWNERS)) {
+    if (local === key || canonicalizeOwner(name) === named || canonicalizeOwner(email) === named) {
+      add(named);
+      add(key);
+    }
+  }
   return needles;
 }
 
@@ -229,7 +245,7 @@ export function buildCreatedContact(input: {
     state: String(input.state || "").trim(),
     zip: String(input.zip || "").trim(),
     street: "",
-    owner: titleCaseOwner(input.owner),
+    owner: resolveSessionOwner(input.owner),
     status: "New Lead",
     created: now.toISOString().slice(0, 10),
     source: "Desk",
@@ -329,6 +345,39 @@ export function findExistingContact(
     if (hit) return hit;
   }
   return null;
+}
+
+export function findReusableContact(
+  book: CrmBook,
+  input: { name?: string; phone?: string; email?: string },
+  email: string,
+  name: string,
+): CrmContact | null {
+  const hit = findExistingContact(book, input);
+  if (!hit) return null;
+  if (ownerMatchesSession(String(hit.owner || ""), email, name)) return hit;
+  return null;
+}
+
+export function toPublicContact(
+  contact: CrmContact,
+  deals: CrmDeal[] = [],
+  followups?: Record<string, CrmFollowup>,
+): PublicContact {
+  const follow = followups?.[String(contact.id)] || followups?.[String(Number(contact.id))];
+  return {
+    id: String(contact.id),
+    name: String(contact.name || "Unnamed"),
+    phone: String(contact.phone || ""),
+    email: String(contact.email || ""),
+    city: String(contact.city || ""),
+    state: String(contact.state || ""),
+    zip: String(contact.zip || ""),
+    owner: String(contact.owner || ""),
+    stage: contactStage(contact, deals),
+    nextAction: String((follow && follow.nextAction) || contact.nextAction || ""),
+    followUpDate: String((follow && follow.followUpDate) || contact.followUpDate || ""),
+  };
 }
 
 export async function crmAppendNote(

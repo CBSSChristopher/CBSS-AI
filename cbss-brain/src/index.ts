@@ -16,7 +16,6 @@ import {
   pullFailed,
 } from "./competitors";
 import {
-  appendNoteToMap,
   buildCreatedContact,
   crmGetBook,
   crmIngestProposal,
@@ -26,10 +25,14 @@ import {
   crmSaveFollowups,
   crmAppendNote,
   findContact,
-  findExistingContact,
+  findReusableContact,
   mergeFollowupMap,
   noteTimestamp,
+  resolveSessionOwner,
   searchContacts,
+  toPublicContact,
+  type CrmBook,
+  type CrmContact,
 } from "./crm";
 import { liveCallPrompt, parseLiveCallDraft, scheduleLiveCall } from "./cte";
 import {
@@ -104,7 +107,53 @@ function str(v: unknown): string {
 }
 
 function publicUser(user: { email: string; name: string; crm?: string }): { email: string; name: string; crm: boolean } {
-  return { email: user.email, name: user.name, crm: Boolean(user.crm) };
+  return {
+    email: user.email,
+    name: resolveSessionOwner(user.name, user.email),
+    crm: Boolean(user.crm),
+  };
+}
+
+function readCreateDraft(body: Record<string, unknown>): {
+  name: string;
+  phone: string;
+  email: string;
+  city: string;
+  state: string;
+  zip: string;
+} {
+  const createRaw = body.create && typeof body.create === "object" ? (body.create as Record<string, unknown>) : {};
+  return {
+    name: str(createRaw.name),
+    phone: str(createRaw.phone),
+    email: str(createRaw.email),
+    city: str(createRaw.city),
+    state: str(createRaw.state),
+    zip: str(createRaw.zip),
+  };
+}
+
+async function portCreatedContact(
+  env: Env,
+  user: { email: string; name: string; crm: string },
+  book: CrmBook,
+  draft: ReturnType<typeof readCreateDraft>,
+): Promise<{ contact: CrmContact; created: boolean }> {
+  const existing = findReusableContact(book, draft, user.email, user.name);
+  if (existing) return { contact: existing, created: false };
+  const fresh = buildCreatedContact({
+    name: draft.name,
+    phone: draft.phone,
+    email: draft.email,
+    city: draft.city,
+    state: draft.state,
+    zip: draft.zip,
+    owner: resolveSessionOwner(user.name, user.email),
+  });
+  const added = [fresh, ...(book.contactsAdded || [])];
+  await crmSaveContactsAdded(env, user.crm, added);
+  book.contactsAdded = added;
+  return { contact: fresh, created: true };
 }
 
 function fieldMap(raw: unknown): Record<string, string> {
@@ -200,49 +249,67 @@ export default {
       }
     }
 
+    if (request.method === "POST" && path === "/contact/create") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      if (!user.crm) return json(403, { error: "Sign in with your company email so the desk can write the CRM." });
+      const body = await readJson(request);
+      const draft = readCreateDraft(body);
+      if (!draft.name) return json(400, { error: "Name the contact first." });
+      try {
+        const book = await crmGetBook(env, user.crm);
+        const ported = await portCreatedContact(env, { ...user, crm: user.crm }, book, draft);
+        return json(200, {
+          ok: true,
+          created: ported.created,
+          reused: !ported.created,
+          contact: toPublicContact(ported.contact, book.deals, book.followups),
+        });
+      } catch (err) {
+        console.error("desk_contact_create_error", err instanceof Error ? err.message : "unknown");
+        return json(502, { error: "Could not save the contact to the CRM. Try again." });
+      }
+    }
+
     if (request.method === "POST" && path === "/call/save") {
       const user = await readSession(request, env);
       if (!user) return json(401, { error: "Sign in first." });
       if (!user.crm) return json(403, { error: "Sign in with your company email so the desk can write the CRM." });
       const body = await readJson(request);
       const scraps = str(body.scraps);
-      if (!scraps) return json(400, { error: "Feed the call scraps first." });
       if (scraps.length > 8000) return json(400, { error: "Keep the scraps shorter." });
       const markedPast = Boolean(body.pastCte);
       const userNext = str(body.nextAction);
       const userWhen = str(body.followUpDate);
+      const draft = readCreateDraft(body);
 
       try {
         const book = await crmGetBook(env, user.crm);
         let contactId = str(body.contactId);
-        let created: { id: string; name: string } | null = null;
+        const pickedExisting = Boolean(contactId);
+        let created = false;
         if (!contactId) {
-          const createRaw = body.create && typeof body.create === "object" ? (body.create as Record<string, unknown>) : {};
-          const newName = str(createRaw.name);
-          if (!newName) return json(400, { error: "Pick a contact or type a name to add one." });
-          const existing = findExistingContact(book, {
-            name: newName,
-            phone: str(createRaw.phone),
-            email: str(createRaw.email),
+          if (!draft.name) return json(400, { error: "Pick a contact or type a name to add one." });
+          const ported = await portCreatedContact(env, { ...user, crm: user.crm }, book, draft);
+          contactId = String(ported.contact.id);
+          created = ported.created;
+        }
+        if (!scraps && pickedExisting) return json(400, { error: "Feed the call scraps first." });
+        if (!scraps) {
+          const contact = findContact(book, contactId);
+          if (!contact) return json(404, { error: "That contact is not in the CRM." });
+          return json(200, {
+            ok: true,
+            created,
+            reused: !created,
+            summary: created ? "Added a new CRM contact." : "That contact is already on your book.",
+            note: "",
+            pastCte: false,
+            ctePlan: [],
+            nextAction: "",
+            followUpDate: "",
+            contact: toPublicContact(contact, book.deals, book.followups),
           });
-          if (existing) {
-            contactId = String(existing.id);
-          } else {
-            const fresh = buildCreatedContact({
-              name: newName,
-              phone: str(createRaw.phone),
-              email: str(createRaw.email),
-              city: str(createRaw.city),
-              state: str(createRaw.state),
-              zip: str(createRaw.zip),
-              owner: user.name || "Desk",
-            });
-            const added = [fresh, ...(book.contactsAdded || [])];
-            await crmSaveContactsAdded(env, user.crm, added);
-            book.contactsAdded = added;
-            contactId = String(fresh.id);
-            created = { id: contactId, name: String(fresh.name || newName) };
-          }
         }
 
         const contact = findContact(book, contactId);
@@ -264,17 +331,17 @@ export default {
         } catch (err) {
           console.error("desk_call_ai_error", err instanceof Error ? err.message : "unknown");
         }
-        const draft = parseLiveCallDraft(modelRaw, scraps, markedPast);
-        const pastCte = markedPast || draft.pastCte;
+        const callDraft = parseLiveCallDraft(modelRaw, scraps, markedPast);
+        const pastCte = markedPast || callDraft.pastCte;
         const schedule = scheduleLiveCall({
           pastCte,
-          nextAction: userNext || draft.nextAction,
-          followUpDate: userWhen || draft.followUpDate,
+          nextAction: userNext || callDraft.nextAction,
+          followUpDate: userWhen || callDraft.followUpDate,
         });
         const allowed = [scraps, prompt, userNext, String(contact.name || "")].join("\n");
-        const safeNote = sanitizeReply(`${draft.crmNote.trim()}\n\n${schedule.noteSuffix}`, allowed);
+        const safeNote = sanitizeReply(`${callDraft.crmNote.trim()}\n\n${schedule.noteSuffix}`, allowed);
         const entry = {
-          author: user.name || "Desk",
+          author: resolveSessionOwner(user.name, user.email),
           timestamp: noteTimestamp(),
           tag: "Desk",
           text: safeNote,
@@ -288,17 +355,15 @@ export default {
 
         return json(200, {
           ok: true,
-          summary: sanitizeReply(draft.summary, allowed),
+          summary: sanitizeReply(callDraft.summary, allowed),
           note: entry.text,
           pastCte: schedule.pastCte,
           ctePlan: schedule.ctePlan,
           nextAction: schedule.nextAction,
           followUpDate: schedule.followUpDate,
-          contact: {
-            id: contactId,
-            name: String(contact.name || created?.name || "Contact"),
-          },
-          created: Boolean(created),
+          contact: toPublicContact(contact, book.deals, followups),
+          created,
+          reused: !created,
         });
       } catch (err) {
         console.error("desk_call_save_error", err instanceof Error ? err.message : "unknown");
