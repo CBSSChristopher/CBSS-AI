@@ -71,6 +71,7 @@
       .zip-actions .btn { width: 100%; }
       .picks .pick, .btn { min-height: 44px; }
       input, select, textarea { font-size: 16px; min-height: 44px; }
+      input[type="range"] { min-height: 32px; }
       .flex-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
     }
     label {
@@ -161,6 +162,9 @@
     }
     .margin-good { color: var(--success); }
     .margin-warn { color: #b45309; }
+    .margin-row { display: flex; align-items: center; gap: 12px; }
+    .margin-row input[type="range"] { flex: 1; min-width: 0; }
+    .margin-row strong { min-width: 4.2em; text-align: right; color: var(--primary); }
     .hidden { display: none; }
     .radio-group { display: flex; gap: 22px; flex-wrap: wrap; margin-top: 4px; }
     .radio-group label { display: flex; align-items: center; gap: 7px; font-weight: 500; cursor: pointer; margin: 0; }
@@ -302,7 +306,7 @@
   <div class="container">
     <header>
       <h1>CBShippingSolutions</h1>
-      <p>Proposal Builder · One depot · Delivered cash · build 6</p>
+      <p>Proposal Builder · One depot · Delivered cash · build 7</p>
     </header>
 
     <form id="proposalForm" onsubmit="submitProposal(event)">
@@ -420,6 +424,16 @@
           <div>
             <label for="milesOverride">Miles Override (optional)</label>
             <input type="number" id="milesOverride" min="0" placeholder="Leave blank for estimate" oninput="recalcIfReady()" />
+          </div>
+        </div>
+        <div class="row">
+          <div class="full">
+            <label for="netMargin">Net margin $300–$700</label>
+            <div class="margin-row">
+              <input type="range" id="netMargin" min="300" max="700" step="25" value="700" oninput="onNetMarginChange()" />
+              <strong id="netMarginOut">$700</strong>
+            </div>
+            <p class="note">CBSS profit on top of the posted xChange wholesale and delivery. Slide it from $300 to $700. This does not invent a wholesale.</p>
           </div>
         </div>
 
@@ -574,7 +588,7 @@
     </form>
 
     <footer>
-      CBShippingSolutions · Pricing + Depot + Flex Buy · Margin Target $600–$900 · Floor $300
+      CBShippingSolutions · Pricing + Depot + Flex Buy · Net margin $300–$700
     </footer>
   </div>
 
@@ -738,8 +752,27 @@
       "West Coast": { base: 600, perMile: 8 }
     };
     const SIZE_SURCHARGE = { "20ft": 0, "40ft": 125, "Specialized": 200 };
-    const TARGET_MARGIN = 700;
     const MIN_MARGIN = 300;
+    const MAX_MARGIN = 700;
+    const DEFAULT_MARGIN = 700;
+
+    function clampNetMargin(raw) {
+      const text = String(raw || "").replace(/[$,\s]/g, "");
+      if (!text) return DEFAULT_MARGIN;
+      const n = Number(text);
+      if (!Number.isFinite(n)) return DEFAULT_MARGIN;
+      const rounded = Math.round(n / 25) * 25;
+      return Math.min(MAX_MARGIN, Math.max(MIN_MARGIN, rounded));
+    }
+    function currentNetMargin() {
+      return clampNetMargin(document.getElementById("netMargin").value);
+    }
+    function onNetMarginChange() {
+      const n = currentNetMargin();
+      document.getElementById("netMargin").value = String(n);
+      document.getElementById("netMarginOut").textContent = "$" + n;
+      recalcIfReady();
+    }
 
     // Flex Buy term presets (months + suggested APR)
     const FLEX_TERMS = [
@@ -1469,7 +1502,8 @@
       const miles = milesOverride ? parseFloat(milesOverride) : (selectedDepot.miles != null ? selectedDepot.miles : 0);
       const delivery = selectedDepot.region ? calcDelivery(selectedDepot.region, miles, size) : 0;
 
-      let recommended = wholesale + delivery + TARGET_MARGIN;
+      const targetMargin = currentNetMargin();
+      let recommended = wholesale + delivery + targetMargin;
       if (recommended - wholesale - delivery < MIN_MARGIN) {
         recommended = wholesale + delivery + MIN_MARGIN;
       }
@@ -1687,6 +1721,7 @@
         quantity: String(currentQty()),
         wholesaleCost: document.getElementById('wholesaleCost').value,
         unitPrice: document.getElementById('unitPrice').value,
+        netMargin: String(currentNetMargin()),
         containerNotes: document.getElementById('containerNotes').value.trim(),
         region: document.getElementById('region').value,
         miles: document.getElementById('miles').value,

@@ -203,6 +203,27 @@ export function customerCashTotal(unitPrice, quantity = 1) {
   return Math.round(sell * qty * 100) / 100;
 }
 
+export const MIN_NET_MARGIN = 300;
+export const MAX_NET_MARGIN = 700;
+export const DEFAULT_NET_MARGIN = 700;
+
+export function clampNetMargin(raw) {
+  const text = String(raw ?? "").replace(/[$,\s]/g, "");
+  if (!text) return DEFAULT_NET_MARGIN;
+  const n = Number(text);
+  if (!Number.isFinite(n)) return DEFAULT_NET_MARGIN;
+  const rounded = Math.round(n / 25) * 25;
+  return Math.min(MAX_NET_MARGIN, Math.max(MIN_NET_MARGIN, rounded));
+}
+
+export function deliveredCashFromPosted(wholesale, delivery, netMargin) {
+  const cost = Number(wholesale);
+  const haul = Number(delivery) || 0;
+  if (!Number.isFinite(cost) || cost <= 0) return null;
+  const margin = clampNetMargin(netMargin);
+  return Math.ceil((cost + haul + margin) / 25) * 25;
+}
+
 export const CITY_HUBS = [
   { city: "Memphis", state: "TN", lat: 35.15, lon: -90.05, region: "Midwest" },
   { city: "Chicago", state: "IL", lat: 41.88, lon: -87.63, region: "Midwest" },

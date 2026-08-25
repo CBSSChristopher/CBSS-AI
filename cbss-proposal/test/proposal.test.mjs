@@ -5,7 +5,12 @@ import { spawnSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import {
   cityKey,
+  clampNetMargin,
   customerCashTotal,
+  DEFAULT_NET_MARGIN,
+  deliveredCashFromPosted,
+  MAX_NET_MARGIN,
+  MIN_NET_MARGIN,
   describeContainer,
   displayCityState,
   groupOffersByCity,
@@ -155,6 +160,29 @@ describe("Proposal tool picker, depot, and cash price", () => {
     assert.ok(groups[0].miles > 50 && groups[0].miles < 80);
   });
 
+  it("lets staff set net margin from 300 to 700 without inventing wholesale", () => {
+    assert.equal(MIN_NET_MARGIN, 300);
+    assert.equal(MAX_NET_MARGIN, 700);
+    assert.equal(DEFAULT_NET_MARGIN, 700);
+    assert.equal(clampNetMargin(""), 700);
+    assert.equal(clampNetMargin(250), 300);
+    assert.equal(clampNetMargin(900), 700);
+    assert.equal(clampNetMargin(425), 425);
+    assert.equal(clampNetMargin("$350"), 350);
+    assert.equal(deliveredCashFromPosted(1850, 500, 700), 3050);
+    assert.equal(deliveredCashFromPosted(1850, 500, 300), 2650);
+    assert.equal(deliveredCashFromPosted(0, 500, 700), null);
+    assert.match(page, /id="netMargin"/);
+    assert.match(page, /min="300"/);
+    assert.match(page, /max="700"/);
+    assert.match(page, /currentNetMargin/);
+    assert.match(page, /This does not invent a wholesale/);
+    assert.match(page, /targetMargin = currentNetMargin\(\)/);
+    assert.doesNotMatch(page, /TARGET_MARGIN = 700/);
+    assert.match(submit, /clampNetMargin/);
+    assert.match(submit, /data\.netMargin/);
+  });
+
   it("does not add delivery on top of a delivered cash price", () => {
     assert.equal(customerCashTotal(2900, 1), 2900);
     assert.equal(customerCashTotal(2900, 2), 5800);
@@ -181,7 +209,9 @@ describe("Proposal tool picker, depot, and cash price", () => {
     assert.match(page, /id="pullXchangeBtn"/);
     assert.match(page, /Pull xChange/);
     assert.match(page, /pulledAt/);
-    assert.match(page, /build 6/);
+    assert.match(page, /build 7/);
+    assert.match(page, /id="netMargin"/);
+    assert.match(page, /Net margin \$300–\$700/);
     assert.match(page, /viewport-fit=cover/);
     assert.match(page, /@media \(max-width: 600px\)/);
     assert.match(page, /did not post this box/);
