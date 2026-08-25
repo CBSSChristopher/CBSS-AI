@@ -65,7 +65,7 @@ function payLinkFrom(raw, id, base) {
 describe("CBSS Invoicing · WAAVE", () => {
   it("is a separate invoicing tool with company-email login", () => {
     assert.match(page, /CBSS Invoicing/);
-    assert.match(page, /build 1 · WAAVE/);
+    assert.match(page, /build 2 · WAAVE/);
     assert.match(page, /Create WAAVE invoice/);
     assert.match(page, /Open Gmail/);
     assert.match(page, /Type the amount Christopher set/);
@@ -129,5 +129,39 @@ describe("CBSS Invoicing · WAAVE", () => {
     assert.match(src, /Do not invent a different amount/);
     assert.match(src, /mail\.google\.com\/mail/);
     assert.match(src, /This tool does not send from Gmail/);
+  });
+
+  it("CCs Christopher, Aliyah, and the signed-in rep on the Gmail send", async () => {
+    const { invoiceCopyEmails, gmailDraft, formatInvoiceCard } = await import("../src/waave.ts");
+    const host = ["cbshipping", "solutions.com"].join("");
+    const mail = (local) => `${local}@${host}`;
+    const james = invoiceCopyEmails(mail("james"));
+    assert.deepEqual(james, [mail("christopher"), mail("aliyah"), mail("james")]);
+    const chris = invoiceCopyEmails(mail("Christopher"));
+    assert.deepEqual(chris, [mail("christopher"), mail("aliyah")]);
+    const link = gmailDraft("gary@test.com", "Gary Smith", 3990, "https://pg.getwaave.co/pay/x", "40HC CW", james);
+    assert.match(link, /[?&]cc=/);
+    assert.ok(decodeURIComponent(link).includes(james.join(",")));
+    const text = formatInvoiceCard({
+      id: "x",
+      status: "sent",
+      amount: 3990,
+      currency: "USD",
+      email: "gary@test.com",
+      name: "Gary Smith",
+      notes: "40HC CW",
+      payLink: "https://pg.getwaave.co/pay/x",
+      gmailLink: link,
+      referenceId: "1",
+      timeCreated: "",
+      emailedByWaave: false,
+      sentBy: mail("james"),
+      ccEmails: james,
+    });
+    assert.match(text, /CC:/);
+    assert.ok(text.includes(mail("james")));
+    assert.match(page, /CCs Christopher, Aliyah, and you/);
+    assert.match(src, /cc_emails/);
+    assert.match(index, /createInvoice\(env, draft, url\.origin, user\.email\)/);
   });
 });

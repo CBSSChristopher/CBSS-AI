@@ -108,7 +108,7 @@ export default {
         street: str(body.street),
       });
       if ("error" in draft) return json(200, { ok: false, error: draft.error });
-      const result = await createInvoice(env, draft, url.origin);
+      const result = await createInvoice(env, draft, url.origin, user.email);
       if (!result.ok) return json(200, { ok: false, error: result.error });
       return json(200, { ok: true, card: result.card, cardText: formatInvoiceCard(result.card) });
     }

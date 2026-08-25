@@ -29,6 +29,8 @@ export type InvoiceCard = {
   referenceId: string;
   timeCreated: string;
   emailedByWaave: boolean;
+  sentBy: string;
+  ccEmails: string[];
 };
 
 export function parseAmount(raw: string): number | null {
@@ -103,8 +105,40 @@ export async function waaveSignature(secret: string, url: string, body: string):
   return sha256Hex(`${secret}${url}${body}`);
 }
 
-export function invoicePayload(draft: InvoiceDraft, venueId: string, origin: string): Record<string, unknown> {
+const COMPANY_HOST = ["cbshipping", "solutions.com"].join("");
+const ALWAYS_CC_LOCALS = ["christopher", "aliyah"];
+
+export function companyMail(value: string): string {
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) return "";
+  const local = raw.includes("@") ? raw.split("@")[0] : raw;
+  const host = raw.includes("@") ? raw.split("@")[1] : COMPANY_HOST;
+  if (!local || host !== COMPANY_HOST) return "";
+  return `${local}@${COMPANY_HOST}`;
+}
+
+export function invoiceCopyEmails(senderEmail: string): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  const add = (raw: string) => {
+    const mail = companyMail(raw);
+    if (!mail || seen.has(mail)) return;
+    seen.add(mail);
+    out.push(mail);
+  };
+  for (const local of ALWAYS_CC_LOCALS) add(local);
+  add(senderEmail);
+  return out;
+}
+
+export function invoicePayload(
+  draft: InvoiceDraft,
+  venueId: string,
+  origin: string,
+  senderEmail = "",
+): Record<string, unknown> {
   const referenceId = String(Date.now());
+  const ccEmails = invoiceCopyEmails(senderEmail);
   return {
     venue_id: venueId,
     amount: draft.amount,
@@ -122,6 +156,10 @@ export function invoicePayload(draft: InvoiceDraft, venueId: string, origin: str
     phone_code: "+1",
     send_email: true,
     channel: "email",
+    cc: ccEmails,
+    cc_emails: ccEmails,
+    copies: ccEmails,
+    sent_by: companyMail(senderEmail),
     customer: {
       email: draft.email,
       first_name: draft.firstName,
@@ -160,8 +198,16 @@ export function payLinkFrom(raw: Record<string, unknown>, id: string, base: stri
   return `${base.replace(/\/+$/, "")}/pay/${id}`;
 }
 
-export function gmailDraft(to: string, name: string, amount: number, payLink: string, notes: string): string {
+export function gmailDraft(
+  to: string,
+  name: string,
+  amount: number,
+  payLink: string,
+  notes: string,
+  ccEmails: string[] = [],
+): string {
   const subject = `CBShippingSolutions invoice ${money(amount)}`;
+  const copies = ccEmails.filter(Boolean);
   const body = [
     `Hi ${name.split(" ")[0] || "there"},`,
     "",
@@ -170,16 +216,32 @@ export function gmailDraft(to: string, name: string, amount: number, payLink: st
     "",
     payLink,
     "",
+    copies.length ? `Office copy: ${copies.join(", ")}` : "",
     "CBGC LLC DBA CBShippingSolutions",
-  ].join("\n");
-  return (
+  ]
+    .filter((line, i, arr) => line || (i && arr[i - 1]))
+    .join("\n");
+  let url =
     "https://mail.google.com/mail/?view=cm&fs=1&to=" +
     encodeURIComponent(to) +
     "&su=" +
     encodeURIComponent(subject) +
     "&body=" +
-    encodeURIComponent(body)
-  );
+    encodeURIComponent(body);
+  if (copies.length) url += "&cc=" + encodeURIComponent(copies.join(","));
+  return url;
+}
+
+export function withInvoiceCopies(card: InvoiceCard, senderEmail: string): InvoiceCard {
+  const ccEmails = card.ccEmails?.length ? card.ccEmails : invoiceCopyEmails(senderEmail);
+  const sentBy = card.sentBy || companyMail(senderEmail);
+  return {
+    ...card,
+    sentBy,
+    ccEmails,
+    gmailLink:
+      card.email && card.payLink ? gmailDraft(card.email, card.name, card.amount, card.payLink, card.notes, ccEmails) : card.gmailLink,
+  };
 }
 
 export function parseInvoice(raw: unknown, draft?: InvoiceDraft, base = PROD_API): InvoiceCard | null {
@@ -214,6 +276,8 @@ export function parseInvoice(raw: unknown, draft?: InvoiceDraft, base = PROD_API
     referenceId: String(nested.reference_id || rec.reference_id || ""),
     timeCreated: String(nested.created_at || rec.created_at || new Date().toISOString()),
     emailedByWaave,
+    sentBy: "",
+    ccEmails: [],
   };
 }
 
@@ -227,9 +291,12 @@ export function formatInvoiceCard(card: InvoiceCard): string {
     card.emailedByWaave
       ? "WAAVE emailed the customer the payment request."
       : "Open Gmail from this tool and send the pay link from the company inbox. This tool does not send from Gmail.",
+    card.ccEmails?.length ? `CC: ${card.ccEmails.join(", ")}` : "",
     `Invoice ${card.id || "pending"}.${when}`,
     "Do not invent a different amount.",
-  ].join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 async function waaveFetch(
@@ -293,6 +360,7 @@ export async function createInvoice(
   env: Env,
   draft: InvoiceDraft,
   origin: string,
+  senderEmail = "",
   fetchImpl: typeof fetch = fetch,
 ): Promise<{ ok: true; card: InvoiceCard } | { ok: false; error: string }> {
   if (!waaveReady(env)) {
@@ -302,7 +370,7 @@ export async function createInvoice(
         "WAAVE is not connected yet. Christopher: from the WAAVE merchant dashboard copy the public/access key, secret key, and venue id, then add WAAVE_API_KEY, WAAVE_API_SECRET, and WAAVE_VENUE_ID on this Worker.",
     };
   }
-  const payload = invoicePayload(draft, String(env.WAAVE_VENUE_ID || ""), origin);
+  const payload = invoicePayload(draft, String(env.WAAVE_VENUE_ID || ""), origin, senderEmail);
   const body = JSON.stringify(payload);
   let lastError = "WAAVE did not accept the invoice create.";
   try {
@@ -314,11 +382,12 @@ export async function createInvoice(
         if (result.status >= 500) continue;
         return { ok: false, error: lastError };
       }
-      const card = parseInvoice(result.body, draft, apiBase(env));
-      if (!card || !card.payLink) {
+      const parsed = parseInvoice(result.body, draft, apiBase(env));
+      if (!parsed || !parsed.payLink) {
         lastError = "WAAVE created something, but no pay link came back. Open the WAAVE merchant dashboard and check.";
         continue;
       }
+      const card = withInvoiceCopies(parsed, senderEmail);
       await rememberInvoice(env, card);
       return { ok: true, card };
     }
@@ -348,7 +417,18 @@ export async function listInvoices(
         continue;
       }
       const next = parseInvoice(result.body, undefined, apiBase(env));
-      refreshed.push(next ? { ...row, ...next, payLink: next.payLink || row.payLink, gmailLink: next.gmailLink || row.gmailLink } : row);
+      if (!next) {
+        refreshed.push(row);
+        continue;
+      }
+      const merged = {
+        ...row,
+        ...next,
+        payLink: next.payLink || row.payLink,
+        sentBy: row.sentBy || next.sentBy,
+        ccEmails: row.ccEmails?.length ? row.ccEmails : next.ccEmails,
+      };
+      refreshed.push(withInvoiceCopies(merged, merged.sentBy));
     } catch {
       refreshed.push(row);
     }

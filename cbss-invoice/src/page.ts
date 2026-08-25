@@ -75,7 +75,7 @@ export function pageHtml(): string {
   <header>
     <div>
       <div class="brand">CBSS Invoicing</div>
-      <div class="sub" id="stamp">build 1 · WAAVE</div>
+      <div class="sub" id="stamp">build 2 · WAAVE</div>
     </div>
     <div class="right">
       <div class="who hide" id="who"></div>
@@ -99,7 +99,7 @@ export function pageHtml(): string {
     <section id="desk" class="hide">
       <div class="card">
         <h2>Create a WAAVE invoice</h2>
-        <p class="muted">Type the amount Christopher set. WAAVE makes the pay link. Send it from the company inbox, or WAAVE emails the customer when that send succeeds. This is not a CBSS quote.</p>
+        <p class="muted">Type the amount Christopher set. WAAVE makes the pay link. Open Gmail to send it — that draft CCs Christopher, Aliyah, and you. This is not a CBSS quote.</p>
         <p class="err hide" id="waave-warn">WAAVE is not connected yet. Christopher: in the WAAVE merchant dashboard copy the public/access key, secret key, and venue id, then add WAAVE_API_KEY, WAAVE_API_SECRET, and WAAVE_VENUE_ID on this Worker.</p>
         <form id="inv-form">
           <div class="split">
@@ -247,7 +247,8 @@ export function pageHtml(): string {
         const cancel = /sent|pending|created|open/i.test(c.status || "") && c.id
           ? "<div class=\\"row\\"><button type=\\"button\\" class=\\"secondary\\" data-cancel=\\"" + c.id + "\\">Cancel</button></div>"
           : "";
-        return "<div class=\\"hit\\"><strong>" + (c.name || "Customer") + " · $" + Number(c.amount).toLocaleString("en-US", { minimumFractionDigits: 2 }) + " · " + (c.status || "") + "</strong><div>" + (c.notes || "") + "</div>" + link + gmail + cancel + "</div>";
+        const cc = Array.isArray(c.ccEmails) && c.ccEmails.length ? "<div>CC " + c.ccEmails.join(", ") + "</div>" : "";
+        return "<div class=\\"hit\\"><strong>" + (c.name || "Customer") + " · $" + Number(c.amount).toLocaleString("en-US", { minimumFractionDigits: 2 }) + " · " + (c.status || "") + "</strong><div>" + (c.notes || "") + "</div>" + link + gmail + cc + cancel + "</div>";
       }).join("");
     }
     document.getElementById("refresh").addEventListener("click", refresh);
