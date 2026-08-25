@@ -1,5 +1,6 @@
 const PROD_API = "https://pg.getwaave.co";
-const CREATE_PATHS = ["/waavepay/api/transaction", "/api/transaction", "/waavepay/api/payment-request"];
+const TX_PATH = "/waavepay/api/transaction";
+const CREATE_PATHS = [TX_PATH];
 const LIST_KEY = "invoices";
 
 export type InvoiceDraft = {
@@ -341,7 +342,7 @@ export async function listInvoices(
       continue;
     }
     try {
-      const result = await waaveFetch(env, `/api/transaction/${row.id}`, { method: "GET" }, fetchImpl);
+      const result = await waaveFetch(env, `${TX_PATH}/${row.id}`, { method: "GET" }, fetchImpl);
       if (!result.ok) {
         refreshed.push(row);
         continue;
@@ -367,7 +368,7 @@ export async function cancelInvoice(
   const id = String(invoiceId || "").trim();
   if (!id) return { ok: false, error: "Missing invoice id." };
   try {
-    const result = await waaveFetch(env, `/api/transaction/${id}/cancel`, { method: "PUT", body: "" }, fetchImpl);
+    const result = await waaveFetch(env, `${TX_PATH}/${id}/cancel`, { method: "PUT", body: "" }, fetchImpl);
     if (!result.ok) return { ok: false, error: waaveError(result.status, result.body, result.text) };
     const rows = await readStore(env);
     const card = parseInvoice(result.body, undefined, apiBase(env));

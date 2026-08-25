@@ -88,7 +88,7 @@ describe("CBSS Invoicing · WAAVE", () => {
     assert.match(src, /X-Api-Signature/);
     assert.match(src, /X-Api-Key/);
     assert.match(src, /\/waavepay\/api\/transaction/);
-    assert.match(src, /\/api\/transaction/);
+    assert.doesNotMatch(src, /`\/api\/transaction\/\$\{/);
     assert.match(src, /send_email: true/);
   });
 
