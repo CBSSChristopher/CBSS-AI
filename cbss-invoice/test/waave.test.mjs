@@ -247,9 +247,9 @@ describe("CBSS Invoicing · WAAVE", () => {
     const payload = invoicePayload(draft, "12345", "https://cbssinvoice.cbss.workers.dev", "james@example.invalid");
     assert.equal(payload.customer.address_1, "100 Office Rd");
     assert.equal(payload.customer.city, "Jonesboro");
-    assert.equal(payload.billing_address.postcode, "72401");
-    assert.equal(payload.shipping_address.city, "Paragould");
-    assert.equal(payload.delivery_address.address_1, "400 Job Site");
+    assert.equal(payload.customer.postcode, "72401");
+    assert.match(String(payload.description), /400 Job Site/);
+    assert.match(String(payload.description), /Paragould/);
     assert.match(String(payload.description), /Billing:/);
     assert.match(String(payload.description), /Delivery:/);
     assert.equal(payload.amount, 3990);

@@ -209,7 +209,6 @@ export function invoicePayload(
   const referenceId = String(Date.now());
   const ccEmails = invoiceCopyEmails(senderEmail);
   const billing = addressBlock(draft.billing);
-  const shipping = addressBlock(draft.delivery);
   const description = [
     draft.notes,
     `Billing: ${formatAddress(draft.billing)}`,
@@ -243,9 +242,6 @@ export function invoicePayload(
       phone: draft.phone,
       ...billing,
     },
-    billing_address: billing,
-    shipping_address: shipping,
-    delivery_address: shipping,
   };
 }
 
