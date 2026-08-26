@@ -1,8 +1,8 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { jsonResponse, optionsResponse, readSession } from "./auth.js";
-import { customerCashTotal } from "./container.js";
+import { clampNetMargin, customerCashTotal, MIN_NET_MARGIN } from "./container.js";
 
-const MIN_MARGIN = 300;
+const MIN_MARGIN = MIN_NET_MARGIN;
 const FROM_NAME = "CBShippingSolutions";
 const FROM_EMAIL = "cbshippingsolutionsai@gmail.com";
 
@@ -507,6 +507,7 @@ async function handleSubmit(event, env) {
     const sell = parseFloat(data.unitPrice) || 0;
     const deliveryPer = parseFloat(data.deliveryCost) || calculateDeliveryFromData(data);
     const marginPer = sell - wholesale - deliveryPer;
+    data.netMargin = clampNetMargin(data.netMargin || marginPer);
     const isLowMargin = marginPer < MIN_MARGIN;
     if (isLowMargin) {
       await sendBrevoEmail({
