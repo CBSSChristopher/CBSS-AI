@@ -15,7 +15,8 @@ describe("CBSS public website", () => {
     assert.match(home, /One inclusive price/);
     assert.match(home, /Request information/);
     assert.match(home, /Better Business Bureau/);
-    assert.match(home, /homestead|Home &amp; farm|residential is welcome/i);
+    assert.match(home, /job or the homestead/);
+    assert.match(home, /Home &amp; farm|residential is welcome/i);
     assert.match(home, /one-stop shop/i);
     assert.match(all, /cbshippingsolutions\.app/);
     assert.match(all, /CBGC LLC/);
