@@ -33,8 +33,10 @@ describe("CBSS public website", () => {
     assert.match(pages.find((p) => p.f === "services.html").t, /Import and export/);
   });
 
-  it("does not invent a catalog price or lean on cash language", () => {
-    assert.match(all, /do not invent/i);
+  it("does not publish a catalog price or lean on cash language", () => {
+    assert.doesNotMatch(all, /do not invent/i);
+    assert.doesNotMatch(all, /invent a wholesale/i);
+    assert.doesNotMatch(all, /catalog fiction/i);
     assert.doesNotMatch(all, /\$3,180/);
     assert.doesNotMatch(all, /\$2,500/);
     assert.doesNotMatch(all, /\$800\.00/);

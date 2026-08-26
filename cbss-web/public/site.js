@@ -65,7 +65,7 @@ function renderChrome() {
             <p>Business or home. One inclusive price. Save 20% on delivery.</p>
           </div>
         </div>
-        <p class="fine">We do not invent a wholesale or a catalog price on this site.</p>
+        <p class="fine">One inclusive price. A person calls you back.</p>
         <img class="bbb-mark" src="/brand/bbb-accredited.png" width="140" height="51" alt="BBB Accredited Business" />
       </div>
       <div>
@@ -155,7 +155,7 @@ if (form) {
       form.reset();
       msg.classList.add("ok");
       msg.textContent =
-        "Received. A person from the office will call you back. We do not invent a price on this page.";
+        "Received. A person from the office will call you back.";
     } catch {
       msg.textContent = "The request did not go through. Call " + PHONE_DISPLAY + ".";
       btn.disabled = false;
