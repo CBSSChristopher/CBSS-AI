@@ -1,3 +1,4 @@
+import { EmailMessage } from "cloudflare:email";
 import { parseInquiry, validateInquiry, inquiryText, officeMail } from "./request.js";
 
 const SECURITY = {
@@ -8,6 +9,7 @@ const SECURITY = {
 };
 
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8" };
+const FROM = ["requests", "cbshippingsolutions.app"].join("@");
 
 function withSecurity(res) {
   const out = new Response(res.body, res);
@@ -29,25 +31,24 @@ async function readBody(request) {
   return {};
 }
 
-async function notifyOffice(data, id) {
+async function notifyOffice(env, data, id) {
   const to = officeMail();
   const text = inquiryText(data, id);
   const subject = "Website request · " + data.company + " · " + data.zip;
-  const res = await fetch("https://formsubmit.co/ajax/" + encodeURIComponent(to), {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({
-      _subject: subject,
-      _template: "box",
-      name: data.name,
-      company: data.company,
-      phone: data.phone,
-      email: data.email || to,
-      zip: data.zip,
-      message: text,
-    }),
-  });
-  if (!res.ok) throw new Error("notify-failed");
+  if (env.EMAIL) {
+    const raw = [
+      "From: CBSS Website <" + FROM + ">",
+      "To: " + to,
+      "Subject: " + subject,
+      "MIME-Version: 1.0",
+      "Content-Type: text/plain; charset=utf-8",
+      "",
+      text,
+    ].join("\r\n");
+    await env.EMAIL.send(new EmailMessage(FROM, to, raw));
+    return;
+  }
+  throw new Error("no-email-binding");
 }
 
 export default {
@@ -83,7 +84,7 @@ export default {
         await env.WEB_INQUIRIES.put(rlKey, "1", { expirationTtl: 60 });
       }
       try {
-        await notifyOffice(data, id);
+        await notifyOffice(env, data, id);
       } catch {
         return json(200, {
           ok: true,
