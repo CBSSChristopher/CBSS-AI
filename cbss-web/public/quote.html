@@ -2,65 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Quote · CBShippingSolutions</title>
-  <meta name="description" content="Request a delivered container quote. We call you back with a real number — this form does not invent a price." />
-  <link rel="canonical" href="https://cbshippingsolutions.app/quote" />
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/styles.css" />
+  <meta http-equiv="refresh" content="0;url=/request" />
+  <link rel="canonical" href="https://cbshippingsolutions.app/request" />
+  <title>Request information · CBShippingSolutions</title>
+  <script>location.replace("/request");</script>
 </head>
 <body>
-  <div id="site-top" data-kicker="A person quotes you. Not a catalog."></div>
-  <section>
-    <div class="wrap grid-2">
-      <div>
-        <div class="kicker">Quote request</div>
-        <h1>Tell us the box and the ZIP. We will not invent the rest.</h1>
-        <p>This form opens an email to the office with what you typed. Prefer a voice? Call <a data-phone href="tel:+15735258324"></a>.</p>
-        <form id="quoteForm">
-          <label for="name">Name</label>
-          <input id="name" name="name" required autocomplete="name" />
-          <div class="form-row">
-            <div>
-              <label for="phone">Phone</label>
-              <input id="phone" name="phone" required inputmode="tel" autocomplete="tel" />
-            </div>
-            <div>
-              <label for="email">Email</label>
-              <input id="email" name="email" type="email" autocomplete="email" />
-            </div>
-          </div>
-          <label for="zip">Delivery ZIP</label>
-          <input id="zip" name="zip" required inputmode="numeric" maxlength="10" autocomplete="postal-code" />
-          <label for="need">What you need</label>
-          <select id="need" name="need" required>
-            <option value="">Select…</option>
-            <option>Buy a container — cash</option>
-            <option>Rent-to-own / Flex Buy</option>
-            <option>Cargotecture / Apex foundation</option>
-            <option>Not sure — call me</option>
-          </select>
-          <label for="notes">Box, grade, quantity, site notes</label>
-          <textarea id="notes" name="notes" rows="4" placeholder="Example: one 40HC cargo worthy, delivered, gravel pad ready"></textarea>
-          <button class="btn btn-gold" type="submit">Open email to the office</button>
-          <p class="muted" id="quoteMsg">This site does not invent a price while you fill this out.</p>
-        </form>
-      </div>
-      <div class="card gold">
-        <h3>What happens next</h3>
-        <ol class="list">
-          <li>We read the box and the ZIP.</li>
-          <li>We check a yard that actually posted that box.</li>
-          <li>You get a delivered cash number — or we tell you we cannot post one.</li>
-        </ol>
-        <p>Office: <a data-mail></a></p>
-      </div>
-    </div>
-  </section>
-  <div id="site-foot"></div>
-  <script src="/site.js"></script>
+  <p><a href="/request">Request information</a></p>
 </body>
 </html>
