@@ -5,29 +5,40 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Delivery · CBShippingSolutions</title>
   <meta name="description" content="We pick the nearest depot that posted your box. Weekday delivery is already inside the cash quote." />
+  <link rel="canonical" href="https://cbshippingsolutions.app/delivery" />
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
-  <div class="topbar sans"><div class="wrap"><span>One depot. Delivered cash.</span><span><a data-phone href="tel:+15735258324"></a></span></div></div>
-  <header class="site"><div class="wrap"><a class="brand" href="/"><strong>CBShippingSolutions</strong><span>CBGC LLC · Delivered cash</span></a><button class="btn btn-line menu-btn" id="menuBtn" type="button">Menu</button><nav id="siteNav" data-nav></nav></div></header>
+  <div id="site-top" data-kicker="One depot. Delivered cash."></div>
   <section>
     <div class="wrap split">
       <div>
         <div class="kicker">How the truck works</div>
-        <h2>Your ZIP finds a yard. The yard has to have posted that box.</h2>
-        <p>We do not price a container by typing your ZIP into a mystery engine. We geocode the site, then match the nearest depot city that actually posted the size, grade, and configuration you asked for.</p>
+        <h1>Your ZIP finds a yard. The yard has to have posted that box.</h1>
+        <p>We do not price a container by typing your ZIP into a mystery engine. Pickup is by depot city. We geocode the site, then match the nearest depot that actually posted the size, grade, and configuration you asked for.</p>
         <ul class="list">
           <li>One depot — not a list of every yard in America</li>
           <li>Standard weekday delivery already sits inside the cash price</li>
           <li>Do not add a second delivery line on top</li>
+          <li>If no posted yard can reach you honestly, we say so</li>
         </ul>
-        <a class="btn btn-gold" href="/quote.html">Send your ZIP</a>
+        <a class="btn btn-gold" href="/quote">Send your ZIP</a>
       </div>
       <div class="photo" role="img" aria-label="Depot to customer site"></div>
     </div>
   </section>
-  <footer class="site"><div class="wrap"><div><strong>CBGC LLC DBA CBShippingSolutions</strong></div><div><a href="/quote.html">Quote</a></div><div><a data-phone href="tel:+15735258324"></a></div></div></footer>
+  <section>
+    <div class="wrap grid-3">
+      <article class="card"><div class="tag">1</div><h3>Site ZIP</h3><p>You tell us where the box has to sit. That is our job — not a ZIP-priced catalog.</p></article>
+      <article class="card"><div class="tag">2</div><h3>Posted depot</h3><p>We only use a yard that posted that exact box. No invented wholesale.</p></article>
+      <article class="card gold"><div class="tag">3</div><h3>Delivered cash</h3><p>The quote you get already has weekday delivery in it. One number.</p></article>
+    </div>
+  </section>
+  <div id="site-foot"></div>
   <script src="/site.js"></script>
 </body>
 </html>

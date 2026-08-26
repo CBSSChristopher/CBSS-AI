@@ -1,12 +1,15 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "cbssweb",
+  "main": "src/worker.js",
   "compatibility_date": "2026-08-26",
   "workers_dev": true,
   "preview_urls": false,
   "assets": {
     "directory": "./public",
-    "not_found_handling": "404-page"
+    "binding": "ASSETS",
+    "not_found_handling": "404-page",
+    "html_handling": "auto-trailing-slash"
   },
   "observability": {
     "enabled": true,

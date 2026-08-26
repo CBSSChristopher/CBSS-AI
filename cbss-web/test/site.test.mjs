@@ -17,6 +17,8 @@ describe("CBSS public website", () => {
     assert.match(home, /Better Business Bureau/);
     assert.match(all, /cbshippingsolutions\.app/);
     assert.match(all, /CBGC LLC/);
+    assert.match(all, /href="\/quote"/);
+    assert.doesNotMatch(all, /href="\/quote\.html"/);
   });
 
   it("does not invent a catalog or wholesale price", () => {
