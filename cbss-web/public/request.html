@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Request information · CBShippingSolutions</title>
+  <meta name="description" content="Request container information for a business or a home. A person from the office calls you back." />
+  <link rel="canonical" href="https://cbshippingsolutions.app/request" />
+  <link rel="icon" href="/brand/stamp.png" type="image/png" />
+  <link rel="apple-touch-icon" href="/brand/apple-touch.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div id="site-top" data-kicker="A person from the office calls you back."></div>
+  <section>
+    <div class="wrap grid-2">
+      <div>
+        <div class="kicker">Request information</div>
+        <h1>Tell us the site and the box. Company is optional.</h1>
+        <p>Business or household. This form goes to the office. Prefer a voice? Call <a data-phone href="tel:+18703232593"></a>.</p>
+        <form id="requestForm">
+          <label class="hp" for="company_website">Company website</label>
+          <input class="hp" id="company_website" name="company_website" tabindex="-1" autocomplete="off" />
+          <div class="form-row">
+            <div>
+              <label for="company">Company (optional)</label>
+              <input id="company" name="company" autocomplete="organization" placeholder="Leave blank if this is a home or farm" />
+            </div>
+            <div>
+              <label for="name">Your name</label>
+              <input id="name" name="name" required autocomplete="name" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div>
+              <label for="role">Role / title</label>
+              <input id="role" name="role" autocomplete="organization-title" />
+            </div>
+            <div>
+              <label for="phone">Phone</label>
+              <input id="phone" name="phone" required inputmode="tel" autocomplete="tel" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div>
+              <label for="email">Email</label>
+              <input id="email" name="email" type="email" autocomplete="email" />
+            </div>
+            <div>
+              <label for="zip">Site / jobsite ZIP</label>
+              <input id="zip" name="zip" required inputmode="numeric" maxlength="10" autocomplete="postal-code" />
+            </div>
+          </div>
+          <div class="form-row-3">
+            <div>
+              <label for="quantity">Quantity</label>
+              <input id="quantity" name="quantity" inputmode="numeric" placeholder="e.g. 4" />
+            </div>
+            <div>
+              <label for="use">What you need</label>
+              <select id="use" name="use" required>
+                <option value="">Select…</option>
+                <option>Jobsite storage</option>
+                <option>Warehouse / overflow</option>
+                <option>Plant / industrial</option>
+                <option>Construction office or crib</option>
+                <option>Multi-unit commercial order</option>
+                <option>Modified or specialized unit</option>
+                <option>Chassis or military-grade</option>
+                <option>Residential / farm storage</option>
+                <option>Cargotecture / foundation</option>
+                <option>Import / export</option>
+                <option>Box construction / modification</option>
+                <option>Not sure — call me</option>
+              </select>
+            </div>
+            <div>
+              <label for="timeline">Timeline</label>
+              <select id="timeline" name="timeline">
+                <option value="">Select…</option>
+                <option>ASAP</option>
+                <option>This month</option>
+                <option>This quarter</option>
+                <option>Planning</option>
+              </select>
+            </div>
+          </div>
+          <label for="notes">Size, grade, site notes</label>
+          <textarea id="notes" name="notes" rows="4" placeholder="Example: four 40HC cargo worthy, gravel pad, weekday delivery"></textarea>
+          <button class="btn btn-gold" type="submit">Send request</button>
+          <p class="muted" id="requestMsg">One inclusive number comes back from the office.</p>
+        </form>
+      </div>
+      <div class="card gold">
+        <h3>What happens next</h3>
+        <ol class="list">
+          <li>We read the site ZIP, the box, and whether this is business or home.</li>
+          <li>We check a yard that actually posted that box.</li>
+          <li>You get one inclusive price — or we tell you we cannot post one.</li>
+        </ol>
+        <p>Office: <a data-mail></a><br /><a data-phone href="tel:+18703232593"></a></p>
+      </div>
+    </div>
+  </section>
+  <div id="site-foot"></div>
+  <script src="/site.js"></script>
+</body>
+</html>
