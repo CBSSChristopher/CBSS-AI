@@ -216,6 +216,27 @@ export function clampNetMargin(raw) {
   return Math.min(MAX_NET_MARGIN, Math.max(MIN_NET_MARGIN, rounded));
 }
 
+export const FULFILLMENT_DELIVER = "deliver";
+export const FULFILLMENT_PICKUP = "pickup";
+
+export function normalizeFulfillment(raw) {
+  const t = String(raw ?? "").trim().toLowerCase();
+  if (t === "pickup" || t === "picked up" || t === "pick up" || t === "pick-up" || t === "customer pickup") {
+    return FULFILLMENT_PICKUP;
+  }
+  return FULFILLMENT_DELIVER;
+}
+
+export function isPickupFulfillment(raw) {
+  return normalizeFulfillment(raw) === FULFILLMENT_PICKUP;
+}
+
+export function fulfillmentHaul(fulfillment, delivery) {
+  if (isPickupFulfillment(fulfillment)) return 0;
+  const n = Number(delivery) || 0;
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
 export function deliveredCashFromPosted(wholesale, delivery, netMargin) {
   const cost = Number(wholesale);
   const haul = Number(delivery) || 0;
