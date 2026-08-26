@@ -306,7 +306,7 @@
   <div class="container">
     <header>
       <h1>CBShippingSolutions</h1>
-      <p>Proposal Builder · One depot · Delivered cash · build 8</p>
+      <p>Proposal Builder · One depot · Delivered or pickup cash · build 9</p>
     </header>
 
     <form id="proposalForm" onsubmit="submitProposal(event)">
@@ -415,13 +415,21 @@
 
       <!-- 3. Wholesale & cash -->
       <div id="pricingSection">
-        <div class="section-title">3. Wholesale & Delivered Cash</div>
+        <div class="section-title">3. Wholesale & Cash</div>
+        <div class="picks" id="fulfill-picks">
+          <div class="lbl">How they get the box</div>
+          <div class="btns">
+            <button type="button" class="pick on" data-fulfill="deliver" id="fulfillDeliverBtn">Delivered</button>
+            <button type="button" class="pick" data-fulfill="pickup" id="fulfillPickupBtn">Picked up</button>
+          </div>
+          <p class="note">Delivered puts weekday delivery inside the cash price. Picked up is depot pickup — no delivery charge and no invented pickup fee.</p>
+        </div>
         <div class="row">
           <div>
             <label for="wholesale">Wholesale Cost (xChange) *</label>
             <input type="number" id="wholesale" min="0" step="0.01" placeholder="Posted xChange pickup — do not invent" required oninput="recalcIfReady()" />
           </div>
-          <div>
+          <div id="milesOverrideWrap">
             <label for="milesOverride">Miles Override (optional)</label>
             <input type="number" id="milesOverride" min="0" placeholder="Leave blank for estimate" oninput="recalcIfReady()" />
           </div>
@@ -490,7 +498,7 @@
               <tbody id="flexBody"></tbody>
             </table>
           </div>
-          <p class="note">* Cash price is delivered. Flex collects the down payment upfront from that delivered cash figure.</p>
+          <p class="note" id="flexCashNote">* Cash price is delivered. Flex collects the down payment upfront from that delivered cash figure.</p>
         </div>
 
         <div id="cashSummary" class="upfront-highlight" style="margin-top:10px;">
@@ -535,7 +543,7 @@
       </div>
       <div class="row">
         <div class="full">
-          <label for="delivery">Delivery / Depot Location *</label>
+          <label for="delivery" id="deliveryLabel">Delivery / Depot Location *</label>
           <input type="text" id="delivery" required placeholder="e.g. Memphis depot -> customer site" />
         </div>
       </div>
@@ -566,6 +574,7 @@
       <input type="hidden" id="miles" name="miles" />
       <input type="hidden" id="unitPrice" name="unitPrice" />
       <input type="hidden" id="deliveryCost" name="deliveryCost" />
+      <input type="hidden" id="fulfillment" name="fulfillment" value="deliver" />
       <input type="hidden" id="quantity" name="quantity" value="1" />
       <input type="hidden" id="containerDesc" name="containerDesc" />
       <input type="hidden" id="containerSize" name="containerSize" value="40ft" />
@@ -1120,6 +1129,58 @@
       });
     });
 
+    function currentFulfillment() {
+      const on = document.querySelector("#fulfill-picks .pick.on");
+      return on && on.getAttribute("data-fulfill") === "pickup" ? "pickup" : "deliver";
+    }
+
+    function setFulfillment(val) {
+      const mode = val === "pickup" ? "pickup" : "deliver";
+      document.querySelectorAll("#fulfill-picks .pick").forEach((el) => {
+        el.classList.toggle("on", el.getAttribute("data-fulfill") === mode);
+      });
+      document.getElementById("fulfillment").value = mode;
+      const milesWrap = document.getElementById("milesOverrideWrap");
+      if (milesWrap) milesWrap.classList.toggle("hidden", mode === "pickup");
+      const loc = document.getElementById("delivery");
+      const locLabel = document.getElementById("deliveryLabel");
+      if (locLabel) locLabel.textContent = mode === "pickup" ? "Pickup depot *" : "Delivery / Depot Location *";
+      if (loc) {
+        loc.placeholder = mode === "pickup" ? "Customer pickup at depot city" : "e.g. Memphis depot -> customer site";
+      }
+      const flexNote = document.getElementById("flexCashNote");
+      if (flexNote) {
+        flexNote.textContent = mode === "pickup"
+          ? "* Cash price is depot pickup. Flex collects the down payment upfront. Do not add a pickup fee."
+          : "* Cash price is delivered. Flex collects the down payment upfront from that delivered cash figure.";
+      }
+      fillFulfillmentLocation();
+      recalcIfReady();
+    }
+
+    function fillFulfillmentLocation() {
+      if (!selectedDepot) return;
+      const loc = document.getElementById("delivery");
+      if (!loc) return;
+      const depotCity = displayCityState(selectedDepot) || selectedDepot.name;
+      const mode = currentFulfillment();
+      const autoDeliver = / -> Customer Site$/;
+      const autoPickup = /^Customer pickup at /;
+      if (mode === "pickup") {
+        if (!loc.value || autoDeliver.test(loc.value) || autoPickup.test(loc.value)) {
+          loc.value = "Customer pickup at " + depotCity;
+        }
+      } else if (!loc.value || autoPickup.test(loc.value) || autoDeliver.test(loc.value)) {
+        loc.value = depotCity + " -> Customer Site";
+      }
+    }
+
+    document.querySelectorAll("#fulfill-picks .pick").forEach((b) => {
+      b.addEventListener("click", () => {
+        setFulfillment(b.getAttribute("data-fulfill"));
+      });
+    });
+
     function pulledLabel() {
       return inventoryMeta.pulledAt
         ? ("pulledAt " + String(inventoryMeta.pulledAt).replace("T", " ").slice(0, 16) + " UTC")
@@ -1500,7 +1561,8 @@
       const size = document.getElementById('size').value;
       const milesOverride = document.getElementById('milesOverride').value;
       const miles = milesOverride ? parseFloat(milesOverride) : (selectedDepot.miles != null ? selectedDepot.miles : 0);
-      const delivery = selectedDepot.region ? calcDelivery(selectedDepot.region, miles, size) : 0;
+      const fulfillment = currentFulfillment();
+      const delivery = fulfillment === "pickup" ? 0 : (selectedDepot.region ? calcDelivery(selectedDepot.region, miles, size) : 0);
 
       const targetMargin = currentNetMargin();
       let recommended = wholesale + delivery + targetMargin;
@@ -1526,21 +1588,26 @@
       desc.value = describeContainer(box.size, box.height, box.config, box.grade);
 
       const depotCity = displayCityState(selectedDepot) || selectedDepot.name;
-      const del = document.getElementById('delivery');
-      if (!del.value || / -> Customer Site$/.test(del.value)) {
-        del.value = depotCity + ' -> Customer Site';
-      }
+      fillFulfillmentLocation();
 
       const marginClass = margin >= 600 ? 'margin-good' : 'margin-warn';
+      const cashEach = fulfillment === "pickup" ? "Pickup cash each" : "Delivered cash each";
+      const cashTotal = fulfillment === "pickup" ? "Total pickup cash" : "Total delivered cash";
+      const cashNote = fulfillment === "pickup"
+        ? "This is depot pickup. Delivery is not included. Do not add a pickup fee."
+        : "Delivery is already inside that cash price. Do not add it again.";
+      const howFar = fulfillment === "pickup"
+        ? `<div class="price-row"><span>Fulfillment</span><span>Customer pickup</span></div>`
+        : `<div class="price-row"><span>How far</span><span>${miles} miles</span></div>`;
       document.getElementById('priceBox').innerHTML = `
         <div class="price-row"><span>Your depot</span><span>${escapeHtml(depotCity)}</span></div>
-        <div class="price-row"><span>How far</span><span>${miles} miles</span></div>
+        ${howFar}
         <div class="price-row"><span>Wholesale</span><span>$${wholesale.toLocaleString()}</span></div>
         <div class="price-row"><span>Net Margin</span><span class="${marginClass}">$${margin.toLocaleString()}</span></div>
         <div class="price-row"><span>Quantity</span><span>${qty}</span></div>
-        <div class="price-row total"><span>Delivered cash each</span><span>$${recommended.toLocaleString()}</span></div>
-        <div class="price-row total"><span>Total delivered cash</span><span>$${(recommended * qty).toLocaleString()}</span></div>
-        <div class="price-row"><span style="font-size:0.82rem;font-weight:400;color:#555;">Delivery is already inside that cash price. Do not add it again.</span><span></span></div>
+        <div class="price-row total"><span>${cashEach}</span><span>$${recommended.toLocaleString()}</span></div>
+        <div class="price-row total"><span>${cashTotal}</span><span>$${(recommended * qty).toLocaleString()}</span></div>
+        <div class="price-row"><span style="font-size:0.82rem;font-weight:400;color:#555;">${cashNote}</span><span></span></div>
       `;
       document.getElementById('priceBox').classList.remove('hidden');
 
@@ -1608,12 +1675,13 @@
       const totalDown = containerDown + modDown;
       const amountFinanced = (containerCash + modPrice) - totalDown;
       const totalUpfront = totalDown + (delivery * qty);
+      const haulBit = delivery > 0 ? ` + Delivery ${formatMoney(delivery)}` : "";
 
       document.getElementById('upfrontBox').innerHTML = `
         <strong>Upfront due:</strong> ${formatMoney(totalUpfront)}
         &nbsp;·&nbsp; <strong>Amount financed:</strong> ${formatMoney(amountFinanced)}
         <br><span style="font-size:0.85rem;color:#555;">
-          (Container down ${formatMoney(containerDown)} + Mod down ${formatMoney(modDown)} + Delivery ${formatMoney(delivery)})
+          (Container down ${formatMoney(containerDown)} + Mod down ${formatMoney(modDown)}${haulBit})
         </span>
       `;
 
@@ -1730,6 +1798,7 @@
         depositPercent: 50,
         notes: document.getElementById('notes').value.trim(),
         deliveryCost: document.getElementById('deliveryCost').value,
+        fulfillment: currentFulfillment(),
         zip: document.getElementById('zip').value.trim(),
         depot: selectedPurchasingDepot || (selectedDepot && selectedDepot.yards ? selectedDepot.yards.join(" | ") : "") || (selectedDepot ? displayCityState(selectedDepot) : ''),
         depotCity: selectedDepot ? displayCityState(selectedDepot) : '',

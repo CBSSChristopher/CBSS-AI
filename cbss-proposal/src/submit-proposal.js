@@ -1,6 +1,6 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { jsonResponse, optionsResponse, readSession } from "./auth.js";
-import { clampNetMargin, customerCashTotal, MIN_NET_MARGIN } from "./container.js";
+import { clampNetMargin, customerCashTotal, isPickupFulfillment, MIN_NET_MARGIN } from "./container.js";
 
 const MIN_MARGIN = MIN_NET_MARGIN;
 const FROM_NAME = "CBShippingSolutions";
@@ -50,6 +50,7 @@ async function ingestProposal(env, data, status) {
         repEmail: data.repEmail,
         notes: data.notes || data.containerNotes,
         containerNotes: data.containerNotes,
+        fulfillment: isPickupFulfillment(data.fulfillment) ? "pickup" : "deliver",
         flagged: status === "flagged",
       }),
     });
@@ -60,6 +61,7 @@ async function ingestProposal(env, data, status) {
 }
 
 function calculateDeliveryFromData(data) {
+  if (isPickupFulfillment(data && data.fulfillment)) return 0;
   const RATE_SHEET = {
     Midwest: { base: 475, perMile: 5 },
     "East Coast": { base: 600, perMile: 7 },
@@ -98,12 +100,12 @@ async function generateProposalWithGrok(data) {
 Company style: Transparent pricing, reliable delivery, straightforward American small-business voice. Family-owned, direct depot sourcing.
 Never invent pricing. Use only the numbers given.
 Write in a ${tone} style.
-The cash figure you are given is the complete delivered cash price. Do not add freight, miles, depot cost, or a delivery line on top of it. Do not name depots or rate sheets.
+The cash figure you are given is the complete cash price. Do not add freight, miles, depot cost, a delivery line, or a pickup fee on top of it. Do not name depots or rate sheets.
 
 Key company facts you must respect:
 - Used units (As-Is, WWT, CW, Multi-trip): 5-year structural + 5-year no-leak warranty
 - One-Trip units: 10-year structural + 10-year no-leak warranty
-- Every unit is air/water leak tested and inspected before delivery
+- Every unit is air/water leak tested and inspected before it leaves the depot
 - If a repair is needed, we send a welder for a proper repair (within reason) instead of just a fiberglass patch
 
 Return ONLY valid JSON with these keys:
@@ -132,9 +134,13 @@ Customer: ${data.customerName}${data.company ? " / " + data.company : ""}
 Container: ${data.containerDesc}
 Quantity: ${data.quantity}
 Condition/Notes: ${data.containerNotes || "None"}
-Delivered cash price (each): $${data.unitPrice}
+${isPickupFulfillment(data.fulfillment)
+    ? `Pickup cash price (each): $${data.unitPrice}
+This is depot pickup. The customer collects the container at the depot city. Do not add weekday delivery. Do not add a pickup fee.
+Pickup location: ${data.delivery}`
+    : `Delivered cash price (each): $${data.unitPrice}
 This price already includes standard weekday delivery. Do not add a delivery charge.
-Delivery Location: ${data.delivery}
+Delivery Location: ${data.delivery}`}
 Additional Notes: ${data.notes || "None"}
 ${flexLine}`;
   const res = await fetch("https://api.x.ai/v1/chat/completions", {
@@ -264,9 +270,15 @@ async function generateClientPDF(data, aiContent) {
   });
   draw("PRICING TERMS", margin, y, 11, true, accent);
   y -= 18;
-  draw(`Delivered cash price (each)     $${Number(data.unitPrice).toFixed(2)}`, margin, y, 11);
-  y -= 14;
-  draw("Standard weekday delivery is already included.", margin, y, 9);
+  if (isPickupFulfillment(data.fulfillment)) {
+    draw(`Pickup cash price (each)        $${Number(data.unitPrice).toFixed(2)}`, margin, y, 11);
+    y -= 14;
+    draw("This is depot pickup. Delivery is not included. Do not add a pickup fee.", margin, y, 9);
+  } else {
+    draw(`Delivered cash price (each)     $${Number(data.unitPrice).toFixed(2)}`, margin, y, 11);
+    y -= 14;
+    draw("Standard weekday delivery is already included.", margin, y, 9);
+  }
   y -= 16;
   draw(`TOTAL INVESTMENT                 $${grandTotal.toFixed(2)}`, margin, y, 12, true, green);
   y -= 36;
@@ -286,13 +298,19 @@ async function generateClientPDF(data, aiContent) {
     y -= 12;
     draw("We accept bank transfer, cashier's check, and major credit cards for the upfront amount.", margin, y, 9);
   } else if (data.clientType === "Residential") {
-    draw("Full payment is required before delivery is scheduled.", margin, y, 10);
+    draw(isPickupFulfillment(data.fulfillment)
+      ? "Full payment is required before pickup is scheduled."
+      : "Full payment is required before delivery is scheduled.", margin, y, 10);
     y -= 13;
     draw("We accept bank transfer, cashier's check, and major credit cards.", margin, y, 10);
   } else {
-    draw("Commercial terms: Deposit required to lock pricing and schedule delivery.", margin, y, 10);
+    draw(isPickupFulfillment(data.fulfillment)
+      ? "Commercial terms: Deposit required to lock pricing and schedule pickup."
+      : "Commercial terms: Deposit required to lock pricing and schedule delivery.", margin, y, 10);
     y -= 13;
-    draw("Remaining balance due prior to or upon delivery.", margin, y, 10);
+    draw(isPickupFulfillment(data.fulfillment)
+      ? "Remaining balance due prior to pickup."
+      : "Remaining balance due prior to or upon delivery.", margin, y, 10);
   }
   y -= 18;
   draw("WARRANTY & ASSURANCE", margin, y, 11, true, accent);
@@ -303,20 +321,31 @@ async function generateClientPDF(data, aiContent) {
     ? "This One-Trip unit carries a 10-year structural and 10-year no-leak warranty."
     : "This unit carries a 5-year structural and 5-year no-leak warranty.", margin, y, 10);
   y -= 13;
-  draw("Every container is air/water leak tested and inspected before delivery.", margin, y, 10);
+  draw(isPickupFulfillment(data.fulfillment)
+    ? "Every container is air/water leak tested and inspected before pickup."
+    : "Every container is air/water leak tested and inspected before delivery.", margin, y, 10);
   y -= 13;
   draw("If a repair is ever needed, we send a welder for a proper repair (within reason)", margin, y, 10);
   y -= 12;
   draw("instead of a simple fiberglass patch.", margin, y, 10);
   y -= 18;
-  draw("DELIVERY INFORMATION", margin, y, 11, true, accent);
+  draw(isPickupFulfillment(data.fulfillment) ? "PICKUP INFORMATION" : "DELIVERY INFORMATION", margin, y, 11, true, accent);
   y -= 15;
-  const delNotes = aiContent && aiContent.deliveryNotes ? aiContent.deliveryNotes : [
-    "Site must be accessible by standard delivery truck and trailer.",
-    "A clear, level area is required for safe off-loading.",
-    "Customer is responsible for any required permits or site preparation.",
-    "Delivery windows are scheduled in advance - please ensure someone is on site.",
-  ];
+  const delNotes = aiContent && aiContent.deliveryNotes ? aiContent.deliveryNotes : (
+    isPickupFulfillment(data.fulfillment)
+      ? [
+          "This is a depot pickup. The customer collects the container at the depot city.",
+          "Standard weekday delivery is not included.",
+          "Bring a truck and trailer that can take this container.",
+          "Confirm pickup hours with the office before you go.",
+        ]
+      : [
+          "Site must be accessible by standard delivery truck and trailer.",
+          "A clear, level area is required for safe off-loading.",
+          "Customer is responsible for any required permits or site preparation.",
+          "Delivery windows are scheduled in advance - please ensure someone is on site.",
+        ]
+  );
   for (const note of delNotes) {
     for (const line of wrap("-  " + note, 90)) {
       if (y < 100) break;
@@ -330,7 +359,9 @@ async function generateClientPDF(data, aiContent) {
     y -= 15;
     const closingText = aiContent && aiContent.closing
       ? aiContent.closing
-      : "When you are ready, reply to confirm and we will lock in your container and delivery schedule.";
+      : (isPickupFulfillment(data.fulfillment)
+        ? "When you are ready, reply to confirm and we will lock in your container and pickup."
+        : "When you are ready, reply to confirm and we will lock in your container and delivery schedule.");
     for (const line of wrap(closingText, 90)) {
       if (y < 70) break;
       draw(line, margin, y, 10);
@@ -391,7 +422,7 @@ async function generateInternalPDF(data, deliveryPer, marginPer) {
   y -= 13;
   draw(`Phone: ${data.phone}  |  Email: ${data.email}`, margin, y);
   y -= 13;
-  draw(`Delivery: ${data.delivery}`, margin, y);
+  draw(`${isPickupFulfillment(data.fulfillment) ? "Pickup" : "Delivery"}: ${data.delivery}`, margin, y);
   y -= 20;
   draw("CONTAINER & COSTS", margin, y, 11, true, rgb(0.12, 0.31, 0.47));
   y -= 15;
@@ -401,13 +432,19 @@ async function generateInternalPDF(data, deliveryPer, marginPer) {
   y -= 13;
   draw(`Purchasing yard: ${data.depot || ""}`, margin, y);
   y -= 14;
-  draw(`Qty: ${data.quantity}  |  Wholesale: $${Number(data.wholesaleCost).toFixed(2)}  |  Delivered cash: $${Number(data.unitPrice).toFixed(2)}`, margin, y);
+  draw(`Qty: ${data.quantity}  |  Wholesale: $${Number(data.wholesaleCost).toFixed(2)}  |  ${isPickupFulfillment(data.fulfillment) ? "Pickup" : "Delivered"} cash: $${Number(data.unitPrice).toFixed(2)}`, margin, y);
   y -= 18;
-  draw("INTERNAL DELIVERY (already inside cash price)", margin, y, 11, true, rgb(0.12, 0.31, 0.47));
-  y -= 15;
-  draw(`Region: ${data.region}  |  Miles: ${data.miles}  |  Size: ${data.containerSize}`, margin, y);
-  y -= 13;
-  draw(`Delivery already included: $${Number(deliveryPer).toFixed(2)}  (do not add again)`, margin, y, 11, true);
+  if (isPickupFulfillment(data.fulfillment)) {
+    draw("INTERNAL PICKUP (no delivery in cash price)", margin, y, 11, true, rgb(0.12, 0.31, 0.47));
+    y -= 15;
+    draw(`Depot city pickup. Delivery is $0.00. Do not add a pickup fee.`, margin, y, 11, true);
+  } else {
+    draw("INTERNAL DELIVERY (already inside cash price)", margin, y, 11, true, rgb(0.12, 0.31, 0.47));
+    y -= 15;
+    draw(`Region: ${data.region}  |  Miles: ${data.miles}  |  Size: ${data.containerSize}`, margin, y);
+    y -= 13;
+    draw(`Delivery already included: $${Number(deliveryPer).toFixed(2)}  (do not add again)`, margin, y, 11, true);
+  }
   y -= 22;
   const totalSell = customerCashTotal(data.unitPrice, data.quantity).toFixed(2);
   const totalMargin = (parseFloat(data.quantity || 1) * marginPer).toFixed(2);
@@ -443,7 +480,7 @@ function buildSalesRepHtml(data) {
     <div style="border:1px solid #e0e6ed;border-top:none;padding:20px;border-radius:0 0 8px 8px;">
       <p>Hi ${data.repName},</p>
       <p>The client-ready proposal for <strong>${data.customerName}</strong> is attached. You can forward it directly.</p>
-      <p style="font-size:13px;color:#666;">The cash figure is delivered. Do not add a delivery line.</p>
+      <p style="font-size:13px;color:#666;">${isPickupFulfillment(data.fulfillment) ? "The cash figure is depot pickup. Do not add a pickup fee or a delivery line." : "The cash figure is delivered. Do not add a delivery line."}</p>
     </div>
   </div>`;
 }
@@ -459,8 +496,8 @@ function buildInternalHtml(data, marginPer, deliveryPer) {
       <p><strong>Container:</strong> ${data.containerDesc} x ${data.quantity}</p>
       <p><strong>Depot city:</strong> ${data.depotCity || ""}</p>
       <p><strong>Purchasing yard:</strong> ${data.depot || ""}</p>
-      <p><strong>Delivered cash:</strong> $${Number(data.unitPrice).toFixed(2)} &nbsp;|&nbsp; <strong>Margin/unit:</strong> $${marginPer.toFixed(2)}</p>
-      <p><strong>Delivery already inside that cash price:</strong> $${Number(deliveryPer).toFixed(2)}</p>
+      <p><strong>${isPickupFulfillment(data.fulfillment) ? "Pickup cash" : "Delivered cash"}:</strong> $${Number(data.unitPrice).toFixed(2)} &nbsp;|&nbsp; <strong>Margin/unit:</strong> $${marginPer.toFixed(2)}</p>
+      <p><strong>${isPickupFulfillment(data.fulfillment) ? "Pickup — delivery is $0.00. Do not add a pickup fee." : `Delivery already inside that cash price: $${Number(deliveryPer).toFixed(2)}`}</strong></p>
     </div>
   </div>`;
 }
@@ -505,7 +542,9 @@ async function handleSubmit(event, env) {
     const qty = parseFloat(data.quantity) || 1;
     const wholesale = parseFloat(data.wholesaleCost) || 0;
     const sell = parseFloat(data.unitPrice) || 0;
-    const deliveryPer = parseFloat(data.deliveryCost) || calculateDeliveryFromData(data);
+    const deliveryPer = isPickupFulfillment(data.fulfillment)
+      ? 0
+      : (parseFloat(data.deliveryCost) || calculateDeliveryFromData(data));
     const marginPer = sell - wholesale - deliveryPer;
     data.netMargin = clampNetMargin(data.netMargin || marginPer);
     const isLowMargin = marginPer < MIN_MARGIN;

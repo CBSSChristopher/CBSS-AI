@@ -9,8 +9,11 @@ import {
   customerCashTotal,
   DEFAULT_NET_MARGIN,
   deliveredCashFromPosted,
+  fulfillmentHaul,
+  isPickupFulfillment,
   MAX_NET_MARGIN,
   MIN_NET_MARGIN,
+  normalizeFulfillment,
   describeContainer,
   displayCityState,
   groupOffersByCity,
@@ -205,13 +208,37 @@ describe("Proposal tool picker, depot, and cash price", () => {
     assert.equal(customerCashTotal(2900, 2), 5800);
   });
 
+  it("lets the rep pick depot pickup and zeroes delivery without inventing a fee", () => {
+    assert.equal(normalizeFulfillment("Picked up"), "pickup");
+    assert.equal(normalizeFulfillment("deliver"), "deliver");
+    assert.equal(isPickupFulfillment("pickup"), true);
+    assert.equal(isPickupFulfillment(""), false);
+    assert.equal(fulfillmentHaul("pickup", 625), 0);
+    assert.equal(fulfillmentHaul("deliver", 625), 625);
+    assert.equal(deliveredCashFromPosted(1850, fulfillmentHaul("pickup", 500), 700), 2550);
+    assert.equal(deliveredCashFromPosted(1850, fulfillmentHaul("deliver", 500), 700), 3050);
+    assert.match(page, /id="fulfillPickupBtn"/);
+    assert.match(page, /id="fulfillDeliverBtn"/);
+    assert.match(page, /data-fulfill="pickup"/);
+    assert.match(page, /currentFulfillment/);
+    assert.match(page, /setFulfillment/);
+    assert.match(page, /fulfillment === "pickup" \? 0/);
+    assert.match(page, /Do not add a pickup fee/);
+    assert.match(page, /Customer pickup at /);
+    assert.match(submit, /isPickupFulfillment/);
+    assert.match(submit, /Pickup cash price \(each\)/);
+    assert.match(submit, /Do not add a pickup fee/);
+    assert.match(submit, /const deliveryPer = isPickupFulfillment/);
+    assert.doesNotMatch(page, /pickup fee \$/);
+  });
+
   it("uses desk-style pick buttons and a Pull xChange action", () => {
     assert.match(page, /data-val="20STD"/);
     assert.match(page, /data-val="40HC"/);
     assert.match(page, /id="pullXchangeBtn"/);
     assert.match(page, /Pull xChange/);
     assert.match(page, /pulledAt/);
-    assert.match(page, /build 8/);
+    assert.match(page, /build 9/);
     assert.match(page, /id="netMargin"/);
     assert.match(page, /Net margin \$300–\$2,000/);
     assert.match(page, /viewport-fit=cover/);
