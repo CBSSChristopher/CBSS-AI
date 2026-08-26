@@ -204,7 +204,7 @@ export function customerCashTotal(unitPrice, quantity = 1) {
 }
 
 export const MIN_NET_MARGIN = 300;
-export const MAX_NET_MARGIN = 700;
+export const MAX_NET_MARGIN = 2000;
 export const DEFAULT_NET_MARGIN = 700;
 
 export function clampNetMargin(raw) {

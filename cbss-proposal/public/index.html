@@ -164,7 +164,7 @@
     .margin-warn { color: #b45309; }
     .margin-row { display: flex; align-items: center; gap: 12px; }
     .margin-row input[type="range"] { flex: 1; min-width: 0; }
-    .margin-row strong { min-width: 4.2em; text-align: right; color: var(--primary); }
+    .margin-row strong { min-width: 5.2em; text-align: right; color: var(--primary); }
     .hidden { display: none; }
     .radio-group { display: flex; gap: 22px; flex-wrap: wrap; margin-top: 4px; }
     .radio-group label { display: flex; align-items: center; gap: 7px; font-weight: 500; cursor: pointer; margin: 0; }
@@ -306,7 +306,7 @@
   <div class="container">
     <header>
       <h1>CBShippingSolutions</h1>
-      <p>Proposal Builder · One depot · Delivered cash · build 7</p>
+      <p>Proposal Builder · One depot · Delivered cash · build 8</p>
     </header>
 
     <form id="proposalForm" onsubmit="submitProposal(event)">
@@ -428,12 +428,12 @@
         </div>
         <div class="row">
           <div class="full">
-            <label for="netMargin">Net margin $300–$700</label>
+            <label for="netMargin">Net margin $300–$2,000</label>
             <div class="margin-row">
-              <input type="range" id="netMargin" min="300" max="700" step="25" value="700" oninput="onNetMarginChange()" />
+              <input type="range" id="netMargin" min="300" max="2000" step="25" value="700" oninput="onNetMarginChange()" />
               <strong id="netMarginOut">$700</strong>
             </div>
-            <p class="note">CBSS profit on top of the posted xChange wholesale and delivery. Slide it from $300 to $700. This does not invent a wholesale.</p>
+            <p class="note">CBSS profit on top of the posted xChange wholesale and delivery. Slide it from $300 to $2,000. This does not invent a wholesale.</p>
           </div>
         </div>
 
@@ -588,7 +588,7 @@
     </form>
 
     <footer>
-      CBShippingSolutions · Pricing + Depot + Flex Buy · Net margin $300–$700
+      CBShippingSolutions · Pricing + Depot + Flex Buy · Net margin $300–$2,000
     </footer>
   </div>
 
@@ -753,7 +753,7 @@
     };
     const SIZE_SURCHARGE = { "20ft": 0, "40ft": 125, "Specialized": 200 };
     const MIN_MARGIN = 300;
-    const MAX_MARGIN = 700;
+    const MAX_MARGIN = 2000;
     const DEFAULT_MARGIN = 700;
 
     function clampNetMargin(raw) {
