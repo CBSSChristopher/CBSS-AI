@@ -24,6 +24,9 @@ describe("CBSS public website", () => {
     assert.match(all, /href="\/residential"/);
     assert.match(all, /href="\/services"/);
     assert.match(pages.find((p) => p.f === "about.html").t, /Years in the trade/);
+    assert.match(pages.find((p) => p.f === "about.html").t, /Email the office at/);
+    assert.doesNotMatch(pages.find((p) => p.f === "about.html").t, /stays on @/);
+    assert.doesNotMatch(pages.find((p) => p.f === "about.html").t, /office address is/);
     assert.match(pages.find((p) => p.f === "delivery.html").t, /tilt-bed/);
     assert.match(pages.find((p) => p.f === "services.html").t, /Import and export/);
   });

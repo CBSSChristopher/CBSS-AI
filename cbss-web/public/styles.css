@@ -114,10 +114,25 @@ h3 { font-size: 24px; margin: 0 0 8px; font-weight: 600; }
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 24px;
+  color: var(--ink);
+  height: 100%;
   box-shadow: 0 1px 0 rgba(255,255,255,.6) inset;
 }
 .card:hover { border-color: #c9b88a; }
 .card.gold { background: linear-gradient(180deg, #fff8e8, #f3e6c4); border-color: #e2cf98; }
+.card p { color: var(--muted); }
+.card.gold p { color: #3d4d5c; }
+.band .card {
+  background: var(--card);
+  border-color: var(--line);
+  color: var(--ink);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, .28);
+}
+.band .card:hover { border-color: #c4a35a; }
+.band .card .tag { color: var(--steel); }
+.band .card h3 { color: var(--ink); }
+.band .card p { color: var(--muted); }
+.band .card a { color: var(--steel); }
 .tag {
   display: inline-block;
   font-size: 11px;
