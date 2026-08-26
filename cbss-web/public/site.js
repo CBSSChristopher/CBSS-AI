@@ -25,17 +25,17 @@ function navHtml() {
     const on = here === href;
     return `<a href="${href}"${on ? ' aria-current="page"' : ""}>${label}</a>`;
   }).join("");
-  return `${items}<a class="btn btn-navy nav-cta" href="/request">Request information</a>`;
+  return `${items}<a class="btn btn-promo nav-cta" href="/request">Save 20% on delivery</a>`;
 }
 
 function markHtml() {
-  return `<img class="brand-mark" src="/brand/stamp.png" width="64" height="64" alt="CB Shipping Solutions" />`;
+  return `<img class="brand-mark" src="/brand/stamp.png" width="36" height="36" alt="CB Shipping Solutions" />`;
 }
 
 function renderChrome() {
   const top = document.getElementById("site-top");
   if (top) {
-    const kicker = top.getAttribute("data-kicker") || "Accredited by the Better Business Bureau";
+    const kicker = top.getAttribute("data-kicker") || "Save 20% on delivery";
     top.outerHTML = `
   <div class="topbar">
     <div class="wrap">
@@ -62,11 +62,11 @@ function renderChrome() {
           <img class="footer-stamp" src="/brand/stamp.png" width="72" height="72" alt="" />
           <div>
             <strong>CBGC LLC DBA CBShippingSolutions</strong>
-            <p>Business and home containers. Import, export, delivery, modifications, and cargotecture. One inclusive price.</p>
+            <p>Business or home. One inclusive price. Save 20% on delivery.</p>
           </div>
         </div>
         <p class="fine">We do not invent a wholesale or a catalog price on this site.</p>
-        <img class="bbb-mark" src="/brand/bbb-accredited.png" width="180" height="65" alt="BBB Accredited Business" />
+        <img class="bbb-mark" src="/brand/bbb-accredited.png" width="140" height="51" alt="BBB Accredited Business" />
       </div>
       <div>
         <a href="/business">Business</a><br />

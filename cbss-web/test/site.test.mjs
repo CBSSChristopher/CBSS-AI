@@ -13,6 +13,7 @@ describe("CBSS public website", () => {
     const home = pages.find((p) => p.f === "index.html").t;
     assert.match(home, /CBShippingSolutions/);
     assert.match(home, /One inclusive price/);
+    assert.match(home, /Save 20% on delivery/);
     assert.match(home, /Request information/);
     assert.match(home, /Better Business Bureau/);
     assert.match(home, /job or the homestead/);
