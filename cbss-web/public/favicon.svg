@@ -1,7 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="10" fill="#0B1220"/>
-  <rect x="10" y="18" width="44" height="28" rx="2" fill="#C4A35A"/>
-  <rect x="10" y="18" width="8" height="28" fill="#1F4E79"/>
-  <rect x="46" y="18" width="8" height="28" fill="#1F4E79"/>
-  <path d="M18 32h28" stroke="#0B1220" stroke-width="2"/>
+  <circle cx="32" cy="32" r="32" fill="#070b12"/>
+  <circle cx="32" cy="32" r="29" fill="none" stroke="#c4a35a" stroke-width="2"/>
+  <text x="32" y="39" text-anchor="middle" fill="#e4c888" font-family="Georgia, serif" font-size="18" font-weight="700">CB</text>
 </svg>

@@ -28,8 +28,8 @@ function navHtml() {
   return `${items}<a class="btn btn-navy nav-cta" href="/request">Request information</a>`;
 }
 
-function markSvg() {
-  return `<svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="8" fill="#0B1220"/><rect x="10" y="18" width="44" height="28" rx="2" fill="#C4A35A"/><rect x="10" y="18" width="8" height="28" fill="#1F4E79"/><rect x="46" y="18" width="8" height="28" fill="#1F4E79"/><path d="M18 32h28" stroke="#0B1220" stroke-width="2"/></svg>`;
+function markHtml() {
+  return `<img class="brand-mark" src="/brand/stamp.png" width="64" height="64" alt="CB Shipping Solutions" />`;
 }
 
 function renderChrome() {
@@ -45,7 +45,7 @@ function renderChrome() {
   </div>
   <header class="site">
     <div class="wrap">
-      <a class="brand" href="/">${markSvg()}<span><strong>CBShippingSolutions</strong><span>CBGC LLC · Business and home</span></span></a>
+      <a class="brand" href="/">${markHtml()}<span><strong>CBShippingSolutions</strong><span>CBGC LLC · Business and home</span></span></a>
       <button class="btn btn-line menu-btn" id="menuBtn" type="button" aria-expanded="false" aria-controls="siteNav">Menu</button>
       <nav id="siteNav" data-nav></nav>
     </div>
@@ -58,9 +58,15 @@ function renderChrome() {
   <footer class="site">
     <div class="wrap">
       <div>
-        <strong>CBGC LLC DBA CBShippingSolutions</strong>
-        <p>Business and home containers. Import, export, delivery, modifications, and cargotecture. One inclusive price.</p>
+        <div class="footer-brand">
+          <img class="footer-stamp" src="/brand/stamp.png" width="72" height="72" alt="" />
+          <div>
+            <strong>CBGC LLC DBA CBShippingSolutions</strong>
+            <p>Business and home containers. Import, export, delivery, modifications, and cargotecture. One inclusive price.</p>
+          </div>
+        </div>
         <p class="fine">We do not invent a wholesale or a catalog price on this site.</p>
+        <img class="bbb-mark" src="/brand/bbb-accredited.png" width="180" height="65" alt="BBB Accredited Business" />
       </div>
       <div>
         <a href="/business">Business</a><br />

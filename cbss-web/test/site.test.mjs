@@ -50,6 +50,10 @@ describe("CBSS public website", () => {
     assert.doesNotMatch(all, /573-525-8324/);
     assert.match(js, /\["christopher", "cbshippingsolutions\.com"\]\.join\("@"\)/);
     assert.match(js, /\/api\/request/);
+    assert.match(js, /\/brand\/stamp\.png/);
+    assert.match(js, /\/brand\/bbb-accredited\.png/);
+    assert.doesNotMatch(js, /brand-mark" viewBox/);
+    assert.match(pages.find((p) => p.f === "index.html").t, /\/brand\/lockup\.png/);
     assert.match(pages.find((p) => p.f === "request.html").t, /requestForm/);
   });
 });
