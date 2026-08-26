@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cbssweb",
+  "compatibility_date": "2026-08-26",
+  "workers_dev": true,
+  "preview_urls": false,
+  "assets": {
+    "directory": "./public",
+    "not_found_handling": "404-page"
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "routes": [
+    { "pattern": "cbshippingsolutions.app", "custom_domain": true },
+    { "pattern": "www.cbshippingsolutions.app", "custom_domain": true }
+  ]
+}
