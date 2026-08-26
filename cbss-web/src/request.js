@@ -8,8 +8,10 @@ export const USES = [
   "Multi-unit commercial order",
   "Modified or specialized unit",
   "Chassis or military-grade",
-  "Residential storage",
+  "Residential / farm storage",
   "Cargotecture / foundation",
+  "Import / export",
+  "Box construction / modification",
   "Not sure — call me",
 ];
 
@@ -43,8 +45,8 @@ export function parseInquiry(input) {
 
 export function validateInquiry(data) {
   if (data.honey) return "Ignore this request.";
-  if (!data.company || !data.name || !data.phone || !data.zip || !data.use) {
-    return "Company, name, phone, site ZIP, and what you need are required.";
+  if (!data.name || !data.phone || !data.zip || !data.use) {
+    return "Name, phone, site ZIP, and what you need are required.";
   }
   if (!USES.includes(data.use)) return "Pick what you need from the list.";
   if (data.timeline && !TIMELINES.includes(data.timeline)) return "Pick a timeline from the list.";

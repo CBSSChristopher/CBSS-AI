@@ -15,11 +15,17 @@ describe("CBSS public website", () => {
     assert.match(home, /One inclusive price/);
     assert.match(home, /Request information/);
     assert.match(home, /Better Business Bureau/);
-    assert.match(home, /Jobsite and warehouse/);
+    assert.match(home, /homestead|Home &amp; farm|residential is welcome/i);
+    assert.match(home, /one-stop shop/i);
     assert.match(all, /cbshippingsolutions\.app/);
     assert.match(all, /CBGC LLC/);
     assert.match(all, /href="\/request"/);
     assert.match(all, /href="\/business"/);
+    assert.match(all, /href="\/residential"/);
+    assert.match(all, /href="\/services"/);
+    assert.match(pages.find((p) => p.f === "about.html").t, /Years in the trade/);
+    assert.match(pages.find((p) => p.f === "delivery.html").t, /tilt-bed/);
+    assert.match(pages.find((p) => p.f === "services.html").t, /Import and export/);
   });
 
   it("does not invent a catalog price or lean on cash language", () => {

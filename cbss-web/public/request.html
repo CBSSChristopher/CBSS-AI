@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Request information · CBShippingSolutions</title>
-  <meta name="description" content="Request commercial container information. A person calls you back. This form does not invent a price." />
+  <meta name="description" content="Request container information for a business or a home. A person calls you back. This form does not invent a price." />
   <link rel="canonical" href="https://cbshippingsolutions.app/request" />
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -18,15 +18,15 @@
     <div class="wrap grid-2">
       <div>
         <div class="kicker">Request information</div>
-        <h1>Tell us the company, the site, and the box.</h1>
-        <p>This form goes to the office. We do not invent a price while you fill it out. Prefer a voice? Call <a data-phone href="tel:+18703232593"></a>.</p>
+        <h1>Tell us the site and the box. Company is optional.</h1>
+        <p>Business or household. This form goes to the office. We do not invent a price while you fill it out. Prefer a voice? Call <a data-phone href="tel:+18703232593"></a>.</p>
         <form id="requestForm">
           <label class="hp" for="company_website">Company website</label>
           <input class="hp" id="company_website" name="company_website" tabindex="-1" autocomplete="off" />
           <div class="form-row">
             <div>
-              <label for="company">Company</label>
-              <input id="company" name="company" required autocomplete="organization" />
+              <label for="company">Company (optional)</label>
+              <input id="company" name="company" autocomplete="organization" placeholder="Leave blank if this is a home or farm" />
             </div>
             <div>
               <label for="name">Your name</label>
@@ -69,8 +69,10 @@
                 <option>Multi-unit commercial order</option>
                 <option>Modified or specialized unit</option>
                 <option>Chassis or military-grade</option>
-                <option>Residential storage</option>
+                <option>Residential / farm storage</option>
                 <option>Cargotecture / foundation</option>
+                <option>Import / export</option>
+                <option>Box construction / modification</option>
                 <option>Not sure — call me</option>
               </select>
             </div>
@@ -94,7 +96,7 @@
       <div class="card gold">
         <h3>What happens next</h3>
         <ol class="list">
-          <li>We read the company, the site ZIP, and the box.</li>
+          <li>We read the site ZIP, the box, and whether this is business or home.</li>
           <li>We check a yard that actually posted that box.</li>
           <li>You get one inclusive price — or we tell you we cannot post one.</li>
         </ol>

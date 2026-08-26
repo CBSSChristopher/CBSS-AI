@@ -4,10 +4,10 @@ const MAIL = ["christopher", "cbshippingsolutions.com"].join("@");
 
 const LINKS = [
   ["Business", "/business"],
+  ["Home & farm", "/residential"],
   ["Containers", "/containers"],
   ["Delivery", "/delivery"],
-  ["Financing", "/financing"],
-  ["Cargotecture", "/cargotecture"],
+  ["We do it all", "/services"],
   ["About", "/about"],
 ];
 
@@ -45,7 +45,7 @@ function renderChrome() {
   </div>
   <header class="site">
     <div class="wrap">
-      <a class="brand" href="/">${markSvg()}<span><strong>CBShippingSolutions</strong><span>CBGC LLC · Commercial containers</span></span></a>
+      <a class="brand" href="/">${markSvg()}<span><strong>CBShippingSolutions</strong><span>CBGC LLC · Business and home</span></span></a>
       <button class="btn btn-line menu-btn" id="menuBtn" type="button" aria-expanded="false" aria-controls="siteNav">Menu</button>
       <nav id="siteNav" data-nav></nav>
     </div>
@@ -59,15 +59,17 @@ function renderChrome() {
     <div class="wrap">
       <div>
         <strong>CBGC LLC DBA CBShippingSolutions</strong>
-        <p>Commercial and jobsite containers, inclusive delivered pricing, rent-to-own, and cargotecture.</p>
+        <p>Business and home containers. Import, export, delivery, modifications, and cargotecture. One inclusive price.</p>
         <p class="fine">We do not invent a wholesale or a catalog price on this site.</p>
       </div>
       <div>
         <a href="/business">Business</a><br />
-        <a href="/containers">Containers</a><br />
-        <a href="/delivery">Delivery</a>
+        <a href="/residential">Home & farm</a><br />
+        <a href="/containers">Containers</a>
       </div>
       <div>
+        <a href="/delivery">Delivery</a><br />
+        <a href="/services">We do it all</a><br />
         <a href="/financing">Financing</a><br />
         <a href="/cargotecture">Cargotecture</a><br />
         <a href="/about">About</a>
@@ -125,8 +127,8 @@ if (form) {
       notes: document.getElementById("notes").value,
       company_website: document.getElementById("company_website").value,
     };
-    if (!payload.company || !payload.name || !payload.phone || !payload.zip || !payload.use) {
-      msg.textContent = "Company, name, phone, site ZIP, and what you need are required.";
+    if (!payload.name || !payload.phone || !payload.zip || !payload.use) {
+      msg.textContent = "Name, phone, site ZIP, and what you need are required.";
       return;
     }
     btn.disabled = true;

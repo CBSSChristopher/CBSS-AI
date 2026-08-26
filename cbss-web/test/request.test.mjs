@@ -29,8 +29,18 @@ describe("website information request", () => {
     assert.match(validateInquiry(spam), /Ignore/);
   });
 
-  it("requires company, name, phone, ZIP, and a listed use", () => {
-    const missing = parseInquiry({ name: "Pat", phone: "870", zip: "72201", use: "Jobsite storage" });
+  it("accepts a household request without a company", () => {
+    const home = parseInquiry({
+      name: "Pat",
+      phone: "870-555-0100",
+      zip: "72201",
+      use: "Residential / farm storage",
+    });
+    assert.equal(validateInquiry(home), "");
+  });
+
+  it("requires name, phone, ZIP, and a listed use", () => {
+    const missing = parseInquiry({ phone: "870", zip: "72201", use: "Jobsite storage" });
     assert.match(validateInquiry(missing), /required/);
     const badUse = parseInquiry({
       company: "Acme",
