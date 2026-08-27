@@ -1,6 +1,6 @@
 import { applyCompleteFollowupState, applyFollowupPatch, completedActionText, mergeNoteOntoContact, mergeNotesMap, resolveCrmAction } from "./followups.js";
 import { adminCleanupCodeOk, applyContactCleanup, applyContactCleanups, preserveFoldedFlags } from "./cleanup.js";
-import { canonicalizeOwner, healPortedBook, mergeContactsAdded } from "./owners.js";
+import { canonicalizeOwner, healPortedBook, mergeContactEdits, mergeContactsAdded } from "./owners.js";
 import {
   META_CONFIG_KEY,
   META_SOURCE,
@@ -453,7 +453,7 @@ async function serveAssets(request, env) {
     headers.set("CDN-Cache-Control", "no-store");
     headers.set("Cloudflare-CDN-Cache-Control", "no-store");
     headers.set("Pragma", "no-cache");
-    headers.set("x-crm-build", "20");
+    headers.set("x-crm-build", "21");
     return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
   }
   return res;
@@ -1041,7 +1041,7 @@ async function handleCrmData(request, env) {
       await store.setJSON("notes", next);
       return jsonResponse(request, 200, {
         ok: true,
-        crmBuild: 20,
+        crmBuild: 21,
         contactId,
         note,
         notes: next[contactId] || next[String(contactId)] || []
@@ -1074,7 +1074,7 @@ async function handleCrmData(request, env) {
       ]);
       return jsonResponse(request, 200, {
         ok: true,
-        crmBuild: 20,
+        crmBuild: 21,
         contactId,
         completed: true,
         completedTasks: next.completedTasks[contactId] || []
@@ -1103,7 +1103,7 @@ async function handleCrmData(request, env) {
       attachStoredNotes(state.contactsAdded, state.notes);
       const omitNotes = url.searchParams.get("omitNotes") === "1" || body.omitNotes === true || body.omitNotes === "1";
       const payload = {
-        crmBuild: 20,
+        crmBuild: 21,
         deals: state.deals,
         followups: state.followups,
         contactsAdded: state.contactsAdded,
@@ -1252,7 +1252,7 @@ async function handleCrmData(request, env) {
       if (!user) return jsonResponse(request, 401, { error: "Unauthorized" });
       const [key, value] = writers[action];
       if (key === "contactEdits") {
-        await store.setJSON(key, preserveFoldedFlags(state.contactEdits, value));
+        await store.setJSON(key, preserveFoldedFlags(state.contactEdits, mergeContactEdits(state.contactEdits, value)));
       } else if (key === "notes") {
         await store.setJSON(key, mergeNotesMap(state.notes, value));
       } else if (key === "contactsAdded") {
@@ -1796,7 +1796,7 @@ var index_default = {
     const path = normalizePath(url.pathname);
     if (path === "/__bust" && ctx && ctx.cache && typeof ctx.cache.purge === "function") {
       try { await ctx.cache.purge({ purgeEverything: true }); } catch (_) {}
-      return new Response("ok", { status: 200, headers: { "Cache-Control": "private, no-store", "x-crm-build": "20" } });
+      return new Response("ok", { status: 200, headers: { "Cache-Control": "private, no-store", "x-crm-build": "21" } });
     }
     if (path === "/auth/login") return handleLogin(request, env);
     if (path === "/auth/me") return handleMe(request, env);

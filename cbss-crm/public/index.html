@@ -375,7 +375,7 @@
         <span class="mark">CB</span>
         <div>
           <h1>CBShippingSolutions</h1>
-          <p>Container Sales CRM · build 20</p>
+          <p>Container Sales CRM · build 21</p>
         </div>
       </div>
       <div class="user">
@@ -2773,7 +2773,7 @@
         city: document.getElementById('mCity').value.trim(),
         state: document.getElementById('mState').value.trim(),
         zip: document.getElementById('mZip').value.trim(),
-        owner: document.getElementById('mOwner').value.trim(),
+        owner: titleCaseOwner(document.getElementById('mOwner').value.trim()),
         status: document.getElementById('mStatus').value.trim(),
         street: '',
         company: document.getElementById('mCompany').value.trim(),
