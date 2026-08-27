@@ -8,6 +8,7 @@ import {
   optionsResponse,
 } from "./auth.js";
 import { handleInventory, handleInventoryRefresh, handleXchangeProbe, refreshXchangeInventory } from "./inventory.js";
+import { handleVerifyApproval } from "./approval.js";
 import { handleSubmitProposal } from "./submit-proposal.js";
 
 export default {
@@ -24,6 +25,7 @@ export default {
     if (path === "/inventory/refresh") return handleInventoryRefresh(request, env);
     if (path === "/inventory/xchange-probe") return handleXchangeProbe(request, env);
     if (path === "/inventory") return handleInventory(request, env);
+    if (path === "/approval/verify") return handleVerifyApproval(request, env);
     if (path === "/submit-proposal") return handleSubmitProposal(request, env);
     if (request.method === "OPTIONS") return optionsResponse(request);
     if (env.ASSETS) return env.ASSETS.fetch(request);

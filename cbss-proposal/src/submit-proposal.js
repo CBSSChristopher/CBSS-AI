@@ -1,4 +1,5 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { isApprovedPricingRequest, isValidManagerApprovalCode, parseApprovedCash } from "./approval.js";
 import { jsonResponse, optionsResponse, readSession } from "./auth.js";
 import { clampNetMargin, customerCashTotal, isPickupFulfillment, MIN_NET_MARGIN } from "./container.js";
 
@@ -51,6 +52,7 @@ async function ingestProposal(env, data, status) {
         notes: data.notes || data.containerNotes,
         containerNotes: data.containerNotes,
         fulfillment: isPickupFulfillment(data.fulfillment) ? "pickup" : "deliver",
+        approvedPricing: Boolean(data.approvedPricing),
         flagged: status === "flagged",
       }),
     });
@@ -433,6 +435,11 @@ async function generateInternalPDF(data, deliveryPer, marginPer) {
   draw(`Purchasing yard: ${data.depot || ""}`, margin, y);
   y -= 14;
   draw(`Qty: ${data.quantity}  |  Wholesale: $${Number(data.wholesaleCost).toFixed(2)}  |  ${isPickupFulfillment(data.fulfillment) ? "Pickup" : "Delivered"} cash: $${Number(data.unitPrice).toFixed(2)}`, margin, y);
+  y -= 13;
+  if (data.approvedPricing) {
+    draw("Christopher approved pricing", margin, y, 11, true, rgb(0.12, 0.31, 0.47));
+    y -= 13;
+  }
   y -= 18;
   if (isPickupFulfillment(data.fulfillment)) {
     draw("INTERNAL PICKUP (no delivery in cash price)", margin, y, 11, true, rgb(0.12, 0.31, 0.47));
@@ -497,6 +504,7 @@ function buildInternalHtml(data, marginPer, deliveryPer) {
       <p><strong>Depot city:</strong> ${data.depotCity || ""}</p>
       <p><strong>Purchasing yard:</strong> ${data.depot || ""}</p>
       <p><strong>${isPickupFulfillment(data.fulfillment) ? "Pickup cash" : "Delivered cash"}:</strong> $${Number(data.unitPrice).toFixed(2)} &nbsp;|&nbsp; <strong>Margin/unit:</strong> $${marginPer.toFixed(2)}</p>
+      ${data.approvedPricing ? "<p><strong>Christopher approved pricing</strong></p>" : ""}
       <p><strong>${isPickupFulfillment(data.fulfillment) ? "Pickup — delivery is $0.00. Do not add a pickup fee." : `Delivery already inside that cash price: $${Number(deliveryPer).toFixed(2)}`}</strong></p>
     </div>
   </div>`;
@@ -520,6 +528,45 @@ function sanitizeFilename(name) {
   return String(name || "Customer").replace(/[^a-z0-9]/gi, "_").substring(0, 40);
 }
 
+export function resolveProposalPricing(data, env) {
+  const wholesale = parseFloat(data && data.wholesaleCost) || 0;
+  const deliveryPer = isPickupFulfillment(data && data.fulfillment)
+    ? 0
+    : (parseFloat(data && data.deliveryCost) || calculateDeliveryFromData(data));
+  const approved = isApprovedPricingRequest(data);
+  if (approved) {
+    if (!isValidManagerApprovalCode(data && data.managerApprovalCode, env)) {
+      return { ok: false, status: 403, error: "Manager approval code required for Christopher approved pricing." };
+    }
+    const sell = parseApprovedCash(data && data.unitPrice);
+    if (sell == null) {
+      return { ok: false, status: 400, error: "Approved cash price must be a number greater than 0." };
+    }
+    return {
+      ok: true,
+      approved: true,
+      skipLowMargin: true,
+      isLowMargin: false,
+      sell,
+      wholesale,
+      deliveryPer,
+      marginPer: sell - wholesale - deliveryPer,
+    };
+  }
+  const sell = parseFloat(data && data.unitPrice) || 0;
+  const marginPer = sell - wholesale - deliveryPer;
+  return {
+    ok: true,
+    approved: false,
+    skipLowMargin: false,
+    isLowMargin: marginPer < MIN_MARGIN,
+    sell,
+    wholesale,
+    deliveryPer,
+    marginPer,
+  };
+}
+
 async function handleSubmit(event, env) {
   if (event.httpMethod !== "POST") return { statusCode: 405, body: JSON.stringify({ error: "Method not allowed" }) };
   try {
@@ -539,15 +586,18 @@ async function handleSubmit(event, env) {
     if (!data.repEmail || !data.repName || !data.customerName || !data.unitPrice) {
       return { statusCode: 400, body: JSON.stringify({ error: "Missing required fields" }) };
     }
-    const qty = parseFloat(data.quantity) || 1;
-    const wholesale = parseFloat(data.wholesaleCost) || 0;
-    const sell = parseFloat(data.unitPrice) || 0;
-    const deliveryPer = isPickupFulfillment(data.fulfillment)
-      ? 0
-      : (parseFloat(data.deliveryCost) || calculateDeliveryFromData(data));
-    const marginPer = sell - wholesale - deliveryPer;
-    data.netMargin = clampNetMargin(data.netMargin || marginPer);
-    const isLowMargin = marginPer < MIN_MARGIN;
+    const priced = resolveProposalPricing(data, env);
+    if (!priced.ok) {
+      return { statusCode: priced.status, body: JSON.stringify({ error: priced.error }) };
+    }
+    const deliveryPer = priced.deliveryPer;
+    const marginPer = priced.marginPer;
+    data.unitPrice = priced.sell;
+    data.wholesaleCost = priced.wholesale;
+    data.approvedPricing = priced.approved;
+    delete data.managerApprovalCode;
+    data.netMargin = priced.approved ? marginPer : clampNetMargin(data.netMargin || marginPer);
+    const isLowMargin = priced.isLowMargin;
     if (isLowMargin) {
       await sendBrevoEmail({
         to: internalRecipients(),
@@ -577,7 +627,7 @@ async function handleSubmit(event, env) {
     });
     await sendBrevoEmail({
       to: internalRecipients(),
-      subject: `Internal Copy - ${data.customerName} | Margin $${marginPer.toFixed(0)} | Rep: ${data.repName}`,
+      subject: `Internal Copy - ${data.customerName} | ${data.approvedPricing ? "Approved pricing" : `Margin $${marginPer.toFixed(0)}`} | Rep: ${data.repName}`,
       htmlContent: buildInternalHtml(data, marginPer, deliveryPer),
       textContent: `Internal details for ${data.customerName}. Margin: $${marginPer.toFixed(2)}`,
       attachment: { name: `INTERNAL_${sanitizeFilename(data.customerName)}.pdf`, content: internalBase64 },
