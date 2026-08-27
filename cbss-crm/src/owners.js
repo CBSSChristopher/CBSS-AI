@@ -44,6 +44,28 @@ export function canonicalizeOwner(value) {
   return STAFF_OWNERS[titled.toLowerCase()] || titled;
 }
 
+export function mergeContactEdits(current, incoming) {
+  const prev = current && typeof current === "object" && !Array.isArray(current) ? current : {};
+  const nextIn = incoming && typeof incoming === "object" && !Array.isArray(incoming) ? incoming : {};
+  const out = {};
+  for (const key of Object.keys(prev)) {
+    const row = prev[key] && typeof prev[key] === "object" ? Object.assign({}, prev[key]) : prev[key];
+    if (row && typeof row === "object" && row.owner !== undefined) {
+      row.owner = canonicalizeOwner(row.owner);
+    }
+    out[key] = row;
+  }
+  for (const key of Object.keys(nextIn)) {
+    const incomingRow = nextIn[key];
+    if (!incomingRow || typeof incomingRow !== "object") continue;
+    const prevRow = out[key] && typeof out[key] === "object" ? out[key] : {};
+    const merged = Object.assign({}, prevRow, incomingRow);
+    if (merged.owner !== undefined) merged.owner = canonicalizeOwner(merged.owner);
+    out[key] = merged;
+  }
+  return out;
+}
+
 export function mergeContactsAdded(current, incoming) {
   const map = new Map();
   const put = (row) => {

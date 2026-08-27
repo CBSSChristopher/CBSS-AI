@@ -2,12 +2,16 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   canonicalizeOwner,
+  mergeContactEdits,
   mergeContactsAdded,
   restoreMissingContacts,
   healPortedBook
 } from "../src/owners.js";
 
 test("canonicalizeOwner folds company email and local-part aliases onto one staff name", () => {
+  assert.equal(canonicalizeOwner("kyle@cbshippingsolutions.com"), "Kyle");
+  assert.equal(canonicalizeOwner("Kyle@cbshippingsolutions.com"), "Kyle");
+  assert.equal(canonicalizeOwner("kyle"), "Kyle");
   assert.equal(canonicalizeOwner("james@cbshippingsolutions.com"), "James");
   assert.equal(canonicalizeOwner("James@cbshippingsolutions.com"), "James");
   assert.equal(canonicalizeOwner("james"), "James");
@@ -16,6 +20,21 @@ test("canonicalizeOwner folds company email and local-part aliases onto one staf
   assert.equal(canonicalizeOwner("Bryan Reese"), "Bryan Reese");
   assert.equal(canonicalizeOwner("Contact Owner"), "");
   assert.equal(canonicalizeOwner("Kristin Chapin"), "Kristin Chapin");
+});
+
+test("mergeContactEdits keeps Kyle's self-assign when another rep saves a shorter local map", () => {
+  const current = {
+    2558: { owner: "kyle@cbshippingsolutions.com", status: "Proposal Sent", amount: 8275 },
+    3377: { owner: "Kyle", status: "Proposal Sent" }
+  };
+  const incoming = {
+    1787771029295: { owner: "James", name: "Gary K. Hunt" }
+  };
+  const merged = mergeContactEdits(current, incoming);
+  assert.equal(merged[2558].owner, "Kyle");
+  assert.equal(merged[2558].amount, 8275);
+  assert.equal(merged[3377].owner, "Kyle");
+  assert.equal(merged[1787771029295].owner, "James");
 });
 
 test("mergeContactsAdded keeps existing ported rows when a later desk save is a shorter list", () => {

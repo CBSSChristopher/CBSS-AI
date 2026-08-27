@@ -47,7 +47,8 @@ test("tasks tab exposes a Complete button and completeTask handler", () => {
   assert.match(html, /Schedule another follow-up/);
   assert.match(html, /function offerNextFollowup\(/);
   assert.match(html, /function showNextFollowupPrompt\(/);
-  assert.match(html, /build 20/);
+  assert.match(html, /build 21/);
+  assert.match(html, /owner: titleCaseOwner\(document\.getElementById\('mOwner'\)\.value\.trim\(\)\)/);
   assert.match(html, /function roadPhoneBtns\(/);
   assert.match(html, /@media \(max-width: 720px\)/);
   assert.match(html, /viewport-fit=cover/);
@@ -116,8 +117,9 @@ test("worker still serves the CRM data routes used by the desk", async () => {
   const wrangler = readFileSync(new URL("../wrangler.jsonc", import.meta.url), "utf8");
   assert.match(wrangler, /"enabled": false/);
   assert.match(worker, /action === "completeFollowup"/);
-  assert.match(worker, /crmBuild: 20/);
-  assert.match(worker, /x-crm-build", "20"/);
+  assert.match(worker, /crmBuild: 21/);
+  assert.match(worker, /x-crm-build", "21"/);
+  assert.match(worker, /mergeContactEdits\(state\.contactEdits, value\)/);
   assert.match(worker, /"CTE in progress"/);
   assert.match(worker, /"Follow up in progress"/);
   assert.match(worker, /"Email campaign"/);
