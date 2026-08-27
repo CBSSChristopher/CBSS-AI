@@ -39,6 +39,13 @@ import {
   usDepotLocations,
 } from "../src/xchange.js";
 import { findCityHub } from "../src/container.js";
+import {
+  expectedApprovalCode,
+  isApprovedPricingRequest,
+  isValidManagerApprovalCode,
+  parseApprovedCash,
+} from "../src/approval.js";
+import { resolveProposalPricing } from "../src/submit-proposal.js";
 
 const page = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const submit = readFileSync(new URL("../src/submit-proposal.js", import.meta.url), "utf8");
@@ -232,13 +239,92 @@ describe("Proposal tool picker, depot, and cash price", () => {
     assert.doesNotMatch(page, /pickup fee \$/);
   });
 
+  it("unlocks a free cash number only after the server checks the manager approval code", () => {
+    const defaultCode = expectedApprovalCode({});
+    assert.ok(defaultCode);
+    assert.equal(isValidManagerApprovalCode(defaultCode, {}), true);
+    assert.equal(isValidManagerApprovalCode("0000", {}), false);
+    assert.equal(isValidManagerApprovalCode("", {}), false);
+    assert.equal(isValidManagerApprovalCode(defaultCode, { MANAGER_APPROVAL_CODE: "9999" }), false);
+    assert.equal(isValidManagerApprovalCode("9999", { MANAGER_APPROVAL_CODE: "9999" }), true);
+    assert.equal(parseApprovedCash("1847.5"), 1847.5);
+    assert.equal(parseApprovedCash("$1,200"), 1200);
+    assert.equal(parseApprovedCash("0"), null);
+    assert.equal(isApprovedPricingRequest({ approvedPricing: true }), true);
+    assert.equal(isApprovedPricingRequest({ pricingMode: "christopher-approved" }), true);
+    assert.equal(isApprovedPricingRequest({}), false);
+
+    const low = resolveProposalPricing({
+      unitPrice: 1500,
+      wholesaleCost: 1400,
+      deliveryCost: 600,
+      fulfillment: "deliver",
+    }, {});
+    assert.equal(low.ok, true);
+    assert.equal(low.isLowMargin, true);
+    assert.equal(low.approved, false);
+
+    const blocked = resolveProposalPricing({
+      unitPrice: 1500,
+      wholesaleCost: 1400,
+      deliveryCost: 600,
+      fulfillment: "deliver",
+      approvedPricing: true,
+    }, {});
+    assert.equal(blocked.ok, false);
+    assert.equal(blocked.status, 403);
+
+    const wrong = resolveProposalPricing({
+      unitPrice: 1500,
+      wholesaleCost: 1400,
+      deliveryCost: 600,
+      fulfillment: "pickup",
+      approvedPricing: true,
+      managerApprovalCode: "0000",
+    }, {});
+    assert.equal(wrong.ok, false);
+
+    const approved = resolveProposalPricing({
+      unitPrice: 1500,
+      wholesaleCost: 1400,
+      deliveryCost: 600,
+      fulfillment: "pickup",
+      approvedPricing: true,
+      managerApprovalCode: defaultCode,
+    }, {});
+    assert.equal(approved.ok, true);
+    assert.equal(approved.approved, true);
+    assert.equal(approved.skipLowMargin, true);
+    assert.equal(approved.isLowMargin, false);
+    assert.equal(approved.sell, 1500);
+    assert.equal(approved.deliveryPer, 0);
+    assert.equal(approved.marginPer, 100);
+
+    assert.match(page, /id="approvedPricingBtn"/);
+    assert.match(page, /Christopher approved pricing/);
+    assert.match(page, /verifyApprovedPricing/);
+    assert.match(page, /\/approval\/verify/);
+    assert.match(page, /id="approvedUnitPrice"/);
+    assert.match(page, /isApprovedPricingUnlocked/);
+    assert.match(page, /managerApprovalCode/);
+    assert.match(page, /pricingMode: isApprovedPricingUnlocked\(\) \? "christopher-approved"/);
+    assert.doesNotMatch(page, new RegExp(defaultCode));
+    assert.match(submit, /Christopher approved pricing/);
+    assert.match(submit, /resolveProposalPricing/);
+    assert.match(submit, /delete data\.managerApprovalCode/);
+    const clientPdf = submit.slice(submit.indexOf("async function generateClientPDF"), submit.indexOf("function getConditionExpectations"));
+    assert.doesNotMatch(clientPdf, /Christopher approved/);
+    assert.doesNotMatch(clientPdf, /manager approval/);
+    assert.match(page, /build 10/);
+  });
+
   it("uses desk-style pick buttons and a Pull xChange action", () => {
     assert.match(page, /data-val="20STD"/);
     assert.match(page, /data-val="40HC"/);
     assert.match(page, /id="pullXchangeBtn"/);
     assert.match(page, /Pull xChange/);
     assert.match(page, /pulledAt/);
-    assert.match(page, /build 9/);
+    assert.match(page, /build 10/);
     assert.match(page, /id="netMargin"/);
     assert.match(page, /Net margin \$300–\$2,000/);
     assert.match(page, /viewport-fit=cover/);

@@ -306,7 +306,7 @@
   <div class="container">
     <header>
       <h1>CBShippingSolutions</h1>
-      <p>Proposal Builder · One depot · Delivered or pickup cash · build 9</p>
+      <p>Proposal Builder · One depot · Delivered or pickup cash · build 10</p>
     </header>
 
     <form id="proposalForm" onsubmit="submitProposal(event)">
@@ -434,7 +434,7 @@
             <input type="number" id="milesOverride" min="0" placeholder="Leave blank for estimate" oninput="recalcIfReady()" />
           </div>
         </div>
-        <div class="row">
+        <div class="row" id="netMarginRow">
           <div class="full">
             <label for="netMargin">Net margin $300–$2,000</label>
             <div class="margin-row">
@@ -443,6 +443,31 @@
             </div>
             <p class="note">CBSS profit on top of the posted xChange wholesale and delivery. Slide it from $300 to $2,000. This does not invent a wholesale.</p>
           </div>
+        </div>
+        <div class="picks" id="approved-picks">
+          <div class="lbl">Special pricing</div>
+          <div class="btns">
+            <button type="button" class="pick" id="approvedPricingBtn" onclick="startApprovedPricing()">Christopher approved pricing</button>
+            <button type="button" class="pick hidden" id="clearApprovedBtn" onclick="clearApprovedPricing()">Use formula price</button>
+          </div>
+          <p class="note">Use this only after you talk to Christopher and he gives you a number. You will need the manager approval code.</p>
+        </div>
+        <div id="approvalGate" class="hidden" style="margin-bottom:12px;">
+          <label for="managerApprovalCode">Manager approval code</label>
+          <div class="row">
+            <div>
+              <input type="password" id="managerApprovalCode" inputmode="numeric" autocomplete="one-time-code" placeholder="Ask Christopher" />
+            </div>
+            <div style="display:flex;align-items:flex-end;">
+              <button type="button" class="btn btn-secondary" id="verifyApprovalBtn" onclick="verifyApprovedPricing()">Unlock approved price</button>
+            </div>
+          </div>
+          <p class="status" id="approvalStatus"></p>
+        </div>
+        <div id="approvedPriceWrap" class="hidden" style="margin-bottom:12px;">
+          <label for="approvedUnitPrice">Christopher approved cash price (each) *</label>
+          <input type="number" id="approvedUnitPrice" min="0.01" step="0.01" placeholder="Enter the number Christopher approved" oninput="recalcIfReady()" />
+          <p class="note">Enter the cash number Christopher approved. Wholesale still comes from posted xChange. This does not invent a wholesale.</p>
         </div>
 
         <div id="priceBox" class="price-box hidden"></div>
@@ -579,6 +604,7 @@
       <input type="hidden" id="containerDesc" name="containerDesc" />
       <input type="hidden" id="containerSize" name="containerSize" value="40ft" />
       <input type="hidden" id="wholesaleCost" name="wholesaleCost" />
+      <input type="hidden" id="approvedPricing" name="approvedPricing" value="false" />
 
       <!-- Flex Buy hidden outputs -->
       <input type="hidden" id="flexSelected" value="false" />
@@ -781,6 +807,94 @@
       document.getElementById("netMargin").value = String(n);
       document.getElementById("netMarginOut").textContent = "$" + n;
       recalcIfReady();
+    }
+
+    let verifiedApprovalCode = "";
+
+    function isApprovedPricingUnlocked() {
+      return document.getElementById("approvedPricing").value === "true" && Boolean(verifiedApprovalCode);
+    }
+
+    function startApprovedPricing() {
+      document.getElementById("approvedPricingBtn").classList.add("on");
+      document.getElementById("clearApprovedBtn").classList.remove("hidden");
+      if (isApprovedPricingUnlocked()) {
+        document.getElementById("approvalGate").classList.add("hidden");
+        document.getElementById("approvedPriceWrap").classList.remove("hidden");
+        return;
+      }
+      document.getElementById("approvalGate").classList.remove("hidden");
+      document.getElementById("approvedPriceWrap").classList.add("hidden");
+      document.getElementById("approvalStatus").textContent = "Enter the manager approval code Christopher gave you.";
+      const codeBox = document.getElementById("managerApprovalCode");
+      if (codeBox) codeBox.focus();
+    }
+
+    function clearApprovedPricing() {
+      verifiedApprovalCode = "";
+      document.getElementById("approvedPricing").value = "false";
+      document.getElementById("approvedPricingBtn").classList.remove("on");
+      document.getElementById("clearApprovedBtn").classList.add("hidden");
+      document.getElementById("approvalGate").classList.add("hidden");
+      document.getElementById("approvedPriceWrap").classList.add("hidden");
+      document.getElementById("managerApprovalCode").value = "";
+      document.getElementById("approvedUnitPrice").value = "";
+      document.getElementById("approvalStatus").textContent = "";
+      const slider = document.getElementById("netMargin");
+      if (slider) slider.disabled = false;
+      const marginRow = document.getElementById("netMarginRow");
+      if (marginRow) marginRow.classList.remove("hidden");
+      recalcIfReady();
+    }
+
+    async function verifyApprovedPricing() {
+      const status = document.getElementById("approvalStatus");
+      const btn = document.getElementById("verifyApprovalBtn");
+      const code = String(document.getElementById("managerApprovalCode").value || "").replace(/\s+/g, "").trim();
+      if (!code) {
+        status.textContent = "Enter the manager approval code.";
+        return;
+      }
+      const user = currentUser;
+      if (!user) {
+        status.textContent = "Sign in with your company email first.";
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = "Checking...";
+      status.textContent = "Checking the manager approval code...";
+      try {
+        const res = await fetch("/approval/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ code: code })
+        });
+        const result = await res.json().catch(function () { return {}; });
+        if (res.ok && result.ok) {
+          verifiedApprovalCode = code;
+          document.getElementById("approvedPricing").value = "true";
+          document.getElementById("approvalGate").classList.add("hidden");
+          document.getElementById("approvedPriceWrap").classList.remove("hidden");
+          document.getElementById("approvedPricingBtn").classList.add("on");
+          document.getElementById("clearApprovedBtn").classList.remove("hidden");
+          const slider = document.getElementById("netMargin");
+          if (slider) slider.disabled = true;
+          const marginRow = document.getElementById("netMarginRow");
+          if (marginRow) marginRow.classList.add("hidden");
+          status.textContent = "Unlocked. Enter the cash number Christopher approved.";
+          document.getElementById("approvedUnitPrice").focus();
+          recalcIfReady();
+        } else {
+          verifiedApprovalCode = "";
+          document.getElementById("approvedPricing").value = "false";
+          status.textContent = result.error || "That code is not valid. Ask Christopher for the manager approval code.";
+        }
+      } catch (err) {
+        status.textContent = "Could not check the manager approval code. Try again.";
+      }
+      btn.disabled = false;
+      btn.textContent = "Unlock approved price";
     }
 
     // Flex Buy term presets (months + suggested APR)
@@ -1570,6 +1684,16 @@
         recommended = wholesale + delivery + MIN_MARGIN;
       }
       recommended = Math.ceil(recommended / 25) * 25;
+      if (isApprovedPricingUnlocked()) {
+        const typed = parseFloat(document.getElementById("approvedUnitPrice").value);
+        if (!typed || typed <= 0) {
+          document.getElementById("unitPrice").value = "";
+          document.getElementById("priceBox").classList.add("hidden");
+          document.getElementById("flexSection").classList.add("hidden");
+          return;
+        }
+        recommended = Math.round(typed * 100) / 100;
+      }
       const margin = recommended - wholesale - delivery;
 
       // Set hidden fields
@@ -1593,9 +1717,13 @@
       const marginClass = margin >= 600 ? 'margin-good' : 'margin-warn';
       const cashEach = fulfillment === "pickup" ? "Pickup cash each" : "Delivered cash each";
       const cashTotal = fulfillment === "pickup" ? "Total pickup cash" : "Total delivered cash";
-      const cashNote = fulfillment === "pickup"
+      const cashNote = isApprovedPricingUnlocked()
+        ? (fulfillment === "pickup"
+          ? "Christopher approved this pickup cash number. Delivery is not included. Do not add a pickup fee."
+          : "Christopher approved this cash number. Delivery is already inside it if this is a delivered deal.")
+        : (fulfillment === "pickup"
         ? "This is depot pickup. Delivery is not included. Do not add a pickup fee."
-        : "Delivery is already inside that cash price. Do not add it again.";
+        : "Delivery is already inside that cash price. Do not add it again.");
       const howFar = fulfillment === "pickup"
         ? `<div class="price-row"><span>Fulfillment</span><span>Customer pickup</span></div>`
         : `<div class="price-row"><span>How far</span><span>${miles} miles</span></div>`;
@@ -1603,7 +1731,8 @@
         <div class="price-row"><span>Your depot</span><span>${escapeHtml(depotCity)}</span></div>
         ${howFar}
         <div class="price-row"><span>Wholesale</span><span>$${wholesale.toLocaleString()}</span></div>
-        <div class="price-row"><span>Net Margin</span><span class="${marginClass}">$${margin.toLocaleString()}</span></div>
+        <div class="price-row"><span>${isApprovedPricingUnlocked() ? "Approved cash" : "Net Margin"}</span><span class="${marginClass}">${isApprovedPricingUnlocked() ? "Christopher approved pricing" : "$" + margin.toLocaleString()}</span></div>
+        ${isApprovedPricingUnlocked() ? `<div class="price-row"><span>Derived net</span><span class="${marginClass}">$${margin.toLocaleString()}</span></div>` : ""}
         <div class="price-row"><span>Quantity</span><span>${qty}</span></div>
         <div class="price-row total"><span>${cashEach}</span><span>$${recommended.toLocaleString()}</span></div>
         <div class="price-row total"><span>${cashTotal}</span><span>$${(recommended * qty).toLocaleString()}</span></div>
@@ -1762,7 +1891,15 @@
       }
 
       if (!selectedDepot || !document.getElementById('unitPrice').value) {
-        alert('Please find depots and enter wholesale cost first.');
+        alert(isApprovedPricingUnlocked()
+          ? 'Enter the cash number Christopher approved after wholesale is filled.'
+          : 'Please find depots and enter wholesale cost first.');
+        btn.disabled = false;
+        btn.textContent = original;
+        return;
+      }
+      if (document.getElementById("approvedPricing").value === "true" && !verifiedApprovalCode) {
+        alert("Enter the manager approval code to use Christopher approved pricing.");
         btn.disabled = false;
         btn.textContent = original;
         return;
@@ -1799,6 +1936,9 @@
         notes: document.getElementById('notes').value.trim(),
         deliveryCost: document.getElementById('deliveryCost').value,
         fulfillment: currentFulfillment(),
+        approvedPricing: isApprovedPricingUnlocked(),
+        pricingMode: isApprovedPricingUnlocked() ? "christopher-approved" : "formula",
+        managerApprovalCode: isApprovedPricingUnlocked() ? verifiedApprovalCode : "",
         zip: document.getElementById('zip').value.trim(),
         depot: selectedPurchasingDepot || (selectedDepot && selectedDepot.yards ? selectedDepot.yards.join(" | ") : "") || (selectedDepot ? displayCityState(selectedDepot) : ''),
         depotCity: selectedDepot ? displayCityState(selectedDepot) : '',
