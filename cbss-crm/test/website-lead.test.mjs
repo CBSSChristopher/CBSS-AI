@@ -13,7 +13,7 @@ test("website lead keeps the form fields and invents no price", () => {
     requestId: "abc-1"
   });
   assert.equal(payload.error, undefined);
-  assert.equal(payload.owner, "Christopher Banks");
+  assert.equal(payload.owner, "New/Unassigned");
   assert.equal(payload.source, "Quote Form");
   assert.equal(payload.stage, "New Lead");
   assert.equal(payload.clientType, "Commercial");
