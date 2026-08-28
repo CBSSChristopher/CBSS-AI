@@ -80,7 +80,7 @@ export function pageHtml(): string {
   <header>
     <div>
       <div class="brand">CBSS Invoicing</div>
-      <div class="sub" id="stamp">build 4 · WAAVE</div>
+      <div class="sub" id="stamp">build 5 · branded invoice + wire</div>
     </div>
     <div class="right">
       <div class="who hide" id="who"></div>
@@ -103,8 +103,8 @@ export function pageHtml(): string {
 
     <section id="desk" class="hide">
       <div class="card">
-        <h2>Create a WAAVE invoice</h2>
-        <p class="muted">Use this tool for money in. The amount is the number from the proposal after the customer agreed — do not change it. Type the billing address and the delivery address. WAAVE makes the pay link. Open Gmail to send it — that draft CCs Christopher, Aliyah, and you.</p>
+        <h2>Create a CBSS invoice</h2>
+        <p class="muted">Use this tool for money in. The amount is the number from the proposal after the customer agreed — do not change it. Type the billing address and the delivery address. The tool builds the navy/gold CBSS invoice with ACH, domestic wire, and SWIFT on page 2. Open Gmail to send it — that draft CCs Christopher, Aliyah, and you. WAAVE can still make an optional card-pay link.</p>
         <p class="err hide" id="waave-warn">WAAVE is not connected yet. Christopher: in the WAAVE merchant dashboard copy the public/access key, secret key, and venue id, then add WAAVE_API_KEY, WAAVE_API_SECRET, and WAAVE_VENUE_ID on this Worker.</p>
         <form id="inv-form">
           <div class="split">
@@ -112,6 +112,14 @@ export function pageHtml(): string {
             <div><label for="pay-email">Customer email</label><input id="pay-email" type="email" required /></div>
             <div><label for="phone">Phone</label><input id="phone" inputmode="tel" required placeholder="8703232593" /></div>
             <div><label for="amount">Amount USD</label><input id="amount" inputmode="decimal" autocomplete="off" required placeholder="Agreed proposal cash" /></div>
+            <div><label for="company">Company (optional)</label><input id="company" placeholder="Business name if they have one" /></div>
+            <div>
+              <label for="warranty">Warranty</label>
+              <select id="warranty">
+                <option value="wwt">WWT — 5-year structural + 5-year no-leak</option>
+                <option value="one-trip">One-trip — 10-year + manufacturer</option>
+              </select>
+            </div>
           </div>
           <h3>Billing address</h3>
           <label for="bill-street">Street</label>
@@ -134,13 +142,18 @@ export function pageHtml(): string {
           <textarea id="notes" rows="3" required placeholder="40HC CW delivered — paid before the truck"></textarea>
           <div class="row">
             <button type="button" class="secondary" id="lookup-amount">Use last agreed proposal amount</button>
-            <button type="submit">Create WAAVE invoice</button>
+            <button type="submit">Create invoice</button>
             <button type="button" class="secondary" id="copy-card">Copy card</button>
             <button type="button" class="secondary" id="open-gmail">Open Gmail</button>
           </div>
           <p class="err" id="inv-err"></p>
         </form>
         <div class="outbox" id="card">The invoice card lands here.</div>
+        <div class="row hide" id="doc-actions">
+          <button type="button" class="secondary" id="open-invoice">Open branded invoice</button>
+          <button type="button" class="secondary" id="print-invoice">Print / save PDF</button>
+        </div>
+        <iframe id="preview" class="hide" title="Invoice preview" style="width:100%;min-height:720px;margin-top:12px;border:1px solid var(--line);border-radius:8px;background:#fff"></iframe>
       </div>
       <div class="card" style="margin-top:12px">
         <h2>Recent WAAVE invoices</h2>
@@ -149,7 +162,7 @@ export function pageHtml(): string {
         <div class="hits" id="list"></div>
         <p class="err" id="list-err"></p>
       </div>
-      <footer>CBGC LLC DBA CBShippingSolutions · WAAVE API</footer>
+      <footer>CBGC LLC DBA CBShippingSolutions · branded invoice with wire instructions</footer>
     </section>
   </main>
   <script>
@@ -158,6 +171,7 @@ export function pageHtml(): string {
     const outBtn = document.getElementById("out");
     const who = document.getElementById("who");
     let lastGmail = "";
+    let lastDoc = "";
 
     function show(view) {
       login.classList.toggle("hide", view !== "login");
@@ -252,7 +266,10 @@ export function pageHtml(): string {
       const box = document.getElementById("card");
       err.textContent = "";
       lastGmail = "";
-      box.textContent = "Creating WAAVE invoice…";
+      box.textContent = "Creating the branded invoice…";
+      lastDoc = "";
+      document.getElementById("preview").classList.add("hide");
+      document.getElementById("doc-actions").classList.add("hide");
       const r = await fetch("/invoice/create", {
         method: "POST",
         credentials: "same-origin",
@@ -261,8 +278,10 @@ export function pageHtml(): string {
           name: document.getElementById("name").value,
           email: document.getElementById("pay-email").value,
           phone: document.getElementById("phone").value,
+          company: document.getElementById("company").value,
           amountRaw: document.getElementById("amount").value,
           notes: document.getElementById("notes").value,
+          warrantyKind: document.getElementById("warranty").value,
           billingStreet: val("bill-street"),
           billingCity: val("bill-city"),
           billingState: val("bill-state"),
@@ -279,6 +298,14 @@ export function pageHtml(): string {
       if (!r.ok || !j.ok) { err.textContent = j.error || "Could not create that invoice."; box.textContent = "The invoice card lands here."; return; }
       box.textContent = j.cardText || "";
       lastGmail = (j.card && j.card.gmailLink) || "";
+      lastDoc = j.documentUrl || "";
+      if (j.warn) err.textContent = j.warn;
+      if (lastDoc) {
+        document.getElementById("doc-actions").classList.remove("hide");
+        const preview = document.getElementById("preview");
+        preview.src = lastDoc;
+        preview.classList.remove("hide");
+      }
       refresh();
     });
 
@@ -297,6 +324,21 @@ export function pageHtml(): string {
         return;
       }
       window.open(lastGmail, "_blank", "noopener");
+    });
+    document.getElementById("open-invoice").addEventListener("click", () => {
+      if (!lastDoc) {
+        document.getElementById("inv-err").textContent = "Create an invoice first.";
+        return;
+      }
+      window.open(lastDoc, "_blank", "noopener");
+    });
+    document.getElementById("print-invoice").addEventListener("click", () => {
+      if (!lastDoc) {
+        document.getElementById("inv-err").textContent = "Create an invoice first.";
+        return;
+      }
+      const w = window.open(lastDoc, "_blank", "noopener");
+      if (w) w.addEventListener("load", () => w.print());
     });
 
     async function refresh() {

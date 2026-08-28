@@ -56,6 +56,8 @@ export type InvoiceCard = {
   ccEmails: string[];
   billing?: Address;
   delivery?: Address;
+  documentNumber?: string;
+  documentUrl?: string;
 };
 
 export function parseAmount(raw: string): number | null {
@@ -278,19 +280,32 @@ export function gmailDraft(
   ccEmails: string[] = [],
   billing = "",
   delivery = "",
+  invoiceNo = "",
 ): string {
-  const subject = `CBShippingSolutions invoice ${money(amount)}`;
+  const subject = invoiceNo
+    ? `Invoice ${invoiceNo} — ${money(amount)}`
+    : `CBShippingSolutions invoice ${money(amount)}`;
   const copies = ccEmails.filter(Boolean);
+  const memo = invoiceNo || "the invoice number";
   const body = [
     `Hi ${name.split(" ")[0] || "there"},`,
     "",
-    `Invoice for ${notes}. Amount due: ${money(amount)} USD.`,
-    "Pay with the WAAVE link below. This is the invoice amount already set — not a new quote.",
+    invoiceNo
+      ? `Attached is invoice ${invoiceNo} for ${notes}. Amount due: ${money(amount)} USD.`
+      : `Invoice for ${notes}. Amount due: ${money(amount)} USD.`,
+    "This is the invoice amount already set — not a new quote.",
+    "Pay by ACH, e-check, or wire using the bank details on page 2 of the invoice. Put " +
+      memo +
+      " in the payment memo. A $10 incoming wire fee is deducted — wire $" +
+      (amount + 10).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) +
+      " to net " +
+      money(amount) +
+      ".",
+    "To pay by card, email Mrs. Aliyah at Aliyah@cbshippingsolutions.com and ask for a PayPal Business payment link.",
     billing ? `Billing: ${billing}` : "",
     delivery ? `Delivery: ${delivery}` : "",
-    "",
-    payLink,
-    "",
+    payLink ? "" : "",
+    payLink ? `WAAVE card link (optional): ${payLink}` : "",
     copies.length ? `Office copy: ${copies.join(", ")}` : "",
     "CBGC LLC DBA CBShippingSolutions",
   ]
@@ -315,7 +330,7 @@ export function withInvoiceCopies(card: InvoiceCard, senderEmail: string): Invoi
     sentBy,
     ccEmails,
     gmailLink:
-      card.email && card.payLink
+      card.email
         ? gmailDraft(
             card.email,
             card.name,
@@ -325,6 +340,7 @@ export function withInvoiceCopies(card: InvoiceCard, senderEmail: string): Invoi
             ccEmails,
             formatAddress(card.billing),
             formatAddress(card.delivery),
+            card.documentNumber || "",
           )
         : card.gmailLink,
   };
@@ -358,7 +374,9 @@ export function parseInvoice(raw: unknown, draft?: InvoiceDraft, base = PROD_API
     name,
     notes,
     payLink,
-    gmailLink: email && payLink ? gmailDraft(email, name, amount, payLink, notes, [], formatAddress(draft?.billing), formatAddress(draft?.delivery)) : "",
+    gmailLink: email
+      ? gmailDraft(email, name, amount, payLink, notes, [], formatAddress(draft?.billing), formatAddress(draft?.delivery))
+      : "",
     referenceId: String(nested.reference_id || rec.reference_id || ""),
     timeCreated: String(nested.created_at || rec.created_at || new Date().toISOString()),
     emailedByWaave,
@@ -372,15 +390,16 @@ export function parseInvoice(raw: unknown, draft?: InvoiceDraft, base = PROD_API
 export function formatInvoiceCard(card: InvoiceCard): string {
   const when = card.timeCreated ? ` Created ${card.timeCreated.replace("T", " ").replace(/\.\d+Z$/, " UTC")}.` : "";
   return [
+    "CBSS INVOICE — navy/gold brand · ACH / wire / SWIFT on page 2",
     "WAAVE INVOICE — not a CBSS quote",
     `${card.name}  ${card.email}  ${money(card.amount)} ${card.currency}  ${card.status}`,
     card.notes,
     formatAddress(card.billing) ? `Billing: ${formatAddress(card.billing)}` : "",
     formatAddress(card.delivery) ? `Delivery: ${formatAddress(card.delivery)}` : "",
-    card.payLink ? `Pay link: ${card.payLink}` : "WAAVE did not return a pay link. Open the WAAVE merchant dashboard and check.",
+    card.payLink ? `Pay link: ${card.payLink}` : "WAAVE did not return a pay link. Open the branded invoice and use the wire instructions.",
     card.emailedByWaave
       ? "WAAVE emailed the customer the payment request."
-      : "Open Gmail from this tool and send the pay link from the company inbox. This tool does not send from Gmail.",
+      : "Open Gmail from this tool and send the invoice from the company inbox. This tool does not send from Gmail.",
     card.ccEmails?.length ? `CC: ${card.ccEmails.join(", ")}` : "",
     `Invoice ${card.id || "pending"}.${when}`,
     "Do not invent a different amount.",
