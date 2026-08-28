@@ -60,4 +60,12 @@ describe("CBSS public website", () => {
     assert.match(pages.find((p) => p.f === "index.html").t, /\/brand\/lockup\.png/);
     assert.match(pages.find((p) => p.f === "request.html").t, /requestForm/);
   });
+
+  it("sends the request to the office API and does not invent a price", () => {
+    const worker = readFileSync(new URL("../src/worker.js", import.meta.url), "utf8");
+    assert.match(worker, /\/contact/);
+    assert.match(worker, /crmIngestBody/);
+    assert.match(worker, /collectionResult/);
+    assert.doesNotMatch(worker, /We stored the request\. If you do not hear back/);
+  });
 });

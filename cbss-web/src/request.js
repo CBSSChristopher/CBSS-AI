@@ -54,6 +54,34 @@ export function validateInquiry(data) {
   return "";
 }
 
+export function crmIngestBody(data, id) {
+  return {
+    action: "ingestWebsiteLead",
+    requestId: id || "",
+    company: data.company || "",
+    name: data.name || "",
+    role: data.role || "",
+    phone: data.phone || "",
+    email: data.email || "",
+    zip: data.zip || "",
+    quantity: data.quantity || "",
+    use: data.use || "",
+    timeline: data.timeline || "",
+    notes: data.notes || ""
+  };
+}
+
+export function collectionResult({ stored, emailed, crmOk }) {
+  const kept = Boolean(stored || emailed || crmOk);
+  return {
+    ok: kept,
+    stored: Boolean(stored),
+    emailed: Boolean(emailed),
+    crm: Boolean(crmOk),
+    error: kept ? "" : "The request did not go through. Call the office."
+  };
+}
+
 export function inquiryText(data, id) {
   return [
     "Information request from cbshippingsolutions.app",
