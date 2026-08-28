@@ -90,13 +90,13 @@ function payLinkFrom(raw, id, base) {
 describe("CBSS Invoicing · WAAVE", () => {
   it("is a separate invoicing tool with company-email login", () => {
     assert.match(page, /CBSS Invoicing/);
-    assert.match(page, /build 3 · WAAVE/);
+    assert.match(page, /build 4 · WAAVE/);
     assert.match(page, /Billing address/);
     assert.match(page, /Delivery address/);
     assert.match(page, /Delivery is the same as billing/);
     assert.match(page, /Create WAAVE invoice/);
     assert.match(page, /Open Gmail/);
-    assert.match(page, /Type the amount Christopher set/);
+    assert.match(page, /amount is the number from the proposal after the customer agreed/);
     assert.match(auth, /COMPANY_RE/);
     assert.match(auth, /Use your company email/);
     assert.match(auth, /cbsscrm\.cbss\.workers\.dev\/auth\/login/);
@@ -282,5 +282,8 @@ describe("CBSS Invoicing · WAAVE", () => {
     assert.match(index, /billingStreet/);
     assert.match(index, /deliveryStreet/);
     assert.match(index, /sameAsBilling/);
+    assert.match(index, /invoice\/lookup/);
+    assert.match(page, /build 4/);
+    assert.match(page, /Use last agreed proposal amount/);
   });
 });
