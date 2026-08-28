@@ -70,6 +70,7 @@ const KNOWN_CRM_ACTIONS = new Set([
   "saveContactEdits",
   "saveProposals",
   "ingestProposal",
+  "ingestWebsiteLead",
   "importDeals",
   "importContacts",
   "getMetaStatus",
