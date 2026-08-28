@@ -2,10 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   canonicalizeOwner,
+  isUnassignedPool,
   mergeContactEdits,
   mergeContactsAdded,
   restoreMissingContacts,
-  healPortedBook
+  healPortedBook,
+  UNASSIGNED_POOL
 } from "../src/owners.js";
 
 test("canonicalizeOwner folds company email and local-part aliases onto one staff name", () => {
@@ -20,6 +22,10 @@ test("canonicalizeOwner folds company email and local-part aliases onto one staf
   assert.equal(canonicalizeOwner("Bryan Reese"), "Bryan Reese");
   assert.equal(canonicalizeOwner("Contact Owner"), "");
   assert.equal(canonicalizeOwner("Kristin Chapin"), "Kristin Chapin");
+  assert.equal(canonicalizeOwner("New/Unassigned"), UNASSIGNED_POOL);
+  assert.equal(canonicalizeOwner("new / unassigned"), UNASSIGNED_POOL);
+  assert.equal(canonicalizeOwner("Unassigned"), UNASSIGNED_POOL);
+  assert.equal(isUnassignedPool("New/Unassigned"), true);
 });
 
 test("mergeContactEdits keeps Kyle's self-assign when another rep saves a shorter local map", () => {

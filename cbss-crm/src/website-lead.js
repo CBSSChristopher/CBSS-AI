@@ -38,7 +38,7 @@ export function websiteLeadPayload(raw) {
     phone,
     zip,
     quantity: String(p.quantity || "").trim(),
-    owner: "Christopher Banks",
+    owner: "New/Unassigned",
     stage: "New Lead",
     source: "Quote Form",
     clientType: residential ? "Residential" : "Commercial",

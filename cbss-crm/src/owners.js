@@ -1,5 +1,12 @@
 export const COMPANY_EMAIL_RE = /@cbshippingsolutions\.com$/i;
 
+export const UNASSIGNED_POOL = "New/Unassigned";
+
+export function isUnassignedPool(value) {
+  const raw = String(value == null ? "" : value).trim().toLowerCase().replace(/[\s_-]+/g, "");
+  return raw === "new/unassigned" || raw === "newunassigned" || raw === "unassigned" || raw === "leadpool" || raw === "newpool";
+}
+
 export const STAFF_OWNERS = {
   christopher: "Christopher Banks",
   james: "James",
@@ -34,6 +41,7 @@ export function canonicalizeOwner(value) {
   const raw = String(value == null ? "" : value).trim().replace(/\s+/g, " ");
   if (!raw) return "";
   if (/^contact owner$/i.test(raw)) return "";
+  if (isUnassignedPool(raw)) return UNASSIGNED_POOL;
   const local = companyEmailLocal(raw);
   if (local) return STAFF_OWNERS[local] || titleCaseWords(local.replace(/[._-]+/g, " "));
   const lower = raw.toLowerCase();

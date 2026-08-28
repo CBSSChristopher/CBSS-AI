@@ -375,7 +375,7 @@
         <span class="mark">CB</span>
         <div>
           <h1>CBShippingSolutions</h1>
-          <p>Container Sales CRM · build 22</p>
+          <p>Container Sales CRM · build 23</p>
         </div>
       </div>
       <div class="user">
@@ -421,6 +421,7 @@
           <div class="filter-bar" role="group" aria-label="Owner scope">
             <button type="button" class="filter-chip owner-chip active" data-owner="" onclick="setOwnerChip(this)">All</button>
             <button type="button" class="filter-chip owner-chip" data-owner="__mine__" onclick="setOwnerChip(this)">Mine</button>
+            <button type="button" class="filter-chip owner-chip" data-owner="New/Unassigned" onclick="setOwnerChip(this)">New/Unassigned</button>
           </div>
           <label class="ctrl">
             <span>Sort</span>
@@ -468,6 +469,7 @@
           <div class="filter-bar" role="group" aria-label="Owner scope">
             <button type="button" class="filter-chip owner-chip active" data-owner="" onclick="setOwnerChip(this)">All</button>
             <button type="button" class="filter-chip owner-chip" data-owner="__mine__" onclick="setOwnerChip(this)">Mine</button>
+            <button type="button" class="filter-chip owner-chip" data-owner="New/Unassigned" onclick="setOwnerChip(this)">New/Unassigned</button>
           </div>
           <div class="filter-bar" role="group" aria-label="Follow-up filter">
             <button type="button" class="filter-chip active" data-fu="open" onclick="setFollowFilter('open')">Open / no date</button>
@@ -511,6 +513,7 @@
           <div class="filter-bar" style="padding:0 0 10px;">
             <button type="button" class="filter-chip owner-chip active" data-owner="" onclick="setOwnerChip(this)">All</button>
             <button type="button" class="filter-chip owner-chip" data-owner="__mine__" onclick="setOwnerChip(this)">Mine</button>
+            <button type="button" class="filter-chip owner-chip" data-owner="New/Unassigned" onclick="setOwnerChip(this)">New/Unassigned</button>
           </div>
           <p style="font-size:0.85rem;color:#666;margin-bottom:12px;">Click a name to open that contact here. Complete the task, save the next follow-up, or call without leaving this list.</p>
           <div id="tasksList"></div>
@@ -604,6 +607,8 @@
       const raw = String(s == null ? '' : s).trim().replace(/\s+/g, ' ');
       if (!raw) return '';
       if (/^contact owner$/i.test(raw)) return '';
+      const compact = raw.toLowerCase().replace(/[\s_-]+/g, '');
+      if (compact === 'new/unassigned' || compact === 'newunassigned' || compact === 'unassigned') return 'New/Unassigned';
       const email = raw.match(/^([^@\s]+)@cbshippingsolutions\.com$/i);
       const STAFF = {
         christopher: 'Christopher Banks',
@@ -1672,7 +1677,7 @@
         contacts.forEach(c => { if (c && c.status === 'Quoted') c.status = 'Quote'; if (c && (c.status === 'Connected' || c.status === 'Connecting')) c.status = 'Contacted'; });
         contacts.forEach(c => {
           const next = titleCaseOwner(c.owner);
-          if (!next && String(c.source || '') === 'Quote Form') c.owner = 'Christopher Banks';
+          if (!next && String(c.source || '') === 'Quote Form') c.owner = 'New/Unassigned';
           else if ((c.owner || '') !== next) c.owner = next;
         });
         deals.forEach(d => {
@@ -1801,6 +1806,7 @@
 
     function buildOwnerFilter() {
       const owners = [...new Set([
+        'New/Unassigned',
         ...contacts.map(c => titleCaseOwner(c && c.owner)).filter(Boolean),
         ...deals.map(d => titleCaseOwner(d && d.owner)).filter(Boolean)
       ])].sort();
@@ -2860,7 +2866,7 @@
         <div><label style="font-size:0.82rem;font-weight:600;">City</label><input type="text" id="mCity" /></div>
         <div><label style="font-size:0.82rem;font-weight:600;">State</label><input type="text" id="mState" /></div>
         <div><label style="font-size:0.82rem;font-weight:600;">Zip</label><input type="text" id="mZip" /></div>
-        <div><label style="font-size:0.82rem;font-weight:600;">Owner</label><input type="text" id="mOwner" placeholder="Your name" /></div>
+        <div><label style="font-size:0.82rem;font-weight:600;">Owner</label><input type="text" id="mOwner" list="ownerPoolList" placeholder="New/Unassigned or a rep name" /><datalist id="ownerPoolList"><option value="New/Unassigned"></option></datalist></div>
         <div><label style="font-size:0.82rem;font-weight:600;">Company</label><input type="text" id="mCompany" /></div>
         <div><label style="font-size:0.82rem;font-weight:600;">Source</label>
           <select id="mSource">
