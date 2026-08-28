@@ -80,7 +80,7 @@ export function pageHtml(): string {
   <header>
     <div>
       <div class="brand">CBSS Invoicing</div>
-      <div class="sub" id="stamp">build 3 · WAAVE</div>
+      <div class="sub" id="stamp">build 4 · WAAVE</div>
     </div>
     <div class="right">
       <div class="who hide" id="who"></div>
@@ -104,14 +104,14 @@ export function pageHtml(): string {
     <section id="desk" class="hide">
       <div class="card">
         <h2>Create a WAAVE invoice</h2>
-        <p class="muted">Type the amount Christopher set. Type the billing address and the delivery address. WAAVE makes the pay link. Open Gmail to send it — that draft CCs Christopher, Aliyah, and you. This is not a CBSS quote.</p>
+        <p class="muted">Use this tool for money in. The amount is the number from the proposal after the customer agreed — do not change it. Type the billing address and the delivery address. WAAVE makes the pay link. Open Gmail to send it — that draft CCs Christopher, Aliyah, and you.</p>
         <p class="err hide" id="waave-warn">WAAVE is not connected yet. Christopher: in the WAAVE merchant dashboard copy the public/access key, secret key, and venue id, then add WAAVE_API_KEY, WAAVE_API_SECRET, and WAAVE_VENUE_ID on this Worker.</p>
         <form id="inv-form">
           <div class="split">
             <div><label for="name">Customer name</label><input id="name" required placeholder="First Last" /></div>
             <div><label for="pay-email">Customer email</label><input id="pay-email" type="email" required /></div>
             <div><label for="phone">Phone</label><input id="phone" inputmode="tel" required placeholder="8703232593" /></div>
-            <div><label for="amount">Amount USD</label><input id="amount" inputmode="decimal" autocomplete="off" required placeholder="3990.00" /></div>
+            <div><label for="amount">Amount USD</label><input id="amount" inputmode="decimal" autocomplete="off" required placeholder="Agreed proposal cash" /></div>
           </div>
           <h3>Billing address</h3>
           <label for="bill-street">Street</label>
@@ -133,6 +133,7 @@ export function pageHtml(): string {
           <label for="notes">What this invoice is for</label>
           <textarea id="notes" rows="3" required placeholder="40HC CW delivered — paid before the truck"></textarea>
           <div class="row">
+            <button type="button" class="secondary" id="lookup-amount">Use last agreed proposal amount</button>
             <button type="submit">Create WAAVE invoice</button>
             <button type="button" class="secondary" id="copy-card">Copy card</button>
             <button type="button" class="secondary" id="open-gmail">Open Gmail</button>
@@ -220,6 +221,29 @@ export function pageHtml(): string {
     outBtn.addEventListener("click", async () => {
       await fetch("/auth/logout", { method: "POST", credentials: "same-origin" });
       show("login");
+    });
+
+    document.getElementById("lookup-amount").addEventListener("click", async () => {
+      const err = document.getElementById("inv-err");
+      err.textContent = "Looking up the last agreed proposal amount…";
+      const r = await fetch("/invoice/lookup", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: document.getElementById("pay-email").value,
+          phone: document.getElementById("phone").value,
+        }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (r.status === 401) { show("login"); return; }
+      if (!r.ok || !j.ok || !j.amount) {
+        err.textContent = j.error || "No agreed cash number in CRM. Type the number Christopher set.";
+        return;
+      }
+      document.getElementById("amount").value = String(j.amount);
+      if (j.name && !document.getElementById("name").value) document.getElementById("name").value = j.name;
+      err.textContent = "Filled from CRM " + (j.source || "proposal") + ". Do not change it unless Christopher says.";
     });
 
     document.getElementById("inv-form").addEventListener("submit", async (e) => {

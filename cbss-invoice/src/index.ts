@@ -8,6 +8,7 @@ import {
   listInvoices,
   waaveReady,
 } from "./waave";
+import { agreedProposalAmount } from "./lookup";
 
 const SECURITY = {
   "X-Content-Type-Options": "nosniff",
@@ -88,6 +89,32 @@ export default {
 
     if (request.method === "POST" && path === "/auth/logout") {
       return withCookies(200, { ok: true }, clearSession(request));
+    }
+
+    if (request.method === "POST" && path === "/invoice/lookup") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      const body = await readJson(request);
+      const cookie = user.crm ? "cbss_session=" + user.crm : "";
+      const req = new Request("https://cbsscrm.cbss.workers.dev/crm-data?action=get&omitNotes=1", {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          Origin: "https://cbsscrm.cbss.workers.dev",
+          Cookie: cookie,
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+        },
+      });
+      try {
+        const res = env.CRM ? await env.CRM.fetch(req) : await fetch(req);
+        const book = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+        if (!res.ok) return json(200, { ok: false, error: "Could not read CRM. Sign in again." });
+        const found = agreedProposalAmount(book, str(body.email), str(body.phone));
+        return json(200, found);
+      } catch {
+        return json(200, { ok: false, error: "Could not read CRM. Sign in again." });
+      }
     }
 
     if (request.method === "POST" && path === "/invoice/create") {

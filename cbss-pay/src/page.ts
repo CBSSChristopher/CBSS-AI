@@ -61,7 +61,7 @@ export function pageHtml(): string {
   <header>
     <div>
       <div class="brand">CBSS Pay</div>
-      <div class="sub" id="stamp">build 3 · Veem</div>
+      <div class="sub" id="stamp">build 5 · Veem waiting</div>
     </div>
     <div class="right">
       <div class="who hide" id="who"></div>
@@ -85,8 +85,8 @@ export function pageHtml(): string {
     <section id="desk" class="hide">
       <div class="card">
         <h2>Request a Veem payment</h2>
-        <p class="muted">Type the amount Christopher set. Veem emails the customer a request and gives you a pay link to copy. This is not a CBSS quote.</p>
-        <p class="err hide" id="veem-warn">Veem is not connected yet. Christopher: in apps.veem.com go to Settings → Integrations → Connect Veem API, generate the Client ID and Secret, then add them to this Worker.</p>
+        <p class="muted">Money in goes through Invoicing / WAAVE until Veem opens production. Do not invent an amount. If you are collecting now, use <a href="https://cbssinvoice.cbss.workers.dev">CBSS Invoicing</a>.</p>
+        <p class="err" id="veem-warn">Veem production is not open. Use Invoicing for money in. Leave this page unless Christopher says Veem is live.</p>
         <form id="pay-form">
           <div class="split">
             <div><label for="name">Customer name</label><input id="name" required placeholder="First Last" /></div>
