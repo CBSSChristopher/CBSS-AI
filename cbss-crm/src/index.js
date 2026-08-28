@@ -951,7 +951,7 @@ function ingestOne(state, archive, payload, source) {
     if (incomingSource && (isBlank(contact.source) || isSheetTitle(contact.source) || incomingSource === "Quote Form" && contact.source === "Manual")) {
       updates.source = incomingSource;
     }
-    if (payload.stage) {
+    if (payload.stage && !payload.skipStageOnExisting) {
       const mapped = mapStage(payload.stage);
       if (mapped) updates.status = mapped;
     } else if (contact.status && mapStage(contact.status) !== contact.status) {
@@ -977,6 +977,9 @@ function ingestOne(state, archive, payload, source) {
         state.notes[contact.id].unshift(note);
       }
     }
+  }
+  if (payload.skipDeal) {
+    return { contact, deal: null, created };
   }
   const deal = upsertDeal(state.deals, contact, {
     stage: mapStage(payload.stage || contact.status || "Quote"),
@@ -1285,7 +1288,9 @@ async function handleCrmData(request, env) {
           amount: "",
           wholesale: "",
           unitPrice: "",
-          wholesaleCost: ""
+          wholesaleCost: "",
+          skipDeal: true,
+          skipStageOnExisting: true
         },
         "Quote Form"
       );
@@ -1294,7 +1299,7 @@ async function handleCrmData(request, env) {
         ok: true,
         created: result.created,
         contactId: result.contact.id,
-        dealId: result.deal.id
+        dealId: result.deal && result.deal.id
       });
     }
     if (action === "ingestProposal") {

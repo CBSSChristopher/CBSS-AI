@@ -43,6 +43,8 @@ export function websiteLeadPayload(raw) {
     source: "Quote Form",
     clientType: residential ? "Residential" : "Commercial",
     notes: websiteLeadNote(p),
-    requestId: String(p.requestId || p.id || "").trim()
+    requestId: String(p.requestId || p.id || "").trim(),
+    skipDeal: true,
+    skipStageOnExisting: true
   };
 }

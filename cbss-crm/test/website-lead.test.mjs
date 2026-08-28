@@ -19,6 +19,8 @@ test("website lead keeps the form fields and invents no price", () => {
   assert.equal(payload.clientType, "Commercial");
   assert.equal(payload.amount, undefined);
   assert.equal(payload.wholesale, undefined);
+  assert.equal(payload.skipDeal, true);
+  assert.equal(payload.skipStageOnExisting, true);
   assert.match(payload.notes, /Harbor Test Co/);
   assert.match(payload.notes, /Do not invent a price/);
   assert.match(websiteLeadNote(payload), /Request id: abc-1/);
