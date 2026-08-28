@@ -1,12 +1,24 @@
 # CBSS Invoicing
 
-Standalone WAAVE invoice tool. It does not merge with Desk, CRM, Pay, or Proposal.
+Standalone invoice tool. It does not merge with Desk, CRM, Pay, or Proposal.
 
 Live: `https://cbssinvoice.cbss.workers.dev`
 
-Sign in with the same company email and CRM password. Type the amount Christopher set. Type the billing address and the delivery address (or check that they are the same). The tool asks WAAVE for a pay link. It does not invent a price. It does not collect a card number. It does not send from Gmail. Open Gmail to send the pay link; that draft CCs Christopher, Aliyah, and the signed-in rep, and includes both addresses. WAAVE may also email the customer when the payment-request send succeeds.
+Sign in with the same company email and CRM password. Type the amount Christopher set. Type the billing address and the delivery address (or check that they are the same). The tool builds the navy/gold CBSS invoice — Times “CB” mark, Helvetica body, gold invoice number — and always prints ACH, domestic wire, and SWIFT on page 2. It does not invent a price. It does not collect a card number. It does not send from Gmail. Open Gmail to send the invoice; that draft CCs Christopher, Aliyah, and the signed-in rep, and includes both addresses plus the wire memo. WAAVE may still make an optional card-pay link when those keys are set.
 
-## WAAVE keys
+## Brand
+
+Every generated invoice uses the same sheet:
+
+- Navy `#0B1F3A` header, banners, table head, and total-due box
+- Gold `#C9A227` monogram ring, invoice number, and section labels
+- Cream party / terms cards, mint warranty card
+- Serif (Times) for the CB seal, invoice number, and “How to Pay”
+- Sans (Helvetica / Arial) for company name and body copy
+
+Page 2 is required: ACH / e-check (Lead Bank), domestic wire (add $10 for the incoming fee), and international SWIFT.
+
+## WAAVE keys (optional card link)
 
 From the WAAVE merchant dashboard, copy:
 

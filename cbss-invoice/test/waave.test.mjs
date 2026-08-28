@@ -90,11 +90,11 @@ function payLinkFrom(raw, id, base) {
 describe("CBSS Invoicing · WAAVE", () => {
   it("is a separate invoicing tool with company-email login", () => {
     assert.match(page, /CBSS Invoicing/);
-    assert.match(page, /build 4 · WAAVE/);
+    assert.match(page, /build 5 · branded invoice \+ wire/);
     assert.match(page, /Billing address/);
     assert.match(page, /Delivery address/);
     assert.match(page, /Delivery is the same as billing/);
-    assert.match(page, /Create WAAVE invoice/);
+    assert.match(page, /Create invoice/);
     assert.match(page, /Open Gmail/);
     assert.match(page, /amount is the number from the proposal after the customer agreed/);
     assert.match(auth, /COMPANY_RE/);
@@ -283,7 +283,7 @@ describe("CBSS Invoicing · WAAVE", () => {
     assert.match(index, /deliveryStreet/);
     assert.match(index, /sameAsBilling/);
     assert.match(index, /invoice\/lookup/);
-    assert.match(page, /build 4/);
+    assert.match(page, /build 5/);
     assert.match(page, /Use last agreed proposal amount/);
   });
 });

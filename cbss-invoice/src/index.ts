@@ -5,17 +5,28 @@ import {
   completeDraft,
   createInvoice,
   formatInvoiceCard,
+  gmailDraft,
+  invoiceCopyEmails,
   listInvoices,
+  money,
   waaveReady,
 } from "./waave";
 import { agreedProposalAmount } from "./lookup";
+import {
+  documentFromDraft,
+  nextCbsNumber,
+  parseItems,
+  readDocument,
+  renderInvoiceHtml,
+  saveDocument,
+} from "./document";
 
 const SECURITY = {
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "same-origin",
   "X-Frame-Options": "DENY",
   "Content-Security-Policy":
-    "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'none'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+    "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'none'; connect-src 'self'; frame-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
 };
 
 function json(status: number, body: unknown): Response {
@@ -140,9 +151,99 @@ export default {
         sameAsBilling: body.sameAsBilling === true || body.sameAsBilling === "true",
       });
       if ("error" in draft) return json(200, { ok: false, error: draft.error });
-      const result = await createInvoice(env, draft, url.origin, user.email);
-      if (!result.ok) return json(200, { ok: false, error: result.error });
-      return json(200, { ok: true, card: result.card, cardText: formatInvoiceCard(result.card) });
+      const items = parseItems(body.items, draft.notes, draft.amount);
+      if ("error" in items) return json(200, { ok: false, error: items.error });
+      const itemTotal = Math.round(items.reduce((sum, item) => sum + item.qty * item.unit, 0) * 100) / 100;
+      if (itemTotal !== draft.amount) {
+        return json(200, { ok: false, error: "Line items must add up to the invoice amount Christopher set." });
+      }
+      const number = str(body.invoiceNumber) || (await nextCbsNumber(env));
+      const warrantyKind = str(body.warrantyKind) === "one-trip" ? "one-trip" : "wwt";
+      const document = documentFromDraft(draft, {
+        number,
+        company: str(body.company),
+        items,
+        warrantyKind,
+        banner: str(body.banner),
+      });
+      await saveDocument(env, document);
+      const documentUrl = `${url.origin}/invoice/document/${encodeURIComponent(number)}`;
+      const ccEmails = invoiceCopyEmails(user.email);
+      const result = waaveReady(env) ? await createInvoice(env, draft, url.origin, user.email) : null;
+      const card = result && result.ok
+        ? {
+            ...result.card,
+            documentNumber: number,
+            documentUrl,
+            referenceId: number,
+            gmailLink: gmailDraft(
+              draft.email,
+              `${draft.firstName} ${draft.lastName}`,
+              draft.amount,
+              result.card.payLink,
+              draft.notes,
+              ccEmails,
+              `${draft.billing.street}, ${draft.billing.city}, ${draft.billing.state} ${draft.billing.zip}`,
+              `${draft.delivery.street}, ${draft.delivery.city}, ${draft.delivery.state} ${draft.delivery.zip}`,
+              number,
+            ),
+          }
+        : {
+            id: number,
+            status: "draft",
+            amount: draft.amount,
+            currency: "USD",
+            email: draft.email,
+            name: `${draft.firstName} ${draft.lastName}`,
+            notes: draft.notes,
+            payLink: "",
+            gmailLink: gmailDraft(
+              draft.email,
+              `${draft.firstName} ${draft.lastName}`,
+              draft.amount,
+              "",
+              draft.notes,
+              ccEmails,
+              `${draft.billing.street}, ${draft.billing.city}, ${draft.billing.state} ${draft.billing.zip}`,
+              `${draft.delivery.street}, ${draft.delivery.city}, ${draft.delivery.state} ${draft.delivery.zip}`,
+              number,
+            ),
+            referenceId: number,
+            timeCreated: new Date().toISOString(),
+            emailedByWaave: false,
+            sentBy: user.email,
+            ccEmails,
+            billing: draft.billing,
+            delivery: draft.delivery,
+            documentNumber: number,
+            documentUrl,
+          };
+      const warn = result && !result.ok ? result.error : "";
+      return json(200, {
+        ok: true,
+        card,
+        cardText: formatInvoiceCard(card),
+        document,
+        documentUrl,
+        documentNumber: number,
+        warn,
+        amount: money(draft.amount),
+      });
+    }
+
+    if (request.method === "GET" && path.startsWith("/invoice/document/")) {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      const number = decodeURIComponent(path.slice("/invoice/document/".length)).trim();
+      const document = await readDocument(env, number);
+      if (!document) return json(404, { error: "Invoice not found." });
+      return new Response(renderInvoiceHtml(document), {
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          "Cache-Control": "no-store",
+          ...SECURITY,
+        },
+      });
     }
 
     if (request.method === "GET" && path === "/invoice/list") {
