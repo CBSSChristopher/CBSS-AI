@@ -110,4 +110,22 @@ describe("CBSS branded invoice document", () => {
     assert.equal(draftDoc.total, 3990);
     assert.match(renderInvoiceHtml(draftDoc), /Wire \$4,000\.00 to net \$3,990\.00/);
   });
+
+  it("does not print the company name twice on Bill To / Ship To", () => {
+    const html = renderInvoiceHtml(
+      buildInvoiceDocument({
+        number: "CBS-2026-107",
+        date: "August 23, 2026",
+        name: "Brent Snyder",
+        company: "Trapper Creek LLC",
+        email: "trappercreekllc@gmail.com",
+        phone: "5859445826",
+        billingLines: ["Trapper Creek LLC", "1315 Clinton St.", "Attica, NY"],
+        shippingLines: ["Trapper Creek LLC", "10770 Bowen Rd.", "Attica, NY 14011"],
+        items: [{ title: "40' WWT delivered", qty: 1, unit: 3080 }],
+      }),
+    );
+    const bill = html.split("BILL TO")[1].split("SHIP TO")[0];
+    assert.equal(bill.split("Trapper Creek LLC").length - 1, 1);
+  });
 });

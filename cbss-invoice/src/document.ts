@@ -236,10 +236,12 @@ function formatPhone(raw: string): string {
 }
 
 function partyHtml(title: string, party: Party, extra: string[] = []): string {
+  const company = String(party.company || "").trim();
+  const lines = party.lines.filter((line) => String(line || "").trim() && String(line).trim() !== company);
   const bits = [
     party.name ? `<strong>${escapeHtml(party.name)}</strong>` : "",
-    party.company ? escapeHtml(party.company) : "",
-    ...party.lines.map((line) => escapeHtml(line)),
+    company ? escapeHtml(company) : "",
+    ...lines.map((line) => escapeHtml(line)),
     party.phone ? escapeHtml(party.phone) : "",
     party.email ? escapeHtml(party.email) : "",
     ...extra.map((line) => escapeHtml(line)),

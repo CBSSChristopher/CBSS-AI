@@ -8,8 +8,8 @@ export const EXISTING = [
     company: "Trapper Creek LLC",
     email: "trappercreekllc@gmail.com",
     phone: "5859445826",
-    billingLines: ["Trapper Creek LLC", "1315 Clinton St.", "Attica, NY"],
-    shippingLines: ["Trapper Creek LLC", "Attn: Brent Snyder", "10770 Bowen Rd.", "Attica, NY 14011", "Confirm site access before dispatch."],
+    billingLines: ["1315 Clinton St.", "Attica, NY"],
+    shippingLines: ["Attn: Brent Snyder", "10770 Bowen Rd.", "Attica, NY 14011", "Confirm site access before dispatch."],
     items: [
       {
         title: "Used 40' Standard Height cargo-worthy shipping container — wind & water tight",
