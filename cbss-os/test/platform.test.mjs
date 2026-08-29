@@ -1,0 +1,112 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+import { readFileSync } from "node:fs";
+import { BRAND, LIVE_TOOLS, MODULES } from "../src/brand.ts";
+import { emptyTools, isCompanyEmail, makeSession, origins, readSession, toolsReady } from "../src/auth.ts";
+import { pageHtml } from "../src/page.ts";
+
+const page = pageHtml();
+const index = readFileSync(new URL("../src/index.ts", import.meta.url), "utf8");
+const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
+const wrangler = readFileSync(new URL("../wrangler.jsonc", import.meta.url), "utf8");
+
+describe("CBSS platform brand", () => {
+  it("uses navy, gold, cream, Times seal, Helvetica body", () => {
+    assert.equal(BRAND.navy, "#0B1F3A");
+    assert.equal(BRAND.gold, "#C9A227");
+    assert.equal(BRAND.paper, "#F7F4EC");
+    assert.match(page, /#0B1F3A/);
+    assert.match(page, /#C9A227/);
+    assert.match(page, /#F7F4EC/);
+    assert.match(page, /Times New Roman/);
+    assert.match(page, /Helvetica/);
+    assert.match(page, />CB</);
+    assert.match(page, /CB SHIPPING SOLUTIONS/);
+    assert.match(page, /CBGC LLC DBA CB Shipping Solutions/);
+  });
+
+  it("puts all four models in one shell", () => {
+    for (const name of MODULES) assert.match(page, new RegExp(name));
+    assert.match(page, /data-mod="crm"/);
+    assert.match(page, /data-mod="desk"/);
+    assert.match(page, /data-mod="proposal"/);
+    assert.match(page, /data-mod="money"/);
+    assert.match(page, /Call scraps/);
+    assert.match(page, /Proposal Builder/);
+    assert.match(page, /Invoice — ACH \/ wire only/);
+    assert.match(page, /Veem payment request/);
+  });
+});
+
+describe("hard rules stay on the platform", () => {
+  it("does not invent a price and keeps door types separate", () => {
+    assert.match(page, /I will not invent a price/);
+    assert.match(page, /Do not invent a price/);
+    assert.match(page, /Do not invent a wholesale/);
+    assert.match(page, /Side door \(OS 2D\)/);
+    assert.match(page, /Side door \(OS 4D\)/);
+    assert.match(page, /Full open side/);
+    assert.match(page, /OS 2D, OS 4D, and Full open side are different boxes/);
+    assert.match(page, /This tool does not send from Gmail|This tool does not send Gmail/);
+  });
+
+  it("is company email only", () => {
+    assert.equal(isCompanyEmail("rep@cbshippingsolutions.com"), true);
+    assert.equal(isCompanyEmail("bankschristopher0300@gmail.com"), false);
+    assert.match(page, /@cbshippingsolutions\.com/);
+    assert.match(page, /Company email only/);
+  });
+
+  it("does not replace or deploy over the live tools", () => {
+    assert.match(readme, /does \*\*not\*\* replace/);
+    assert.match(page, /does not replace the live tools/);
+    assert.match(page, /live tools unchanged/);
+    assert.match(wrangler, /"name": "cbssos"/);
+    assert.doesNotMatch(wrangler, /"name": "cbss(crm|brain|completetool|pay|invoice)"/);
+    assert.match(index, /\/x\/crm/);
+    assert.match(index, /\/x\/desk/);
+    assert.match(index, /\/x\/proposal/);
+    assert.match(index, /\/x\/pay/);
+    assert.match(index, /\/x\/invoice/);
+    assert.equal(origins({}).crm, LIVE_TOOLS.crm);
+    assert.equal(origins({}).desk, LIVE_TOOLS.desk);
+    assert.equal(origins({}).proposal, LIVE_TOOLS.proposal);
+    assert.equal(origins({}).pay, LIVE_TOOLS.pay);
+    assert.equal(origins({}).invoice, LIVE_TOOLS.invoice);
+  });
+});
+
+describe("session stays small", () => {
+  it("stores tool cookies in KV so the browser cookie stays under 4KB", async () => {
+    const bag = new Map();
+    const env = {
+      AUTH_SECRET: "platform-test-secret-not-for-production",
+      SESSIONS: {
+        get: async (key) => bag.get(key) ?? null,
+        put: async (key, value) => {
+          bag.set(key, value);
+        },
+        delete: async (key) => {
+          bag.delete(key);
+        },
+      },
+    };
+    const fat = "x".repeat(800);
+    const user = {
+      email: "rep@cbshippingsolutions.com",
+      name: "Rep",
+      tools: { crm: fat, desk: fat, proposal: fat, pay: fat, invoice: fat },
+    };
+    const request = new Request("https://cbssos.cbss.workers.dev/");
+    const cookies = await makeSession(request, env, user);
+    assert.ok(cookies[0].length < 800, cookies[0].length);
+    const inbound = new Request("https://cbssos.cbss.workers.dev/", {
+      headers: { Cookie: cookies[0].split(";")[0] },
+    });
+    const got = await readSession(inbound, env);
+    assert.equal(got?.email, user.email);
+    assert.equal(got?.tools.crm.length, 800);
+    assert.deepEqual(toolsReady(got.tools), { crm: true, desk: true, proposal: true, pay: true, invoice: true });
+    assert.deepEqual(toolsReady(emptyTools()), { crm: false, desk: false, proposal: false, pay: false, invoice: false });
+  });
+});
