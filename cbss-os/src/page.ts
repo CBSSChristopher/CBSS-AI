@@ -610,16 +610,19 @@ export function pageHtml(): string {
       const notes = (res.j.notes && (res.j.notes[id]||res.j.notes[String(id)])) || selected.notes || [];
       selected.notes = notes;
       const fu = (book.followups||{})[id] || (book.followups||{})[String(id)] || {};
-      const phone = String(selected.phone||"").replace(/\\D/g,"");
-      const tel = phone.length===11 && phone.charAt(0)==="1" ? phone.slice(1) : phone;
+      const digits = String(selected.phone||"").replace(/\\D/g,"");
+      const tel = digits.length===11 && digits.charAt(0)==="1" ? digits.slice(1) : digits;
       const mail = String(selected.email||"").trim();
       const gmail = mail ? "https://mail.google.com/mail/?view=cm&fs=1&to="+encodeURIComponent(mail) : "";
+      const callHref = tel.length>=7 ? "tel:+1"+tel : "";
+      const textHref = tel.length>=7 ? "sms:+1"+tel : "";
       $("crm-detail").innerHTML = "<h2>"+esc(selected.name||"")+"</h2>"
         +'<p class="muted">'+esc([selected.company,selected.phone,selected.city,selected.state].filter(Boolean).join(" · "))+"</p>"
         +"<p>Owner "+esc(selected.owner||"")+" · "+esc(selected.status||"")+(selected.amount?" · "+money(selected.amount):"")+"</p>"
         +'<div class="acts">'
-        +(tel.length===10 ? '<a class="gold" href="tel:+1'+tel+'">Call</a><a class="secondary" href="sms:+1'+tel+'">Text</a>' : "")
-        +(gmail ? '<a class="secondary" href="'+esc(gmail)+'" target="_blank" rel="noopener">Email</a>' : "")
+        +(callHref ? '<a class="gold" href="'+callHref+'">Call</a>' : '<button type="button" class="secondary" disabled title="No phone on this contact">Call</button>')
+        +(gmail ? '<a class="secondary" href="'+esc(gmail)+'" target="_blank" rel="noopener">Email</a>' : '<button type="button" class="secondary" disabled title="No email on this contact">Email</button>')
+        +(textHref ? '<a class="secondary" href="'+textHref+'">Text</a>' : '<button type="button" class="secondary" disabled title="No phone on this contact">Text</button>')
         +'<button type="button" class="secondary" id="add-campaign">Add to email campaign</button>'
         +"</div>"
         +'<label>Follow-up</label><input id="fu-act" value="'+esc(fu.nextAction||"")+'" placeholder="e.g. Call about 40ft WWT pricing" />'
