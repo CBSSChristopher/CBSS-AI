@@ -298,6 +298,17 @@ def write_pdf(path):
     c.setFillColorRGB(*GOLD)
     c.setFont("Helvetica-Bold", 8)
     c.drawCentredString(W / 2, H - 1.50 * inch, "OCEAN QUOTE #1858652  ·  MINNEAPOLIS → ASHDOD (ISRAEL)  ·  INLAND REMOVED")
+    c.setFillColorRGB(*INK)
+    c.setFont("Helvetica-Bold", 8)
+    c.drawString(0.55 * inch, H - 1.78 * inch, "BILL TO")
+    c.drawString(4.3 * inch, H - 1.78 * inch, "OCEAN LANE")
+    c.setFont("Helvetica", 8)
+    c.drawString(0.55 * inch, H - 1.92 * inch, "Jamie Palmer")
+    c.drawString(0.55 * inch, H - 2.04 * inch, "7624 Coachlight Lane, Ellicott City, MD 21043")
+    c.drawString(0.55 * inch, H - 2.16 * inch, "jamiedpalmer@yahoo.com")
+    c.drawString(4.3 * inch, H - 1.92 * inch, "Minneapolis → Ashdod Port, Israel")
+    c.drawString(4.3 * inch, H - 2.04 * inch, "1 x 40HC SOC · 10,000 lb / 4,535.97 kg")
+    c.drawString(4.3 * inch, H - 2.16 * inch, "Quote #1858652 · dated August 28, 2026")
     lines = [
         ("Freight — 40' container (Minneapolis to Ashdod)", 3985),
         ("Bunker Adjustment Factor (BAF)", 380),
@@ -309,7 +320,7 @@ def write_pdf(path):
         ("Dest. customs clearance & docs (duties/VAT not incl.)", 850),
         ("Dest. delivery / consignee handling at Ashdod Port", 950),
     ]
-    y = H - 1.82 * inch
+    y = H - 2.36 * inch
     band(c, y, 0.18 * inch, NAVY)
     c.setFillColorRGB(*GOLD)
     c.setFont("Helvetica-Bold", 8)
@@ -347,7 +358,7 @@ def write_pdf(path):
     c.setFillColorRGB(*NAVY)
     c.setFont("Times-Bold", 20)
     c.drawString(0.55 * inch, H - 1.65 * inch, "Ocean quote — do not pay yet")
-    wrap(c, f"Calculator total {money(OCEAN)} after inland lines were removed. Not a Lufran confirmation. Not a CBSS invoice.", 0.55 * inch, H - 1.90 * inch, 7.4 * inch)
+    wrap(c, f"Billed to Jamie Palmer. Calculator total {money(OCEAN)} after inland lines were removed. Not a Lufran confirmation. Not a CBSS invoice.", 0.55 * inch, H - 1.90 * inch, 7.4 * inch)
     c.setFillColorRGB(*NAVY)
     c.roundRect(0.5 * inch, 4.85 * inch, 7.5 * inch, 2.75 * inch, 6, fill=1, stroke=0)
     c.setFillColorRGB(*GOLD)
