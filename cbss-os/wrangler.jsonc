@@ -13,6 +13,13 @@
   "kv_namespaces": [
     { "binding": "SESSIONS", "id": "263964e72f644f63b9499b0da95a1b5c" }
   ],
+  "services": [
+    { "binding": "CRM", "service": "cbsscrm" },
+    { "binding": "DESK", "service": "cbssbrain" },
+    { "binding": "PROPOSAL", "service": "cbsscompletetool" },
+    { "binding": "PAY", "service": "cbsspay" },
+    { "binding": "INVOICE", "service": "cbssinvoice" }
+  ],
   "vars": {
     "PUBLIC_TITLE": "CBSS Platform",
     "CRM_ORIGIN": "https://cbsscrm.cbss.workers.dev",

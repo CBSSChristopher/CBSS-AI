@@ -232,7 +232,8 @@ async function loginOrigin(
   });
   const res = fetcher ? await fetcher.fetch(req) : await fetch(req);
   const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-  const user = (body.user || {}) as { email?: string; name?: string };
+  const nested = (body.user && typeof body.user === "object" ? body.user : {}) as { email?: string; name?: string };
+  const name = String(nested.name || body.name || email);
   const cookie = cookieFromSetCookie(res.headers, [
     "cbss_session",
     "cbss_brain",
@@ -242,7 +243,10 @@ async function loginOrigin(
   if (!res.ok || body.ok === false) {
     return { ok: false, status: res.status, cookie: "", name: "", error: String(body.error || "Could not sign in.") };
   }
-  return { ok: true, status: res.status, cookie, name: user.name || email };
+  if (!cookie) {
+    return { ok: false, status: 502, cookie: "", name: "", error: "That tool signed in but did not return a session cookie." };
+  }
+  return { ok: true, status: res.status, cookie, name };
 }
 
 export async function loginAllTools(
