@@ -90,11 +90,12 @@ function payLinkFrom(raw, id, base) {
 describe("CBSS Invoicing · WAAVE", () => {
   it("is a separate invoicing tool with company-email login", () => {
     assert.match(page, /CBSS Invoicing/);
-    assert.match(page, /build 5 · branded invoice \+ wire/);
+    assert.match(page, /build 6 · branded invoice · ACH or card/);
     assert.match(page, /Billing address/);
     assert.match(page, /Delivery address/);
     assert.match(page, /Delivery is the same as billing/);
-    assert.match(page, /Create invoice/);
+    assert.match(page, /Invoice — ACH \/ wire only/);
+    assert.match(page, /Invoice \+ card pay link/);
     assert.match(page, /Open Gmail/);
     assert.match(page, /amount is the number from the proposal after the customer agreed/);
     assert.match(auth, /COMPANY_RE/);
@@ -283,7 +284,54 @@ describe("CBSS Invoicing · WAAVE", () => {
     assert.match(index, /deliveryStreet/);
     assert.match(index, /sameAsBilling/);
     assert.match(index, /invoice\/lookup/);
-    assert.match(page, /build 5/);
+    assert.match(page, /build 6/);
     assert.match(page, /Use last agreed proposal amount/);
+  });
+
+  it("builds an ACH / wire-only invoice without a card pay link", async () => {
+    const { gmailDraft, formatInvoiceCard, isAchPayMethod } = await import("../src/waave.ts");
+    assert.equal(isAchPayMethod("ach"), true);
+    assert.equal(isAchPayMethod("WIRE"), true);
+    assert.equal(isAchPayMethod("card"), false);
+    const link = gmailDraft(
+      "gary@test.com",
+      "Gary Smith",
+      3990,
+      "",
+      "40HC CW",
+      [],
+      "100 Office Rd, Jonesboro, AR 72401",
+      "400 Job Site, Paragould, AR 72450",
+      "CBS-2026-112",
+      "ach",
+    );
+    const decoded = decodeURIComponent(link);
+    assert.match(decoded, /Invoice CBS-2026-112/);
+    assert.match(decoded, /ACH \/ wire only/);
+    assert.doesNotMatch(decoded, /WAAVE/);
+    assert.doesNotMatch(decoded, /PayPal/);
+    const text = formatInvoiceCard({
+      id: "CBS-2026-112",
+      status: "ach",
+      amount: 3990,
+      currency: "USD",
+      email: "gary@test.com",
+      name: "Gary Smith",
+      notes: "40HC CW",
+      payLink: "",
+      payMethod: "ach",
+      gmailLink: link,
+      referenceId: "CBS-2026-112",
+      timeCreated: "",
+      emailedByWaave: false,
+      sentBy: "",
+      ccEmails: [],
+    });
+    assert.match(text, /ACH \/ WIRE ONLY/);
+    assert.doesNotMatch(text, /WAAVE INVOICE/);
+    assert.match(index, /isAchPayMethod/);
+    assert.match(index, /payMethod === "card"/);
+    assert.match(page, /payMethod: payMethod/);
+    assert.match(page, /create-ach/);
   });
 });

@@ -7,8 +7,10 @@ import {
   formatInvoiceCard,
   gmailDraft,
   invoiceCopyEmails,
+  isAchPayMethod,
   listInvoices,
   money,
+  rememberInvoice,
   waaveReady,
 } from "./waave";
 import { agreedProposalAmount } from "./lookup";
@@ -169,10 +171,15 @@ export default {
       await saveDocument(env, document);
       const documentUrl = `${url.origin}/invoice/document/${encodeURIComponent(number)}`;
       const ccEmails = invoiceCopyEmails(user.email);
-      const result = waaveReady(env) ? await createInvoice(env, draft, url.origin, user.email) : null;
+      const payMethod = isAchPayMethod(body.payMethod) ? "ach" : "card";
+      const result =
+        payMethod === "card" && waaveReady(env) ? await createInvoice(env, draft, url.origin, user.email) : null;
+      const billLine = `${draft.billing.street}, ${draft.billing.city}, ${draft.billing.state} ${draft.billing.zip}`;
+      const delLine = `${draft.delivery.street}, ${draft.delivery.city}, ${draft.delivery.state} ${draft.delivery.zip}`;
       const card = result && result.ok
         ? {
             ...result.card,
+            payMethod: "card" as const,
             documentNumber: number,
             documentUrl,
             referenceId: number,
@@ -183,20 +190,22 @@ export default {
               result.card.payLink,
               draft.notes,
               ccEmails,
-              `${draft.billing.street}, ${draft.billing.city}, ${draft.billing.state} ${draft.billing.zip}`,
-              `${draft.delivery.street}, ${draft.delivery.city}, ${draft.delivery.state} ${draft.delivery.zip}`,
+              billLine,
+              delLine,
               number,
+              "card",
             ),
           }
         : {
             id: number,
-            status: "draft",
+            status: payMethod === "ach" ? "ach" : "draft",
             amount: draft.amount,
             currency: "USD",
             email: draft.email,
             name: `${draft.firstName} ${draft.lastName}`,
             notes: draft.notes,
             payLink: "",
+            payMethod,
             gmailLink: gmailDraft(
               draft.email,
               `${draft.firstName} ${draft.lastName}`,
@@ -204,9 +213,10 @@ export default {
               "",
               draft.notes,
               ccEmails,
-              `${draft.billing.street}, ${draft.billing.city}, ${draft.billing.state} ${draft.billing.zip}`,
-              `${draft.delivery.street}, ${draft.delivery.city}, ${draft.delivery.state} ${draft.delivery.zip}`,
+              billLine,
+              delLine,
               number,
+              payMethod,
             ),
             referenceId: number,
             timeCreated: new Date().toISOString(),
@@ -218,7 +228,13 @@ export default {
             documentNumber: number,
             documentUrl,
           };
-      const warn = result && !result.ok ? result.error : "";
+      if (!(result && result.ok)) await rememberInvoice(env, card);
+      const warn =
+        payMethod === "ach"
+          ? ""
+          : result && !result.ok
+            ? result.error
+            : "";
       return json(200, {
         ok: true,
         card,
@@ -226,6 +242,7 @@ export default {
         document,
         documentUrl,
         documentNumber: number,
+        payMethod,
         warn,
         amount: money(draft.amount),
       });

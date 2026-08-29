@@ -58,7 +58,13 @@ export type InvoiceCard = {
   delivery?: Address;
   documentNumber?: string;
   documentUrl?: string;
+  payMethod?: "card" | "ach";
 };
+
+export function isAchPayMethod(raw: unknown): boolean {
+  const v = String(raw || "").trim().toLowerCase();
+  return v === "ach" || v === "wire" || v === "transfer";
+}
 
 export function parseAmount(raw: string): number | null {
   const clean = String(raw || "").replace(/[$,\s]/g, "");
@@ -281,6 +287,7 @@ export function gmailDraft(
   billing = "",
   delivery = "",
   invoiceNo = "",
+  payMethod: "card" | "ach" = "card",
 ): string {
   const subject = invoiceNo
     ? `Invoice ${invoiceNo} — ${money(amount)}`
@@ -301,11 +308,12 @@ export function gmailDraft(
       " to net " +
       money(amount) +
       ".",
-    "To pay by card, email Mrs. Aliyah at Aliyah@cbshippingsolutions.com and ask for a PayPal Business payment link.",
+    payMethod === "ach"
+      ? "This invoice is ACH / wire only — there is no card pay link."
+      : "To pay by card, email Mrs. Aliyah at Aliyah@cbshippingsolutions.com and ask for a PayPal Business payment link.",
     billing ? `Billing: ${billing}` : "",
     delivery ? `Delivery: ${delivery}` : "",
-    payLink ? "" : "",
-    payLink ? `WAAVE card link (optional): ${payLink}` : "",
+    payLink && payMethod !== "ach" ? `WAAVE card link (optional): ${payLink}` : "",
     copies.length ? `Office copy: ${copies.join(", ")}` : "",
     "CBGC LLC DBA CBShippingSolutions",
   ]
@@ -389,14 +397,19 @@ export function parseInvoice(raw: unknown, draft?: InvoiceDraft, base = PROD_API
 
 export function formatInvoiceCard(card: InvoiceCard): string {
   const when = card.timeCreated ? ` Created ${card.timeCreated.replace("T", " ").replace(/\.\d+Z$/, " UTC")}.` : "";
+  const achOnly = card.payMethod === "ach" || card.status === "ach";
   return [
     "CBSS INVOICE — navy/gold brand · ACH / wire / SWIFT on page 2",
-    "WAAVE INVOICE — not a CBSS quote",
+    achOnly ? "ACH / WIRE ONLY — no card link" : "WAAVE INVOICE — not a CBSS quote",
     `${card.name}  ${card.email}  ${money(card.amount)} ${card.currency}  ${card.status}`,
     card.notes,
     formatAddress(card.billing) ? `Billing: ${formatAddress(card.billing)}` : "",
     formatAddress(card.delivery) ? `Delivery: ${formatAddress(card.delivery)}` : "",
-    card.payLink ? `Pay link: ${card.payLink}` : "WAAVE did not return a pay link. Open the branded invoice and use the wire instructions.",
+    achOnly
+      ? "ACH / wire only. Open the branded invoice — page 2 has Lead Bank ACH, domestic wire (+$10), and SWIFT."
+      : card.payLink
+        ? `Pay link: ${card.payLink}`
+        : "WAAVE did not return a pay link. Open the branded invoice and use the wire instructions.",
     card.emailedByWaave
       ? "WAAVE emailed the customer the payment request."
       : "Open Gmail from this tool and send the invoice from the company inbox. This tool does not send from Gmail.",
@@ -515,7 +528,7 @@ export async function listInvoices(
   if (!waaveReady(env) || !stored.length) return { ok: true, cards: stored };
   const refreshed: InvoiceCard[] = [];
   for (const row of stored.slice(0, 20)) {
-    if (!row.id) {
+    if (!row.id || row.payMethod === "ach" || row.status === "ach" || String(row.id).startsWith("CBS-")) {
       refreshed.push(row);
       continue;
     }

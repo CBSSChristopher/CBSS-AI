@@ -4,19 +4,20 @@ export function pageHtml(): string {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#0f1c2e" />
+  <meta name="theme-color" content="#0B1F3A" />
   <meta name="format-detection" content="telephone=no" />
   <meta name="robots" content="noindex,nofollow" />
   <title>CBSS Invoicing</title>
   <style>
     :root {
-      --navy: #0f1c2e;
-      --accent: #1F4E79;
-      --paper: #e8eef4;
+      --navy: #0B1F3A;
+      --gold: #C9A227;
+      --accent: #0B1F3A;
+      --paper: #F7F4EC;
       --card: #fff;
       --line: #d0d7de;
-      --muted: #5b6b7c;
-      --ink: #1a1a1a;
+      --muted: #5B6570;
+      --ink: #111111;
       --ok: #e8f5ee;
       --ok-line: #c8e4d4;
     }
@@ -28,7 +29,7 @@ export function pageHtml(): string {
       display: flex; justify-content: space-between; gap: 12px; align-items: center;
     }
     header .brand { font-weight: 700; letter-spacing: .02em; }
-    header .sub { color: #B8C4D0; font-size: 12px; font-weight: 500; }
+    header .sub { color: #C9A227; font-size: 12px; font-weight: 500; }
     header .who { font-size: 13px; color: #d5deea; }
     header .right { display: flex; align-items: center; gap: 10px; }
     main { max-width: 820px; margin: 0 auto; padding: 16px 14px 28px; }
@@ -43,8 +44,9 @@ export function pageHtml(): string {
       width: 100%; border: 1px solid var(--line); border-radius: 7px; padding: 10px 11px;
       font: 15px/1.4 inherit; color: var(--ink); background: #fff;
     }
-    button { font: 650 14px inherit; border: 0; border-radius: 7px; padding: 10px 14px; background: var(--accent); color: #fff; cursor: pointer; touch-action: manipulation; }
-    button.secondary { background: #fff; color: var(--accent); border: 1px solid var(--line); }
+    button { font: 650 14px inherit; border: 0; border-radius: 7px; padding: 10px 14px; background: var(--navy); color: #fff; cursor: pointer; touch-action: manipulation; }
+    button.gold { background: var(--gold); color: var(--navy); }
+    button.secondary { background: #fff; color: var(--navy); border: 1px solid var(--line); }
     button:disabled { opacity: .55; cursor: default; }
     .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; align-items: center; }
     .err { color: #8A1F1F; font-size: 13px; min-height: 1.1em; margin: 8px 0 0; }
@@ -80,7 +82,7 @@ export function pageHtml(): string {
   <header>
     <div>
       <div class="brand">CBSS Invoicing</div>
-      <div class="sub" id="stamp">build 5 · branded invoice + wire</div>
+      <div class="sub" id="stamp">build 6 · branded invoice · ACH or card</div>
     </div>
     <div class="right">
       <div class="who hide" id="who"></div>
@@ -104,7 +106,7 @@ export function pageHtml(): string {
     <section id="desk" class="hide">
       <div class="card">
         <h2>Create a CBSS invoice</h2>
-        <p class="muted">Use this tool for money in. The amount is the number from the proposal after the customer agreed — do not change it. Type the billing address and the delivery address. The tool builds the navy/gold CBSS invoice with ACH, domestic wire, and SWIFT on page 2. Open Gmail to send it — that draft CCs Christopher, Aliyah, and you. WAAVE can still make an optional card-pay link.</p>
+        <p class="muted">Use this tool for money in. The amount is the number from the proposal after the customer agreed — do not change it. Type the billing address and the delivery address. Every invoice is the navy/gold CBSS invoice with ACH, domestic wire, and SWIFT on page 2. <strong>Invoice — ACH / wire only</strong> still gives them the invoice with no card link. <strong>Invoice + card pay link</strong> also asks WAAVE for a card link when those keys are on. Open Gmail to send it — that draft CCs Christopher, Aliyah, and you.</p>
         <p class="err hide" id="waave-warn">WAAVE is not connected yet. Christopher: in the WAAVE merchant dashboard copy the public/access key, secret key, and venue id, then add WAAVE_API_KEY, WAAVE_API_SECRET, and WAAVE_VENUE_ID on this Worker.</p>
         <form id="inv-form">
           <div class="split">
@@ -142,7 +144,8 @@ export function pageHtml(): string {
           <textarea id="notes" rows="3" required placeholder="40HC CW delivered — paid before the truck"></textarea>
           <div class="row">
             <button type="button" class="secondary" id="lookup-amount">Use last agreed proposal amount</button>
-            <button type="submit">Create invoice</button>
+            <button type="button" class="gold" id="create-ach">Invoice — ACH / wire only</button>
+            <button type="submit" id="create-card">Invoice + card pay link</button>
             <button type="button" class="secondary" id="copy-card">Copy card</button>
             <button type="button" class="secondary" id="open-gmail">Open Gmail</button>
           </div>
@@ -156,13 +159,13 @@ export function pageHtml(): string {
         <iframe id="preview" class="hide" title="Invoice preview" style="width:100%;min-height:720px;margin-top:12px;border:1px solid var(--line);border-radius:8px;background:#fff"></iframe>
       </div>
       <div class="card" style="margin-top:12px">
-        <h2>Recent WAAVE invoices</h2>
-        <p class="muted">Refresh to see sent, paid, or canceled. Cancel only if they have not paid.</p>
+        <h2>Recent invoices</h2>
+        <p class="muted">Refresh to see ACH / wire invoices and WAAVE card invoices. Cancel only a WAAVE invoice they have not paid.</p>
         <div class="row"><button type="button" class="secondary" id="refresh">Refresh</button></div>
         <div class="hits" id="list"></div>
         <p class="err" id="list-err"></p>
       </div>
-      <footer>CBGC LLC DBA CBShippingSolutions · branded invoice with wire instructions</footer>
+      <footer>CBGC LLC DBA CBShippingSolutions · navy/gold invoice · ACH / wire or card</footer>
     </section>
   </main>
   <script>
@@ -260,13 +263,14 @@ export function pageHtml(): string {
       err.textContent = "Filled from CRM " + (j.source || "proposal") + ". Do not change it unless Christopher says.";
     });
 
-    document.getElementById("inv-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
+    async function createInvoice(payMethod) {
       const err = document.getElementById("inv-err");
       const box = document.getElementById("card");
       err.textContent = "";
       lastGmail = "";
-      box.textContent = "Creating the branded invoice…";
+      box.textContent = payMethod === "ach"
+        ? "Creating the branded ACH / wire invoice…"
+        : "Creating the branded invoice…";
       lastDoc = "";
       document.getElementById("preview").classList.add("hide");
       document.getElementById("doc-actions").classList.add("hide");
@@ -291,6 +295,7 @@ export function pageHtml(): string {
           deliveryState: val("del-state"),
           deliveryZip: val("del-zip"),
           sameAsBilling: document.getElementById("same-addr").checked,
+          payMethod: payMethod,
         }),
       });
       const j = await r.json().catch(() => ({}));
@@ -307,6 +312,14 @@ export function pageHtml(): string {
         preview.classList.remove("hide");
       }
       refresh();
+    }
+    document.getElementById("inv-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      createInvoice("card");
+    });
+    document.getElementById("create-ach").addEventListener("click", () => {
+      if (!document.getElementById("inv-form").reportValidity()) return;
+      createInvoice("ach");
     });
 
     document.getElementById("copy-card").addEventListener("click", async () => {
@@ -320,7 +333,7 @@ export function pageHtml(): string {
     });
     document.getElementById("open-gmail").addEventListener("click", () => {
       if (!lastGmail) {
-        document.getElementById("inv-err").textContent = "Create an invoice first so there is a pay link to send.";
+        document.getElementById("inv-err").textContent = "Create an invoice first so there is a Gmail draft to send.";
         return;
       }
       window.open(lastGmail, "_blank", "noopener");
@@ -350,11 +363,12 @@ export function pageHtml(): string {
       if (r.status === 401) { show("login"); return; }
       if (!r.ok || !j.ok) { err.textContent = j.error || "Could not load invoices."; return; }
       const rows = j.cards || [];
-      if (!rows.length) { list.innerHTML = "<div class=\\"hit\\">No WAAVE invoices yet.</div>"; return; }
+      if (!rows.length) { list.innerHTML = "<div class=\\"hit\\">No invoices yet.</div>"; return; }
       list.innerHTML = rows.map((c) => {
-        const link = c.payLink ? "<div><a href=\\"" + c.payLink + "\\" target=\\"_blank\\" rel=\\"noopener\\">Open pay link</a></div>" : "";
+        const ach = c.payMethod === "ach" || c.status === "ach";
+        const link = !ach && c.payLink ? "<div><a href=\\"" + c.payLink + "\\" target=\\"_blank\\" rel=\\"noopener\\">Open pay link</a></div>" : (ach ? "<div>ACH / wire only — no card link</div>" : "");
         const gmail = c.gmailLink ? "<div><a href=\\"" + c.gmailLink + "\\" target=\\"_blank\\" rel=\\"noopener\\">Open Gmail</a></div>" : "";
-        const cancel = /sent|pending|created|open/i.test(c.status || "") && c.id
+        const cancel = !ach && /sent|pending|created|open/i.test(c.status || "") && c.id
           ? "<div class=\\"row\\"><button type=\\"button\\" class=\\"secondary\\" data-cancel=\\"" + c.id + "\\">Cancel</button></div>"
           : "";
         const cc = Array.isArray(c.ccEmails) && c.ccEmails.length ? "<div>CC " + c.ccEmails.join(", ") + "</div>" : "";
@@ -395,7 +409,7 @@ export function paidHtml(): string {
   <style>
     body { font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #e8eef4; color: #1a1a1a; margin: 0; padding: 32px 16px; }
     .card { max-width: 520px; margin: 0 auto; background: #fff; border: 1px solid #d0d7de; border-radius: 10px; padding: 22px; }
-    h1 { color: #1F4E79; font-size: 22px; margin: 0 0 10px; }
+    h1 { color: #0B1F3A; font-size: 22px; margin: 0 0 10px; }
     p { line-height: 1.45; }
   </style>
 </head>
