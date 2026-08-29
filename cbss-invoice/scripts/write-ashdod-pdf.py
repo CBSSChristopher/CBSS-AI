@@ -17,7 +17,8 @@ W, H = letter
 BOX = 2300
 INLAND = 3105
 CBSS = BOX + INLAND
-OCEAN = 4910.40
+OCEAN = 7910.40
+DEST = 3000
 MILES = 621
 
 
@@ -135,7 +136,7 @@ def write_pdf(path):
         f"CBSS inland carriage: Minneapolis ramp to Williston and loaded return. {MILES} one-way miles at $5.00/mile round trip ($2.50 each way) = $3,105.00.",
         "Residential pickup, Minneapolis drayage, and fuel are on the CBSS inland line — not on the ocean quote.",
         "Cargo: plumbing materials / supplies, water heaters, washers, dryers.",
-        f"Ocean {money(OCEAN)} is the August 28 calculator quote after those inland lines were removed — subject to confirmation.",
+        f"Ocean {money(OCEAN)} is the August 28 calculator quote after those inland lines were removed, plus {money(DEST)} estimated Ashdod destination charges (DTHC, Israel customs clearance, Ashdod Port consignee handling). Subject to confirmation. Duties, VAT, and insurance are not included.",
     ]:
         y = wrap(c, "•  " + item, 0.7 * inch, y, 7.1 * inch, 11)
         y -= 1
@@ -235,7 +236,7 @@ def write_pdf(path):
     )
     wrap(
         c,
-        "NOT INCLUDED. Ocean freight, bunker, wharfage, B/L, personal-effects surcharge, SED, Israel destination charges, duties, insurance, drop-and-pick beyond the live-load window, chassis split, overweight, or rail / steamship per diem after tender. Site must be ready. Title transfers after CBSS funds clear. Load 1 to Tema is a separate packet.",
+        "NOT INCLUDED ON THIS CBSS INVOICE. Ocean freight, bunker, wharfage, B/L, personal-effects surcharge, SED, Ashdod destination THC, Israel customs clearance, destination port delivery, duties, VAT, insurance, drop-and-pick beyond the live-load window, chassis split, overweight, or rail / steamship per diem after tender. Destination lines are estimated on the enclosed ocean quote. Site must be ready. Title transfers after CBSS funds clear. Load 1 to Tema is a separate packet.",
         0.55 * inch,
         y - 4,
         7.4 * inch,
@@ -288,37 +289,40 @@ def write_pdf(path):
         ("Bill of lading", 50),
         ("Surcharge for personal effects", 400),
         ("Shipper’s declaration on $5,000", 50),
+        ("Destination THC (DTHC) — Ashdod Port, 40HC", 1200),
+        ("Dest. customs clearance & docs (duties/VAT not incl.)", 850),
+        ("Dest. delivery / consignee handling at Ashdod Port", 950),
     ]
-    y = H - 1.90 * inch
-    band(c, y, 0.20 * inch, NAVY)
+    y = H - 1.82 * inch
+    band(c, y, 0.18 * inch, NAVY)
     c.setFillColorRGB(*GOLD)
     c.setFont("Helvetica-Bold", 8)
-    c.drawString(0.55 * inch, y + 5, "DESCRIPTION")
-    c.drawRightString(8.0 * inch, y + 5, "AMOUNT")
-    y -= 0.22 * inch
+    c.drawString(0.55 * inch, y + 4, "DESCRIPTION")
+    c.drawRightString(8.0 * inch, y + 4, "AMOUNT")
+    y -= 0.20 * inch
     c.setFillColorRGB(*INK)
-    c.setFont("Helvetica", 9)
+    c.setFont("Helvetica", 8)
     for title, amt in lines:
         c.drawString(0.55 * inch, y, title)
         c.drawRightString(8.0 * inch, y, money(amt))
-        y -= 0.20 * inch
+        y -= 0.18 * inch
     c.setFillColorRGB(*NAVY)
-    c.roundRect(0.5 * inch, y - 0.85 * inch, 7.5 * inch, 0.75 * inch, 6, fill=1, stroke=0)
+    c.roundRect(0.5 * inch, y - 0.80 * inch, 7.5 * inch, 0.70 * inch, 6, fill=1, stroke=0)
     c.setFillColorRGB(*GOLD)
     c.setFont("Helvetica-Bold", 12)
-    c.drawString(0.7 * inch, y - 0.35 * inch, "QUOTED OCEAN")
+    c.drawString(0.7 * inch, y - 0.32 * inch, "QUOTED OCEAN")
     c.setFont("Times-Bold", 16)
-    c.drawRightString(7.80 * inch, y - 0.35 * inch, money(OCEAN))
+    c.drawRightString(7.80 * inch, y - 0.32 * inch, money(OCEAN))
     c.setFillColorRGB(*WHITE)
     c.setFont("Helvetica", 8)
-    c.drawString(0.7 * inch, y - 0.60 * inch, "DO NOT PAY THIS AMOUNT TO CB SHIPPING SOLUTIONS")
+    c.drawString(0.7 * inch, y - 0.55 * inch, "DO NOT PAY THIS AMOUNT TO CB SHIPPING SOLUTIONS")
     wrap(
         c,
-        "August 28 calculator quote #1858652 after residential pickup, drayage, and fuel were moved to the CBSS inland line. Subject to pricing approval and written booking confirmation. Israel destination charges, duties, and insurance are not included.",
+        f"August 28 calculator quote #1858652 after residential pickup, drayage, and fuel were moved to the CBSS inland line, plus {money(DEST)} estimated destination charges that match this Minneapolis → Ashdod household-goods / plumbing 40HC: Ashdod DTHC $1,200, Israel customs clearance $850 (duties/VAT not included), and Ashdod Port consignee handling $950. Subject to pricing approval and written booking confirmation. Duties, VAT, and cargo insurance are not included. No Israel door address is billed.",
         0.55 * inch,
-        y - 1.15 * inch,
+        y - 1.05 * inch,
         7.4 * inch,
-        12,
+        11,
     )
     footer(c, "QUOTE-1858652", 4)
     c.showPage()

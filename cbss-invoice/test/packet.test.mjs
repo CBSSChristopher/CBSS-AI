@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import { buildInvoiceDocument, money } from "../src/document.ts";
 import {
   ASHDOD,
+  ASHDOD_DEST,
   ASHDOD_OCEAN_LINES,
   INLAND,
   LUFRAN_LINES,
@@ -68,13 +69,18 @@ describe("Jamie Palmer Tema packet", () => {
 });
 
 describe("Jamie Palmer Ashdod packet · load 2", () => {
-  it("quotes ocean without pickup, drayage, or fuel", () => {
-    assert.equal(ashdodOceanSum(), 4910.4);
-    assert.equal(ASHDOD.oceanTotal, 4910.4);
-    assert.equal(ASHDOD_OCEAN_LINES.length, 6);
+  it("quotes ocean without pickup, drayage, or fuel, plus $3,000 Ashdod destination charges", () => {
+    assert.equal(ASHDOD_DEST.dthc + ASHDOD_DEST.customs + ASHDOD_DEST.delivery, 3000);
+    assert.equal(ASHDOD_DEST.amount, 3000);
+    assert.equal(ashdodOceanSum(), 7910.4);
+    assert.equal(ASHDOD.oceanTotal, 7910.4);
+    assert.equal(ASHDOD_OCEAN_LINES.length, 9);
     const freight = ASHDOD_OCEAN_LINES.find((row) => row.title.startsWith("Freight"));
     assert.equal(freight?.unit, 3985);
     const titles = ASHDOD_OCEAN_LINES.map((row) => row.title).join(" ");
+    assert.match(titles, /Destination Terminal Handling Charge/i);
+    assert.match(titles, /customs clearance/i);
+    assert.match(titles, /consignee handling at Ashdod Port/i);
     assert.doesNotMatch(titles, /Residential pickup/i);
     assert.doesNotMatch(titles, /Drayage/i);
     assert.doesNotMatch(titles, /Fuel surcharge/i);
@@ -95,7 +101,11 @@ describe("Jamie Palmer Ashdod packet · load 2", () => {
     assert.match(html, /QUOTE-1858652/);
     assert.match(html, /\$5,405\.00/);
     assert.match(html, /\$3,105\.00/);
-    assert.match(html, /\$4,910\.40/);
+    assert.match(html, /\$7,910\.40/);
+    assert.match(html, /\$3,000\.00/);
+    assert.match(html, /Destination Terminal Handling Charge/);
+    assert.match(html, /Ashdod Port/);
+    assert.doesNotMatch(html, /\$4,910\.40/);
     assert.match(html, /\$2\.50/);
     assert.match(html, /621/);
     assert.match(html, /Ashdod/);

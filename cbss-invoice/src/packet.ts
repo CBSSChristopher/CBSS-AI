@@ -455,7 +455,21 @@ export function renderPalmerPacketHtml(): string {
 </html>`;
 }
 
-/** Freight-calculator quote 1858652, August 28, 2026. Minneapolis → Ashdod. Inland pickup / drayage / fuel removed — CBSS moves the box. Not Lufran-confirmed. */
+/**
+ * Destination add on quote 1858652. The August 28 calculator said dest THC,
+ * Israel customs clearance, and destination delivery may take up to five days
+ * to confirm. These three labels match that Minneapolis → Ashdod 40HC
+ * household-goods / plumbing scenario. No invented Israel street — delivery
+ * is consignee handling at Ashdod Port. Duties, VAT, and cargo insurance stay off.
+ */
+export const ASHDOD_DEST = {
+  dthc: 1200,
+  customs: 850,
+  delivery: 950,
+  amount: 3000,
+};
+
+/** Freight-calculator quote 1858652, August 28, 2026. Minneapolis → Ashdod. Inland pickup / drayage / fuel removed — CBSS moves the box. Plus estimated Ashdod destination charges. Not Lufran-confirmed. */
 export const ASHDOD_OCEAN_LINES: LineItem[] = [
   { title: "Freight — 40' container", detail: "Minneapolis rail ramp to Ashdod, Israel. 1 x 40HC shipper-owned container (SOC). Port-to-port / ramp-to-port only.", qty: 1, unit: 3985 },
   { title: "Bunker Adjustment Factor (BAF)", detail: "40' container fuel adjustment.", qty: 1, unit: 380 },
@@ -463,6 +477,24 @@ export const ASHDOD_OCEAN_LINES: LineItem[] = [
   { title: "Bill of lading", qty: 1, unit: 50 },
   { title: "Surcharge for personal effects (with or without cars)", qty: 1, unit: 400 },
   { title: "Shipper’s declaration (over $2,500) on $5,000", qty: 1, unit: 50 },
+  {
+    title: "Destination Terminal Handling Charge (DTHC) — Ashdod Port, 40HC",
+    detail: "Estimated destination THC at Ashdod Port for one 40HC. Named on the August 28 calculator as pending confirmation (up to five days).",
+    qty: 1,
+    unit: ASHDOD_DEST.dthc,
+  },
+  {
+    title: "Destination customs clearance & documentation (Israel)",
+    detail: "Estimated Israel customs clearance and documentation for household goods / plumbing materials. Duties, VAT, and cargo insurance are not included.",
+    qty: 1,
+    unit: ASHDOD_DEST.customs,
+  },
+  {
+    title: "Destination delivery / consignee handling at Ashdod Port",
+    detail: "Estimated destination delivery and consignee handling at Ashdod Port. No Israel door address is billed — port handling only.",
+    qty: 1,
+    unit: ASHDOD_DEST.delivery,
+  },
 ];
 
 /**
@@ -488,7 +520,7 @@ export const ASHDOD = {
   boxTotal: 2300,
   inlandTotal: INLAND.amount,
   cbssTotal: 2300 + INLAND.amount,
-  oceanTotal: 4910.4,
+  oceanTotal: 7910.4,
   cargo: "Plumbing materials / supplies · water heaters · washers · dryers · household goods",
   dest: "Ashdod Port, Israel",
 };
@@ -548,7 +580,7 @@ export function buildPalmerAshdodDocument(): InvoiceDocument {
       `SCOPE. CBGC LLC shall perform motor / intermodal inland carriage of one (1) 40' high-cube shipper-owned container from the Minneapolis, Minnesota rail ramp or designated depot to ${INLAND.loadSite}, permit loading at that site, and return the sealed container to the Minneapolis ramp for tender to the ocean carrier. Customer shall not independently hire residential pickup, ramp drayage, or fuel for this lane.`,
       `MILEAGE AND RATE. The agreed rate is ${money(INLAND.roundTripPerOneWayMile)} per one-way statute mile for the complete round trip, equal to ${money(INLAND.oneWayPerMile)} per mile each way. This invoice bills ${INLAND.oneWayMiles} published one-way statute miles (Minneapolis–Williston via I-94) × ${money(INLAND.roundTripPerOneWayMile)} = ${money(INLAND.amount)}. Actual routed miles certified on the completed move, if greater, bill at the same rate. Out-of-route miles, a second trip, or a change of load site bill extra at the same rate.`,
       "INCLUDED IN THE INLAND CHARGE. Positioning of the empty SOC, residential / site access to the Williston address, Minneapolis-area terminal or ramp drayage, chassis use for the scheduled window, and fuel for the billed round trip. Live load: two (2) hours free; One Hundred and 00/100 Dollars ($100.00) per additional hour or fraction thereafter. The container will be presented on a chassis approximately four (4) to four and one-half (4.5) feet above grade. Packing materials, ramps, cranes, and loading labor are not furnished unless separately engaged in writing.",
-      "NOT INCLUDED. Ocean freight, bunker, wharfage, bills of lading, personal-effects surcharge, shipper’s export declaration, Israel destination charges, duties, taxes, cargo insurance, drop-and-pick beyond the scheduled live-load window, chassis split, overweight, hazardous, or storage / per diem assessed by the railroad or steamship line after tender.",
+      "NOT INCLUDED. Ocean freight, bunker, wharfage, bills of lading, personal-effects surcharge, shipper’s export declaration, Ashdod destination THC, Israel customs clearance, destination port delivery, duties, taxes, VAT, cargo insurance, drop-and-pick beyond the scheduled live-load window, chassis split, overweight, hazardous, or storage / per diem assessed by the railroad or steamship line after tender. Destination lines are estimated on the enclosed ocean quote, not on this CBSS invoice.",
       "CUSTOMER WARRANTIES. The load site will be ready for inspection, packing, and loading on the scheduled date; will support a standard over-the-road chassis; and will furnish a complete packing list and the exact shipper, consignee, and notify names for the bill of lading. Delay, abort, or redelivery caused by an unready site, blocked access, or missing paperwork is for the customer’s account.",
       "LIABILITY AND TITLE. Inland carriage is performed as a domestic logistics service of CBGC LLC and is separate from the ocean contract of carriage. Title to the container transfers after CBSS funds clear. Risk of cargo after tender to the rail ramp or ocean carrier is governed by the ocean bill of lading, not this invoice. This is load 2. Load 1 to Tema (CBS-2026-JP01 / Lufran #1858440) is a separate packet — do not mix payments.",
     ],
@@ -598,7 +630,7 @@ export function renderPalmerAshdodPacketHtml(): string {
     </div>
     <div class="box cream">
       <h2>WHAT IS NOT CONFIRMED YET</h2>
-      <p>The ${escapeHtml(money(ASHDOD.oceanTotal))} ocean figure is the August 28 calculator quote after CBSS pulled residential pickup, drayage, and fuel onto this invoice. Rates are subject to pricing approval and a written booking confirmation (24–72 hours). Israel destination charges, duties, and insurance are not in that total. Do not pay ocean until the carrier confirms.</p>
+      <p>The ${escapeHtml(money(ASHDOD.oceanTotal))} ocean figure is the August 28 calculator quote after CBSS pulled residential pickup, drayage, and fuel onto this invoice, plus ${escapeHtml(money(ASHDOD_DEST.amount))} in estimated Ashdod destination charges (DTHC, Israel customs clearance, and consignee handling at Ashdod Port). Rates are subject to pricing approval and a written booking confirmation (24–72 hours). Israel duties, VAT, and cargo insurance are not in that total. Do not pay ocean until the carrier confirms.</p>
     </div>
     ${footer(packetId, 1, pages)}
   </section>`;
@@ -690,9 +722,9 @@ export function renderPalmerAshdodPacketHtml(): string {
     <div class="split">
       <div class="notes">
         <h2 style="margin:0 0 6px;letter-spacing:.08em;font-size:11px">QUOTE NOTES</h2>
-        <p>These six lines are the freight-calculator ocean for quote #${escapeHtml(ASHDOD.oceanQuote)} dated ${escapeHtml(ASHDOD.oceanDated)}, after residential pickup, drayage, and fuel were removed. They add to ${escapeHtml(money(ASHDOD.oceanTotal))}.</p>
-        <p>Cargo: ${escapeHtml(ASHDOD.cargo)}. Inland movement is on CBSS invoice ${escapeHtml(ASHDOD.cbssNumber)}, not on this quote.</p>
-        <p>Not established in the tariff. Subject to pricing approval, filing, and a written booking confirmation (24–72 hours). Destination charges may take up to five days to confirm and are not in this total.</p>
+        <p>These nine lines are the freight-calculator ocean for quote #${escapeHtml(ASHDOD.oceanQuote)} dated ${escapeHtml(ASHDOD.oceanDated)}, after residential pickup, drayage, and fuel were removed, plus estimated Ashdod destination THC, Israel customs clearance (duties/VAT not included), and destination delivery / consignee handling at Ashdod Port. They add to ${escapeHtml(money(ASHDOD.oceanTotal))}.</p>
+        <p>Cargo: ${escapeHtml(ASHDOD.cargo)}. Inland movement is on CBSS invoice ${escapeHtml(ASHDOD.cbssNumber)}, not on this quote. No Israel door address is billed.</p>
+        <p>Not established in the tariff. Subject to pricing approval, filing, and a written booking confirmation (24–72 hours). Destination THC, clearance, and port delivery may take up to five days to confirm. Israel duties, VAT, and cargo insurance are not in this total.</p>
       </div>
       <div class="totals">
         <div class="row"><span>Subtotal</span><span>${escapeHtml(money(ASHDOD.oceanTotal))}</span></div>
