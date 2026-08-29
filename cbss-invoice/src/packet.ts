@@ -607,7 +607,7 @@ export function renderPalmerAshdodPacketHtml(): string {
   const c = COMPANY;
   const b = BANK;
   const wire = wireGross(doc.total);
-  const pages = 5;
+  const pages = 7;
   const packetId = `${ASHDOD.cbssNumber} / ${ASHDOD.oceanNumber}`;
 
   const cover = `<section class="page">
@@ -623,14 +623,14 @@ export function renderPalmerAshdodPacketHtml(): string {
         <h2>INVOICE 1 · PAY CBSS NOW</h2>
         <p>Second-load 40HC and certificate ${escapeHtml(money(ASHDOD.boxTotal))}. Inland round trip Minneapolis ↔ Williston ${escapeHtml(money(ASHDOD.inlandTotal))}.</p>
         <div class="amt">${escapeHtml(money(ASHDOD.cbssTotal))}</div>
-        <p>Invoice ${escapeHtml(ASHDOD.cbssNumber)} · ACH or wire to CBGC LLC. Pages 2–3.</p>
+        <p>Invoice ${escapeHtml(ASHDOD.cbssNumber)} · ACH or wire to CBGC LLC. Pages 2–4.</p>
         <p>Do not pay freight to CBSS.</p>
       </div>
       <div class="paycard cream">
         <h2>INVOICE 2 · ENCLOSED OCEAN QUOTE</h2>
         <p>Freight-calculator #${escapeHtml(ASHDOD.oceanQuote)}, dated ${escapeHtml(ASHDOD.oceanDated)}. Minneapolis → Ashdod. Pickup, drayage, and fuel removed.</p>
         <div class="amt" style="color:${BRAND.navy}">${escapeHtml(money(ASHDOD.oceanTotal))}</div>
-        <p>Not a Lufran booking confirmation yet. Do not pay this amount to CBSS. Pages 4–5.</p>
+        <p>Not a Lufran booking confirmation yet. Do not pay this amount to CBSS. Pages 5–7.</p>
       </div>
     </div>
     <div class="box mint">
@@ -675,8 +675,15 @@ export function renderPalmerAshdodPacketHtml(): string {
       </div>
     </div>
     <div class="box mint"><h2>${escapeHtml(doc.warrantyTitle)}</h2>${warranty}</div>
-    <div class="box cream"><h2>${escapeHtml(doc.termsTitle)}</h2>${terms}</div>
     ${footer(doc.number, 2, pages)}
+  </section>`;
+
+  const cbssTerms = `<section class="page">
+    ${header(doc.number, doc.date, doc.due, "INVOICE")}
+    <h1 class="pay">Inland carriage — conditions of service</h1>
+    <p class="lead">Billed to Jamie Palmer. These terms belong to invoice <strong>${escapeHtml(doc.number)}</strong> for the Minneapolis ↔ Williston inland move. They are not ocean-carrier terms.</p>
+    <div class="box cream"><h2>${escapeHtml(doc.termsTitle)}</h2>${terms}</div>
+    ${footer(doc.number, 3, pages)}
   </section>`;
 
   const cbssPay = `<section class="page">
@@ -714,7 +721,7 @@ export function renderPalmerAshdodPacketHtml(): string {
       <p>SWIFT / BIC: ${escapeHtml(b.swift)} · Intermediary BIC: ${escapeHtml(b.intermediary)}</p>
       <p>Bank: ${escapeHtml(b.swiftBank)}</p>
     </div>
-    ${footer(doc.number, 3, pages)}
+    ${footer(doc.number, 4, pages)}
   </section>`;
 
   const oceanFace = `<section class="page">
@@ -734,25 +741,30 @@ export function renderPalmerAshdodPacketHtml(): string {
       <thead><tr><th>DESCRIPTION</th><th class="num">QTY</th><th class="num">UNIT PRICE</th><th class="num">AMOUNT</th></tr></thead>
       <tbody>${lineRows(ASHDOD_OCEAN_LINES)}</tbody>
     </table>
-    <div class="split">
-      <div class="notes">
-        <h2 style="margin:0 0 6px;letter-spacing:.08em;font-size:11px">QUOTE NOTES</h2>
-        <p>These nine lines are the freight-calculator ocean for quote #${escapeHtml(ASHDOD.oceanQuote)} dated ${escapeHtml(ASHDOD.oceanDated)}, after residential pickup, drayage, and fuel were removed, plus estimated Ashdod destination THC, Israel customs clearance (duties/VAT not included), and destination delivery / consignee handling at Ashdod Port. They add to ${escapeHtml(money(ASHDOD.oceanTotal))}.</p>
-        <p>Cargo: ${escapeHtml(ASHDOD.cargo)}. Inland movement is on CBSS invoice ${escapeHtml(ASHDOD.cbssNumber)}, not on this quote. No Israel door address is billed.</p>
-        <p>${escapeHtml(ASHDOD_RATE_BASIS.label)}. ${escapeHtml(ASHDOD_RATE_BASIS.market)}</p>
-        <p>${escapeHtml(ASHDOD_RATE_BASIS.dedicated)} Destination THC, clearance, and port delivery may take up to five days to confirm. Israel duties, VAT, and cargo insurance are not in this total.</p>
-      </div>
-      <div class="totals">
-        <div class="row"><span>Subtotal</span><span>${escapeHtml(money(ASHDOD.oceanTotal))}</span></div>
-        <div class="row"><span>Tax</span><span>$0.00</span></div>
-        <div class="due"><span>QUOTED OCEAN</span><span>${escapeHtml(money(ASHDOD.oceanTotal))}</span></div>
-      </div>
+    <div class="totals" style="margin-top:12px">
+      <div class="row"><span>Subtotal</span><span>${escapeHtml(money(ASHDOD.oceanTotal))}</span></div>
+      <div class="row"><span>Tax</span><span>$0.00</span></div>
+      <div class="due"><span>QUOTED OCEAN</span><span>${escapeHtml(money(ASHDOD.oceanTotal))}</span></div>
+    </div>
+    ${footer(ASHDOD.oceanNumber, 5, pages)}
+  </section>`;
+
+  const oceanNotes = `<section class="page">
+    ${header(ASHDOD.oceanNumber, ASHDOD.date, "Quote only — not confirmed", "ENCLOSED QUOTE")}
+    <h1 class="pay">Ocean quote notes</h1>
+    <p class="lead">Billed to Jamie Palmer. Quote #${escapeHtml(ASHDOD.oceanQuote)} · ${escapeHtml(money(ASHDOD.oceanTotal))}. These notes belong with the enclosed calculator quote, not the CBSS invoice.</p>
+    <div class="box cream">
+      <h2>QUOTE NOTES</h2>
+      <p>These nine lines are the freight-calculator ocean for quote #${escapeHtml(ASHDOD.oceanQuote)} dated ${escapeHtml(ASHDOD.oceanDated)}, after residential pickup, drayage, and fuel were removed, plus estimated Ashdod destination THC, Israel customs clearance (duties/VAT not included), and destination delivery / consignee handling at Ashdod Port. They add to ${escapeHtml(money(ASHDOD.oceanTotal))}.</p>
+      <p>Cargo: ${escapeHtml(ASHDOD.cargo)}. Inland movement is on CBSS invoice ${escapeHtml(ASHDOD.cbssNumber)}, not on this quote. No Israel door address is billed.</p>
+      <p>${escapeHtml(ASHDOD_RATE_BASIS.label)}. ${escapeHtml(ASHDOD_RATE_BASIS.market)}</p>
+      <p>${escapeHtml(ASHDOD_RATE_BASIS.dedicated)} Destination THC, clearance, and port delivery may take up to five days to confirm. Israel duties, VAT, and cargo insurance are not in this total.</p>
     </div>
     <div class="box warn">
       <h2>DO NOT PAY THIS AMOUNT TO CB SHIPPING SOLUTIONS</h2>
       <p>Do not pay this ocean figure until the carrier sends a booking confirmation. When they do, pay the ocean carrier — not CBSS.</p>
     </div>
-    ${footer(ASHDOD.oceanNumber, 4, pages)}
+    ${footer(ASHDOD.oceanNumber, 6, pages)}
   </section>`;
 
   const oceanPay = `<section class="page">
@@ -773,7 +785,7 @@ export function renderPalmerAshdodPacketHtml(): string {
     </div>
     <div class="wire">
       <h2>DO NOT USE CBSS BANK DETAILS FOR OCEAN</h2>
-      <p>Page 3 is only the ${escapeHtml(money(ASHDOD.cbssTotal))} CBSS invoice (box + inland round trip). Do not wire the ocean quote to Lead Bank / CBGC LLC.</p>
+      <p>Page 4 is only the ${escapeHtml(money(ASHDOD.cbssTotal))} CBSS pay instructions (box + inland round trip). Do not wire the ocean quote to Lead Bank / CBGC LLC.</p>
     </div>
     <div class="box cream">
       <h2>THIS WEEKEND · LOAD 2</h2>
@@ -784,7 +796,7 @@ export function renderPalmerAshdodPacketHtml(): string {
         <li>Send the packing list and the exact bill-of-lading names for Ashdod.</li>
       </ol>
     </div>
-    ${footer(ASHDOD.oceanNumber, 5, pages)}
+    ${footer(ASHDOD.oceanNumber, 7, pages)}
   </section>`;
 
   return `<!doctype html>
@@ -798,8 +810,10 @@ export function renderPalmerAshdodPacketHtml(): string {
 <body>
   ${cover}
   ${cbssFace}
+  ${cbssTerms}
   ${cbssPay}
   ${oceanFace}
+  ${oceanNotes}
   ${oceanPay}
 </body>
 </html>`;

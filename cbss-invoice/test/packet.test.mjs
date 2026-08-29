@@ -117,6 +117,17 @@ describe("Jamie Palmer Ashdod packet · load 2", () => {
     assert.match(html, /dedicated family lane/i);
     assert.match(html, /prices do change/i);
     assert.match(html, /As previously promised on the Tema run/);
+    assert.match(html, /INVOICE NOTES/);
+    assert.match(html, /CERTIFICATE · EXPORT SOC/);
+    assert.match(html, /CUSTOMER WARRANTIES/);
+    assert.match(html, /LIABILITY AND TITLE/);
+    assert.match(html, /DOMESTIC WIRE/);
+    assert.match(html, /INTERNATIONAL SWIFT/);
+    assert.match(html, /QUOTE NOTES/);
+    assert.match(html, /THIS WEEKEND · LOAD 2/);
+    assert.match(html, /Page 7 of 7/);
+    assert.match(html, /Pages 2–4/);
+    assert.match(html, /Pages 5–7/);
     assert.equal(ASHDOD_RATE_BASIS.label, "Current market quotation · dedicated family lane");
     assert.doesNotMatch(html, /\$6,018\.50/);
     assert.doesNotMatch(html, /Residential pickup charges/);
