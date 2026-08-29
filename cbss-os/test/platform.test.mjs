@@ -34,7 +34,14 @@ describe("CBSS platform brand", () => {
     assert.match(page, /Call scraps/);
     assert.match(page, /Proposal Builder/);
     assert.match(page, /Invoice — ACH \/ wire only/);
-    assert.match(page, /Veem payment request/);
+    assert.doesNotMatch(page, /Veem payment request/);
+    assert.match(page, /data-desk="chat"/);
+    assert.match(page, /Pull Container One/);
+    assert.match(page, /Pull USA Containers/);
+    assert.match(page, /All owners/);
+    assert.match(page, /Complete/);
+    assert.match(page, /Schedule another/);
+    assert.match(page, /grid-template-columns: repeat\(8,/);
   });
 });
 

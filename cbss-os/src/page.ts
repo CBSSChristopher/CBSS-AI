@@ -77,15 +77,43 @@ export function pageHtml(): string {
     .picks { display: flex; flex-wrap: wrap; gap: 6px; }
     .picks button { background: #fff; color: var(--navy); border: 1px solid var(--line); }
     .picks button.on { background: var(--navy); color: #fff; }
+    .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+    .tabs button { background: #fff; color: var(--navy); border: 1px solid var(--line); }
+    .tabs button.on { background: var(--navy); color: #fff; }
+    .ai-head { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
+    .ai-mark {
+      width: 42px; height: 42px; border-radius: 10px; background: var(--navy); color: var(--gold);
+      display: grid; place-items: center; font-family: "Times New Roman", Times, serif; font-weight: 700; flex-shrink: 0;
+    }
+    .ai-head h2 { margin: 0; }
+    .ai-head .muted { margin: 3px 0 0; }
+    .log { display: flex; flex-direction: column; gap: 8px; min-height: 28vh; max-height: 46vh; overflow: auto; background: #f4f7fa; border-radius: 8px; padding: 12px; }
+    .bubble { max-width: 92%; padding: 9px 11px; border-radius: 10px; line-height: 1.4; white-space: pre-wrap; }
+    .me { align-self: flex-end; background: #e8f0f7; }
+    .bot { align-self: flex-start; background: #e8f5ee; border: 1px solid #c8e4d4; }
+    .composer { display: flex; gap: 8px; align-items: flex-end; margin-top: 10px; }
+    .composer textarea { min-height: 48px; resize: vertical; }
+    .comp-bar { display: flex; gap: 8px; align-items: flex-end; margin: 10px 0 0; flex-wrap: wrap; }
+    .comp-bar .zip-wrap { flex: 0 0 132px; }
+    .comp-bar .zip-wrap label { margin-top: 0; }
+    .comp-picks .lbl { font-size: 12px; font-weight: 700; color: #3d4d5c; margin: 8px 0 5px; }
+    .comp-picks .btns { display: flex; flex-wrap: wrap; gap: 6px; }
+    .comp-picks .pick { background: #fff; color: var(--navy); border: 1px solid var(--line); padding: 7px 10px; }
+    .comp-picks .pick.on { background: var(--navy); color: #fff; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
     th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); }
     tr.sel td { background: #FBF6E8; }
     .stat { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; margin: 0 0 12px; }
     .stat strong { color: var(--navy); }
-    .board { display: grid; grid-template-columns: repeat(4, minmax(160px, 1fr)); gap: 10px; overflow: auto; }
-    .col { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 8px; min-height: 140px; }
-    .col h3 { margin: 0 0 8px; font-size: 12px; color: var(--gold); letter-spacing: .04em; }
+    .board { display: grid; grid-template-columns: repeat(8, minmax(210px, 1fr)); gap: 10px; overflow-x: auto; padding-bottom: 8px; }
+    .col { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 8px; min-height: 280px; min-width: 210px; }
+    .col h3 { margin: 0 0 8px; font-size: 12px; color: var(--gold); letter-spacing: .04em; display: flex; justify-content: space-between; gap: 8px; }
+    .col h3 em { font-style: normal; background: var(--navy); color: #fff; border-radius: 999px; padding: 1px 8px; font-size: 11px; }
     .pc { border: 1px solid var(--line); border-radius: 8px; padding: 8px; margin: 0 0 8px; background: var(--paper); }
+    .pc-name { font-weight: 700; color: var(--navy); }
+    .pc-meta { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; font-size: 12px; }
+    .pc-amt { font-weight: 700; color: var(--navy); }
+    .work-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
     .note { border-bottom: 1px dashed var(--line); padding: 8px 0; font-size: 13px; }
     .hits { border: 1px solid var(--line); border-radius: 8px; }
     .hit { padding: 10px 11px; border-bottom: 1px solid var(--line); }
@@ -106,7 +134,7 @@ export function pageHtml(): string {
       aside { padding: 14px 12px 10px; }
       nav { flex-direction: row; flex-wrap: wrap; }
       nav button { min-height: 44px; }
-      .split, .split3, .board, .tiles { grid-template-columns: 1fr; }
+      .split, .split3, .tiles { grid-template-columns: 1fr; }
       header, main { padding-left: 12px; padding-right: 12px; }
       button { min-height: 44px; }
     }
@@ -159,19 +187,30 @@ export function pageHtml(): string {
       <main>
         <section id="mod-home">
           <h1>One book. Four models.</h1>
-          <p class="muted">The live CRM, Desk, Proposal, Pay, and Invoice workers are unchanged. Sign in once here and work them in this brand.</p>
+          <p class="muted">The live CRM, Desk, Proposal, and Invoice workers are unchanged. Sign in once here and work them in this brand.</p>
           <div class="chips" id="tool-chips"></div>
           <div class="tiles" style="margin-top:14px">
             <div class="card tile" data-go="crm"><div class="kicker">Book</div><h2>CRM</h2><p class="muted">Contacts, follow-ups, tasks, pipeline, notes.</p></div>
-            <div class="card tile" data-go="desk"><div class="kicker">Calls</div><h2>Desk</h2><p class="muted">Call scraps, email templates, CBSS AI. I will not invent a price.</p></div>
+            <div class="card tile" data-go="desk"><div class="kicker">Assist</div><h2>Desk</h2><p class="muted">CBSS AI first. Price match Container One and USA Containers. Then call scraps.</p></div>
             <div class="card tile" data-go="proposal"><div class="kicker">Quote</div><h2>Proposal</h2><p class="muted">Posted xChange wholesale only. Own the door type.</p></div>
-            <div class="card tile" data-go="money"><div class="kicker">Collect</div><h2>Money</h2><p class="muted">Navy/gold invoice — ACH / wire or card. Veem still waiting.</p></div>
+            <div class="card tile" data-go="money"><div class="kicker">Collect</div><h2>Money</h2><p class="muted">Navy/gold invoice — ACH / wire or card.</p></div>
           </div>
           <div class="warn" style="margin-top:14px">Do not invent a price. Do not mix Side door OS 2D, Side door OS 4D, and Full open. This tool does not send Gmail. Company email only @cbshippingsolutions.com.</div>
         </section>
 
         <section id="mod-crm" class="hide">
           <div class="stat" id="crm-stat"></div>
+          <div class="split" style="margin-bottom:10px">
+            <div><label>Search</label><input id="crm-q" placeholder="Name, phone, city, company" /></div>
+            <div>
+              <label>Owner</label>
+              <select id="crm-owner">
+                <option value="">All owners</option>
+                <option value="__mine__">Mine</option>
+                <option value="New/Unassigned">New/Unassigned</option>
+              </select>
+            </div>
+          </div>
           <div class="row" style="margin-top:0">
             <button type="button" class="gold" data-crm="contacts">Contacts</button>
             <button type="button" class="secondary" data-crm="followups">Follow-ups</button>
@@ -181,17 +220,6 @@ export function pageHtml(): string {
           <div class="card" style="margin-top:12px">
             <div id="crm-contacts">
               <div class="split">
-                <div><label>Search</label><input id="crm-q" placeholder="Name, phone, city, company" /></div>
-                <div>
-                  <label>Owner</label>
-                  <select id="crm-owner">
-                    <option value="all">All</option>
-                    <option value="mine">Mine</option>
-                    <option value="New/Unassigned">New/Unassigned</option>
-                  </select>
-                </div>
-              </div>
-              <div class="split" style="margin-top:12px">
                 <div style="overflow:auto">
                   <table><thead><tr><th>Name</th><th>Company</th><th>City</th><th>Owner</th><th>Stage</th></tr></thead><tbody id="crm-rows"></tbody></table>
                 </div>
@@ -206,7 +234,59 @@ export function pageHtml(): string {
         </section>
 
         <section id="mod-desk" class="hide">
-          <div class="card">
+          <div class="tabs" id="desk-tabs">
+            <button type="button" class="on" data-desk="chat">CBSS AI</button>
+            <button type="button" data-desk="call">Call</button>
+            <button type="button" data-desk="email">Email templates</button>
+          </div>
+          <div id="desk-chat" class="card" style="margin-top:12px">
+            <div class="ai-head">
+              <div class="ai-mark">AI</div>
+              <div>
+                <h2>CBSS AI for Sales</h2>
+                <p class="muted">Your closer-assistant. I will not invent a price. Pick size, grade, and configuration, then pull Container One or USA Containers for the client ZIP. Those numbers are theirs, not a CBSS quote.</p>
+              </div>
+            </div>
+            <div class="log" id="desk-log"></div>
+            <div class="comp-picks" id="comp-picks">
+              <div class="lbl">Size</div>
+              <div class="btns">
+                <button type="button" class="pick" data-pick="size" data-val="20STD">20STD</button>
+                <button type="button" class="pick" data-pick="size" data-val="20HC">20HC</button>
+                <button type="button" class="pick" data-pick="size" data-val="40STD">40STD</button>
+                <button type="button" class="pick on" data-pick="size" data-val="40HC">40HC</button>
+              </div>
+              <div class="lbl">Grade</div>
+              <div class="btns">
+                <button type="button" class="pick" data-pick="grade" data-val="WWT">WWT</button>
+                <button type="button" class="pick on" data-pick="grade" data-val="CW">CW</button>
+                <button type="button" class="pick" data-pick="grade" data-val="Economy">Economy</button>
+                <button type="button" class="pick" data-pick="grade" data-val="Multi-Trip">Multi-Trip</button>
+                <button type="button" class="pick" data-pick="grade" data-val="One-Trip">One-Trip</button>
+              </div>
+              <div class="lbl">Configuration</div>
+              <div class="btns">
+                <button type="button" class="pick on" data-pick="config" data-val="Standard">Standard</button>
+                <button type="button" class="pick" data-pick="config" data-val="Double door">Double door</button>
+                <button type="button" class="pick" data-pick="config" data-val="Side door">Side door</button>
+                <button type="button" class="pick" data-pick="config" data-val="Reefer working">Reefer working</button>
+                <button type="button" class="pick" data-pick="config" data-val="Reefer non-working">Reefer non-working</button>
+              </div>
+            </div>
+            <div class="comp-bar">
+              <div class="zip-wrap"><label for="comp-zip">Client ZIP</label><input id="comp-zip" inputmode="numeric" maxlength="10" placeholder="85001" /></div>
+              <button type="button" class="secondary" id="comp-pull">Pull Container One</button>
+              <button type="button" class="secondary" id="comp-pull-usa">Pull USA Containers</button>
+            </div>
+            <form id="desk-ask-form">
+              <div class="composer">
+                <textarea id="desk-ai" rows="2" placeholder="Ask your CBSS AI for Sales…"></textarea>
+                <button type="submit" class="gold">Ask CBSS AI</button>
+              </div>
+              <p class="err" id="desk-chat-err"></p>
+            </form>
+          </div>
+          <div id="desk-call" class="card hide" style="margin-top:12px">
             <h2>Call scraps</h2>
             <p class="muted">I will not invent a price. Saves a real CRM note. Home delivery is cash before the truck.</p>
             <label>Find contact</label>
@@ -222,7 +302,7 @@ export function pageHtml(): string {
             <div class="row"><button type="button" id="desk-save">Save to CRM</button></div>
             <p class="err" id="desk-err"></p>
           </div>
-          <div class="card" style="margin-top:12px">
+          <div id="desk-email" class="card hide" style="margin-top:12px">
             <h2>Email templates</h2>
             <p class="muted">This tool does not send from Gmail. Copy or open Gmail, then save sent to CRM.</p>
             <select id="desk-tpl"></select>
@@ -231,13 +311,6 @@ export function pageHtml(): string {
               <button type="button" class="secondary" id="desk-copy">Copy</button>
             </div>
             <div class="outbox" id="desk-body">Pick a template.</div>
-          </div>
-          <div class="card" style="margin-top:12px">
-            <h2>CBSS AI for Sales</h2>
-            <p class="muted">I will not invent a price. Competitor numbers stay theirs, not a CBSS quote.</p>
-            <textarea id="desk-ai" rows="2" placeholder="Ask your CBSS AI for Sales…"></textarea>
-            <div class="row"><button type="button" id="desk-ask">Ask CBSS AI</button></div>
-            <div class="outbox" id="desk-ai-out"></div>
           </div>
         </section>
 
@@ -338,25 +411,6 @@ export function pageHtml(): string {
             <div class="row"><button type="button" class="secondary" id="i-list">Refresh</button></div>
             <div class="hits" id="i-hits"></div>
           </div>
-          <div class="card" style="margin-top:12px">
-            <h2>Veem payment request</h2>
-            <p class="muted">VEEM PAYMENT REQUEST — not a CBSS quote. Production API is not open yet. Use invoicing for money in unless Christopher says Veem is live.</p>
-            <div class="split">
-              <div><label>Customer name</label><input id="v-name" /></div>
-              <div><label>Email</label><input id="v-email" type="email" /></div>
-              <div><label>Phone</label><input id="v-phone" /></div>
-              <div><label>Amount USD</label><input id="v-amount" inputmode="decimal" /></div>
-              <div><label>City</label><input id="v-city" /></div>
-              <div><label>State</label><input id="v-state" maxlength="2" placeholder="AR" /></div>
-              <div><label>ZIP</label><input id="v-zip" /></div>
-              <div><label>Street</label><input id="v-street" /></div>
-            </div>
-            <label>What this is for</label>
-            <textarea id="v-notes" rows="2"></textarea>
-            <div class="row"><button type="button" class="secondary" id="v-create">Create Veem request</button></div>
-            <p class="err" id="v-err"></p>
-            <div class="outbox" id="v-out">The pay card lands here.</div>
-          </div>
         </section>
         <footer>${BRAND.company} · side platform · live tools unchanged</footer>
       </main>
@@ -372,8 +426,12 @@ export function pageHtml(): string {
       {v:"full-open-side",l:"Full open side"},{v:"tri-door",l:"Tri-door"}
     ];
     const GRADES = [{v:"WWT",l:"WWT"},{v:"CW",l:"CW"},{v:"IICL",l:"IICL / Multi-Trip"},{v:"OneTrip",l:"One-Trip"},{v:"AsIs",l:"As-Is"}];
+    const TEAM = ["Christopher Banks","James","Bryan Reese","Matthew Brent","Kawika Pangelinan","Ivyanna","Aliyah","New/Unassigned"];
     let user = null, book = null, selected = null, deskContact = null, lastGmail = "", pick = {size:"40",height:"HC",config:"standard",grade:"WWT"};
     let offers = [];
+    let chatHistory = [];
+    let compPick = { size:"40HC", grade:"CW", config:"Standard" };
+    let deskSeeded = false;
 
     function $(id){ return document.getElementById(id); }
     function esc(s){
@@ -387,7 +445,7 @@ export function pageHtml(): string {
     }
     function greet(name){ $("who").textContent = name || "Rep"; }
     function paintTools(tools){
-      const order = [["crm","CRM"],["desk","Desk"],["proposal","Proposal"],["invoice","Invoice"],["pay","Pay"]];
+      const order = [["crm","CRM"],["desk","Desk"],["proposal","Proposal"],["invoice","Invoice"]];
       $("tool-chips").innerHTML = order.map(function(row){
         const on = tools && tools[row[0]];
         return '<span class="chip '+(on?"on":"off")+'">'+row[1]+" "+(on?"connected":"not signed in")+"</span>";
@@ -396,7 +454,7 @@ export function pageHtml(): string {
     function openMod(mod){
       document.querySelectorAll("#nav [data-mod]").forEach(function(b){ b.classList.toggle("on", b.dataset.mod===mod); });
       ["home","crm","desk","proposal","money"].forEach(function(m){ $("mod-"+m).classList.toggle("hide", m!==mod); });
-      if (mod==="desk") loadTemplates();
+      if (mod==="desk") { openDesk("chat"); loadTemplates(); seedAsk(); }
       if (mod==="money") loadInvoices();
     }
     async function api(path, opt){
@@ -406,7 +464,22 @@ export function pageHtml(): string {
       return { r:r, j:j };
     }
     function money(n){ return "$" + Number(n||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}); }
-    function mineName(){ return (user && (user.name||user.email)||"").split("@")[0]; }
+    function displayAmount(v){
+      if (v===undefined || v===null || v==="") return "";
+      const n = typeof v==="number" ? v : parseFloat(String(v).replace(/[$,]/g,""));
+      if (!Number.isFinite(n) || n===0) return "";
+      return "$" + n.toLocaleString("en-US",{maximumFractionDigits:2});
+    }
+    function titleOwner(s){
+      const raw = String(s||"").trim().replace(/\\s+/g," ");
+      if (!raw) return "";
+      const compact = raw.toLowerCase().replace(/[\\s_-]+/g,"");
+      if (compact==="new/unassigned" || compact==="newunassigned" || compact==="unassigned") return "New/Unassigned";
+      const map = { christopher:"Christopher Banks", james:"James", bryan:"Bryan Reese", matthew:"Matthew Brent", veeka:"Kawika Pangelinan", veek:"Kawika Pangelinan", ivyanna:"Ivyanna", aliyah:"Aliyah" };
+      const first = raw.split(/[\\s@]/)[0].toLowerCase();
+      return map[first] || raw;
+    }
+    function mineName(){ return titleOwner((user && (user.name||user.email))||""); }
 
     document.getElementById("login-form").addEventListener("submit", async function(e){
       e.preventDefault();
@@ -447,23 +520,48 @@ export function pageHtml(): string {
         if (c.status==="Connected"||c.status==="Connecting") c.status="Contacted";
         if (!c.owner && String(c.source||"")==="Quote Form") c.owner="New/Unassigned";
       });
-      book = { contacts:contacts, deals:j.deals||[], followups:j.followups||{}, completed:j.completedTasks||{} };
+      contacts.forEach(function(c){
+        const fu = (j.followups||{})[c.id] || (j.followups||{})[String(c.id)];
+        if (fu && !fu.completed){
+          if (fu.nextAction) c.nextAction = fu.nextAction;
+          if (fu.followUpDate) c.followUpDate = fu.followUpDate;
+        }
+        c.owner = titleOwner(c.owner);
+      });
+      const deals = (j.deals||[]).map(function(d){ d.owner = titleOwner(d.owner); if (d.stage==="Quoted") d.stage="Quote"; return d; });
+      book = { contacts:contacts, deals:deals, followups:j.followups||{}, completed:j.completedTasks||{} };
       $("crm-err").textContent = "";
-      renderStats(); renderContacts();
+      fillOwners(); renderStats(); renderContacts();
+    }
+    function fillOwners(){
+      const names = new Set(TEAM);
+      ((book&&book.contacts)||[]).forEach(function(c){ const o = titleOwner(c.owner); if (o) names.add(o); });
+      ((book&&book.deals)||[]).forEach(function(d){ const o = titleOwner(d.owner); if (o) names.add(o); });
+      const current = $("crm-owner").value;
+      const extras = Array.from(names).filter(function(n){ return n!=="New/Unassigned"; }).sort();
+      $("crm-owner").innerHTML = '<option value="">All owners</option><option value="__mine__">Mine</option>'
+        + extras.map(function(n){ return '<option value="'+esc(n)+'">'+esc(n)+"</option>"; }).join("")
+        + '<option value="New/Unassigned">New/Unassigned</option>';
+      if (current && Array.from($("crm-owner").options).some(function(o){ return o.value===current; })) $("crm-owner").value = current;
+    }
+    function ownerScope(owner){
+      const want = $("crm-owner").value;
+      const named = titleOwner(owner);
+      if (!want) return true;
+      if (want==="__mine__") return named===mineName() || String(owner||"").toLowerCase().indexOf(String((user&&user.name)||"").toLowerCase())>=0;
+      return named===want;
     }
     function working(){ return ((book&&book.contacts)||[]).filter(function(c){ return !c.archived && c.status!=="DNC"; }); }
+    function scopedContacts(){ return working().filter(function(c){ return ownerScope(c.owner); }); }
     function renderStats(){
       if (!book) return;
-      const w = working();
-      const due = Object.values(book.followups||{}).filter(function(f){ return f && f.followUpDate && !f.completed; }).length;
-      $("crm-stat").innerHTML = "<span><strong>"+w.length+"</strong> working</span><span><strong>"+(book.deals||[]).length+"</strong> deals</span><span><strong>"+due+"</strong> follow-ups</span>";
+      const w = scopedContacts();
+      const due = openWorkRows().length;
+      $("crm-stat").innerHTML = "<span><strong>"+w.length+"</strong> working</span><span><strong>"+scopedDeals().length+"</strong> deals</span><span><strong>"+due+"</strong> follow-ups</span>";
     }
     function filtered(){
       const q = $("crm-q").value.trim().toLowerCase();
-      const own = $("crm-owner").value;
-      return working().filter(function(c){
-        if (own==="mine" && String(c.owner||"").toLowerCase().indexOf(mineName().toLowerCase())<0) return false;
-        if (own==="New/Unassigned" && c.owner!=="New/Unassigned") return false;
+      return scopedContacts().filter(function(c){
         if (!q) return true;
         return [c.name,c.company,c.phone,c.city,c.email,c.owner].join(" ").toLowerCase().indexOf(q)>=0;
       }).slice(0,80);
@@ -475,7 +573,12 @@ export function pageHtml(): string {
       }).join("");
     }
     $("crm-q").addEventListener("input", renderContacts);
-    $("crm-owner").addEventListener("change", renderContacts);
+    $("crm-owner").addEventListener("change", function(){
+      renderStats(); renderContacts();
+      if (!$("crm-followups").classList.contains("hide")) renderFollowups();
+      if (!$("crm-tasks").classList.contains("hide")) renderTasks();
+      if (!$("crm-pipeline").classList.contains("hide")) renderPipeline();
+    });
     $("crm-rows").addEventListener("click", function(e){
       const tr = e.target.closest("tr");
       if (!tr) return;
@@ -522,25 +625,178 @@ export function pageHtml(): string {
       await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"appendNote", contactId:String(selected.id), text:text, tag:"Desk" }) });
       openContact(selected.id);
     }
-    function renderFollowups(){
-      const rows = working().filter(function(c){
-        const f = book.followups[c.id]||book.followups[String(c.id)];
-        return f && f.nextAction && !f.completed;
+    function contactForId(id){ return ((book&&book.contacts)||[]).find(function(c){ return String(c.id)===String(id); }); }
+    function scopedDeals(){
+      return ((book&&book.deals)||[]).filter(function(d){
+        const c = contactForId(d.contactId);
+        if (c && c.archived) return false;
+        return ownerScope(d.owner) || (c && ownerScope(c.owner));
       });
-      $("crm-followups").innerHTML = "<h2>Follow-ups</h2>"+(rows.map(function(c){
-        const f = book.followups[c.id]||book.followups[String(c.id)];
-        return '<div class="hit"><strong>'+esc(c.name)+"</strong><div>"+esc(f.nextAction||"")+" · "+esc(f.followUpDate||"")+"</div></div>";
-      }).join("")||'<p class="muted">No open follow-ups.</p>');
     }
-    function renderTasks(){ renderFollowups(); $("crm-tasks").innerHTML = $("crm-followups").innerHTML.replace("Follow-ups","Tasks"); }
+    function dealAmount(d){
+      const raw = (d && d.amount!=null && d.amount!=="") ? d.amount : "";
+      if (raw!=="") return displayAmount(raw);
+      const c = contactForId(d && d.contactId);
+      return displayAmount(c && c.amount);
+    }
+    function openWorkRows(){
+      return scopedContacts().filter(function(c){
+        const f = (book.followups||{})[c.id]||(book.followups||{})[String(c.id)]||{};
+        const action = c.nextAction || f.nextAction;
+        const when = c.followUpDate || f.followUpDate;
+        return !f.completed && (String(action||"").trim() || String(when||"").trim());
+      }).sort(function(a,b){
+        return String(a.followUpDate||"9999").localeCompare(String(b.followUpDate||"9999"));
+      });
+    }
+    function workRow(c){
+      const f = (book.followups||{})[c.id]||(book.followups||{})[String(c.id)]||{};
+      const action = c.nextAction || f.nextAction || "";
+      const when = (c.followUpDate || f.followUpDate || "").slice(0,16);
+      return '<tr data-id="'+esc(String(c.id))+'"><td>'+esc(c.name||"")+"</td><td>"+esc(action)+"</td><td>"+esc(when)+"</td><td>"+esc(c.owner||"")+'</td><td><div class="work-actions">'
+        +'<button type="button" class="gold" data-done="'+esc(String(c.id))+'">Complete</button></div>'
+        +'<label>Schedule another</label><input data-next-act="'+esc(String(c.id))+'" placeholder="Next action" />'
+        +'<input type="datetime-local" data-next-date="'+esc(String(c.id))+'" />'
+        +'<div class="row" style="margin-top:6px"><button type="button" class="secondary" data-sched="'+esc(String(c.id))+'">Save next follow-up</button></div></td></tr>';
+    }
+    function renderFollowups(){
+      const rows = openWorkRows();
+      $("crm-followups").innerHTML = "<h2>Follow-ups</h2><p class=\\"muted\\">Complete one, then schedule the next if they still need a call.</p>"
+        +(rows.length ? '<table><thead><tr><th>Name</th><th>Next action</th><th>Date</th><th>Owner</th><th></th></tr></thead><tbody>'+rows.map(workRow).join("")+"</tbody></table>" : '<p class="muted">No open follow-ups.</p>');
+    }
+    function renderTasks(){
+      const rows = openWorkRows();
+      $("crm-tasks").innerHTML = "<h2>Tasks</h2><p class=\\"muted\\">Same book as follow-ups. Complete or set the next one.</p>"
+        +(rows.length ? '<table><thead><tr><th>Name</th><th>Next action</th><th>Date</th><th>Owner</th><th></th></tr></thead><tbody>'+rows.map(workRow).join("")+"</tbody></table>" : '<p class="muted">No open tasks.</p>');
+    }
+    function bindWorkLists(root){
+      root.addEventListener("click", async function(e){
+        const done = e.target.closest("[data-done]");
+        const sched = e.target.closest("[data-sched]");
+        if (done){ e.stopPropagation(); await completeWork(done.getAttribute("data-done")); return; }
+        if (sched){ e.stopPropagation(); await scheduleWork(sched.getAttribute("data-sched")); }
+      });
+    }
+    bindWorkLists($("crm-followups"));
+    bindWorkLists($("crm-tasks"));
+    async function completeWork(id){
+      const c = contactForId(id);
+      if (!c) return;
+      const f = (book.followups||{})[id]||(book.followups||{})[String(id)]||{};
+      const action = c.nextAction || f.nextAction || "Follow-up";
+      await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"completeFollowup", contactId:String(id), nextAction:action }) });
+      c.nextAction = ""; c.followUpDate = "";
+      if (book.followups[id]) delete book.followups[id];
+      if (book.followups[String(id)]) delete book.followups[String(id)];
+      renderStats(); renderFollowups(); renderTasks();
+    }
+    async function scheduleWork(id){
+      const act = document.querySelector('[data-next-act="'+id+'"]');
+      const when = document.querySelector('[data-next-date="'+id+'"]');
+      const nextAction = act ? act.value.trim() : "";
+      const followUpDate = when ? when.value : "";
+      if (!nextAction && !followUpDate) return;
+      const patch = {};
+      patch[id] = { nextAction:nextAction, followUpDate:followUpDate };
+      await api("/x/crm/crm-data?action=saveFollowups", { method:"POST", body: JSON.stringify({ action:"saveFollowups", followups: patch }) });
+      book.followups[id] = patch[id];
+      const c = contactForId(id);
+      if (c){ c.nextAction = nextAction; c.followUpDate = followUpDate; }
+      renderStats(); renderFollowups(); renderTasks();
+    }
     function renderPipeline(){
-      const deals = book.deals||[];
+      const deals = scopedDeals();
       $("crm-pipeline").innerHTML = '<div class="board">'+STAGES.map(function(st){
-        const cards = deals.filter(function(d){ return (d.stage||"")==st || (st==="Quote"&&d.stage==="Quoted"); });
-        return '<div class="col"><h3>'+st+"</h3>"+cards.slice(0,20).map(function(d){ return '<div class="pc"><div>'+esc(d.name||d.contactName||"")+'</div><div class="muted">'+esc(d.owner||"")+(d.amount?" · "+money(d.amount):"")+"</div></div>"; }).join("")+"</div>";
+        const cards = deals.filter(function(d){ return (d.stage||"")===st || (st==="Quote"&&d.stage==="Quoted"); });
+        const total = cards.reduce(function(sum,d){
+          const n = parseFloat(String((d.amount!=null&&d.amount!=="")?d.amount:((contactForId(d.contactId)||{}).amount||"")).replace(/[$,]/g,""));
+          return sum + (Number.isFinite(n)?n:0);
+        },0);
+        return '<div class="col"><h3><span>'+st+"</span><em>"+cards.length+"</em></h3>"
+          +(total? '<p class="muted">'+displayAmount(total)+"</p>":"")
+          +cards.map(function(d){
+            const c = contactForId(d.contactId);
+            const name = d.contactName || (c&&c.name) || d.name || "Deal";
+            const company = (c&&c.company) || d.company || "";
+            const owner = titleOwner(d.owner) || (c&&c.owner) || "";
+            const amt = dealAmount(d);
+            return '<div class="pc" data-id="'+esc(String(d.contactId||""))+'"><div class="pc-name">'+esc(name)+'</div><div class="muted">'+esc(company||"—")+'</div><div class="pc-meta"><span class="pc-amt">'+(amt||"—")+'</span><span>'+esc(owner||"—")+"</span></div>"
+              +'<select data-deal="'+esc(String(d.id))+'">'+STAGES.map(function(s){ return '<option value="'+s+'"'+(s===d.stage?" selected":"")+">"+s+"</option>"; }).join("")+"</select></div>";
+          }).join("")+"</div>";
       }).join("")+"</div>";
     }
+    $("crm-pipeline").addEventListener("click", function(e){
+      const card = e.target.closest(".pc[data-id]");
+      if (card && !e.target.closest("select")) openContact(card.getAttribute("data-id"));
+    });
+    $("crm-pipeline").addEventListener("change", async function(e){
+      const sel = e.target.closest("select[data-deal]");
+      if (!sel) return;
+      const deal = (book.deals||[]).find(function(d){ return String(d.id)===sel.getAttribute("data-deal"); });
+      if (!deal) return;
+      deal.stage = sel.value;
+      await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"saveDeals", deals: book.deals }) });
+      renderStats(); renderPipeline();
+    });
 
+    function openDesk(tab){
+      document.querySelectorAll("#desk-tabs [data-desk]").forEach(function(b){ b.classList.toggle("on", b.dataset.desk===tab); });
+      ["chat","call","email"].forEach(function(t){ $("desk-"+t).classList.toggle("hide", t!==tab); });
+    }
+    document.querySelectorAll("#desk-tabs [data-desk]").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        openDesk(btn.dataset.desk);
+        if (btn.dataset.desk==="email") loadTemplates();
+      });
+    });
+    function bubble(role, text){
+      const div = document.createElement("div");
+      div.className = "bubble " + (role==="user"?"me":"bot");
+      div.textContent = text;
+      $("desk-log").appendChild(div);
+      $("desk-log").scrollTop = $("desk-log").scrollHeight;
+    }
+    function seedAsk(){
+      if (deskSeeded) return;
+      deskSeeded = true;
+      bubble("assistant", "I am your CBSS AI for Sales. Tell me the lead, the call, or what you need written. I will not invent a price. On a call, pick size, grade, and configuration, then pull Container One or USA Containers for the client ZIP. That posted number is theirs, not ours.");
+    }
+    async function askDesk(text){
+      $("desk-chat-err").textContent = "";
+      const q = String(text||"").trim();
+      if (!q) return;
+      bubble("user", q);
+      chatHistory.push({ role:"user", content:q });
+      $("desk-ai").value = "";
+      const res = await api("/x/desk/chat", { method:"POST", body: JSON.stringify({ message:q, history:chatHistory }) });
+      const reply = res.j.reply || res.j.text || res.j.error || "No reply.";
+      chatHistory.push({ role:"assistant", content:reply });
+      bubble("assistant", reply);
+    }
+    $("desk-ask-form").addEventListener("submit", function(e){ e.preventDefault(); askDesk($("desk-ai").value); });
+    document.querySelectorAll("#comp-picks .pick").forEach(function(b){
+      b.addEventListener("click", function(){
+        const kind = b.getAttribute("data-pick");
+        const val = b.getAttribute("data-val");
+        if (!kind || !val) return;
+        compPick[kind] = val;
+        document.querySelectorAll('#comp-picks .pick[data-pick="'+kind+'"]').forEach(function(el){ el.classList.toggle("on", el.getAttribute("data-val")===val); });
+      });
+    });
+    async function pullCompetitor(vendor){
+      const zip = $("comp-zip").value.trim();
+      if (!zip){ $("desk-chat-err").textContent = "Type the client ZIP first."; return; }
+      const who = vendor==="usa-containers" ? "USA Containers" : "Container One";
+      const path = vendor==="usa-containers" ? "/x/desk/comp/usa-containers" : "/x/desk/comp/container-one";
+      bubble("user", "Pull "+who+" for ZIP "+zip+" — "+compPick.size+" "+compPick.grade+" "+compPick.config);
+      const res = await api(path, { method:"POST", body: JSON.stringify({ zip:zip, size:compPick.size, grade:compPick.grade, config:compPick.config }) });
+      const reply = res.j.reply || res.j.error || "Could not pull that posted price. Do not invent a number.";
+      bubble("assistant", reply);
+      chatHistory.push({ role:"user", content:"Pull "+who+" "+zip+" "+compPick.size+" "+compPick.grade+" "+compPick.config });
+      chatHistory.push({ role:"assistant", content:reply });
+    }
+    $("comp-pull").addEventListener("click", function(){ pullCompetitor("container-one"); });
+    $("comp-pull-usa").addEventListener("click", function(){ pullCompetitor("usa-containers"); });
     async function loadTemplates(){
       const res = await api("/x/desk/templates");
       const tpls = res.j.templates||[];
@@ -573,11 +829,6 @@ export function pageHtml(): string {
       $("desk-body").textContent = res.j.body || res.j.text || JSON.stringify(res.j);
     });
     $("desk-copy").addEventListener("click", async function(){ try { await navigator.clipboard.writeText($("desk-body").textContent||""); } catch (e) {} });
-    $("desk-ask").addEventListener("click", async function(){
-      $("desk-ai-out").textContent = "Asking…";
-      const res = await api("/x/desk/chat", { method:"POST", body: JSON.stringify({ message: $("desk-ai").value }) });
-      $("desk-ai-out").textContent = res.j.reply || res.j.text || res.j.error || "No reply.";
-    });
 
     function picks(el, items, key){
       el.innerHTML = items.map(function(it){ return '<button type="button" data-v="'+it.v+'">'+it.l+"</button>"; }).join("");
@@ -685,15 +936,6 @@ export function pageHtml(): string {
       }).join("") || '<p class="muted">No invoices in this list yet.</p>';
     }
     $("i-list").addEventListener("click", loadInvoices);
-    $("v-create").addEventListener("click", async function(){
-      $("v-err").textContent="";
-      const res = await api("/x/pay/pay/create", { method:"POST", body: JSON.stringify({
-        name:$("v-name").value, email:$("v-email").value, phone:$("v-phone").value, amountRaw:$("v-amount").value,
-        notes:$("v-notes").value, city:$("v-city").value, state:$("v-state").value, zip:$("v-zip").value, street:$("v-street").value
-      })});
-      $("v-out").textContent = res.j.cardText || res.j.error || "Veem did not accept that.";
-      if (!res.r.ok || !res.j.ok) $("v-err").textContent = res.j.error || "Veem production is not open.";
-    });
 
     (async function boot(){
       const res = await api("/session");
