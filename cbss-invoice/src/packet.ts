@@ -525,6 +525,20 @@ export const ASHDOD = {
   dest: "Ashdod Port, Israel",
 };
 
+/**
+ * Rate-basis note for the Ashdod ocean quote. Current-market prices move;
+ * CBSS holds this family figure because dedicated export lanes are already stood up
+ * (same promise as the Tema run: keep the lane). Not a carrier booking lock.
+ */
+export const ASHDOD_RATE_BASIS = {
+  label: "Current market quotation · dedicated family lane",
+  asOf: "August 28, 2026",
+  market:
+    "These ocean figures are a current-market quotation as of August 28, 2026. Freight, bunker, destination THC, customs-clearance handling, and related charges do change — they move with the market, vessel space, bunker, and carrier filing until a booking is confirmed and accepted.",
+  dedicated:
+    "As previously promised on the Tema run: CBSS has stood up dedicated family export lanes for this program (Minneapolis rail ramp ↔ Williston load site, then Minneapolis → destination port). Because those lanes are already in place — SOC supply, inland carriage, and booking support — we are working this Ashdod load at the current quoted total rather than re-shopping it as a one-off spot. That is a CBSS family-lane commitment, not a carrier booking confirmation.",
+};
+
 export function ashdodOceanSum(): number {
   return Math.round(ASHDOD_OCEAN_LINES.reduce((sum, row) => sum + row.qty * row.unit, 0) * 100) / 100;
 }
@@ -573,6 +587,7 @@ export function buildPalmerAshdodDocument(): InvoiceDocument {
       "Do not pay ocean freight, residential pickup, drayage, or fuel to CBSS. Those inland items were pulled off the enclosed ocean quote because CBSS is the inland carrier.",
       `USD only. Put invoice ${ASHDOD.cbssNumber} in the payment memo / addenda.`,
       `Family contact on the job: ${PALMER.family}. Cargo: ${ASHDOD.cargo}.`,
+      `${ASHDOD_RATE_BASIS.label}. Enclosed ocean is quoted at current prices as of ${ASHDOD_RATE_BASIS.asOf}. Ocean rates do change until booking. As promised on Tema, dedicated family export lanes are already stood up, so this load is worked at the current quoted ocean total — not re-shopped as a spot.`,
     ],
     remittance: "After you send payment, email remittance confirmation so we can release the second container and dispatch the inland move.",
     termsTitle: "INLAND CARRIAGE · CONDITIONS OF SERVICE",
@@ -629,8 +644,8 @@ export function renderPalmerAshdodPacketHtml(): string {
       </ul>
     </div>
     <div class="box cream">
-      <h2>WHAT IS NOT CONFIRMED YET</h2>
-      <p>The ${escapeHtml(money(ASHDOD.oceanTotal))} ocean figure is the August 28 calculator quote after CBSS pulled residential pickup, drayage, and fuel onto this invoice, plus ${escapeHtml(money(ASHDOD_DEST.amount))} in estimated Ashdod destination charges (DTHC, Israel customs clearance, and consignee handling at Ashdod Port). Rates are subject to pricing approval and a written booking confirmation (24–72 hours). Israel duties, VAT, and cargo insurance are not in that total. Do not pay ocean until the carrier confirms.</p>
+      <h2>CURRENT MARKET QUOTATION · DEDICATED FAMILY LANE</h2>
+      <p>The ${escapeHtml(money(ASHDOD.oceanTotal))} ocean figure is the August 28 calculator quote after CBSS pulled residential pickup, drayage, and fuel onto this invoice, plus ${escapeHtml(money(ASHDOD_DEST.amount))} in estimated Ashdod destination charges (DTHC, Israel customs clearance, and consignee handling at Ashdod Port). ${escapeHtml(ASHDOD_RATE_BASIS.market)} ${escapeHtml(ASHDOD_RATE_BASIS.dedicated)} Israel duties, VAT, and cargo insurance are not in that total. Do not pay ocean until the carrier confirms.</p>
     </div>
     ${footer(packetId, 1, pages)}
   </section>`;
@@ -724,7 +739,8 @@ export function renderPalmerAshdodPacketHtml(): string {
         <h2 style="margin:0 0 6px;letter-spacing:.08em;font-size:11px">QUOTE NOTES</h2>
         <p>These nine lines are the freight-calculator ocean for quote #${escapeHtml(ASHDOD.oceanQuote)} dated ${escapeHtml(ASHDOD.oceanDated)}, after residential pickup, drayage, and fuel were removed, plus estimated Ashdod destination THC, Israel customs clearance (duties/VAT not included), and destination delivery / consignee handling at Ashdod Port. They add to ${escapeHtml(money(ASHDOD.oceanTotal))}.</p>
         <p>Cargo: ${escapeHtml(ASHDOD.cargo)}. Inland movement is on CBSS invoice ${escapeHtml(ASHDOD.cbssNumber)}, not on this quote. No Israel door address is billed.</p>
-        <p>Not established in the tariff. Subject to pricing approval, filing, and a written booking confirmation (24–72 hours). Destination THC, clearance, and port delivery may take up to five days to confirm. Israel duties, VAT, and cargo insurance are not in this total.</p>
+        <p>${escapeHtml(ASHDOD_RATE_BASIS.label)}. ${escapeHtml(ASHDOD_RATE_BASIS.market)}</p>
+        <p>${escapeHtml(ASHDOD_RATE_BASIS.dedicated)} Destination THC, clearance, and port delivery may take up to five days to confirm. Israel duties, VAT, and cargo insurance are not in this total.</p>
       </div>
       <div class="totals">
         <div class="row"><span>Subtotal</span><span>${escapeHtml(money(ASHDOD.oceanTotal))}</span></div>
@@ -750,7 +766,8 @@ export function renderPalmerAshdodPacketHtml(): string {
         ${kvRow("Quote", `#${ASHDOD.oceanQuote}`)}
         ${kvRow("Lane", "Minneapolis → Ashdod (Israel)")}
         ${kvRow("Quoted total", `${money(ASHDOD.oceanTotal)} USD`)}
-        ${kvRow("Status", "Calculator quote · subject to confirmation")}
+        ${kvRow("Rate basis", ASHDOD_RATE_BASIS.label)}
+        ${kvRow("Status", "Current-market quote · prices do change until booking")}
         ${kvRow("When confirmed", "Pay the ocean carrier on their invoice. PayCargo payee will be on that confirmation — not CBGC LLC.")}
       </div>
     </div>

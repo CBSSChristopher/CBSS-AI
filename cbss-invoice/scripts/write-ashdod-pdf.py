@@ -123,7 +123,7 @@ def write_pdf(path):
     wrap(c, "Do not pay ocean to CBSS. Wait for booking confirmation.", 4.35 * inch, H - 3.02 * inch, 3.45 * inch, 10, "Helvetica", 8)
 
     c.setFillColorRGB(*MINT)
-    c.roundRect(0.5 * inch, 1.85 * inch, 7.5 * inch, 3.20 * inch, 6, fill=1, stroke=0)
+    c.roundRect(0.5 * inch, 2.45 * inch, 7.5 * inch, 2.60 * inch, 6, fill=1, stroke=0)
     c.setFillColorRGB(*NAVY)
     c.setFont("Helvetica-Bold", 10)
     c.drawString(0.7 * inch, 4.80 * inch, "LOAD 2 · WHAT CBSS IS HANDLING")
@@ -135,11 +135,27 @@ def write_pdf(path):
         "40HC cargo-worthy SOC with depot / sea-worthy certificate — $2,300.00.",
         f"CBSS inland carriage: Minneapolis ramp to Williston and loaded return. {MILES} one-way miles at $5.00/mile round trip ($2.50 each way) = $3,105.00.",
         "Residential pickup, Minneapolis drayage, and fuel are on the CBSS inland line — not on the ocean quote.",
-        "Cargo: plumbing materials / supplies, water heaters, washers, dryers.",
-        f"Ocean {money(OCEAN)} is the August 28 calculator quote after those inland lines were removed, plus {money(DEST)} estimated Ashdod destination charges (DTHC, Israel customs clearance, Ashdod Port consignee handling). Subject to confirmation. Duties, VAT, and insurance are not included.",
+        f"Ocean {money(OCEAN)} = August 28 calculator after inland pull, plus {money(DEST)} estimated Ashdod destination charges. Duties, VAT, and insurance are not included.",
     ]:
-        y = wrap(c, "•  " + item, 0.7 * inch, y, 7.1 * inch, 11)
+        y = wrap(c, "•  " + item, 0.7 * inch, y, 7.1 * inch, 10, "Helvetica", 8)
         y -= 1
+
+    c.setFillColorRGB(*CREAM)
+    c.roundRect(0.5 * inch, 0.58 * inch, 7.5 * inch, 1.78 * inch, 6, fill=1, stroke=0)
+    c.setFillColorRGB(*NAVY)
+    c.setFont("Helvetica-Bold", 9)
+    c.drawString(0.7 * inch, 2.15 * inch, "CURRENT MARKET QUOTATION  ·  DEDICATED FAMILY LANE")
+    c.setFillColorRGB(*INK)
+    wrap(
+        c,
+        f"Quoted at current prices as of August 28, 2026. Ocean freight, bunker, destination THC, and related charges do change — they move with the market, vessel space, bunker, and carrier filing until a booking is confirmed. As previously promised on the Tema run: CBSS has stood up dedicated family export lanes (Minneapolis rail ramp ↔ Williston, then Minneapolis → destination port). Because those lanes are already in place — SOC supply, inland carriage, and booking support — we are working this Ashdod load at the current quoted total of {money(OCEAN)} rather than re-shopping it as a one-off spot. That is a CBSS family-lane commitment, not a carrier booking confirmation. Do not pay ocean until the carrier confirms.",
+        0.7 * inch,
+        1.96 * inch,
+        7.1 * inch,
+        10,
+        "Helvetica",
+        8,
+    )
     footer(c, "CBS-2026-JP02 / QUOTE-1858652", 1)
     c.showPage()
 
@@ -318,7 +334,7 @@ def write_pdf(path):
     c.drawString(0.7 * inch, y - 0.55 * inch, "DO NOT PAY THIS AMOUNT TO CB SHIPPING SOLUTIONS")
     wrap(
         c,
-        f"August 28 calculator quote #1858652 after residential pickup, drayage, and fuel were moved to the CBSS inland line, plus {money(DEST)} estimated destination charges that match this Minneapolis → Ashdod household-goods / plumbing 40HC: Ashdod DTHC $1,200, Israel customs clearance $850 (duties/VAT not included), and Ashdod Port consignee handling $950. Subject to pricing approval and written booking confirmation. Duties, VAT, and cargo insurance are not included. No Israel door address is billed.",
+        f"August 28 calculator quote #1858652 after residential pickup, drayage, and fuel were moved to the CBSS inland line, plus {money(DEST)} estimated destination charges that match this Minneapolis → Ashdod household-goods / plumbing 40HC: Ashdod DTHC $1,200, Israel customs clearance $850 (duties/VAT not included), and Ashdod Port consignee handling $950. Current market quotation as of August 28, 2026 — ocean prices do change until booking. As promised on Tema, dedicated family export lanes are already stood up, so this load is worked at {money(OCEAN)} rather than re-shopped as a spot. Not a carrier booking confirmation. Duties, VAT, and cargo insurance are not included. No Israel door address is billed.",
         0.55 * inch,
         y - 1.05 * inch,
         7.4 * inch,
@@ -333,31 +349,33 @@ def write_pdf(path):
     c.drawString(0.55 * inch, H - 1.65 * inch, "Ocean quote — do not pay yet")
     wrap(c, f"Calculator total {money(OCEAN)} after inland lines were removed. Not a Lufran confirmation. Not a CBSS invoice.", 0.55 * inch, H - 1.90 * inch, 7.4 * inch)
     c.setFillColorRGB(*NAVY)
-    c.roundRect(0.5 * inch, 5.55 * inch, 7.5 * inch, 2.05 * inch, 6, fill=1, stroke=0)
+    c.roundRect(0.5 * inch, 4.85 * inch, 7.5 * inch, 2.75 * inch, 6, fill=1, stroke=0)
     c.setFillColorRGB(*GOLD)
     c.setFont("Helvetica-Bold", 10)
-    c.drawString(0.7 * inch, 7.30 * inch, "WAIT FOR BOOKING CONFIRMATION")
-    y = 7.00 * inch
+    c.drawString(0.7 * inch, 7.35 * inch, "WAIT FOR BOOKING CONFIRMATION")
+    y = 7.05 * inch
     for label, value in [
         ("Quote", "#1858652"),
         ("Lane", "Minneapolis → Ashdod (Israel)"),
         ("Quoted total", f"{money(OCEAN)} USD"),
+        ("Rate basis", "Current market quotation · dedicated family lane"),
+        ("Prices", "Do change until booking — CBSS holding current quote on this lane"),
         ("When confirmed", "Pay the ocean carrier — not CBGC LLC"),
     ]:
         c.setFillColorRGB(*GOLD)
-        c.setFont("Helvetica-Bold", 9)
+        c.setFont("Helvetica-Bold", 8)
         c.drawString(0.7 * inch, y, label)
         c.setFillColorRGB(*WHITE)
-        c.setFont("Helvetica", 9)
-        c.drawString(2.4 * inch, y, value)
-        y -= 0.32 * inch
+        c.setFont("Helvetica", 8)
+        c.drawString(2.15 * inch, y, value)
+        y -= 0.30 * inch
     wrap(
         c,
-        f"This weekend: (1) Pay {money(CBSS)} to CBSS on CBS-2026-JP02 — {money(BOX)} box + {money(INLAND)} inland. (2) Hold the {money(OCEAN)} ocean quote until the carrier confirms. (3) Confirm Williston is ready for a live load. (4) Send the Ashdod packing list and bill-of-lading names.",
+        f"As previously promised on Tema: dedicated family export lanes are already stood up, so this Ashdod load is worked at the current quoted total rather than re-shopped as a spot. Still not a carrier confirmation. This weekend: (1) Pay {money(CBSS)} to CBSS on CBS-2026-JP02 — {money(BOX)} box + {money(INLAND)} inland. (2) Hold the {money(OCEAN)} ocean quote until the carrier confirms. (3) Confirm Williston is ready for a live load. (4) Send the Ashdod packing list and bill-of-lading names.",
         0.55 * inch,
-        5.25 * inch,
+        4.55 * inch,
         7.4 * inch,
-        12,
+        11,
     )
     footer(c, "QUOTE-1858652", 5)
     c.save()

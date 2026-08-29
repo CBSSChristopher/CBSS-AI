@@ -5,6 +5,7 @@ import {
   ASHDOD,
   ASHDOD_DEST,
   ASHDOD_OCEAN_LINES,
+  ASHDOD_RATE_BASIS,
   INLAND,
   LUFRAN_LINES,
   PALMER,
@@ -111,8 +112,12 @@ describe("Jamie Palmer Ashdod packet · load 2", () => {
     assert.match(html, /Ashdod/);
     assert.match(html, /Plumbing materials/);
     assert.match(html, /INLAND CARRIAGE/);
-    assert.match(html, /subject to confirmation/i);
     assert.match(html, /Do not pay this ocean figure until the carrier sends a booking confirmation/);
+    assert.match(html, /Current market quotation/);
+    assert.match(html, /dedicated family lane/i);
+    assert.match(html, /prices do change/i);
+    assert.match(html, /As previously promised on the Tema run/);
+    assert.equal(ASHDOD_RATE_BASIS.label, "Current market quotation · dedicated family lane");
     assert.doesNotMatch(html, /\$6,018\.50/);
     assert.doesNotMatch(html, /Residential pickup charges/);
     assert.doesNotMatch(html, /\$7,430\.50/);
