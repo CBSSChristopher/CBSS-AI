@@ -111,6 +111,24 @@ describe("CBSS branded invoice document", () => {
     assert.match(renderInvoiceHtml(draftDoc), /Wire \$4,000\.00 to net \$3,990\.00/);
   });
 
+  it("can bill one party and ship to a different load-site name", () => {
+    const doc = buildInvoiceDocument({
+      number: "CBS-2026-JP01",
+      name: "Jamie Palmer",
+      email: "jamiedpalmer@yahoo.com",
+      phone: "",
+      billingLines: ["Ellicott City, MD 21043"],
+      shipName: "Load site · Williston, ND",
+      shippingLines: ["15140 49 T Way NW", "Williston, ND 58801"],
+      warrantyKind: "export-soc",
+      items: [{ title: "40HC export SOC", qty: 1, unit: 2300 }],
+    });
+    assert.equal(doc.billTo.name, "Jamie Palmer");
+    assert.equal(doc.shipTo.name, "Load site · Williston, ND");
+    assert.equal(doc.warrantyKind, "export-soc");
+    assert.match(renderInvoiceHtml(doc), /CERTIFICATE · EXPORT SOC/);
+  });
+
   it("does not print the company name twice on Bill To / Ship To", () => {
     const html = renderInvoiceHtml(
       buildInvoiceDocument({
