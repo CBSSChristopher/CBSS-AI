@@ -57,6 +57,8 @@ export type LineItem = {
   unit: number;
 };
 
+export type WarrantyKind = "wwt" | "one-trip" | "export-soc";
+
 export type InvoiceDocument = {
   number: string;
   date: string;
@@ -74,8 +76,8 @@ export type InvoiceDocument = {
   termsTitle: string;
   terms: string[];
   remittance: string;
-  warrantyKind: "wwt" | "one-trip";
-};
+  warrantyKind: WarrantyKind;
+}
 
 const DOC_PREFIX = "doc:";
 const SEQ_KEY = "next-cbs-number";
@@ -137,9 +139,18 @@ export function parseItems(raw: unknown, fallbackTitle: string, fallbackAmount: 
   return items;
 }
 
-export function warrantyCopy(kind: "wwt" | "one-trip", plural: boolean): { title: string; lines: string[] } {
+export function warrantyCopy(kind: WarrantyKind, plural: boolean): { title: string; lines: string[] } {
   const unit = plural ? "each container" : "this container";
   const units = plural ? "Both units are" : "This unit is";
+  if (kind === "export-soc") {
+    return {
+      title: "CERTIFICATE · EXPORT SOC",
+      lines: [
+        "This unit is sold as a cargo-worthy shipper-owned container (SOC) with a depot / sea-worthy certificate for export. The certificate is the export condition document.",
+        "This is not a domestic delivered-and-placed storage sale. Ocean freight, destination charges, Ghana duties, and cargo insurance are not on this CBSS invoice unless a line says so.",
+      ],
+    };
+  }
   if (kind === "one-trip") {
     return {
       title: "WARRANTY · ONE-TRIP",
@@ -173,8 +184,12 @@ export type DocumentInput = {
   items: LineItem[];
   tax?: number;
   notes?: string[];
-  warrantyKind?: "wwt" | "one-trip";
+  warrantyKind?: WarrantyKind;
   remittance?: string;
+  shipName?: string;
+  shipCompany?: string;
+  termsTitle?: string;
+  terms?: string[];
 };
 
 export function buildInvoiceDocument(input: DocumentInput): InvoiceDocument {
@@ -198,8 +213,8 @@ export function buildInvoiceDocument(input: DocumentInput): InvoiceDocument {
       email: input.email,
     },
     shipTo: {
-      name: input.name,
-      company: input.company,
+      name: input.shipName || input.name,
+      company: input.shipCompany,
       lines: input.shippingLines.filter(Boolean),
     },
     items,
@@ -215,14 +230,16 @@ export function buildInvoiceDocument(input: DocumentInput): InvoiceDocument {
         ],
     warrantyTitle: warranty.title,
     warranty: warranty.lines,
-    termsTitle: "SITE ACCESS · TERMS",
-    terms: [
-      input.shipNote ||
-        "Buyer provides a clear, level, firm drop site with truck/trailer access and no overhead obstruction.",
-      "Extra charges apply for crane, permits, after-hours, or difficult access.",
-      "Title / bills of sale transfer after cleared payment. Questions: (870) 323-2593.",
-      "Thank you for choosing CB Shipping Solutions.",
-    ],
+    termsTitle: input.termsTitle || "SITE ACCESS · TERMS",
+    terms: input.terms?.length
+      ? input.terms
+      : [
+          input.shipNote ||
+            "Buyer provides a clear, level, firm drop site with truck/trailer access and no overhead obstruction.",
+          "Extra charges apply for crane, permits, after-hours, or difficult access.",
+          "Title / bills of sale transfer after cleared payment. Questions: (870) 323-2593.",
+          "Thank you for choosing CB Shipping Solutions.",
+        ],
     remittance: input.remittance || "After you send payment, email remittance confirmation so we can schedule delivery.",
     warrantyKind: input.warrantyKind || "wwt",
   };
@@ -504,7 +521,7 @@ export function documentFromDraft(
     number: string;
     company?: string;
     items?: LineItem[];
-    warrantyKind?: "wwt" | "one-trip";
+    warrantyKind?: WarrantyKind;
     banner?: string;
     date?: string;
     notes?: string[];
