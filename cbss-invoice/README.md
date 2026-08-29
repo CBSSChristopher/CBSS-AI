@@ -4,7 +4,7 @@ Standalone invoice tool. It does not merge with Desk, CRM, Pay, or Proposal.
 
 Live: `https://cbssinvoice.cbss.workers.dev`
 
-Sign in with the same company email and CRM password. Type the amount Christopher set. Type the billing address and the delivery address (or check that they are the same). The tool builds the navy/gold CBSS invoice — Times “CB” mark, Helvetica body, gold invoice number — and always prints ACH, domestic wire, and SWIFT on page 2. It does not invent a price. It does not collect a card number. It does not send from Gmail. Open Gmail to send the invoice; that draft CCs Christopher, Aliyah, and the signed-in rep, and includes both addresses plus the wire memo. WAAVE may still make an optional card-pay link when those keys are set.
+Sign in with the same company email and CRM password. Type the amount Christopher set. Type the billing address and the delivery address (or check that they are the same). The tool builds the navy/gold CBSS invoice — Times “CB” mark, Helvetica body, gold invoice number — and always prints ACH, domestic wire, and SWIFT on page 2. Use **Invoice — ACH / wire only** when they will not pay by card: they still get the branded invoice and a Gmail draft, with no WAAVE card link. Use **Invoice + card pay link** when WAAVE keys are on. It does not invent a price. It does not collect a card number. It does not send from Gmail. Open Gmail to send the invoice; that draft CCs Christopher, Aliyah, and the signed-in rep, and includes both addresses plus the wire memo.
 
 ## Brand
 
