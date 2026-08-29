@@ -4,8 +4,10 @@ import { buildInvoiceDocument, money } from "../src/document.ts";
 import {
   ASHDOD,
   ASHDOD_OCEAN_LINES,
+  INLAND,
   LUFRAN_LINES,
   PALMER,
+  ashdodCbssSum,
   ashdodOceanSum,
   buildPalmerAshdodDocument,
   buildPalmerCbssDocument,
@@ -66,28 +68,43 @@ describe("Jamie Palmer Tema packet", () => {
 });
 
 describe("Jamie Palmer Ashdod packet · load 2", () => {
-  it("quotes the pasted Minneapolis → Ashdod calculator total", () => {
-    assert.equal(ashdodOceanSum(), 6018.5);
-    assert.equal(ASHDOD.oceanTotal, 6018.5);
-    assert.equal(ASHDOD_OCEAN_LINES.length, 9);
+  it("quotes ocean without pickup, drayage, or fuel", () => {
+    assert.equal(ashdodOceanSum(), 4910.4);
+    assert.equal(ASHDOD.oceanTotal, 4910.4);
+    assert.equal(ASHDOD_OCEAN_LINES.length, 6);
     const freight = ASHDOD_OCEAN_LINES.find((row) => row.title.startsWith("Freight"));
     assert.equal(freight?.unit, 3985);
+    const titles = ASHDOD_OCEAN_LINES.map((row) => row.title).join(" ");
+    assert.doesNotMatch(titles, /Residential pickup/i);
+    assert.doesNotMatch(titles, /Drayage/i);
+    assert.doesNotMatch(titles, /Fuel surcharge/i);
   });
 
-  it("bills Jamie Palmer for the second 40HC and does not treat the calculator dump as confirmed Lufran", () => {
+  it("bills the 40HC plus the $5/mile Minneapolis ↔ Williston round trip", () => {
+    assert.equal(INLAND.oneWayMiles, 621);
+    assert.equal(INLAND.roundTripPerOneWayMile, 5);
+    assert.equal(INLAND.oneWayPerMile, 2.5);
+    assert.equal(INLAND.amount, 3105);
+    assert.equal(ashdodCbssSum(), 5405);
     const doc = buildPalmerAshdodDocument();
     assert.equal(doc.billTo.name, "Jamie Palmer");
-    assert.equal(doc.total, 2300);
+    assert.equal(doc.total, 5405);
     assert.match(doc.shipTo.lines.join(" "), /Ashdod Port, Israel/);
     const html = renderPalmerAshdodPacketHtml();
     assert.match(html, /CBS-2026-JP02/);
     assert.match(html, /QUOTE-1858652/);
-    assert.match(html, /\$6,018\.50/);
+    assert.match(html, /\$5,405\.00/);
+    assert.match(html, /\$3,105\.00/);
+    assert.match(html, /\$4,910\.40/);
+    assert.match(html, /\$2\.50/);
+    assert.match(html, /621/);
     assert.match(html, /Ashdod/);
     assert.match(html, /Plumbing materials/);
-    assert.match(html, /Residential pickup charges/);
+    assert.match(html, /INLAND CARRIAGE/);
     assert.match(html, /subject to confirmation/i);
     assert.match(html, /Do not pay this ocean figure until the carrier sends a booking confirmation/);
+    assert.doesNotMatch(html, /\$6,018\.50/);
+    assert.doesNotMatch(html, /Residential pickup charges/);
     assert.doesNotMatch(html, /\$7,430\.50/);
     assert.doesNotMatch(html, /PAY LUFRAN/);
     assert.doesNotMatch(html, /Tema Port/);

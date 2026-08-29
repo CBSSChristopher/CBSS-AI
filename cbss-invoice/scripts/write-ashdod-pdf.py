@@ -14,6 +14,12 @@ WHITE = (1, 1, 1)
 MINT = (0.925, 0.992, 0.953)
 W, H = letter
 
+BOX = 2300
+INLAND = 3105
+CBSS = BOX + INLAND
+OCEAN = 4910.40
+MILES = 621
+
 
 def money(n):
     return f"${n:,.2f}"
@@ -93,13 +99,13 @@ def write_pdf(path):
     c.setFont("Helvetica-Bold", 10)
     c.drawString(0.65 * inch, H - 2.00 * inch, "INVOICE 1 · PAY CBSS NOW")
     c.setFillColorRGB(*WHITE)
-    wrap(c, "Second-load 40HC, depot certificate, and CBSS logistics / handling.", 0.65 * inch, H - 2.22 * inch, 3.2 * inch)
+    wrap(c, f"40HC + certificate {money(BOX)}. Inland round trip Minneapolis ↔ Williston {money(INLAND)}.", 0.65 * inch, H - 2.22 * inch, 3.2 * inch)
     c.setFillColorRGB(*GOLD)
     c.setFont("Times-Bold", 18)
-    c.drawString(0.65 * inch, H - 2.70 * inch, money(2300))
+    c.drawString(0.65 * inch, H - 2.78 * inch, money(CBSS))
     c.setFillColorRGB(*WHITE)
     c.setFont("Helvetica", 8)
-    wrap(c, "Invoice CBS-2026-JP02. Do not pay freight to CBSS.", 0.65 * inch, H - 2.95 * inch, 3.2 * inch, 10, "Helvetica", 8)
+    wrap(c, "Invoice CBS-2026-JP02. Do not pay freight to CBSS.", 0.65 * inch, H - 3.02 * inch, 3.2 * inch, 10, "Helvetica", 8)
 
     c.setFillColorRGB(*CREAM)
     c.roundRect(4.2 * inch, H - 3.55 * inch, 3.8 * inch, 1.75 * inch, 6, fill=1, stroke=0)
@@ -107,16 +113,16 @@ def write_pdf(path):
     c.setFont("Helvetica-Bold", 10)
     c.drawString(4.35 * inch, H - 2.00 * inch, "INVOICE 2 · ENCLOSED QUOTE")
     c.setFillColorRGB(*INK)
-    wrap(c, "Freight-calculator #1858652. Minneapolis to Ashdod. Not confirmed.", 4.35 * inch, H - 2.22 * inch, 3.45 * inch)
+    wrap(c, "Freight-calculator #1858652. Pickup, drayage, and fuel removed. Not confirmed.", 4.35 * inch, H - 2.22 * inch, 3.45 * inch)
     c.setFillColorRGB(*NAVY)
     c.setFont("Times-Bold", 18)
-    c.drawString(4.35 * inch, H - 2.70 * inch, money(6018.50))
+    c.drawString(4.35 * inch, H - 2.78 * inch, money(OCEAN))
     c.setFillColorRGB(*INK)
     c.setFont("Helvetica", 8)
-    wrap(c, "Do not pay ocean to CBSS. Wait for booking confirmation.", 4.35 * inch, H - 2.95 * inch, 3.45 * inch, 10, "Helvetica", 8)
+    wrap(c, "Do not pay ocean to CBSS. Wait for booking confirmation.", 4.35 * inch, H - 3.02 * inch, 3.45 * inch, 10, "Helvetica", 8)
 
     c.setFillColorRGB(*MINT)
-    c.roundRect(0.5 * inch, 2.20 * inch, 7.5 * inch, 2.85 * inch, 6, fill=1, stroke=0)
+    c.roundRect(0.5 * inch, 1.85 * inch, 7.5 * inch, 3.20 * inch, 6, fill=1, stroke=0)
     c.setFillColorRGB(*NAVY)
     c.setFont("Helvetica-Bold", 10)
     c.drawString(0.7 * inch, 4.80 * inch, "LOAD 2 · WHAT CBSS IS HANDLING")
@@ -125,13 +131,14 @@ def write_pdf(path):
     for item in [
         "Billed to Jamie Palmer. Family billing: 7624 Coachlight Lane, Ellicott City, MD 21043.",
         "Load site: 15140 49 T Way NW, Williston, ND 58801. Destination: Ashdod Port, Israel.",
-        "40HC cargo-worthy SOC with depot / sea-worthy certificate.",
-        "CBSS provides the box and handles logistics from the family to the ocean carrier.",
+        "40HC cargo-worthy SOC with depot / sea-worthy certificate — $2,300.00.",
+        f"CBSS inland carriage: Minneapolis ramp to Williston and loaded return. {MILES} one-way miles at $5.00/mile round trip ($2.50 each way) = $3,105.00.",
+        "Residential pickup, Minneapolis drayage, and fuel are on the CBSS inland line — not on the ocean quote.",
         "Cargo: plumbing materials / supplies, water heaters, washers, dryers.",
-        "Ocean $6,018.50 is the August 28 calculator quote — subject to confirmation.",
+        f"Ocean {money(OCEAN)} is the August 28 calculator quote after those inland lines were removed — subject to confirmation.",
     ]:
-        y = wrap(c, "•  " + item, 0.7 * inch, y, 7.1 * inch, 12)
-        y -= 2
+        y = wrap(c, "•  " + item, 0.7 * inch, y, 7.1 * inch, 11)
+        y -= 1
     footer(c, "CBS-2026-JP02 / QUOTE-1858652", 1)
     c.showPage()
 
@@ -139,7 +146,7 @@ def write_pdf(path):
     band(c, H - 1.58 * inch, 0.28 * inch, NAVY)
     c.setFillColorRGB(*GOLD)
     c.setFont("Helvetica-Bold", 8)
-    c.drawCentredString(W / 2, H - 1.50 * inch, "40HC EXPORT SOC · WILLISTON, ND → ASHDOD, ISRAEL · LOGISTICS INCLUDED")
+    c.drawCentredString(W / 2, H - 1.50 * inch, "40HC EXPORT SOC  ·  CBSS INLAND CARRIAGE  ·  WILLISTON ↔ MINNEAPOLIS")
     c.setFillColorRGB(*INK)
     c.setFont("Helvetica-Bold", 9)
     c.drawString(0.55 * inch, H - 1.85 * inch, "BILL TO")
@@ -152,8 +159,8 @@ def write_pdf(path):
     c.drawString(4.3 * inch, H - 2.16 * inch, "Destination: Ashdod Port, Israel")
 
     rows = [
-        ("40HC cargo-worthy SOC with depot / sea-worthy certificate", "1", money(2300), money(2300)),
-        ("Export logistics and container handling (included in CBSS cash)", "1", "Included", "Included"),
+        ("40HC cargo-worthy SOC with depot / sea-worthy certificate", "1", money(BOX), money(BOX)),
+        ("Inland carriage — Minneapolis ↔ Williston round trip (621 mi × $5.00)", "1", money(INLAND), money(INLAND)),
     ]
     y = H - 2.60 * inch
     band(c, y, 0.22 * inch, NAVY)
@@ -174,22 +181,67 @@ def write_pdf(path):
         y -= 0.22 * inch
 
     c.setFillColorRGB(*NAVY)
-    c.roundRect(5.1 * inch, 3.55 * inch, 2.95 * inch, 0.85 * inch, 6, fill=1, stroke=0)
+    c.roundRect(5.1 * inch, 4.55 * inch, 2.95 * inch, 0.85 * inch, 6, fill=1, stroke=0)
     c.setFillColorRGB(*GOLD)
     c.setFont("Helvetica-Bold", 11)
-    c.drawString(5.25 * inch, 4.05 * inch, "TOTAL DUE CBSS")
+    c.drawString(5.25 * inch, 5.05 * inch, "TOTAL DUE CBSS")
     c.setFont("Times-Bold", 14)
-    c.drawRightString(7.90 * inch, 4.05 * inch, money(2300))
+    c.drawRightString(7.90 * inch, 5.05 * inch, money(CBSS))
     c.setFillColorRGB(*WHITE)
     c.setFont("Helvetica", 8)
-    c.drawString(5.25 * inch, 3.75 * inch, "Do not pay freight on this invoice.")
+    c.drawString(5.25 * inch, 4.75 * inch, "Do not pay freight on this invoice.")
     wrap(
         c,
-        "Pay CB Shipping Solutions $2,300.00 only. That is the second-load container, the depot certificate, and CBSS logistics / handling. Ocean is enclosed quote #1858652 and is not confirmed. Memo: CBS-2026-JP02. Load 1 to Tema is a separate packet.",
+        f"Pay CB Shipping Solutions {money(CBSS)}: {money(BOX)} for the second-load container and certificate, plus {money(INLAND)} for one Minneapolis ↔ Williston inland round trip at $5.00 per one-way mile ($2.50 each way). Ocean is enclosed quote #1858652 and is not confirmed. Memo: CBS-2026-JP02.",
         0.55 * inch,
-        3.95 * inch,
+        4.95 * inch,
         4.3 * inch,
-        12,
+        11,
+    )
+
+    c.setFillColorRGB(*NAVY)
+    c.setFont("Helvetica-Bold", 8)
+    c.drawString(0.55 * inch, 3.95 * inch, "INLAND CARRIAGE · CONDITIONS OF SERVICE")
+    c.setFillColorRGB(*INK)
+    y = wrap(
+        c,
+        "SCOPE. CBGC LLC shall exclusively furnish inland movement of the 40HC from the Minneapolis rail ramp or designated depot to 15140 49 T Way NW, Williston, ND 58801, permit loading, and return the sealed container to Minneapolis for tender to the ocean carrier. Customer shall not hire residential pickup, ramp drayage, or fuel for this lane.",
+        0.55 * inch,
+        3.78 * inch,
+        7.4 * inch,
+        10,
+        "Helvetica",
+        8,
+    )
+    y = wrap(
+        c,
+        f"MILEAGE AND RATE. $5.00 per one-way statute mile for the complete round trip, equal to $2.50 per mile each way. This invoice bills {MILES} published one-way miles (Minneapolis–Williston via I-94) × $5.00 = {money(INLAND)}. Actual routed miles, if greater, and out-of-route / second-trip miles bill at the same rate.",
+        0.55 * inch,
+        y - 4,
+        7.4 * inch,
+        10,
+        "Helvetica",
+        8,
+    )
+    y = wrap(
+        c,
+        "INCLUDED. Empty positioning, residential / site access, Minneapolis-area drayage, chassis for the scheduled window, and fuel for the billed round trip. Live load: two (2) hours free; $100.00 per additional hour. Container on chassis 4–4.5 feet above grade. Packing, ramps, crane, and loading labor are not furnished unless separately engaged.",
+        0.55 * inch,
+        y - 4,
+        7.4 * inch,
+        10,
+        "Helvetica",
+        8,
+    )
+    wrap(
+        c,
+        "NOT INCLUDED. Ocean freight, bunker, wharfage, B/L, personal-effects surcharge, SED, Israel destination charges, duties, insurance, drop-and-pick beyond the live-load window, chassis split, overweight, or rail / steamship per diem after tender. Site must be ready. Title transfers after CBSS funds clear. Load 1 to Tema is a separate packet.",
+        0.55 * inch,
+        y - 4,
+        7.4 * inch,
+        10,
+        "Helvetica",
+        8,
     )
     footer(c, "CBS-2026-JP02", 2)
     c.showPage()
@@ -198,7 +250,7 @@ def write_pdf(path):
     c.setFillColorRGB(*NAVY)
     c.setFont("Times-Bold", 20)
     c.drawString(0.55 * inch, H - 1.65 * inch, "How to Pay CBSS")
-    wrap(c, "USD only. Memo: CBS-2026-JP02. Do not wire the $6,018.50 ocean quote here.", 0.55 * inch, H - 1.90 * inch, 7.4 * inch)
+    wrap(c, f"USD only. Memo: CBS-2026-JP02. Do not wire the {money(OCEAN)} ocean quote here.", 0.55 * inch, H - 1.90 * inch, 7.4 * inch)
     c.setFillColorRGB(*NAVY)
     c.roundRect(0.5 * inch, 4.70 * inch, 7.5 * inch, 2.95 * inch, 6, fill=1, stroke=0)
     c.setFillColorRGB(*GOLD)
@@ -208,8 +260,8 @@ def write_pdf(path):
         ("Recipient", "CBGC LLC"),
         ("Bank", "Lead Bank · routing 101019644 · account 212719485341"),
         ("EIN", "99-2031187 · Checking"),
-        ("Amount", "$2,300.00 USD"),
-        ("Wire", "Wire $2,310.00 to net $2,300.00"),
+        ("Amount", f"{money(CBSS)} USD"),
+        ("Wire", f"Wire {money(CBSS + 10)} to net {money(CBSS)}"),
         ("SWIFT", "REVOUS31 · intermediary CHASGB2L"),
     ]
     y = 7.10 * inch
@@ -228,16 +280,13 @@ def write_pdf(path):
     band(c, H - 1.58 * inch, 0.28 * inch, NAVY)
     c.setFillColorRGB(*GOLD)
     c.setFont("Helvetica-Bold", 8)
-    c.drawCentredString(W / 2, H - 1.50 * inch, "OCEAN QUOTE #1858652  ·  MINNEAPOLIS → ASHDOD (ISRAEL)")
+    c.drawCentredString(W / 2, H - 1.50 * inch, "OCEAN QUOTE #1858652  ·  MINNEAPOLIS → ASHDOD (ISRAEL)  ·  INLAND REMOVED")
     lines = [
         ("Freight — 40' container (Minneapolis to Ashdod)", 3985),
         ("Bunker Adjustment Factor (BAF)", 380),
         ("Wharfage (4.54 MT × $10.00)", 45.40),
         ("Bill of lading", 50),
-        ("Residential pickup charges", 400),
         ("Surcharge for personal effects", 400),
-        ("Drayage to loading area (1–10 miles)", 485),
-        ("Fuel surcharge", 223.10),
         ("Shipper’s declaration on $5,000", 50),
     ]
     y = H - 1.90 * inch
@@ -259,13 +308,13 @@ def write_pdf(path):
     c.setFont("Helvetica-Bold", 12)
     c.drawString(0.7 * inch, y - 0.35 * inch, "QUOTED OCEAN")
     c.setFont("Times-Bold", 16)
-    c.drawRightString(7.80 * inch, y - 0.35 * inch, money(6018.50))
+    c.drawRightString(7.80 * inch, y - 0.35 * inch, money(OCEAN))
     c.setFillColorRGB(*WHITE)
     c.setFont("Helvetica", 8)
     c.drawString(0.7 * inch, y - 0.60 * inch, "DO NOT PAY THIS AMOUNT TO CB SHIPPING SOLUTIONS")
     wrap(
         c,
-        "August 28 calculator quote #1858652. Subject to pricing approval and written booking confirmation. Israel destination charges, duties, and insurance are not included.",
+        "August 28 calculator quote #1858652 after residential pickup, drayage, and fuel were moved to the CBSS inland line. Subject to pricing approval and written booking confirmation. Israel destination charges, duties, and insurance are not included.",
         0.55 * inch,
         y - 1.15 * inch,
         7.4 * inch,
@@ -278,9 +327,9 @@ def write_pdf(path):
     c.setFillColorRGB(*NAVY)
     c.setFont("Times-Bold", 20)
     c.drawString(0.55 * inch, H - 1.65 * inch, "Ocean quote — do not pay yet")
-    wrap(c, "Calculator total $6,018.50. Not a Lufran confirmation. Not a CBSS invoice.", 0.55 * inch, H - 1.90 * inch, 7.4 * inch)
+    wrap(c, f"Calculator total {money(OCEAN)} after inland lines were removed. Not a Lufran confirmation. Not a CBSS invoice.", 0.55 * inch, H - 1.90 * inch, 7.4 * inch)
     c.setFillColorRGB(*NAVY)
-    c.roundRect(0.5 * inch, 5.40 * inch, 7.5 * inch, 2.20 * inch, 6, fill=1, stroke=0)
+    c.roundRect(0.5 * inch, 5.55 * inch, 7.5 * inch, 2.05 * inch, 6, fill=1, stroke=0)
     c.setFillColorRGB(*GOLD)
     c.setFont("Helvetica-Bold", 10)
     c.drawString(0.7 * inch, 7.30 * inch, "WAIT FOR BOOKING CONFIRMATION")
@@ -288,7 +337,7 @@ def write_pdf(path):
     for label, value in [
         ("Quote", "#1858652"),
         ("Lane", "Minneapolis → Ashdod (Israel)"),
-        ("Quoted total", "$6,018.50 USD"),
+        ("Quoted total", f"{money(OCEAN)} USD"),
         ("When confirmed", "Pay the ocean carrier — not CBGC LLC"),
     ]:
         c.setFillColorRGB(*GOLD)
@@ -300,9 +349,9 @@ def write_pdf(path):
         y -= 0.32 * inch
     wrap(
         c,
-        "This weekend: (1) Pay $2,300.00 to CBSS on CBS-2026-JP02. (2) Hold the $6,018.50 ocean quote until the carrier confirms. (3) Confirm Williston is ready for the second box. (4) Send the Ashdod packing list and bill-of-lading names.",
+        f"This weekend: (1) Pay {money(CBSS)} to CBSS on CBS-2026-JP02 — {money(BOX)} box + {money(INLAND)} inland. (2) Hold the {money(OCEAN)} ocean quote until the carrier confirms. (3) Confirm Williston is ready for a live load. (4) Send the Ashdod packing list and bill-of-lading names.",
         0.55 * inch,
-        5.10 * inch,
+        5.25 * inch,
         7.4 * inch,
         12,
     )

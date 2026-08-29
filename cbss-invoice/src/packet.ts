@@ -455,18 +455,29 @@ export function renderPalmerPacketHtml(): string {
 </html>`;
 }
 
-/** Freight-calculator quote 1858652, August 28, 2026. Minneapolis → Ashdod. Not Lufran-confirmed. */
+/** Freight-calculator quote 1858652, August 28, 2026. Minneapolis → Ashdod. Inland pickup / drayage / fuel removed — CBSS moves the box. Not Lufran-confirmed. */
 export const ASHDOD_OCEAN_LINES: LineItem[] = [
-  { title: "Freight — 40' container", detail: "Minneapolis rail ramp to Ashdod, Israel. 1 x 40HC shipper-owned container (SOC).", qty: 1, unit: 3985 },
+  { title: "Freight — 40' container", detail: "Minneapolis rail ramp to Ashdod, Israel. 1 x 40HC shipper-owned container (SOC). Port-to-port / ramp-to-port only.", qty: 1, unit: 3985 },
   { title: "Bunker Adjustment Factor (BAF)", detail: "40' container fuel adjustment.", qty: 1, unit: 380 },
   { title: "Wharfage", detail: "4.54 MT × $10.00.", qty: 1, unit: 45.4 },
   { title: "Bill of lading", qty: 1, unit: 50 },
-  { title: "Residential pickup charges", qty: 1, unit: 400 },
   { title: "Surcharge for personal effects (with or without cars)", qty: 1, unit: 400 },
-  { title: "Drayage to loading area (1–10 miles)", qty: 1, unit: 485 },
-  { title: "Fuel surcharge", qty: 1, unit: 223.1 },
   { title: "Shipper’s declaration (over $2,500) on $5,000", qty: 1, unit: 50 },
 ];
+
+/**
+ * Inland carriage: Minneapolis rail ramp ↔ Williston load site, one complete round trip.
+ * Rate set by Christopher: $5.00 per one-way mile for the round trip (= $2.50 per mile each way).
+ * 621 one-way statute miles is the published Minneapolis–Williston driving distance (Travelmath / Trippy, I-94).
+ */
+export const INLAND = {
+  loadSite: "15140 49 T Way NW, Williston, ND 58801",
+  ramp: "Minneapolis, Minnesota rail ramp or designated depot",
+  oneWayMiles: 621,
+  roundTripPerOneWayMile: 5,
+  oneWayPerMile: 2.5,
+  amount: 3105,
+};
 
 export const ASHDOD = {
   date: "August 29, 2026",
@@ -474,8 +485,10 @@ export const ASHDOD = {
   oceanNumber: "QUOTE-1858652",
   oceanQuote: "1858652",
   oceanDated: "August 28, 2026",
-  cbssTotal: 2300,
-  oceanTotal: 6018.5,
+  boxTotal: 2300,
+  inlandTotal: INLAND.amount,
+  cbssTotal: 2300 + INLAND.amount,
+  oceanTotal: 4910.4,
   cargo: "Plumbing materials / supplies · water heaters · washers · dryers · household goods",
   dest: "Ashdod Port, Israel",
 };
@@ -488,18 +501,25 @@ export function palmerAshdodCbssItems(): LineItem[] {
   return [
     {
       title: "40HC cargo-worthy shipper-owned container (SOC) with depot / sea-worthy certificate",
-      detail: "Second family load. One 40' high cube, cargo-worthy, with the depot / sea-worthy certificate required for export.",
+      detail: "Second family load. One 40' high cube, cargo-worthy, with the depot / sea-worthy certificate required for export. Container sale only — inland movement is the next line.",
       qty: 1,
-      unit: 2300,
+      unit: ASHDOD.boxTotal,
     },
     {
-      title: "Export logistics and container handling",
+      title: "Inland container carriage — Minneapolis rail ramp ↔ Williston load site (one round trip)",
       detail:
-        "CBSS provides the box and handles logistics from the family load site to the ocean carrier: depot certificate, Williston coordination, packing-list support, and booking support. Ocean freight is not on this line.",
+        `CBGC LLC d/b/a CB Shipping Solutions shall exclusively furnish all inland movement of the shipper-owned 40HC between the ${INLAND.ramp} and the designated load site at ${INLAND.loadSite}, and shall return the loaded container to the Minneapolis ramp for rail / vessel acceptance. ` +
+        `This is one complete round trip billed at ${money(INLAND.roundTripPerOneWayMile)} per one-way statute mile, which is ${money(INLAND.oneWayPerMile)} per mile each way (positioning empty to Williston and loaded return to Minneapolis). ` +
+        `Billed distance: ${INLAND.oneWayMiles} published one-way statute miles Minneapolis–Williston = ${money(INLAND.amount)}. ` +
+        "Residential / site access, Minneapolis-area drayage, chassis positioning, and fuel for this round trip are included on this line and are not payable to the ocean carrier.",
       qty: 1,
-      unit: 0,
+      unit: INLAND.amount,
     },
   ];
+}
+
+export function ashdodCbssSum(): number {
+  return Math.round(palmerAshdodCbssItems().reduce((sum, row) => sum + row.qty * row.unit, 0) * 100) / 100;
 }
 
 export function buildPalmerAshdodDocument(): InvoiceDocument {
@@ -507,7 +527,7 @@ export function buildPalmerAshdodDocument(): InvoiceDocument {
     number: ASHDOD.cbssNumber,
     date: ASHDOD.date,
     due: "Due on receipt — before the container is dispatched",
-    banner: "40HC EXPORT SOC · WILLISTON, ND → ASHDOD, ISRAEL · LOGISTICS INCLUDED",
+    banner: "40HC EXPORT SOC · CBSS INLAND CARRIAGE · WILLISTON ↔ MINNEAPOLIS · ASHDOD",
     name: PALMER.billTo.name,
     email: PALMER.billTo.email,
     phone: "",
@@ -517,19 +537,20 @@ export function buildPalmerAshdodDocument(): InvoiceDocument {
     warrantyKind: "export-soc",
     items: palmerAshdodCbssItems(),
     notes: [
-      `Pay CB Shipping Solutions ${money(ASHDOD.cbssTotal)} only. That is the second-load container, the depot certificate, and CBSS logistics / handling.`,
-      "Do not pay ocean freight to CBSS. The enclosed ocean quote is calculator #1858652 and is not a Lufran booking confirmation yet.",
+      `Pay CB Shipping Solutions ${money(ASHDOD.cbssTotal)} only: ${money(ASHDOD.boxTotal)} for the second-load 40HC and certificate, plus ${money(ASHDOD.inlandTotal)} for one Minneapolis ↔ Williston inland round trip.`,
+      "Do not pay ocean freight, residential pickup, drayage, or fuel to CBSS. Those inland items were pulled off the enclosed ocean quote because CBSS is the inland carrier.",
       `USD only. Put invoice ${ASHDOD.cbssNumber} in the payment memo / addenda.`,
       `Family contact on the job: ${PALMER.family}. Cargo: ${ASHDOD.cargo}.`,
     ],
-    remittance: "After you send payment, email remittance confirmation so we can release the second container and keep the ocean booking moving.",
-    termsTitle: "EXPORT · LOAD SITE · TERMS",
+    remittance: "After you send payment, email remittance confirmation so we can release the second container and dispatch the inland move.",
+    termsTitle: "INLAND CARRIAGE · CONDITIONS OF SERVICE",
     terms: [
-      `Load site: 15140 49 T Way NW, Williston, ND 58801. Destination: ${ASHDOD.dest}.`,
-      "Family provides the packing list and the exact shipper, consignee, and notify names for the bill of lading. CBSS will help write those if needed.",
-      "Williston must be ready for inspection, packing, and loading. Extra charges apply if the load site is not ready or if extra labor / equipment is required on site.",
-      "Title transfers after CBSS funds clear. Ocean, Israel destination charges, duties, and cargo insurance are not on this CBSS invoice.",
-      "This is load 2. Load 1 to Tema is invoice CBS-2026-JP01 and Lufran quote #1858440 — do not mix those payments with this packet.",
+      `SCOPE. CBGC LLC shall perform motor / intermodal inland carriage of one (1) 40' high-cube shipper-owned container from the Minneapolis, Minnesota rail ramp or designated depot to ${INLAND.loadSite}, permit loading at that site, and return the sealed container to the Minneapolis ramp for tender to the ocean carrier. Customer shall not independently hire residential pickup, ramp drayage, or fuel for this lane.`,
+      `MILEAGE AND RATE. The agreed rate is ${money(INLAND.roundTripPerOneWayMile)} per one-way statute mile for the complete round trip, equal to ${money(INLAND.oneWayPerMile)} per mile each way. This invoice bills ${INLAND.oneWayMiles} published one-way statute miles (Minneapolis–Williston via I-94) × ${money(INLAND.roundTripPerOneWayMile)} = ${money(INLAND.amount)}. Actual routed miles certified on the completed move, if greater, bill at the same rate. Out-of-route miles, a second trip, or a change of load site bill extra at the same rate.`,
+      "INCLUDED IN THE INLAND CHARGE. Positioning of the empty SOC, residential / site access to the Williston address, Minneapolis-area terminal or ramp drayage, chassis use for the scheduled window, and fuel for the billed round trip. Live load: two (2) hours free; One Hundred and 00/100 Dollars ($100.00) per additional hour or fraction thereafter. The container will be presented on a chassis approximately four (4) to four and one-half (4.5) feet above grade. Packing materials, ramps, cranes, and loading labor are not furnished unless separately engaged in writing.",
+      "NOT INCLUDED. Ocean freight, bunker, wharfage, bills of lading, personal-effects surcharge, shipper’s export declaration, Israel destination charges, duties, taxes, cargo insurance, drop-and-pick beyond the scheduled live-load window, chassis split, overweight, hazardous, or storage / per diem assessed by the railroad or steamship line after tender.",
+      "CUSTOMER WARRANTIES. The load site will be ready for inspection, packing, and loading on the scheduled date; will support a standard over-the-road chassis; and will furnish a complete packing list and the exact shipper, consignee, and notify names for the bill of lading. Delay, abort, or redelivery caused by an unready site, blocked access, or missing paperwork is for the customer’s account.",
+      "LIABILITY AND TITLE. Inland carriage is performed as a domestic logistics service of CBGC LLC and is separate from the ocean contract of carriage. Title to the container transfers after CBSS funds clear. Risk of cargo after tender to the rail ramp or ocean carrier is governed by the ocean bill of lading, not this invoice. This is load 2. Load 1 to Tema (CBS-2026-JP01 / Lufran #1858440) is a separate packet — do not mix payments.",
     ],
   });
 }
@@ -553,31 +574,31 @@ export function renderPalmerAshdodPacketHtml(): string {
     <div class="paygrid">
       <div class="paycard navy">
         <h2>INVOICE 1 · PAY CBSS NOW</h2>
-        <p>Second-load container, depot certificate, and CBSS logistics / handling the box.</p>
+        <p>Second-load 40HC and certificate ${escapeHtml(money(ASHDOD.boxTotal))}. Inland round trip Minneapolis ↔ Williston ${escapeHtml(money(ASHDOD.inlandTotal))}.</p>
         <div class="amt">${escapeHtml(money(ASHDOD.cbssTotal))}</div>
         <p>Invoice ${escapeHtml(ASHDOD.cbssNumber)} · ACH or wire to CBGC LLC. Pages 2–3.</p>
         <p>Do not pay freight to CBSS.</p>
       </div>
       <div class="paycard cream">
         <h2>INVOICE 2 · ENCLOSED OCEAN QUOTE</h2>
-        <p>Freight-calculator #${escapeHtml(ASHDOD.oceanQuote)}, dated ${escapeHtml(ASHDOD.oceanDated)}. Minneapolis → Ashdod.</p>
+        <p>Freight-calculator #${escapeHtml(ASHDOD.oceanQuote)}, dated ${escapeHtml(ASHDOD.oceanDated)}. Minneapolis → Ashdod. Pickup, drayage, and fuel removed.</p>
         <div class="amt" style="color:${BRAND.navy}">${escapeHtml(money(ASHDOD.oceanTotal))}</div>
         <p>Not a Lufran booking confirmation yet. Do not pay this amount to CBSS. Pages 4–5.</p>
       </div>
     </div>
     <div class="box mint">
       <h2>WHAT CBSS IS HANDLING ON LOAD 2</h2>
-      <p>Same family job as Tema, second box. CBSS provides the 40HC and handles logistics from the customer to the ocean carrier.</p>
+      <p>Same family job as Tema, second box. CBSS sells the 40HC and is the inland carrier from Minneapolis to Williston and back to Minneapolis.</p>
       <ul class="steps">
         <li>Source and hold the second 40HC cargo-worthy SOC and the depot / sea-worthy certificate.</li>
-        <li>Coordinate the Williston, ND load site at 15140 49 T Way NW.</li>
-        <li>Help with the packing list and the shipper / consignee / notify names for the bill of lading.</li>
-        <li>Book Minneapolis rail ramp → Ashdod and stay on the ocean carrier until they confirm.</li>
+        <li>Position the empty box from the Minneapolis ramp to 15140 49 T Way NW, Williston, ND 58801, live-load, and return the loaded box to Minneapolis.</li>
+        <li>Inland rate: ${escapeHtml(money(INLAND.roundTripPerOneWayMile))} per one-way mile for the round trip (${escapeHtml(money(INLAND.oneWayPerMile))} each way) × ${INLAND.oneWayMiles} miles = ${escapeHtml(money(INLAND.amount))}.</li>
+        <li>Book Minneapolis rail ramp → Ashdod and stay on the ocean carrier until they confirm. Help with the packing list and bill-of-lading names.</li>
       </ul>
     </div>
     <div class="box cream">
       <h2>WHAT IS NOT CONFIRMED YET</h2>
-      <p>The $6,018.50 ocean figure is the August 28 calculator quote. Rates are subject to pricing approval and a written booking confirmation (24–72 hours). Israel destination charges, duties, and insurance are not in that total. Do not pay ocean until the carrier confirms.</p>
+      <p>The ${escapeHtml(money(ASHDOD.oceanTotal))} ocean figure is the August 28 calculator quote after CBSS pulled residential pickup, drayage, and fuel onto this invoice. Rates are subject to pricing approval and a written booking confirmation (24–72 hours). Israel destination charges, duties, and insurance are not in that total. Do not pay ocean until the carrier confirms.</p>
     </div>
     ${footer(packetId, 1, pages)}
   </section>`;
@@ -669,8 +690,8 @@ export function renderPalmerAshdodPacketHtml(): string {
     <div class="split">
       <div class="notes">
         <h2 style="margin:0 0 6px;letter-spacing:.08em;font-size:11px">QUOTE NOTES</h2>
-        <p>These nine lines are the freight-calculator ocean for quote #${escapeHtml(ASHDOD.oceanQuote)} dated ${escapeHtml(ASHDOD.oceanDated)}. They add to ${escapeHtml(money(ASHDOD.oceanTotal))}.</p>
-        <p>Cargo: ${escapeHtml(ASHDOD.cargo)}.</p>
+        <p>These six lines are the freight-calculator ocean for quote #${escapeHtml(ASHDOD.oceanQuote)} dated ${escapeHtml(ASHDOD.oceanDated)}, after residential pickup, drayage, and fuel were removed. They add to ${escapeHtml(money(ASHDOD.oceanTotal))}.</p>
+        <p>Cargo: ${escapeHtml(ASHDOD.cargo)}. Inland movement is on CBSS invoice ${escapeHtml(ASHDOD.cbssNumber)}, not on this quote.</p>
         <p>Not established in the tariff. Subject to pricing approval, filing, and a written booking confirmation (24–72 hours). Destination charges may take up to five days to confirm and are not in this total.</p>
       </div>
       <div class="totals">
@@ -703,14 +724,14 @@ export function renderPalmerAshdodPacketHtml(): string {
     </div>
     <div class="wire">
       <h2>DO NOT USE CBSS BANK DETAILS FOR OCEAN</h2>
-      <p>Page 3 is only the $2,300.00 CBSS invoice. Do not wire $6,018.50 to Lead Bank / CBGC LLC.</p>
+      <p>Page 3 is only the ${escapeHtml(money(ASHDOD.cbssTotal))} CBSS invoice (box + inland round trip). Do not wire the ocean quote to Lead Bank / CBGC LLC.</p>
     </div>
     <div class="box cream">
       <h2>THIS WEEKEND · LOAD 2</h2>
       <ol class="steps">
-        <li>Pay ${escapeHtml(money(ASHDOD.cbssTotal))} to CBSS on invoice ${escapeHtml(ASHDOD.cbssNumber)}.</li>
-        <li>Hold the enclosed ${escapeHtml(money(ASHDOD.oceanTotal))} ocean quote until the carrier confirms.</li>
-        <li>Confirm Williston is ready for the second box.</li>
+        <li>Pay ${escapeHtml(money(ASHDOD.cbssTotal))} to CBSS on invoice ${escapeHtml(ASHDOD.cbssNumber)} — ${escapeHtml(money(ASHDOD.boxTotal))} for the box and ${escapeHtml(money(ASHDOD.inlandTotal))} for the Minneapolis ↔ Williston round trip.</li>
+        <li>Hold the enclosed ${escapeHtml(money(ASHDOD.oceanTotal))} ocean quote until the carrier confirms. Do not pay pickup, drayage, or fuel to the ocean carrier.</li>
+        <li>Confirm Williston is ready for inspection, packing, and a live load (two hours free).</li>
         <li>Send the packing list and the exact bill-of-lading names for Ashdod.</li>
       </ol>
     </div>

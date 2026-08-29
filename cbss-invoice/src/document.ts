@@ -147,7 +147,7 @@ export function warrantyCopy(kind: WarrantyKind, plural: boolean): { title: stri
       title: "CERTIFICATE · EXPORT SOC",
       lines: [
         "This unit is sold as a cargo-worthy shipper-owned container (SOC) with a depot / sea-worthy certificate for export. The certificate is the export condition document.",
-        "This is not a domestic delivered-and-placed storage sale. Ocean freight, destination charges, Ghana duties, and cargo insurance are not on this CBSS invoice unless a line says so.",
+        "This is not a domestic delivered-and-placed storage sale. Ocean freight, destination charges, duties, and cargo insurance are not on this CBSS invoice unless a line says so.",
       ],
     };
   }
