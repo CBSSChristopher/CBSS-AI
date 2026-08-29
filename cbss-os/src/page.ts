@@ -1,4 +1,4 @@
-import { BRAND } from "./brand.ts";
+import { BRAND, TEAM_OWNERS } from "./brand.ts";
 
 export function pageHtml(): string {
   return `<!doctype html>
@@ -114,6 +114,11 @@ export function pageHtml(): string {
     .pc-meta { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; font-size: 12px; }
     .pc-amt { font-weight: 700; color: var(--navy); }
     .work-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+    .acts { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0 12px; }
+    .acts a, .acts button { text-decoration: none; display: inline-flex; align-items: center; }
+    .acts a { background: var(--navy); color: #fff; }
+    .acts a.gold { background: var(--gold); color: var(--navy); }
+    .acts a.secondary { background: #fff; color: var(--navy); border: 1px solid var(--line); }
     .note { border-bottom: 1px dashed var(--line); padding: 8px 0; font-size: 13px; }
     .hits { border: 1px solid var(--line); border-radius: 8px; }
     .hit { padding: 10px 11px; border-bottom: 1px solid var(--line); }
@@ -216,6 +221,7 @@ export function pageHtml(): string {
             <button type="button" class="secondary" data-crm="followups">Follow-ups</button>
             <button type="button" class="secondary" data-crm="tasks">Tasks</button>
             <button type="button" class="secondary" data-crm="pipeline">Pipeline</button>
+            <button type="button" class="secondary" data-crm="campaign">Email campaign</button>
           </div>
           <div class="card" style="margin-top:12px">
             <div id="crm-contacts">
@@ -229,6 +235,7 @@ export function pageHtml(): string {
             <div id="crm-followups" class="hide"></div>
             <div id="crm-tasks" class="hide"></div>
             <div id="crm-pipeline" class="hide"></div>
+            <div id="crm-campaign" class="hide"></div>
             <p class="err" id="crm-err"></p>
           </div>
         </section>
@@ -426,8 +433,9 @@ export function pageHtml(): string {
       {v:"full-open-side",l:"Full open side"},{v:"tri-door",l:"Tri-door"}
     ];
     const GRADES = [{v:"WWT",l:"WWT"},{v:"CW",l:"CW"},{v:"IICL",l:"IICL / Multi-Trip"},{v:"OneTrip",l:"One-Trip"},{v:"AsIs",l:"As-Is"}];
-    const TEAM = ["Christopher Banks","James","Bryan Reese","Matthew Brent","Kawika Pangelinan","Ivyanna","Aliyah","New/Unassigned"];
+    const TEAM = ${JSON.stringify(TEAM_OWNERS)};
     let user = null, book = null, selected = null, deskContact = null, lastGmail = "", pick = {size:"40",height:"HC",config:"standard",grade:"WWT"};
+    let campaignIds = {};
     let offers = [];
     let chatHistory = [];
     let compPick = { size:"40HC", grade:"CW", config:"Standard" };
@@ -475,7 +483,7 @@ export function pageHtml(): string {
       if (!raw) return "";
       const compact = raw.toLowerCase().replace(/[\\s_-]+/g,"");
       if (compact==="new/unassigned" || compact==="newunassigned" || compact==="unassigned") return "New/Unassigned";
-      const map = { christopher:"Christopher Banks", james:"James", bryan:"Bryan Reese", matthew:"Matthew Brent", veeka:"Kawika Pangelinan", veek:"Kawika Pangelinan", ivyanna:"Ivyanna", aliyah:"Aliyah" };
+      const map = { christopher:"Christopher Banks", james:"James", bryan:"Bryan Reese", matthew:"Matthew Brent", veeka:"Kawika Pangelinan", veek:"Kawika Pangelinan", aliyah:"Aliyah", brittni:"Brittni", derrek:"Derrek Clements" };
       const first = raw.split(/[\\s@]/)[0].toLowerCase();
       return map[first] || raw;
     }
@@ -497,10 +505,11 @@ export function pageHtml(): string {
     });
     document.querySelectorAll("[data-crm]").forEach(function(btn){
       btn.addEventListener("click", function(){
-        ["contacts","followups","tasks","pipeline"].forEach(function(v){ $("crm-"+v).classList.toggle("hide", v!==btn.dataset.crm); });
+        ["contacts","followups","tasks","pipeline","campaign"].forEach(function(v){ $("crm-"+v).classList.toggle("hide", v!==btn.dataset.crm); });
         if (btn.dataset.crm==="followups") renderFollowups();
         if (btn.dataset.crm==="tasks") renderTasks();
         if (btn.dataset.crm==="pipeline") renderPipeline();
+        if (btn.dataset.crm==="campaign") renderCampaign();
       });
     });
 
@@ -531,12 +540,19 @@ export function pageHtml(): string {
       const deals = (j.deals||[]).map(function(d){ d.owner = titleOwner(d.owner); if (d.stage==="Quoted") d.stage="Quote"; return d; });
       book = { contacts:contacts, deals:deals, followups:j.followups||{}, completed:j.completedTasks||{} };
       $("crm-err").textContent = "";
+      await loadCampaign();
       fillOwners(); renderStats(); renderContacts();
     }
+    async function loadCampaign(){
+      const res = await api("/campaign");
+      campaignIds = {};
+      (res.j.items||[]).forEach(function(row){ campaignIds[String(row.id)] = row; });
+    }
     function fillOwners(){
+      const skip = { Ivyanna:true };
       const names = new Set(TEAM);
-      ((book&&book.contacts)||[]).forEach(function(c){ const o = titleOwner(c.owner); if (o) names.add(o); });
-      ((book&&book.deals)||[]).forEach(function(d){ const o = titleOwner(d.owner); if (o) names.add(o); });
+      ((book&&book.contacts)||[]).forEach(function(c){ const o = titleOwner(c.owner); if (o && !skip[o]) names.add(o); });
+      ((book&&book.deals)||[]).forEach(function(d){ const o = titleOwner(d.owner); if (o && !skip[o]) names.add(o); });
       const current = $("crm-owner").value;
       const extras = Array.from(names).filter(function(n){ return n!=="New/Unassigned"; }).sort();
       $("crm-owner").innerHTML = '<option value="">All owners</option><option value="__mine__">Mine</option>'
@@ -551,7 +567,8 @@ export function pageHtml(): string {
       if (want==="__mine__") return named===mineName() || String(owner||"").toLowerCase().indexOf(String((user&&user.name)||"").toLowerCase())>=0;
       return named===want;
     }
-    function working(){ return ((book&&book.contacts)||[]).filter(function(c){ return !c.archived && c.status!=="DNC"; }); }
+    function onCampaign(id){ return Boolean(campaignIds[String(id)]); }
+    function working(){ return ((book&&book.contacts)||[]).filter(function(c){ return !c.archived && c.status!=="DNC" && !onCampaign(c.id); }); }
     function scopedContacts(){ return working().filter(function(c){ return ownerScope(c.owner); }); }
     function renderStats(){
       if (!book) return;
@@ -578,6 +595,7 @@ export function pageHtml(): string {
       if (!$("crm-followups").classList.contains("hide")) renderFollowups();
       if (!$("crm-tasks").classList.contains("hide")) renderTasks();
       if (!$("crm-pipeline").classList.contains("hide")) renderPipeline();
+      if (!$("crm-campaign").classList.contains("hide")) renderCampaign();
     });
     $("crm-rows").addEventListener("click", function(e){
       const tr = e.target.closest("tr");
@@ -592,9 +610,18 @@ export function pageHtml(): string {
       const notes = (res.j.notes && (res.j.notes[id]||res.j.notes[String(id)])) || selected.notes || [];
       selected.notes = notes;
       const fu = (book.followups||{})[id] || (book.followups||{})[String(id)] || {};
+      const phone = String(selected.phone||"").replace(/\\D/g,"");
+      const tel = phone.length===11 && phone.charAt(0)==="1" ? phone.slice(1) : phone;
+      const mail = String(selected.email||"").trim();
+      const gmail = mail ? "https://mail.google.com/mail/?view=cm&fs=1&to="+encodeURIComponent(mail) : "";
       $("crm-detail").innerHTML = "<h2>"+esc(selected.name||"")+"</h2>"
         +'<p class="muted">'+esc([selected.company,selected.phone,selected.city,selected.state].filter(Boolean).join(" · "))+"</p>"
         +"<p>Owner "+esc(selected.owner||"")+" · "+esc(selected.status||"")+(selected.amount?" · "+money(selected.amount):"")+"</p>"
+        +'<div class="acts">'
+        +(tel.length===10 ? '<a class="gold" href="tel:+1'+tel+'">Call</a><a class="secondary" href="sms:+1'+tel+'">Text</a>' : "")
+        +(gmail ? '<a class="secondary" href="'+esc(gmail)+'" target="_blank" rel="noopener">Email</a>' : "")
+        +'<button type="button" class="secondary" id="add-campaign">Add to email campaign</button>'
+        +"</div>"
         +'<label>Follow-up</label><input id="fu-act" value="'+esc(fu.nextAction||"")+'" placeholder="e.g. Call about 40ft WWT pricing" />'
         +'<input id="fu-date" type="datetime-local" value="'+esc((fu.followUpDate||"").slice(0,16))+'" />'
         +'<div class="row"><button type="button" class="secondary" id="fu-save">Save follow-up</button><button type="button" id="fu-done">Complete</button></div>'
@@ -603,6 +630,8 @@ export function pageHtml(): string {
       $("fu-save").onclick = saveFollowup;
       $("fu-done").onclick = completeTask;
       $("note-add").onclick = addNote;
+      const campBtn = $("add-campaign");
+      if (campBtn) campBtn.onclick = addToCampaign;
     }
     async function saveFollowup(){
       if (!selected) return;
@@ -625,11 +654,41 @@ export function pageHtml(): string {
       await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"appendNote", contactId:String(selected.id), text:text, tag:"Desk" }) });
       openContact(selected.id);
     }
+    async function addToCampaign(){
+      if (!selected) return;
+      const res = await api("/campaign/add", { method:"POST", body: JSON.stringify({
+        id:String(selected.id), name:selected.name||"", email:selected.email||"", phone:selected.phone||"",
+        city:selected.city||"", owner:selected.owner||""
+      }) });
+      (res.j.items||[]).forEach(function(row){ campaignIds[String(row.id)] = row; });
+      $("crm-detail").innerHTML = '<p class="muted">'+esc(selected.name||"That lead")+" moved to Email campaign. The future campaign tool will work this list.</p>";
+      selected = null;
+      renderStats(); renderContacts(); renderFollowups(); renderTasks(); renderPipeline(); renderCampaign();
+    }
+    function renderCampaign(){
+      const rows = Object.keys(campaignIds).map(function(id){ return campaignIds[id]; });
+      $("crm-campaign").innerHTML = "<h2>Email campaign</h2><p class=\\"muted\\">Leads pulled off the working book for a future campaign tool. They stay in the live CRM. This list is only on the side platform.</p>"
+        +(rows.length ? '<table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Owner</th><th></th></tr></thead><tbody>'
+          +rows.map(function(row){
+            return '<tr><td>'+esc(row.name||"")+"</td><td>"+esc(row.email||"")+"</td><td>"+esc(row.phone||"")+"</td><td>"+esc(row.owner||"")
+              +'</td><td><button type="button" class="secondary" data-return="'+esc(String(row.id))+'">Return to book</button></td></tr>';
+          }).join("")+"</tbody></table>" : '<p class="muted">No campaign leads yet.</p>');
+    }
+    $("crm-campaign").addEventListener("click", async function(e){
+      const btn = e.target.closest("[data-return]");
+      if (!btn) return;
+      const id = btn.getAttribute("data-return");
+      const res = await api("/campaign/return", { method:"POST", body: JSON.stringify({ id:id }) });
+      campaignIds = {};
+      (res.j.items||[]).forEach(function(row){ campaignIds[String(row.id)] = row; });
+      renderStats(); renderContacts(); renderCampaign();
+    });
     function contactForId(id){ return ((book&&book.contacts)||[]).find(function(c){ return String(c.id)===String(id); }); }
     function scopedDeals(){
       return ((book&&book.deals)||[]).filter(function(d){
         const c = contactForId(d.contactId);
-        if (c && c.archived) return false;
+        if (c && (c.archived || onCampaign(c.id))) return false;
+        if (onCampaign(d.contactId)) return false;
         return ownerScope(d.owner) || (c && ownerScope(c.owner));
       });
     }

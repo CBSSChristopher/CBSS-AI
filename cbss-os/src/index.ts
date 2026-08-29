@@ -11,6 +11,7 @@ import {
   type Env,
   type ToolKey,
 } from "./auth.ts";
+import { addCampaign, listCampaign, returnCampaign } from "./campaign.ts";
 import { pageHtml } from "./page.ts";
 
 const SECURITY = {
@@ -147,6 +148,40 @@ export default {
 
     if (request.method === "POST" && path === "/auth/logout") {
       return withCookies(200, { ok: true }, await clearSession(request, env));
+    }
+
+    if (request.method === "GET" && path === "/campaign") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      return json(200, { ok: true, items: await listCampaign(env) });
+    }
+
+    if (request.method === "POST" && path === "/campaign/add") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      const body = await readJson(request);
+      const id = str(body.id || body.contactId);
+      if (!id) return json(400, { error: "Pick a contact first." });
+      const items = await addCampaign(env, {
+        id,
+        name: str(body.name),
+        email: str(body.email),
+        phone: str(body.phone),
+        city: str(body.city),
+        owner: str(body.owner),
+        addedBy: user.name || user.email,
+        addedAt: new Date().toISOString(),
+      });
+      return json(200, { ok: true, items });
+    }
+
+    if (request.method === "POST" && path === "/campaign/return") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      const body = await readJson(request);
+      const id = str(body.id || body.contactId);
+      if (!id) return json(400, { error: "Pick a campaign lead first." });
+      return json(200, { ok: true, items: await returnCampaign(env, id) });
     }
 
     const tool = matchTool(path);

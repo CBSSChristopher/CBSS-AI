@@ -16,7 +16,7 @@ Sign in once with the company email and CRM password. The platform talks to thos
 
 ## Modules
 
-- **CRM** — contacts, follow-ups, tasks, pipeline, notes
+- **CRM** — contacts, follow-ups, tasks, pipeline, notes, email-campaign hold
 - **Desk** — CBSS AI first, Container One / USA Containers price match, then call scraps and email
 - **Proposal** — container picks, posted xChange wholesale only, cash, submit
 - **Money** — branded invoice (ACH/wire or card). No Veem.

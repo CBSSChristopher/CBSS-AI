@@ -4,8 +4,20 @@ export const BRAND = {
   paper: "#F7F4EC",
   company: "CBGC LLC DBA CB Shipping Solutions",
   title: "CBSS Platform",
-  stamp: "build 2 · side platform · live tools unchanged",
+  stamp: "build 3 · side platform · live tools unchanged",
 } as const;
+
+export const TEAM_OWNERS = [
+  "Christopher Banks",
+  "James",
+  "Bryan Reese",
+  "Matthew Brent",
+  "Kawika Pangelinan",
+  "Aliyah",
+  "Brittni",
+  "Derrek Clements",
+  "New/Unassigned",
+] as const;
 
 export const LIVE_TOOLS = {
   crm: "https://cbsscrm.cbss.workers.dev",

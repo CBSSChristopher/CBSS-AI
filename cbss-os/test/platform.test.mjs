@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { readFileSync } from "node:fs";
-import { BRAND, LIVE_TOOLS, MODULES } from "../src/brand.ts";
+import { BRAND, LIVE_TOOLS, MODULES, TEAM_OWNERS } from "../src/brand.ts";
 import { emptyTools, isCompanyEmail, makeSession, origins, readSession, toolsReady } from "../src/auth.ts";
 import { pageHtml } from "../src/page.ts";
 
@@ -42,6 +42,16 @@ describe("CBSS platform brand", () => {
     assert.match(page, /Complete/);
     assert.match(page, /Schedule another/);
     assert.match(page, /grid-template-columns: repeat\(8,/);
+    assert.match(page, />Call</);
+    assert.match(page, />Text</);
+    assert.match(page, />Email</);
+    assert.match(page, /Add to email campaign/);
+    assert.match(page, /Email campaign/);
+    assert.ok(TEAM_OWNERS.includes("Derrek Clements"));
+    assert.ok(TEAM_OWNERS.includes("Brittni"));
+    assert.ok(!TEAM_OWNERS.includes("Ivyanna"));
+    assert.match(page, /Derrek Clements/);
+    assert.doesNotMatch(page, /"Ivyanna"/);
   });
 });
 
