@@ -2,10 +2,15 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { buildInvoiceDocument, money } from "../src/document.ts";
 import {
+  ASHDOD,
+  ASHDOD_OCEAN_LINES,
   LUFRAN_LINES,
   PALMER,
+  ashdodOceanSum,
+  buildPalmerAshdodDocument,
   buildPalmerCbssDocument,
   palmerCbssItems,
+  renderPalmerAshdodPacketHtml,
   renderPalmerPacketHtml,
 } from "../src/packet.ts";
 
@@ -57,5 +62,34 @@ describe("Jamie Palmer Tema packet", () => {
       items: [{ title: "test", qty: 1, unit: 10 }],
     });
     assert.equal(otherBill.billTo.name, "Shawn Eastman");
+  });
+});
+
+describe("Jamie Palmer Ashdod packet · load 2", () => {
+  it("quotes the pasted Minneapolis → Ashdod calculator total", () => {
+    assert.equal(ashdodOceanSum(), 6018.5);
+    assert.equal(ASHDOD.oceanTotal, 6018.5);
+    assert.equal(ASHDOD_OCEAN_LINES.length, 9);
+    const freight = ASHDOD_OCEAN_LINES.find((row) => row.title.startsWith("Freight"));
+    assert.equal(freight?.unit, 3985);
+  });
+
+  it("bills Jamie Palmer for the second 40HC and does not treat the calculator dump as confirmed Lufran", () => {
+    const doc = buildPalmerAshdodDocument();
+    assert.equal(doc.billTo.name, "Jamie Palmer");
+    assert.equal(doc.total, 2300);
+    assert.match(doc.shipTo.lines.join(" "), /Ashdod Port, Israel/);
+    const html = renderPalmerAshdodPacketHtml();
+    assert.match(html, /CBS-2026-JP02/);
+    assert.match(html, /QUOTE-1858652/);
+    assert.match(html, /\$6,018\.50/);
+    assert.match(html, /Ashdod/);
+    assert.match(html, /Plumbing materials/);
+    assert.match(html, /Residential pickup charges/);
+    assert.match(html, /subject to confirmation/i);
+    assert.match(html, /Do not pay this ocean figure until the carrier sends a booking confirmation/);
+    assert.doesNotMatch(html, /\$7,430\.50/);
+    assert.doesNotMatch(html, /PAY LUFRAN/);
+    assert.doesNotMatch(html, /Tema Port/);
   });
 });

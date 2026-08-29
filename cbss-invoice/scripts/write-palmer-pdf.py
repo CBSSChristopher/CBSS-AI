@@ -329,7 +329,7 @@ def write_pdf(path):
         ("Amount", "$7,430.50 USD"),
         ("Quote", "#1858440"),
         ("PayCargo", "https://paycargo.com/paycargo-quick-pay/"),
-        ("After you pay", "Email confirmation to fiorella@lufran-intl.com and copy CBSS"),
+        ("After you pay", "Email confirmation to Fiorella at Lufran and copy CBSS"),
     ]
     y = 7.10 * inch
     for label, value in pay:

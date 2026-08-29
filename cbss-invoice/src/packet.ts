@@ -454,3 +454,283 @@ export function renderPalmerPacketHtml(): string {
 </body>
 </html>`;
 }
+
+/** Freight-calculator quote 1858652, August 28, 2026. Minneapolis → Ashdod. Not Lufran-confirmed. */
+export const ASHDOD_OCEAN_LINES: LineItem[] = [
+  { title: "Freight — 40' container", detail: "Minneapolis rail ramp to Ashdod, Israel. 1 x 40HC shipper-owned container (SOC).", qty: 1, unit: 3985 },
+  { title: "Bunker Adjustment Factor (BAF)", detail: "40' container fuel adjustment.", qty: 1, unit: 380 },
+  { title: "Wharfage", detail: "4.54 MT × $10.00.", qty: 1, unit: 45.4 },
+  { title: "Bill of lading", qty: 1, unit: 50 },
+  { title: "Residential pickup charges", qty: 1, unit: 400 },
+  { title: "Surcharge for personal effects (with or without cars)", qty: 1, unit: 400 },
+  { title: "Drayage to loading area (1–10 miles)", qty: 1, unit: 485 },
+  { title: "Fuel surcharge", qty: 1, unit: 223.1 },
+  { title: "Shipper’s declaration (over $2,500) on $5,000", qty: 1, unit: 50 },
+];
+
+export const ASHDOD = {
+  date: "August 29, 2026",
+  cbssNumber: "CBS-2026-JP02",
+  oceanNumber: "QUOTE-1858652",
+  oceanQuote: "1858652",
+  oceanDated: "August 28, 2026",
+  cbssTotal: 2300,
+  oceanTotal: 6018.5,
+  cargo: "Plumbing materials / supplies · water heaters · washers · dryers · household goods",
+  dest: "Ashdod Port, Israel",
+};
+
+export function ashdodOceanSum(): number {
+  return Math.round(ASHDOD_OCEAN_LINES.reduce((sum, row) => sum + row.qty * row.unit, 0) * 100) / 100;
+}
+
+export function palmerAshdodCbssItems(): LineItem[] {
+  return [
+    {
+      title: "40HC cargo-worthy shipper-owned container (SOC) with depot / sea-worthy certificate",
+      detail: "Second family load. One 40' high cube, cargo-worthy, with the depot / sea-worthy certificate required for export.",
+      qty: 1,
+      unit: 2300,
+    },
+    {
+      title: "Export logistics and container handling",
+      detail:
+        "CBSS provides the box and handles logistics from the family load site to the ocean carrier: depot certificate, Williston coordination, packing-list support, and booking support. Ocean freight is not on this line.",
+      qty: 1,
+      unit: 0,
+    },
+  ];
+}
+
+export function buildPalmerAshdodDocument(): InvoiceDocument {
+  return buildInvoiceDocument({
+    number: ASHDOD.cbssNumber,
+    date: ASHDOD.date,
+    due: "Due on receipt — before the container is dispatched",
+    banner: "40HC EXPORT SOC · WILLISTON, ND → ASHDOD, ISRAEL · LOGISTICS INCLUDED",
+    name: PALMER.billTo.name,
+    email: PALMER.billTo.email,
+    phone: "",
+    billingLines: PALMER.billTo.lines,
+    shipName: "Load site · Williston, ND",
+    shippingLines: ["15140 49 T Way NW", "Williston, ND 58801", `Destination: ${ASHDOD.dest}`],
+    warrantyKind: "export-soc",
+    items: palmerAshdodCbssItems(),
+    notes: [
+      `Pay CB Shipping Solutions ${money(ASHDOD.cbssTotal)} only. That is the second-load container, the depot certificate, and CBSS logistics / handling.`,
+      "Do not pay ocean freight to CBSS. The enclosed ocean quote is calculator #1858652 and is not a Lufran booking confirmation yet.",
+      `USD only. Put invoice ${ASHDOD.cbssNumber} in the payment memo / addenda.`,
+      `Family contact on the job: ${PALMER.family}. Cargo: ${ASHDOD.cargo}.`,
+    ],
+    remittance: "After you send payment, email remittance confirmation so we can release the second container and keep the ocean booking moving.",
+    termsTitle: "EXPORT · LOAD SITE · TERMS",
+    terms: [
+      `Load site: 15140 49 T Way NW, Williston, ND 58801. Destination: ${ASHDOD.dest}.`,
+      "Family provides the packing list and the exact shipper, consignee, and notify names for the bill of lading. CBSS will help write those if needed.",
+      "Williston must be ready for inspection, packing, and loading. Extra charges apply if the load site is not ready or if extra labor / equipment is required on site.",
+      "Title transfers after CBSS funds clear. Ocean, Israel destination charges, duties, and cargo insurance are not on this CBSS invoice.",
+      "This is load 2. Load 1 to Tema is invoice CBS-2026-JP01 and Lufran quote #1858440 — do not mix those payments with this packet.",
+    ],
+  });
+}
+
+export function renderPalmerAshdodPacketHtml(): string {
+  const doc = buildPalmerAshdodDocument();
+  const c = COMPANY;
+  const b = BANK;
+  const wire = wireGross(doc.total);
+  const pages = 5;
+  const packetId = `${ASHDOD.cbssNumber} / ${ASHDOD.oceanNumber}`;
+
+  const cover = `<section class="page">
+    ${header(packetId, ASHDOD.date, "Two documents · do not mix them", "PACKET")}
+    <div class="banner">JAMIE PALMER · LOAD 2 · 40HC TO ASHDOD · WHO PAYS WHAT</div>
+    <div class="parties">
+      ${partyBox("FROM / SELLER", c.legal, [`d/b/a ${c.dba}`, c.street, c.cityLine, `EIN ${c.ein}`, c.phone])}
+      ${partyBox("BILL TO", PALMER.billTo.name, PALMER.billTo.lines, [PALMER.billTo.email])}
+      ${partyBox("LOAD / DESTINATION", "Load site · Williston, ND", ["15140 49 T Way NW", "Williston, ND 58801", `Destination: ${ASHDOD.dest}`], [ASHDOD.cargo])}
+    </div>
+    <div class="paygrid">
+      <div class="paycard navy">
+        <h2>INVOICE 1 · PAY CBSS NOW</h2>
+        <p>Second-load container, depot certificate, and CBSS logistics / handling the box.</p>
+        <div class="amt">${escapeHtml(money(ASHDOD.cbssTotal))}</div>
+        <p>Invoice ${escapeHtml(ASHDOD.cbssNumber)} · ACH or wire to CBGC LLC. Pages 2–3.</p>
+        <p>Do not pay freight to CBSS.</p>
+      </div>
+      <div class="paycard cream">
+        <h2>INVOICE 2 · ENCLOSED OCEAN QUOTE</h2>
+        <p>Freight-calculator #${escapeHtml(ASHDOD.oceanQuote)}, dated ${escapeHtml(ASHDOD.oceanDated)}. Minneapolis → Ashdod.</p>
+        <div class="amt" style="color:${BRAND.navy}">${escapeHtml(money(ASHDOD.oceanTotal))}</div>
+        <p>Not a Lufran booking confirmation yet. Do not pay this amount to CBSS. Pages 4–5.</p>
+      </div>
+    </div>
+    <div class="box mint">
+      <h2>WHAT CBSS IS HANDLING ON LOAD 2</h2>
+      <p>Same family job as Tema, second box. CBSS provides the 40HC and handles logistics from the customer to the ocean carrier.</p>
+      <ul class="steps">
+        <li>Source and hold the second 40HC cargo-worthy SOC and the depot / sea-worthy certificate.</li>
+        <li>Coordinate the Williston, ND load site at 15140 49 T Way NW.</li>
+        <li>Help with the packing list and the shipper / consignee / notify names for the bill of lading.</li>
+        <li>Book Minneapolis rail ramp → Ashdod and stay on the ocean carrier until they confirm.</li>
+      </ul>
+    </div>
+    <div class="box cream">
+      <h2>WHAT IS NOT CONFIRMED YET</h2>
+      <p>The $6,018.50 ocean figure is the August 28 calculator quote. Rates are subject to pricing approval and a written booking confirmation (24–72 hours). Israel destination charges, duties, and insurance are not in that total. Do not pay ocean until the carrier confirms.</p>
+    </div>
+    ${footer(packetId, 1, pages)}
+  </section>`;
+
+  const notes = doc.notes.map((line) => `<p>${escapeHtml(line)}</p>`).join("");
+  const warranty = doc.warranty.map((line) => `<p>${escapeHtml(line)}</p>`).join("");
+  const terms = doc.terms.map((line) => `<p>${escapeHtml(line)}</p>`).join("");
+
+  const cbssFace = `<section class="page">
+    ${header(doc.number, doc.date, doc.due, "INVOICE")}
+    <div class="parties">
+      ${partyBox("FROM / SELLER", c.legal, [`d/b/a ${c.dba}`, c.street, c.cityLine, `EIN ${c.ein}`, c.phone])}
+      ${partyBox("BILL TO", doc.billTo.name, doc.billTo.lines, [doc.billTo.email || ""].filter(Boolean))}
+      ${partyBox("SHIP TO", doc.shipTo.name, doc.shipTo.lines)}
+    </div>
+    <div class="banner">${escapeHtml(doc.banner)}</div>
+    <table class="lines">
+      <thead><tr><th>DESCRIPTION</th><th class="num">QTY</th><th class="num">UNIT PRICE</th><th class="num">AMOUNT</th></tr></thead>
+      <tbody>${lineRows(doc.items)}</tbody>
+    </table>
+    <div class="split">
+      <div class="notes"><h2 style="margin:0 0 6px;letter-spacing:.08em;font-size:11px">INVOICE NOTES</h2>${notes}</div>
+      <div class="totals">
+        <div class="row"><span>Subtotal</span><span>${escapeHtml(money(doc.subtotal))}</span></div>
+        <div class="row"><span>Tax</span><span>${escapeHtml(money(doc.tax))}</span></div>
+        <div class="due"><span>TOTAL DUE CBSS</span><span>${escapeHtml(money(doc.total))}</span></div>
+      </div>
+    </div>
+    <div class="box mint"><h2>${escapeHtml(doc.warrantyTitle)}</h2>${warranty}</div>
+    <div class="box cream"><h2>${escapeHtml(doc.termsTitle)}</h2>${terms}</div>
+    ${footer(doc.number, 2, pages)}
+  </section>`;
+
+  const cbssPay = `<section class="page">
+    ${header(doc.number, doc.date, doc.due, "INVOICE")}
+    <h1 class="pay">How to Pay CBSS</h1>
+    <p class="lead">USD only. Memo / addenda: <strong>${escapeHtml(doc.number)}</strong>. This page is only the ${escapeHtml(money(doc.total))} second-load CBSS invoice. Do not wire the ocean quote here.</p>
+    <div class="paybox">
+      <div class="cap">ACH / E-CHECK — PREFERRED · NO INCOMING FEE</div>
+      <div class="body">
+        <p>Pay ${escapeHtml(money(doc.total))} USD by ACH or e-check. Usually arrives in 1–3 business days.</p>
+        ${kvRow("Recipient", b.recipient)}
+        ${kvRow("Address", b.address)}
+        ${kvRow("City / ZIP", b.cityZip)}
+        ${kvRow("Phone", b.phone)}
+        ${kvRow("EIN / tax ID", b.ein)}
+        ${kvRow("Account type", b.accountType)}
+        ${kvRow("Bank", b.bank)}
+        ${kvRow("Bank address", b.bankStreet)}
+        ${kvRow("Bank city", b.bankCity)}
+        ${kvRow("Routing (ACH)", b.routing)}
+        ${kvRow("Account number", b.account)}
+        ${kvRow("Amount", `${money(doc.total)} USD`)}
+      </div>
+    </div>
+    <div class="wire">
+      <h2>DOMESTIC WIRE · U.S. BANKS</h2>
+      <p>Same recipient, address, bank, account number, and routing as above.</p>
+      <p>Wire routing number: ${escapeHtml(b.routing)}</p>
+      <p>A $${b.wireFee} incoming wire fee is deducted from the amount received. Wire ${escapeHtml(money(wire))} to net ${escapeHtml(money(doc.total))}.</p>
+    </div>
+    <div class="swift">
+      <h2>INTERNATIONAL SWIFT · IF PAYING FROM OUTSIDE THE U.S.</h2>
+      <p>Recipient: ${escapeHtml(b.recipient)} · ${escapeHtml(b.address)}, ${escapeHtml(b.cityZip)}, United States</p>
+      <p>Account number: ${escapeHtml(b.account)} · Wire routing: ${escapeHtml(b.routing)}</p>
+      <p>SWIFT / BIC: ${escapeHtml(b.swift)} · Intermediary BIC: ${escapeHtml(b.intermediary)}</p>
+      <p>Bank: ${escapeHtml(b.swiftBank)}</p>
+    </div>
+    ${footer(doc.number, 3, pages)}
+  </section>`;
+
+  const oceanFace = `<section class="page">
+    ${header(ASHDOD.oceanNumber, ASHDOD.date, "Quote only — not confirmed", "ENCLOSED QUOTE")}
+    <div class="banner">OCEAN QUOTE #${escapeHtml(ASHDOD.oceanQuote)} · MINNEAPOLIS → ASHDOD (ISRAEL)</div>
+    <div class="parties">
+      ${partyBox("ISSUED THROUGH", c.legal, ["Enclosed calculator quote. CBSS is not the ocean carrier on this page."], ["Do not pay this amount to CBGC LLC."])}
+      ${partyBox("BILL TO", PALMER.billTo.name, PALMER.billTo.lines, [PALMER.billTo.email])}
+      ${partyBox("OCEAN LANE", "Quote #" + ASHDOD.oceanQuote, [
+        "Dated " + ASHDOD.oceanDated,
+        "1 x 40HC SOC",
+        "Minneapolis → Ashdod (Israel)",
+        "10,000 lb / 4,535.97 kg",
+      ])}
+    </div>
+    <table class="lines">
+      <thead><tr><th>DESCRIPTION</th><th class="num">QTY</th><th class="num">UNIT PRICE</th><th class="num">AMOUNT</th></tr></thead>
+      <tbody>${lineRows(ASHDOD_OCEAN_LINES)}</tbody>
+    </table>
+    <div class="split">
+      <div class="notes">
+        <h2 style="margin:0 0 6px;letter-spacing:.08em;font-size:11px">QUOTE NOTES</h2>
+        <p>These nine lines are the freight-calculator ocean for quote #${escapeHtml(ASHDOD.oceanQuote)} dated ${escapeHtml(ASHDOD.oceanDated)}. They add to ${escapeHtml(money(ASHDOD.oceanTotal))}.</p>
+        <p>Cargo: ${escapeHtml(ASHDOD.cargo)}.</p>
+        <p>Not established in the tariff. Subject to pricing approval, filing, and a written booking confirmation (24–72 hours). Destination charges may take up to five days to confirm and are not in this total.</p>
+      </div>
+      <div class="totals">
+        <div class="row"><span>Subtotal</span><span>${escapeHtml(money(ASHDOD.oceanTotal))}</span></div>
+        <div class="row"><span>Tax</span><span>$0.00</span></div>
+        <div class="due"><span>QUOTED OCEAN</span><span>${escapeHtml(money(ASHDOD.oceanTotal))}</span></div>
+      </div>
+    </div>
+    <div class="box warn">
+      <h2>DO NOT PAY THIS AMOUNT TO CB SHIPPING SOLUTIONS</h2>
+      <p>Do not pay this ocean figure until the carrier sends a booking confirmation. When they do, pay the ocean carrier — not CBSS.</p>
+    </div>
+    ${footer(ASHDOD.oceanNumber, 4, pages)}
+  </section>`;
+
+  const oceanPay = `<section class="page">
+    ${header(ASHDOD.oceanNumber, ASHDOD.date, "Quote only — not confirmed", "ENCLOSED QUOTE")}
+    <h1 class="pay">Ocean quote — do not pay yet</h1>
+    <p class="lead">Calculator total <strong>${escapeHtml(money(ASHDOD.oceanTotal))}</strong> on quote #${escapeHtml(ASHDOD.oceanQuote)}. This is not a Lufran confirmation and not a CBSS invoice.</p>
+    <div class="paybox">
+      <div class="cap">WAIT FOR BOOKING CONFIRMATION</div>
+      <div class="body">
+        <p>No ocean contract exists until the booking confirmation is accepted.</p>
+        ${kvRow("Quote", `#${ASHDOD.oceanQuote}`)}
+        ${kvRow("Lane", "Minneapolis → Ashdod (Israel)")}
+        ${kvRow("Quoted total", `${money(ASHDOD.oceanTotal)} USD`)}
+        ${kvRow("Status", "Calculator quote · subject to confirmation")}
+        ${kvRow("When confirmed", "Pay the ocean carrier on their invoice. PayCargo payee will be on that confirmation — not CBGC LLC.")}
+      </div>
+    </div>
+    <div class="wire">
+      <h2>DO NOT USE CBSS BANK DETAILS FOR OCEAN</h2>
+      <p>Page 3 is only the $2,300.00 CBSS invoice. Do not wire $6,018.50 to Lead Bank / CBGC LLC.</p>
+    </div>
+    <div class="box cream">
+      <h2>THIS WEEKEND · LOAD 2</h2>
+      <ol class="steps">
+        <li>Pay ${escapeHtml(money(ASHDOD.cbssTotal))} to CBSS on invoice ${escapeHtml(ASHDOD.cbssNumber)}.</li>
+        <li>Hold the enclosed ${escapeHtml(money(ASHDOD.oceanTotal))} ocean quote until the carrier confirms.</li>
+        <li>Confirm Williston is ready for the second box.</li>
+        <li>Send the packing list and the exact bill-of-lading names for Ashdod.</li>
+      </ol>
+    </div>
+    ${footer(ASHDOD.oceanNumber, 5, pages)}
+  </section>`;
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Packet ${escapeHtml(ASHDOD.cbssNumber)} · Jamie Palmer · Ashdod</title>
+  <style>${packetCss()}</style>
+</head>
+<body>
+  ${cover}
+  ${cbssFace}
+  ${cbssPay}
+  ${oceanFace}
+  ${oceanPay}
+</body>
+</html>`;
+}
