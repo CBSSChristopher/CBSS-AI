@@ -267,7 +267,7 @@ def write_pdf(path):
     c.setFillColorRGB(*NAVY)
     c.setFont("Times-Bold", 20)
     c.drawString(0.55 * inch, H - 1.65 * inch, "How to Pay CBSS")
-    wrap(c, f"USD only. Memo: CBS-2026-JP02. Do not wire the {money(OCEAN)} ocean quote here.", 0.55 * inch, H - 1.90 * inch, 7.4 * inch)
+    wrap(c, f"Billed to Jamie Palmer. USD only. Memo: CBS-2026-JP02. Do not wire the {money(OCEAN)} ocean quote here.", 0.55 * inch, H - 1.90 * inch, 7.4 * inch)
     c.setFillColorRGB(*NAVY)
     c.roundRect(0.5 * inch, 4.70 * inch, 7.5 * inch, 2.95 * inch, 6, fill=1, stroke=0)
     c.setFillColorRGB(*GOLD)
