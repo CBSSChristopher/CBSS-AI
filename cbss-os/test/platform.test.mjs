@@ -88,10 +88,13 @@ describe("hard rules stay on the platform", () => {
     assert.match(page, /Company email only/);
   });
 
-  it("does not replace or deploy over the live tools", () => {
-    assert.match(readme, /does \*\*not\*\* replace/);
-    assert.match(page, /does not replace the live tools/);
-    assert.match(page, /live tools unchanged/);
+  it("is the house tool and does not deploy over the live backends", () => {
+    assert.match(readme, /does \*\*not\*\* deploy over/);
+    assert.match(page, /The house tool/);
+    assert.match(page, /Bookmark this page/);
+    assert.match(page, /the house tool/);
+    assert.match(page, /This is the CBSS house tool/);
+    assert.doesNotMatch(page, /side platform/);
     assert.match(wrangler, /"name": "cbssos"/);
     assert.doesNotMatch(wrangler, /"name": "cbss(crm|brain|completetool|pay|invoice)"/);
     assert.match(index, /\/x\/crm/);

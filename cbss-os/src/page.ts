@@ -208,13 +208,13 @@ export function pageHtml(): string {
     <section class="card login-card">
       <div class="seal">CB</div>
       <h1>CBSS Platform</h1>
-      <p class="muted">One navy/gold shell for CRM, Desk, Proposal, and Money. Company email only. Same password as the CRM. This platform does not replace the live tools.</p>
+      <p class="muted">The house tool. One login for CRM, Desk, Proposal, and Money. Company email only. Same password as the CRM. Bookmark this page.</p>
       <form id="login-form">
         <label for="email">Company email</label>
         <input id="email" type="email" autocomplete="username" placeholder="you@cbshippingsolutions.com" required />
         <label for="password">Password</label>
         <input id="password" type="password" autocomplete="current-password" required />
-        <div class="row"><button type="submit" class="gold">Open platform</button></div>
+        <div class="row"><button type="submit" class="gold">Open the desk</button></div>
         <p class="err" id="login-err"></p>
       </form>
     </section>
@@ -227,7 +227,7 @@ export function pageHtml(): string {
         <div>
           <div class="brand">CB SHIPPING SOLUTIONS</div>
           <div class="sub" id="stamp">${BRAND.stamp}</div>
-          <p class="live">Live tools stay on their own workers. This is the side platform.</p>
+          <p class="live">The house tool. One login for the whole desk.</p>
         </div>
       </div>
       <nav id="nav">
@@ -252,7 +252,7 @@ export function pageHtml(): string {
       <main>
         <section id="mod-home">
           <h1>One book. Four models.</h1>
-          <p class="muted">The live CRM, Desk, Proposal, and Invoice workers are unchanged. Sign in once here and work them in this brand.</p>
+          <p class="muted">This is the CBSS house tool. Sign in once. Work CRM, Desk, Proposal, and Money from here.</p>
           <div class="chips" id="tool-chips"></div>
           <div class="tiles" style="margin-top:14px">
             <div class="card tile" data-go="crm"><div class="kicker">Book</div><h2>CRM</h2><p class="muted">Contacts, follow-ups, tasks, pipeline, notes.</p></div>
@@ -482,7 +482,7 @@ export function pageHtml(): string {
             <div class="hits" id="i-hits"></div>
           </div>
         </section>
-        <footer>${BRAND.company} · side platform · live tools unchanged</footer>
+        <footer>${BRAND.company} · the house tool</footer>
       </main>
     </div>
   </div>
@@ -749,7 +749,7 @@ export function pageHtml(): string {
     }
     function renderCampaign(){
       const rows = Object.keys(campaignIds).map(function(id){ return campaignIds[id]; });
-      $("crm-campaign").innerHTML = "<h2>Email campaign</h2><p class=\\"muted\\">Leads pulled off the working book for a future campaign tool. They stay in the live CRM. This list is only on the side platform.</p>"
+      $("crm-campaign").innerHTML = "<h2>Email campaign</h2><p class=\\"muted\\">Leads pulled off the working book for a future campaign tool. They stay in the CRM book. This hold list lives here.</p>"
         +(rows.length ? '<table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Owner</th><th></th></tr></thead><tbody>'
           +rows.map(function(row){
             return '<tr><td>'+esc(row.name||"")+"</td><td>"+esc(row.email||"")+"</td><td>"+esc(row.phone||"")+"</td><td>"+esc(row.owner||"")

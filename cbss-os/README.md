@@ -1,10 +1,12 @@
 # CBSS Platform
 
-Side-door shell for all four live tools. It does **not** replace or deploy over CRM, Desk, Proposal, Pay, or Invoicing.
+The house tool for CB Shipping Solutions. One login for CRM, Desk, Proposal, and Money.
 
-Live (new worker only): `https://cbssos.cbss.workers.dev`
+Live: `https://cbssos.cbss.workers.dev`
 
-The existing tools stay where they are:
+Bookmark that URL. Company email only. Same password as the CRM.
+
+The older single-tool URLs still run as backends. This worker does **not** deploy over them. Work the book from here.
 
 - CRM `https://cbsscrm.cbss.workers.dev`
 - Desk `https://cbssbrain.cbss.workers.dev`
@@ -12,7 +14,7 @@ The existing tools stay where they are:
 - Pay `https://cbsspay.cbss.workers.dev`
 - Invoice `https://cbssinvoice.cbss.workers.dev`
 
-Sign in once with the company email and CRM password. The platform talks to those workers and restyles every model in the navy `#0B1F3A` / gold `#C9A227` / cream `#F7F4EC` brand.
+Navy `#0B1F3A` / gold `#C9A227` / cream `#F7F4EC`.
 
 ## Modules
 
@@ -27,4 +29,4 @@ Sign in once with the company email and CRM password. The platform talks to thos
 - Do not invent a price or wholesale
 - Do not mix Side door OS 2D / OS 4D / Full open
 - Do not send Gmail from this tool
-- Do not change the four live workers from this folder
+- Do not change the five live backend workers from this folder
