@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { readFileSync } from "node:fs";
-import { BRAND, LIVE_TOOLS, MODULES, TEAM_OWNERS } from "../src/brand.ts";
+import { BRAND, LIVE_TOOLS, MODULES, SALES_SPARKS, TEAM_OWNERS } from "../src/brand.ts";
 import { emptyTools, isCompanyEmail, makeSession, origins, readSession, toolsReady } from "../src/auth.ts";
 import { pageHtml } from "../src/page.ts";
 
@@ -52,6 +52,13 @@ describe("CBSS platform brand", () => {
     assert.ok(!TEAM_OWNERS.includes("Ivyanna"));
     assert.match(page, /Derrek Clements/);
     assert.doesNotMatch(page, /"Ivyanna"/);
+    assert.match(page, /Your CBSS AI/);
+    assert.match(page, /Build the quote\. Send the proposal/);
+    assert.match(page, /Invoice the cash they agreed to/);
+    assert.doesNotMatch(page, /Own the door type/);
+    assert.match(page, /id="sales-spark"/);
+    assert.ok(SALES_SPARKS.length >= 8);
+    assert.match(page, new RegExp(SALES_SPARKS[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   });
 });
 

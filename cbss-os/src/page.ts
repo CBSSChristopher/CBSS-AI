@@ -1,4 +1,4 @@
-import { BRAND, TEAM_OWNERS } from "./brand.ts";
+import { BRAND, SALES_SPARKS, TEAM_OWNERS } from "./brand.ts";
 
 export function pageHtml(): string {
   return `<!doctype html>
@@ -125,6 +125,12 @@ export function pageHtml(): string {
     .hit:last-child { border-bottom: 0; }
     .outbox { white-space: pre-wrap; background: #f7fafc; border: 1px dashed var(--line); border-radius: 8px; padding: 11px; min-height: 4em; font-size: 14px; }
     .warn { background: #FBF6E8; border: 1px solid #e3d7a8; border-radius: 8px; padding: 10px; font-size: 13px; }
+    .spark {
+      margin-top: 14px; background: var(--navy); color: #fff; border: 1px solid var(--gold);
+      border-radius: 12px; padding: 14px 16px; cursor: pointer; user-select: none;
+    }
+    .spark .kicker { color: var(--gold); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; }
+    .spark p { margin: 8px 0 0; font-size: 17px; line-height: 1.35; font-family: "Times New Roman", Times, serif; color: #fff; }
     .chips { display: flex; gap: 6px; flex-wrap: wrap; }
     .chip { border: 1px solid var(--line); border-radius: 999px; padding: 4px 9px; font-size: 11px; background: #fff; color: var(--navy); }
     .chip.on { background: #e8f5ee; border-color: #c8e4d4; }
@@ -196,11 +202,14 @@ export function pageHtml(): string {
           <div class="chips" id="tool-chips"></div>
           <div class="tiles" style="margin-top:14px">
             <div class="card tile" data-go="crm"><div class="kicker">Book</div><h2>CRM</h2><p class="muted">Contacts, follow-ups, tasks, pipeline, notes.</p></div>
-            <div class="card tile" data-go="desk"><div class="kicker">Assist</div><h2>Desk</h2><p class="muted">CBSS AI first. Price match Container One and USA Containers. Then call scraps.</p></div>
-            <div class="card tile" data-go="proposal"><div class="kicker">Quote</div><h2>Proposal</h2><p class="muted">Posted xChange wholesale only. Own the door type.</p></div>
-            <div class="card tile" data-go="money"><div class="kicker">Collect</div><h2>Money</h2><p class="muted">Navy/gold invoice — ACH / wire or card.</p></div>
+            <div class="card tile" data-go="desk"><div class="kicker">Assist</div><h2>Desk</h2><p class="muted">Your CBSS AI — built for every CB Shipping Solutions employee. Ask it. Then go close.</p></div>
+            <div class="card tile" data-go="proposal"><div class="kicker">Quote</div><h2>Proposal</h2><p class="muted">Build the quote. Send the proposal. Put the deal in writing before they cool off.</p></div>
+            <div class="card tile" data-go="money"><div class="kicker">Collect</div><h2>Money</h2><p class="muted">Invoice the cash they agreed to. ACH, wire, or card — get it in the account.</p></div>
           </div>
-          <div class="warn" style="margin-top:14px">Do not invent a price. Do not mix Side door OS 2D, Side door OS 4D, and Full open. This tool does not send Gmail. Company email only @cbshippingsolutions.com.</div>
+          <div class="spark" id="sales-spark" title="Tap for another">
+            <div class="kicker">On the floor</div>
+            <p id="sales-spark-line"></p>
+          </div>
         </section>
 
         <section id="mod-crm" class="hide">
@@ -434,6 +443,7 @@ export function pageHtml(): string {
     ];
     const GRADES = [{v:"WWT",l:"WWT"},{v:"CW",l:"CW"},{v:"IICL",l:"IICL / Multi-Trip"},{v:"OneTrip",l:"One-Trip"},{v:"AsIs",l:"As-Is"}];
     const TEAM = ${JSON.stringify(TEAM_OWNERS)};
+    const SPARKS = ${JSON.stringify(SALES_SPARKS)};
     let user = null, book = null, selected = null, deskContact = null, lastGmail = "", pick = {size:"40",height:"HC",config:"standard",grade:"WWT"};
     let campaignIds = {};
     let offers = [];
@@ -464,7 +474,20 @@ export function pageHtml(): string {
       ["home","crm","desk","proposal","money"].forEach(function(m){ $("mod-"+m).classList.toggle("hide", m!==mod); });
       if (mod==="desk") { openDesk("chat"); loadTemplates(); seedAsk(); }
       if (mod==="money") loadInvoices();
+      if (mod==="home") paintSpark();
     }
+    let sparkAt = Math.floor(Math.random()*SPARKS.length);
+    function paintSpark(){
+      if (!SPARKS.length) return;
+      $("sales-spark-line").textContent = SPARKS[sparkAt % SPARKS.length];
+    }
+    function nextSpark(){
+      sparkAt = (sparkAt + 1) % SPARKS.length;
+      paintSpark();
+    }
+    $("sales-spark").addEventListener("click", nextSpark);
+    setInterval(nextSpark, 9000);
+    paintSpark();
     async function api(path, opt){
       const r = await fetch(path, Object.assign({ credentials:"same-origin", headers:{ "Content-Type":"application/json" } }, opt||{}));
       const j = await r.json().catch(function(){ return {}; });
