@@ -21,7 +21,7 @@
     { "binding": "INVOICE", "service": "cbssinvoice" }
   ],
   "vars": {
-    "PUBLIC_TITLE": "CBSS Platform",
+    "PUBLIC_TITLE": "Harbor",
     "CRM_ORIGIN": "https://cbsscrm.cbss.workers.dev",
     "DESK_ORIGIN": "https://cbssbrain.cbss.workers.dev",
     "PROPOSAL_ORIGIN": "https://cbsscompletetool.cbss.workers.dev",

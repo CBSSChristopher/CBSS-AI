@@ -2,7 +2,7 @@
 
 Company tools for CB Shipping Solutions.
 
-**House tool (use this):** `cbss-os/` → https://cbssos.cbss.workers.dev
+**Harbor (use this):** `cbss-os/` → https://harbor.cbss.workers.dev
 
 One login for CRM, Desk, Proposal, and Money. Company email only.
 

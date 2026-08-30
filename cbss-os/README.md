@@ -1,12 +1,12 @@
-# CBSS Platform
+# Harbor
 
 The house tool for CB Shipping Solutions. One login for CRM, Desk, Proposal, and Money.
 
-Live: `https://cbssos.cbss.workers.dev`
+Bookmark: `https://harbor.cbss.workers.dev`
 
-Bookmark that URL. Company email only. Same password as the CRM.
+Company email only. Same password as the CRM.
 
-The older single-tool URLs still run as backends. This worker does **not** deploy over them. Work the book from here.
+The older single-tool URLs still run as backends. This worker does **not** deploy over them. Work the book from Harbor.
 
 - CRM `https://cbsscrm.cbss.workers.dev`
 - Desk `https://cbssbrain.cbss.workers.dev`
