@@ -57,6 +57,13 @@ describe("CBSS platform brand", () => {
     assert.match(page, /Invoice the cash they agreed to/);
     assert.doesNotMatch(page, /Own the door type/);
     assert.match(page, /id="sales-spark"/);
+    assert.match(page, /viewport-fit=cover/);
+    assert.match(page, /apple-mobile-web-app-capable/);
+    assert.match(page, /@media \(max-width: 860px\)/);
+    assert.match(page, /phone-hide/);
+    assert.match(page, /book-split/);
+    assert.match(page, /100dvh/);
+    assert.match(page, /safe-area-inset/);
     assert.ok(SALES_SPARKS.length >= 8);
     assert.match(page, new RegExp(SALES_SPARKS[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   });

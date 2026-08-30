@@ -7,6 +7,10 @@ export function pageHtml(): string {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="${BRAND.navy}" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="CBSS" />
   <meta name="robots" content="noindex,nofollow" />
   <title>${BRAND.title}</title>
   <style>
@@ -20,6 +24,7 @@ export function pageHtml(): string {
       --ink: #111111;
     }
     * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
     html, body { height: 100%; margin: 0; }
     body { font-family: Helvetica, Arial, "Segoe UI", sans-serif; background: var(--paper); color: var(--ink); font-size: 15px; }
     .shell { min-height: 100%; display: grid; grid-template-columns: 232px 1fr; }
@@ -140,14 +145,61 @@ export function pageHtml(): string {
     .login-card .seal { margin-bottom: 12px; }
     footer { margin-top: 16px; color: var(--muted); font-size: 11px; }
     .gate { display: contents; }
+    .table-scroll { overflow: auto; }
+    .scroll-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; align-items: center; }
     @media (max-width: 860px) {
-      .shell { grid-template-columns: 1fr; }
-      aside { padding: 14px 12px 10px; }
-      nav { flex-direction: row; flex-wrap: wrap; }
-      nav button { min-height: 44px; }
-      .split, .split3, .tiles { grid-template-columns: 1fr; }
-      header, main { padding-left: 12px; padding-right: 12px; }
-      button { min-height: 44px; }
+      html, body { height: auto; min-height: 100%; }
+      body { padding-bottom: env(safe-area-inset-bottom); }
+      .shell { grid-template-columns: 1fr; min-height: 100dvh; }
+      aside {
+        position: sticky; top: 0; z-index: 30;
+        padding: 10px 12px 8px; padding-top: max(10px, env(safe-area-inset-top));
+        gap: 10px;
+      }
+      .brand-lock { display: flex; align-items: center; gap: 10px; }
+      .seal { width: 40px; height: 40px; font-size: 16px; flex-shrink: 0; }
+      aside .live { display: none; }
+      nav {
+        flex-direction: row; flex-wrap: nowrap; overflow-x: auto; gap: 6px;
+        -webkit-overflow-scrolling: touch; scrollbar-width: none;
+      }
+      nav::-webkit-scrollbar { display: none; }
+      nav button { flex: 1 0 auto; min-height: 44px; padding: 10px 12px; text-align: center; }
+      header { padding: 10px 12px; }
+      header .sub { display: none; }
+      .who { max-width: 46vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      main { padding: 12px 12px 28px; }
+      h1 { font-size: 22px; }
+      .split, .split3, .tiles, .book-split { grid-template-columns: 1fr; }
+      .tile { min-height: 0; }
+      .scroll-row {
+        flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
+        margin-top: 0; padding-bottom: 4px;
+      }
+      .scroll-row button { flex: 0 0 auto; }
+      button, .acts a, .picks button, .comp-picks .pick, .tabs button { min-height: 44px; }
+      input, textarea, select { font-size: 16px; }
+      .log { min-height: 34vh; max-height: 40vh; }
+      .composer { flex-direction: column; align-items: stretch; }
+      .composer button { width: 100%; }
+      .comp-bar { flex-direction: column; align-items: stretch; }
+      .comp-bar .zip-wrap { flex: 1 1 auto; width: 100%; }
+      .comp-bar button { width: 100%; }
+      .board {
+        display: flex; overflow-x: auto; scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch; gap: 10px; padding-bottom: 12px;
+      }
+      .col {
+        min-width: min(78vw, 280px); max-width: 280px; flex: 0 0 auto;
+        scroll-snap-align: start; min-height: 220px;
+      }
+      .phone-hide { display: none; }
+      .table-scroll { -webkit-overflow-scrolling: touch; }
+      #crm-followups, #crm-tasks, #crm-campaign { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .acts a, .acts button { padding: 10px 14px; }
+      .spark p { font-size: 16px; }
+      .login-wrap { padding: 24px 14px; padding-top: max(24px, env(safe-area-inset-top)); }
+      #crm-detail { scroll-margin-top: 12px; }
     }
   </style>
 </head>
@@ -170,11 +222,13 @@ export function pageHtml(): string {
 
   <div id="app" class="shell hide">
     <aside>
-      <div>
+      <div class="brand-lock">
         <div class="seal">CB</div>
-        <div class="brand">CB SHIPPING SOLUTIONS</div>
-        <div class="sub" id="stamp">${BRAND.stamp}</div>
-        <p class="live">Live tools stay on their own workers. This is the side platform.</p>
+        <div>
+          <div class="brand">CB SHIPPING SOLUTIONS</div>
+          <div class="sub" id="stamp">${BRAND.stamp}</div>
+          <p class="live">Live tools stay on their own workers. This is the side platform.</p>
+        </div>
       </div>
       <nav id="nav">
         <button type="button" class="on" data-mod="home">Home</button>
@@ -225,7 +279,7 @@ export function pageHtml(): string {
               </select>
             </div>
           </div>
-          <div class="row" style="margin-top:0">
+          <div class="scroll-row" style="margin-top:0">
             <button type="button" class="gold" data-crm="contacts">Contacts</button>
             <button type="button" class="secondary" data-crm="followups">Follow-ups</button>
             <button type="button" class="secondary" data-crm="tasks">Tasks</button>
@@ -234,9 +288,9 @@ export function pageHtml(): string {
           </div>
           <div class="card" style="margin-top:12px">
             <div id="crm-contacts">
-              <div class="split">
-                <div style="overflow:auto">
-                  <table><thead><tr><th>Name</th><th>Company</th><th>City</th><th>Owner</th><th>Stage</th></tr></thead><tbody id="crm-rows"></tbody></table>
+              <div class="split book-split">
+                <div class="table-scroll">
+                  <table><thead><tr><th>Name</th><th class="phone-hide">Company</th><th class="phone-hide">City</th><th>Owner</th><th>Stage</th></tr></thead><tbody id="crm-rows"></tbody></table>
                 </div>
                 <div id="crm-detail"><p class="muted">Select a contact to view details</p></div>
               </div>
@@ -609,7 +663,7 @@ export function pageHtml(): string {
     function renderContacts(){
       if (!book) return;
       $("crm-rows").innerHTML = filtered().map(function(c){
-        return '<tr data-id="'+esc(String(c.id))+'"><td>'+esc(c.name||"")+"</td><td>"+esc(c.company||"")+"</td><td>"+esc(c.city||"")+"</td><td>"+esc(c.owner||"")+"</td><td>"+esc(c.status||"")+"</td></tr>";
+        return '<tr data-id="'+esc(String(c.id))+'"><td>'+esc(c.name||"")+'</td><td class="phone-hide">'+esc(c.company||"")+'</td><td class="phone-hide">'+esc(c.city||"")+"</td><td>"+esc(c.owner||"")+"</td><td>"+esc(c.status||"")+"</td></tr>";
       }).join("");
     }
     $("crm-q").addEventListener("input", renderContacts);
@@ -658,6 +712,7 @@ export function pageHtml(): string {
       $("note-add").onclick = addNote;
       const campBtn = $("add-campaign");
       if (campBtn) campBtn.onclick = addToCampaign;
+      if (window.matchMedia("(max-width: 860px)").matches) $("crm-detail").scrollIntoView({ behavior:"smooth", block:"start" });
     }
     async function saveFollowup(){
       if (!selected) return;
