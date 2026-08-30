@@ -33,6 +33,11 @@ describe("CBSS platform brand", () => {
     assert.match(page, /data-mod="money"/);
     assert.match(page, /Call scraps/);
     assert.match(page, /Proposal Builder/);
+    assert.match(page, /Write the proposal/);
+    assert.match(page, /Pick the box/);
+    assert.match(page, /Cash on the ticket/);
+    assert.match(page, /id="p-ticket"/);
+    assert.match(page, /class="card step"/);
     assert.match(page, /Invoice — ACH \/ wire only/);
     assert.doesNotMatch(page, /Veem payment request/);
     assert.match(page, /data-desk="chat"/);

@@ -82,6 +82,22 @@ export function pageHtml(): string {
     .picks { display: flex; flex-wrap: wrap; gap: 6px; }
     .picks button { background: #fff; color: var(--navy); border: 1px solid var(--line); }
     .picks button.on { background: var(--navy); color: #fff; }
+    .picks.big button { min-width: 72px; padding: 12px 14px; }
+    .step { margin-top: 12px; }
+    .step-head { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 8px; }
+    .step-num {
+      width: 28px; height: 28px; border-radius: 50%; background: var(--navy); color: var(--gold);
+      display: grid; place-items: center; font-weight: 700; font-size: 13px; flex-shrink: 0;
+    }
+    .step-head h2 { margin: 0; }
+    .step-head .muted { margin: 3px 0 0; }
+    .quote-ticket {
+      margin-top: 12px; background: var(--navy); color: #fff; border: 1px solid var(--gold);
+      border-radius: 12px; padding: 14px 16px;
+    }
+    .quote-ticket .kicker { color: var(--gold); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; }
+    .quote-ticket .cash { font-size: 28px; margin: 6px 0 0; font-family: "Times New Roman", Times, serif; color: #fff; }
+    .quote-ticket .muted { color: #9eb0c4; margin: 6px 0 0; }
     .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
     .tabs button { background: #fff; color: var(--navy); border: 1px solid var(--line); }
     .tabs button.on { background: var(--navy); color: #fff; }
@@ -198,6 +214,8 @@ export function pageHtml(): string {
       #crm-followups, #crm-tasks, #crm-campaign { overflow-x: auto; -webkit-overflow-scrolling: touch; }
       .acts a, .acts button { padding: 10px 14px; }
       .spark p { font-size: 16px; }
+      .quote-ticket .cash { font-size: 24px; }
+      .picks.big button { min-width: 0; flex: 1 1 auto; }
       .login-wrap { padding: 24px 14px; padding-top: max(24px, env(safe-area-inset-top)); }
       #crm-detail { scroll-margin-top: 12px; }
     }
@@ -386,26 +404,59 @@ export function pageHtml(): string {
 
         <section id="mod-proposal" class="hide">
           <div class="card">
-            <h2>Proposal Builder · One depot · Delivered or pickup cash</h2>
-            <p class="muted">Posted xChange wholesale only. Do not invent a price. OS 2D, OS 4D, and Full open side are different boxes — do not mix them.</p>
-            <div class="warn">Side door OS 2D ≠ Side door OS 4D ≠ Full open side. Pick the exact config the yard posted.</div>
-            <label>Size</label>
-            <div class="picks" id="p-size"></div>
-            <label>Height</label>
-            <div class="picks" id="p-height"></div>
-            <label>Config</label>
-            <div class="picks" id="p-config"></div>
-            <label>Grade</label>
-            <div class="picks" id="p-grade"></div>
-            <div class="split">
-              <div><label>Client ZIP</label><input id="p-zip" inputmode="numeric" maxlength="5" placeholder="5-digit ZIP" /></div>
-              <div><label>Qty</label><input id="p-qty" inputmode="numeric" value="1" /></div>
+            <div class="ai-head">
+              <div class="ai-mark">Q</div>
+              <div>
+                <h2>Write the proposal</h2>
+                <p class="muted">Proposal Builder · one depot · delivered or pickup cash. Posted xChange wholesale only. Do not invent a price.</p>
+              </div>
             </div>
-            <div class="row">
+            <div class="warn">Side door OS 2D ≠ Side door OS 4D ≠ Full open side. OS 2D, OS 4D, and Full open side are different boxes — do not mix them. Pick the exact config the yard posted.</div>
+          </div>
+
+          <div class="card step">
+            <div class="step-head">
+              <div class="step-num">1</div>
+              <div>
+                <h2>Pick the box</h2>
+                <p class="muted">Size, height, door type, and grade. The posted book has to match this exact box.</p>
+              </div>
+            </div>
+            <label>Size</label>
+            <div class="picks big" id="p-size"></div>
+            <label>Height</label>
+            <div class="picks big" id="p-height"></div>
+            <label>Config</label>
+            <div class="picks big" id="p-config"></div>
+            <label>Grade</label>
+            <div class="picks big" id="p-grade"></div>
+          </div>
+
+          <div class="card step">
+            <div class="step-head">
+              <div class="step-num">2</div>
+              <div>
+                <h2>Client ZIP</h2>
+                <p class="muted">Wholesale comes from the nearest city that posted that exact box. Fail closed if nobody posted it.</p>
+              </div>
+            </div>
+            <div class="comp-bar">
+              <div class="zip-wrap"><label for="p-zip">Client ZIP</label><input id="p-zip" inputmode="numeric" maxlength="5" placeholder="85001" /></div>
+              <div class="zip-wrap"><label for="p-qty">Qty</label><input id="p-qty" inputmode="numeric" value="1" /></div>
               <button type="button" class="secondary" id="p-pull">Pull xChange</button>
               <button type="button" class="gold" id="p-match">Find posted box</button>
             </div>
             <p class="muted" id="p-status">Type the client ZIP, pick the exact box, then pull. Wholesale comes from the nearest city that posted that box.</p>
+          </div>
+
+          <div class="card step">
+            <div class="step-head">
+              <div class="step-num">3</div>
+              <div>
+                <h2>Cash on the ticket</h2>
+                <p class="muted">Posted wholesale + live delivery + typed margin, rounded up to $25. Do not invent a wholesale.</p>
+              </div>
+            </div>
             <div class="split">
               <div>
                 <label>Fulfillment</label>
@@ -413,10 +464,31 @@ export function pageHtml(): string {
               </div>
               <div><label>Net margin (min $300)</label><input id="p-margin" inputmode="decimal" value="700" /></div>
             </div>
-            <label>Posted wholesale (do not invent)</label>
-            <input id="p-wholesale" inputmode="decimal" placeholder="Blank unless xChange posted it" />
-            <label>Cash each</label>
-            <input id="p-cash" inputmode="decimal" placeholder="Formula from posted wholesale + typed margin" />
+            <div class="split">
+              <div>
+                <label>Posted wholesale (do not invent)</label>
+                <input id="p-wholesale" inputmode="decimal" placeholder="Blank unless xChange posted it" readonly />
+              </div>
+              <div>
+                <label>Cash each</label>
+                <input id="p-cash" inputmode="decimal" placeholder="Formula from posted wholesale + typed margin" readonly />
+              </div>
+            </div>
+            <div class="quote-ticket hide" id="p-ticket">
+              <div class="kicker">Posted match · cash each</div>
+              <p class="cash" id="p-ticket-cash">—</p>
+              <p class="muted" id="p-ticket-meta"></p>
+            </div>
+          </div>
+
+          <div class="card step">
+            <div class="step-head">
+              <div class="step-num">4</div>
+              <div>
+                <h2>Who it is for</h2>
+                <p class="muted">Put the customer on the proposal while the yes is still warm.</p>
+              </div>
+            </div>
             <div class="split">
               <div><label>Customer name</label><input id="p-name" /></div>
               <div><label>Customer email</label><input id="p-email" type="email" /></div>
@@ -427,7 +499,17 @@ export function pageHtml(): string {
             <input id="p-del" />
             <label>Notes</label>
             <textarea id="p-notes" rows="2"></textarea>
-            <div class="row"><button type="button" id="p-send">Submit proposal</button></div>
+          </div>
+
+          <div class="card step">
+            <div class="step-head">
+              <div class="step-num">5</div>
+              <div>
+                <h2>Send it</h2>
+                <p class="muted">Needs a posted wholesale. This writes the proposal. It does not invent a number.</p>
+              </div>
+            </div>
+            <div class="row"><button type="button" class="gold" id="p-send">Submit proposal</button></div>
             <p class="err" id="p-err"></p>
           </div>
         </section>
@@ -995,18 +1077,27 @@ export function pageHtml(): string {
       if (!j || !j.ok){
         $("p-wholesale").value = "";
         $("p-cash").value = "";
+        $("p-ticket").classList.add("hide");
+        $("p-ticket-cash").textContent = "—";
+        $("p-ticket-meta").textContent = "";
         $("p-status").textContent = (j && (j.error||j.message)) || "No matching posted box. Do not invent a wholesale.";
         return;
       }
       $("p-wholesale").value = String(j.wholesale);
       const delivery = $("p-ful").value==="pickup" ? 0 : Number(j.delivery||0);
       const margin = Math.max(300, Number($("p-margin").value)||700);
-      $("p-cash").value = String(Math.ceil((Number(j.wholesale)+delivery+margin)/25)*25);
+      const cash = Math.ceil((Number(j.wholesale)+delivery+margin)/25)*25;
+      $("p-cash").value = String(cash);
       if (!$("p-del").value && j.place) $("p-del").value = j.place;
       const skip = j.skippedCity ? " "+j.skippedCity+" did not post this box." : "";
-      $("p-status").textContent = (j.place||"ZIP")+" · depot "+(j.city||"?")+(j.miles!=null?" · "+j.miles+" miles":"")
+      const line = (j.place||"ZIP")+" · depot "+(j.city||"?")+(j.miles!=null?" · "+j.miles+" miles":"")
         +" · "+(j.size||"")+" · "+(j.condition||"")+" · posted "+money(j.wholesale)+" · qty "+(j.qty||"?")+"."
         +skip+" That number is theirs, not a CBSS quote.";
+      $("p-status").textContent = line;
+      $("p-ticket").classList.remove("hide");
+      $("p-ticket-cash").textContent = money(cash);
+      $("p-ticket-meta").textContent = (j.place||"ZIP")+" · depot "+(j.city||"?")+(j.miles!=null?" · "+j.miles+" mi":"")
+        +" · posted "+money(j.wholesale)+(delivery?" · delivery "+money(delivery):" · pickup")+" · margin "+money(margin);
     }
     async function quoteMatch(refresh){
       const zip = String($("p-zip").value||"").replace(/\\D/g,"").slice(0,5);
@@ -1026,6 +1117,9 @@ export function pageHtml(): string {
     }
     $("p-pull").addEventListener("click", function(){ quoteMatch(true); });
     $("p-match").addEventListener("click", function(){ quoteMatch(false); });
+    function recastCash(){ if (lastQuote && lastQuote.ok) applyQuoteMatch(lastQuote); }
+    $("p-margin").addEventListener("change", recastCash);
+    $("p-ful").addEventListener("change", recastCash);
     $("p-send").addEventListener("click", async function(){
       $("p-err").textContent="";
       const wholesale = Number($("p-wholesale").value);
