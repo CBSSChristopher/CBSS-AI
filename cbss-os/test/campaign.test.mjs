@@ -23,7 +23,7 @@ describe("email campaign hold", () => {
       email: "lead@example.com",
       phone: "8705550100",
       city: "Corning",
-      owner: "Brittni",
+      owner: "Brittni Keeling",
       addedBy: "Christopher Banks",
       addedAt: "2026-08-29T19:00:00.000Z",
     });

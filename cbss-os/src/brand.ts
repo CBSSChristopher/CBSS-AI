@@ -4,7 +4,7 @@ export const BRAND = {
   paper: "#F7F4EC",
   company: "CBGC LLC DBA CB Shipping Solutions",
   title: "CBSS Platform",
-  stamp: "build 4 · side platform · live tools unchanged",
+  stamp: "build 5 · side platform · live tools unchanged",
 } as const;
 
 export const TEAM_OWNERS = [
@@ -14,7 +14,7 @@ export const TEAM_OWNERS = [
   "Matthew Brent",
   "Kawika Pangelinan",
   "Aliyah",
-  "Brittni",
+  "Brittni Keeling",
   "Derrek Clements",
   "New/Unassigned",
 ] as const;

@@ -483,7 +483,7 @@ export function pageHtml(): string {
       if (!raw) return "";
       const compact = raw.toLowerCase().replace(/[\\s_-]+/g,"");
       if (compact==="new/unassigned" || compact==="newunassigned" || compact==="unassigned") return "New/Unassigned";
-      const map = { christopher:"Christopher Banks", james:"James", bryan:"Bryan Reese", matthew:"Matthew Brent", veeka:"Kawika Pangelinan", veek:"Kawika Pangelinan", aliyah:"Aliyah", brittni:"Brittni", derrek:"Derrek Clements" };
+      const map = { christopher:"Christopher Banks", james:"James", bryan:"Bryan Reese", matthew:"Matthew Brent", veeka:"Kawika Pangelinan", veek:"Kawika Pangelinan", aliyah:"Aliyah", brittni:"Brittni Keeling", derrek:"Derrek Clements" };
       const first = raw.split(/[\\s@]/)[0].toLowerCase();
       return map[first] || raw;
     }

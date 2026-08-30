@@ -48,7 +48,7 @@ describe("CBSS platform brand", () => {
     assert.match(page, /Add to email campaign/);
     assert.match(page, /Email campaign/);
     assert.ok(TEAM_OWNERS.includes("Derrek Clements"));
-    assert.ok(TEAM_OWNERS.includes("Brittni"));
+    assert.ok(TEAM_OWNERS.includes("Brittni Keeling"));
     assert.ok(!TEAM_OWNERS.includes("Ivyanna"));
     assert.match(page, /Derrek Clements/);
     assert.doesNotMatch(page, /"Ivyanna"/);
