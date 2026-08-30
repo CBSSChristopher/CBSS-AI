@@ -81,6 +81,16 @@ describe("hard rules stay on the platform", () => {
     assert.match(page, /This tool does not send from Gmail|This tool does not send Gmail/);
   });
 
+  it("labels the customer number Sale price and puts it before other numbers", () => {
+    assert.match(page, /<label>Sale price<\/label>/);
+    assert.doesNotMatch(page, /Cash each/);
+    const sale = page.indexOf("<label>Sale price</label>");
+    const qty = page.indexOf("<label>Qty</label>");
+    const margin = page.indexOf("<label>Net margin (min $300)</label>");
+    const wholesale = page.indexOf("<label>Posted wholesale (do not invent)</label>");
+    assert.ok(sale > 0 && qty > sale && margin > sale && wholesale > sale);
+  });
+
   it("is company email only", () => {
     assert.equal(isCompanyEmail("rep@cbshippingsolutions.com"), true);
     assert.equal(isCompanyEmail("bankschristopher0300@gmail.com"), false);

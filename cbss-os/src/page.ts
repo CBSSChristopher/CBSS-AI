@@ -397,6 +397,8 @@ export function pageHtml(): string {
             <div class="picks" id="p-config"></div>
             <label>Grade</label>
             <div class="picks" id="p-grade"></div>
+            <label>Sale price</label>
+            <input id="p-cash" inputmode="decimal" placeholder="Formula from posted wholesale + typed margin" />
             <div class="split">
               <div><label>Client ZIP</label><input id="p-zip" inputmode="numeric" maxlength="5" placeholder="5-digit ZIP" /></div>
               <div><label>Qty</label><input id="p-qty" inputmode="numeric" value="1" /></div>
@@ -415,8 +417,6 @@ export function pageHtml(): string {
             </div>
             <label>Posted wholesale (do not invent)</label>
             <input id="p-wholesale" inputmode="decimal" placeholder="Blank unless xChange posted it" />
-            <label>Cash each</label>
-            <input id="p-cash" inputmode="decimal" placeholder="Formula from posted wholesale + typed margin" />
             <div class="split">
               <div><label>Customer name</label><input id="p-name" /></div>
               <div><label>Customer email</label><input id="p-email" type="email" /></div>
