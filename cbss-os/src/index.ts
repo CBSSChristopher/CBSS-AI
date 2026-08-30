@@ -12,6 +12,7 @@ import {
   type ToolKey,
 } from "./auth.ts";
 import { addCampaign, listCampaign, returnCampaign } from "./campaign.ts";
+import { lookupZipFromZippopotam, matchPostedBox, type BoxPick } from "./xchange-match.ts";
 import { pageHtml } from "./page.ts";
 
 const SECURITY = {
@@ -182,6 +183,61 @@ export default {
       const id = str(body.id || body.contactId);
       if (!id) return json(400, { error: "Pick a campaign lead first." });
       return json(200, { ok: true, items: await returnCampaign(env, id) });
+    }
+
+    if (request.method === "GET" && path === "/geo/zip") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      const zip = url.searchParams.get("code") || "";
+      const digits = zip.replace(/\D/g, "").slice(0, 5);
+      if (digits.length !== 5) return json(400, { error: "Type a 5-digit ZIP." });
+      const res = await fetch("https://api.zippopotam.us/us/" + digits, { headers: { "User-Agent": UA } });
+      if (!res.ok) return json(404, { error: "Could not find that ZIP." });
+      const geo = lookupZipFromZippopotam(await res.json() as { places?: Array<Record<string, string>> });
+      if (!geo) return json(404, { error: "Could not find that ZIP." });
+      return json(200, { ok: true, zip: digits, ...geo });
+    }
+
+    if (request.method === "POST" && path === "/quote/match") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      const body = await readJson(request);
+      const zip = str(body.zip).replace(/\D/g, "").slice(0, 5);
+      if (zip.length !== 5) return json(400, { error: "Type the client ZIP first." });
+      const geoRes = await fetch("https://api.zippopotam.us/us/" + zip, { headers: { "User-Agent": UA } });
+      if (!geoRes.ok) return json(404, { error: "Could not find that ZIP." });
+      const geo = lookupZipFromZippopotam(await geoRes.json() as { places?: Array<Record<string, string>> });
+      if (!geo) return json(404, { error: "Could not find that ZIP." });
+      const refresh = body.refresh === true;
+      const invReq = new Request(new URL(refresh ? "/x/proposal/inventory/refresh" : "/x/proposal/inventory", request.url), {
+        method: refresh ? "POST" : "GET",
+        headers: {
+          Cookie: request.headers.get("Cookie") || "",
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: refresh ? "{}" : undefined,
+      });
+      const invRes = await proxyTool(invReq, env, "proposal", refresh ? "/inventory/refresh" : "/inventory");
+      const inv = await invRes.json().catch(() => ({})) as { offers?: unknown[]; items?: unknown[]; error?: string; pulledAt?: string };
+      const offers = Array.isArray(inv.offers) ? inv.offers : Array.isArray(inv.items) ? inv.items : [];
+      const want: BoxPick = {
+        size: str(body.size) || "40",
+        height: str(body.height) || "HC",
+        config: str(body.config) || "standard",
+        grade: str(body.grade) || "CW",
+      };
+      const qty = Math.max(1, Number(body.qty) || 1);
+      const fulfillment = str(body.fulfillment) || "deliver";
+      const hit = matchPostedBox(offers as never[], want, geo, qty, fulfillment);
+      return json(hit.ok ? 200 : 404, {
+        ...hit,
+        zip,
+        place: geo.place,
+        pulledAt: inv.pulledAt || "",
+        offers: offers.length,
+        refreshStatus: invRes.status,
+      });
     }
 
     const tool = matchTool(path);

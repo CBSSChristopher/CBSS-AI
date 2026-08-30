@@ -405,7 +405,7 @@ export function pageHtml(): string {
               <button type="button" class="secondary" id="p-pull">Pull xChange</button>
               <button type="button" class="gold" id="p-match">Find posted box</button>
             </div>
-            <p class="muted" id="p-status">No wholesale until xChange posts one.</p>
+            <p class="muted" id="p-status">Type the client ZIP, pick the exact box, then pull. Wholesale comes from the nearest city that posted that box.</p>
             <div class="split">
               <div>
                 <label>Fulfillment</label>
@@ -498,7 +498,8 @@ export function pageHtml(): string {
     const GRADES = [{v:"WWT",l:"WWT"},{v:"CW",l:"CW"},{v:"IICL",l:"IICL / Multi-Trip"},{v:"OneTrip",l:"One-Trip"},{v:"AsIs",l:"As-Is"}];
     const TEAM = ${JSON.stringify(TEAM_OWNERS)};
     const SPARKS = ${JSON.stringify(SALES_SPARKS)};
-    let user = null, book = null, selected = null, deskContact = null, lastGmail = "", pick = {size:"40",height:"HC",config:"standard",grade:"WWT"};
+    let user = null, book = null, selected = null, deskContact = null, lastGmail = "", pick = {size:"40",height:"HC",config:"standard",grade:"CW"};
+    let lastQuote = null;
     let campaignIds = {};
     let offers = [];
     let chatHistory = [];
@@ -983,45 +984,42 @@ export function pageHtml(): string {
     picks($("p-size"), SIZES, "size"); picks($("p-height"), HEIGHTS, "height");
     picks($("p-config"), CONFIGS, "config"); picks($("p-grade"), GRADES, "grade");
 
-    function offerMatches(o){
-      const size = String(o.size||"");
-      const wantSize = pick.size + pick.height;
-      if (size.replace(/\\s/g,"").indexOf(wantSize)<0 && size.indexOf(pick.size)<0) return false;
-      if (pick.config==="side-os-2d" && !/OS 2D|Open Side 2/i.test(size)) return false;
-      if (pick.config==="side-os-4d" && !/OS 4D|Open Side 4/i.test(size)) return false;
-      if (pick.config==="full-open-side" && !/Full open|Open Side(?! 2| 4)/i.test(size)) return false;
-      if (pick.config==="double-door" && !/Double Door/i.test(size)) return false;
-      if (pick.config==="standard" && /Double Door|Open Side|OS |Full open|Tri-door/i.test(size)) return false;
-      const g = String(o.condition||"");
-      if (pick.grade==="WWT" && !/WWT|Wind/i.test(g) && !/New/i.test(g)) return false;
-      return typeof o.wholesaleCost==="number" && o.wholesaleCost>0;
-    }
     function sizeToken(){
-      if (pick.size==="20") return "20ft";
-      if (pick.size==="40") return "40ft";
+      if (pick.config && pick.config!=="standard") return "Specialized";
+      if (pick.size==="20" || pick.size==="10") return "20ft";
+      if (pick.size==="40" || pick.size==="45") return "40ft";
       return "Specialized";
     }
-    $("p-pull").addEventListener("click", async function(){
-      $("p-status").textContent = "Pulling posted xChange book…";
-      const res = await api("/x/proposal/inventory/refresh", { method:"POST", body: "{}" });
-      offers = res.j.offers||[];
-      $("p-status").textContent = res.r.ok ? (offers.length+" posted offers. Not a CBSS quote.") : (res.j.error||"Refresh failed. Do not invent a wholesale.");
-    });
-    $("p-match").addEventListener("click", async function(){
-      if (!offers.length){
-        const res = await api("/x/proposal/inventory");
-        offers = res.j.offers||[];
+    function applyQuoteMatch(j){
+      lastQuote = j && j.ok ? j : null;
+      if (!j || !j.ok){
+        $("p-wholesale").value = "";
+        $("p-cash").value = "";
+        $("p-status").textContent = (j && (j.error||j.message)) || "No matching posted box. Do not invent a wholesale.";
+        return;
       }
-      const hits = offers.filter(offerMatches);
-      if (!hits.length){ $("p-wholesale").value=""; $("p-status").textContent="No posted match for that exact box. Do not invent a wholesale."; return; }
-      hits.sort(function(a,b){ return a.wholesaleCost-b.wholesaleCost; });
-      const o = hits[0];
-      $("p-wholesale").value = String(o.wholesaleCost);
-      $("p-status").textContent = o.size+" · "+o.condition+" · "+(o.depot||o.city)+" · posted "+money(o.wholesaleCost)+" · qty "+(o.qty||"?")+". That number is theirs, not a CBSS quote.";
-      const wholesale = Number(o.wholesaleCost)||0;
+      $("p-wholesale").value = String(j.wholesale);
+      const delivery = $("p-ful").value==="pickup" ? 0 : Number(j.delivery||0);
       const margin = Math.max(300, Number($("p-margin").value)||700);
-      $("p-cash").value = String(Math.ceil((wholesale+margin)/25)*25);
-    });
+      $("p-cash").value = String(Math.ceil((Number(j.wholesale)+delivery+margin)/25)*25);
+      if (!$("p-del").value && j.place) $("p-del").value = j.place;
+      const skip = j.skippedCity ? " "+j.skippedCity+" did not post this box." : "";
+      $("p-status").textContent = (j.place||"ZIP")+" · depot "+(j.city||"?")+(j.miles!=null?" · "+j.miles+" miles":"")
+        +" · "+(j.size||"")+" · "+(j.condition||"")+" · posted "+money(j.wholesale)+" · qty "+(j.qty||"?")+"."
+        +skip+" That number is theirs, not a CBSS quote.";
+    }
+    async function quoteMatch(refresh){
+      const zip = $("p-zip").value.replace(/\\D/g,"").slice(0,5);
+      if (zip.length!==5){ $("p-status").textContent = "Type a 5-digit client ZIP first."; return; }
+      $("p-status").textContent = refresh ? "Pulling posted xChange book for that ZIP…" : "Matching the posted book to that ZIP…";
+      const res = await api("/quote/match", { method:"POST", body: JSON.stringify({
+        zip:zip, size:pick.size, height:pick.height, config:pick.config, grade:pick.grade,
+        qty:$("p-qty").value, fulfillment:$("p-ful").value, refresh:refresh
+      }) });
+      applyQuoteMatch(res.j);
+    }
+    $("p-pull").addEventListener("click", function(){ quoteMatch(true); });
+    $("p-match").addEventListener("click", function(){ quoteMatch(false); });
     $("p-send").addEventListener("click", async function(){
       $("p-err").textContent="";
       const wholesale = Number($("p-wholesale").value);
@@ -1034,7 +1032,10 @@ export function pageHtml(): string {
         condition: pick.grade, notes:$("p-notes").value,
         containerDesc: pick.size+" "+pick.height+" "+CONFIGS.find(function(c){ return c.v===pick.config; }).l+" "+pick.grade,
         clientType:"Residential", paymentMode:"cash",
-        repName: user && user.name, repEmail: user && user.email
+        repName: user && user.name, repEmail: user && user.email,
+        depot: lastQuote && lastQuote.depot, depotCity: lastQuote && lastQuote.city,
+        region: lastQuote && lastQuote.region, miles: lastQuote && lastQuote.miles,
+        deliveryCost: lastQuote && $("p-ful").value==="pickup" ? 0 : (lastQuote && lastQuote.delivery)
       })});
       $("p-err").textContent = res.j.status==="sent" ? "Proposal generated and emailed." : (res.j.status==="flagged" ? "LOW MARGIN FLAG — below $300." : (res.j.error||"Could not submit."));
     });
