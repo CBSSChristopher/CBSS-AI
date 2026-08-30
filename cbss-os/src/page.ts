@@ -398,7 +398,7 @@ export function pageHtml(): string {
             <label>Grade</label>
             <div class="picks" id="p-grade"></div>
             <div class="split">
-              <div><label>ZIP</label><input id="p-zip" inputmode="numeric" maxlength="10" placeholder="72201" /></div>
+              <div><label>Client ZIP</label><input id="p-zip" inputmode="numeric" maxlength="5" placeholder="5-digit ZIP" /></div>
               <div><label>Qty</label><input id="p-qty" inputmode="numeric" value="1" /></div>
             </div>
             <div class="row">
