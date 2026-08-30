@@ -405,7 +405,7 @@ export function pageHtml(): string {
             </div>
             <div class="row">
               <button type="button" class="secondary" id="p-pull">Pull xChange</button>
-              <button type="button" class="gold" id="p-match">Find posted box</button>
+              <button type="button" class="gold" id="p-match">Get proposal</button>
             </div>
             <p class="muted" id="p-status">Type the client ZIP, pick the exact box, then pull. Wholesale comes from the nearest city that posted that box.</p>
             <div class="split">

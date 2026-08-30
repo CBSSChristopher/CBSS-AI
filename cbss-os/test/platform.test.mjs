@@ -91,6 +91,11 @@ describe("hard rules stay on the platform", () => {
     assert.ok(sale > 0 && qty > sale && margin > sale && wholesale > sale);
   });
 
+  it("uses a plain Get proposal button instead of Find posted box", () => {
+    assert.match(page, />Get proposal</);
+    assert.doesNotMatch(page, /Find posted box/);
+  });
+
   it("is company email only", () => {
     assert.equal(isCompanyEmail("rep@cbshippingsolutions.com"), true);
     assert.equal(isCompanyEmail("bankschristopher0300@gmail.com"), false);
