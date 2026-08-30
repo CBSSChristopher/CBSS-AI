@@ -1009,14 +1009,20 @@ export function pageHtml(): string {
         +skip+" That number is theirs, not a CBSS quote.";
     }
     async function quoteMatch(refresh){
-      const zip = $("p-zip").value.replace(/\\D/g,"").slice(0,5);
+      const zip = String($("p-zip").value||"").replace(/\\D/g,"").slice(0,5);
       if (zip.length!==5){ $("p-status").textContent = "Type a 5-digit client ZIP first."; return; }
+      $("p-pull").disabled = true; $("p-match").disabled = true;
       $("p-status").textContent = refresh ? "Pulling posted xChange book for that ZIP…" : "Matching the posted book to that ZIP…";
-      const res = await api("/quote/match", { method:"POST", body: JSON.stringify({
-        zip:zip, size:pick.size, height:pick.height, config:pick.config, grade:pick.grade,
-        qty:$("p-qty").value, fulfillment:$("p-ful").value, refresh:refresh
-      }) });
-      applyQuoteMatch(res.j);
+      try {
+        const res = await api("/quote/match", { method:"POST", body: JSON.stringify({
+          zip:zip, size:pick.size, height:pick.height, config:pick.config, grade:pick.grade,
+          qty:$("p-qty").value, fulfillment:$("p-ful").value, refresh:refresh
+        }) });
+        applyQuoteMatch(res.j);
+      } catch (err) {
+        $("p-status").textContent = "Could not match that ZIP to a posted box. Do not invent a wholesale.";
+      }
+      $("p-pull").disabled = false; $("p-match").disabled = false;
     }
     $("p-pull").addEventListener("click", function(){ quoteMatch(true); });
     $("p-match").addEventListener("click", function(){ quoteMatch(false); });
