@@ -35,9 +35,15 @@ describe("CBSS platform brand", () => {
     assert.match(page, /Proposal Builder/);
     assert.match(page, /Write the proposal/);
     assert.match(page, /Pick the box/);
-    assert.match(page, /Cash on the ticket/);
+    assert.match(page, /Proposal amount/);
+    assert.match(page, /Proposal each/);
+    assert.match(page, /Match posted wholesale/);
     assert.match(page, /id="p-ticket"/);
     assert.match(page, /class="card step"/);
+    assert.doesNotMatch(page, /Find posted box/);
+    assert.doesNotMatch(page, /Cash on the ticket/);
+    assert.doesNotMatch(page, /Cash each/);
+    assert.doesNotMatch(page, /cash price/i);
     assert.match(page, /Invoice — ACH \/ wire only/);
     assert.doesNotMatch(page, /Veem payment request/);
     assert.match(page, /data-desk="chat"/);

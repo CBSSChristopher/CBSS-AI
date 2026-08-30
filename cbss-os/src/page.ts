@@ -408,7 +408,7 @@ export function pageHtml(): string {
               <div class="ai-mark">Q</div>
               <div>
                 <h2>Write the proposal</h2>
-                <p class="muted">Proposal Builder · one depot · delivered or pickup cash. Posted xChange wholesale only. Do not invent a price.</p>
+                <p class="muted">Proposal Builder · one depot. Posted xChange wholesale only. Do not invent a price.</p>
               </div>
             </div>
             <div class="warn">Side door OS 2D ≠ Side door OS 4D ≠ Full open side. OS 2D, OS 4D, and Full open side are different boxes — do not mix them. Pick the exact config the yard posted.</div>
@@ -444,17 +444,17 @@ export function pageHtml(): string {
               <div class="zip-wrap"><label for="p-zip">Client ZIP</label><input id="p-zip" inputmode="numeric" maxlength="5" placeholder="85001" /></div>
               <div class="zip-wrap"><label for="p-qty">Qty</label><input id="p-qty" inputmode="numeric" value="1" /></div>
               <button type="button" class="secondary" id="p-pull">Pull xChange</button>
-              <button type="button" class="gold" id="p-match">Find posted box</button>
+              <button type="button" class="gold" id="p-match">Match posted wholesale</button>
             </div>
-            <p class="muted" id="p-status">Type the client ZIP, pick the exact box, then pull. Wholesale comes from the nearest city that posted that box.</p>
+            <p class="muted" id="p-status">Type the client ZIP, pick the exact box, then match. That number is the yard’s posted wholesale, not our proposal.</p>
           </div>
 
           <div class="card step">
             <div class="step-head">
               <div class="step-num">3</div>
               <div>
-                <h2>Cash on the ticket</h2>
-                <p class="muted">Posted wholesale + live delivery + typed margin, rounded up to $25. Do not invent a wholesale.</p>
+                <h2>Proposal amount</h2>
+                <p class="muted">Posted wholesale + live delivery + typed margin, rounded up to $25. That is what we send. Do not invent a wholesale.</p>
               </div>
             </div>
             <div class="split">
@@ -470,12 +470,12 @@ export function pageHtml(): string {
                 <input id="p-wholesale" inputmode="decimal" placeholder="Blank unless xChange posted it" readonly />
               </div>
               <div>
-                <label>Cash each</label>
-                <input id="p-cash" inputmode="decimal" placeholder="Formula from posted wholesale + typed margin" readonly />
+                <label>Proposal each</label>
+                <input id="p-cash" inputmode="decimal" placeholder="Posted wholesale + delivery + margin" readonly />
               </div>
             </div>
             <div class="quote-ticket hide" id="p-ticket">
-              <div class="kicker">Posted match · cash each</div>
+              <div class="kicker">Proposal each</div>
               <p class="cash" id="p-ticket-cash">—</p>
               <p class="muted" id="p-ticket-meta"></p>
             </div>
