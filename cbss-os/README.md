@@ -1,12 +1,12 @@
-# Harbor
+# The Yard
 
 The house tool for CB Shipping Solutions. One login for CRM, Desk, Proposal, and Money.
 
-Bookmark: `https://harbor.cbss.workers.dev`
+Bookmark: `https://theyard.cbss.workers.dev`
 
 Company email only. Same password as the CRM.
 
-The older single-tool URLs still run as backends. This worker does **not** deploy over them. Work the book from Harbor.
+The older single-tool URLs still run as backends. This worker does **not** deploy over them. Work the book from The Yard.
 
 - CRM `https://cbsscrm.cbss.workers.dev`
 - Desk `https://cbssbrain.cbss.workers.dev`
@@ -19,7 +19,7 @@ Navy `#0B1F3A` / gold `#C9A227` / cream `#F7F4EC`.
 ## Modules
 
 - **CRM** — contacts, follow-ups, tasks, pipeline, notes, email-campaign hold
-- **Desk** — CBSS AI first, Container One / USA Containers price match, then call scraps and email
+- **Desk** — Harbor (CBSS AI) first, Container One / USA Containers price match, then call scraps and email
 - **Proposal** — container picks, posted xChange wholesale only, cash, submit
 - **Money** — branded invoice (ACH/wire or card). No Veem.
 

@@ -88,11 +88,11 @@ describe("hard rules stay on the platform", () => {
     assert.match(page, /Company email only/);
   });
 
-  it("is Harbor and does not deploy over the live backends", () => {
+  it("is The Yard and does not deploy over the live backends", () => {
     assert.match(readme, /does \*\*not\*\* deploy over/);
-    assert.match(page, />Harbor</);
-    assert.match(page, /Open Harbor/);
-    assert.match(page, /This is Harbor/);
+    assert.match(page, />The Yard</);
+    assert.match(page, /Open The Yard/);
+    assert.match(page, /This is The Yard/);
     assert.match(page, /Bookmark this page/);
     assert.doesNotMatch(page, /CBSS Platform/);
     assert.doesNotMatch(page, /side platform/);

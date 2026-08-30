@@ -3,8 +3,8 @@ export const BRAND = {
   gold: "#C9A227",
   paper: "#F7F4EC",
   company: "CBGC LLC DBA CB Shipping Solutions",
-  title: "Harbor",
-  stamp: "build 10 · Harbor",
+  title: "The Yard",
+  stamp: "build 10 · The Yard",
 } as const;
 
 export const SALES_SPARKS = [

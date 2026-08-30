@@ -10,7 +10,7 @@ export function pageHtml(): string {
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Harbor" />
+  <meta name="apple-mobile-web-app-title" content="The Yard" />
   <meta name="robots" content="noindex,nofollow" />
   <title>${BRAND.title}</title>
   <style>
@@ -207,14 +207,14 @@ export function pageHtml(): string {
   <div id="login" class="login-wrap">
     <section class="card login-card">
       <div class="seal">CB</div>
-      <h1>Harbor</h1>
+      <h1>The Yard</h1>
       <p class="muted">The CB Shipping Solutions house tool. One login for CRM, Desk, Proposal, and Money. Company email only. Same password as the CRM. Bookmark this page.</p>
       <form id="login-form">
         <label for="email">Company email</label>
         <input id="email" type="email" autocomplete="username" placeholder="you@cbshippingsolutions.com" required />
         <label for="password">Password</label>
         <input id="password" type="password" autocomplete="current-password" required />
-        <div class="row"><button type="submit" class="gold">Open Harbor</button></div>
+        <div class="row"><button type="submit" class="gold">Open The Yard</button></div>
         <p class="err" id="login-err"></p>
       </form>
     </section>
@@ -227,7 +227,7 @@ export function pageHtml(): string {
         <div>
           <div class="brand">CB SHIPPING SOLUTIONS</div>
           <div class="sub" id="stamp">${BRAND.stamp}</div>
-          <p class="live">Harbor. One login for the whole desk.</p>
+          <p class="live">The Yard. One login for the whole desk.</p>
         </div>
       </div>
       <nav id="nav">
@@ -241,7 +241,7 @@ export function pageHtml(): string {
     <div class="stage">
       <header>
         <div>
-          <div class="brand">HARBOR</div>
+          <div class="brand">THE YARD</div>
           <div class="sub">CRM · Desk · Proposal · Money</div>
         </div>
         <div class="right">
@@ -252,7 +252,7 @@ export function pageHtml(): string {
       <main>
         <section id="mod-home">
           <h1>One book. Four models.</h1>
-          <p class="muted">This is Harbor. Sign in once. Work CRM, Desk, Proposal, and Money from here.</p>
+          <p class="muted">This is The Yard. Sign in once. Work CRM, Desk, Proposal, and Money from here.</p>
           <div class="chips" id="tool-chips"></div>
           <div class="tiles" style="margin-top:14px">
             <div class="card tile" data-go="crm"><div class="kicker">Book</div><h2>CRM</h2><p class="muted">Contacts, follow-ups, tasks, pipeline, notes.</p></div>
@@ -482,7 +482,7 @@ export function pageHtml(): string {
             <div class="hits" id="i-hits"></div>
           </div>
         </section>
-        <footer>${BRAND.company} · Harbor</footer>
+        <footer>${BRAND.company} · The Yard</footer>
       </main>
     </div>
   </div>

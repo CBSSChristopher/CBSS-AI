@@ -1,8 +1,11 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "harbor",
+  "name": "theyard",
   "main": "src/harbor-alias.ts",
   "compatibility_date": "2026-08-29",
   "workers_dev": true,
-  "preview_urls": false
+  "preview_urls": false,
+  "services": [
+    { "binding": "HOUSE", "service": "cbssos" }
+  ]
 }
