@@ -54,10 +54,26 @@ describe("CBSS public website", () => {
     assert.doesNotMatch(all, /573-525-8324/);
     assert.match(js, /\["christopher", "cbshippingsolutions\.com"\]\.join\("@"\)/);
     assert.match(js, /\/api\/request/);
-    assert.match(js, /\/brand\/stamp\.png/);
-    assert.match(js, /\/brand\/bbb-accredited\.png/);
+    assert.match(js, /\/brand\/mark\.webp/);
+    assert.match(js, /\/brand\/bbb-accredited\.webp/);
     assert.doesNotMatch(js, /brand-mark" viewBox/);
-    assert.match(pages.find((p) => p.f === "index.html").t, /\/brand\/lockup\.png/);
+    assert.match(pages.find((p) => p.f === "index.html").t, /\/brand\/lockup\.webp/);
     assert.match(pages.find((p) => p.f === "request.html").t, /requestForm/);
+  });
+
+  it("clears cached HTTP/3 so Windows Chrome does not drop the connection", () => {
+    const worker = readFileSync(new URL("../src/worker.js", import.meta.url), "utf8");
+    assert.match(worker, /"Alt-Svc": "clear"/);
+  });
+
+  it("does not wait on Google Fonts or a 180KB stamp favicon", () => {
+    assert.doesNotMatch(all, /fonts\.googleapis\.com/);
+    assert.doesNotMatch(all, /fonts\.gstatic\.com/);
+    const home = pages.find((p) => p.f === "index.html").t;
+    assert.match(home, /rel="preload" href="\/brand\/lockup\.webp"/);
+    assert.match(home, /href="\/favicon\.svg"/);
+    assert.doesNotMatch(home, /rel="icon" href="\/brand\/stamp\.png"/);
+    assert.match(pages.find((p) => p.f === "styles.css").t, /font-display:\s*optional/);
+    assert.match(pages.find((p) => p.f === "styles.css").t, /\/fonts\/fraunces-600\.woff2/);
   });
 });

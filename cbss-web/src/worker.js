@@ -1,4 +1,5 @@
 import { EmailMessage } from "cloudflare:email";
+import { cacheControl } from "./cache.js";
 import { parseInquiry, validateInquiry, inquiryText, officeMail } from "./request.js";
 
 const SECURITY = {
@@ -6,6 +7,8 @@ const SECURITY = {
   "Referrer-Policy": "strict-origin-when-cross-origin",
   "X-Frame-Options": "DENY",
   "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+  // Chrome caches HTTP/3 from alt-svc; a failed QUIC hop shows ERR_CONNECTION_CLOSED.
+  "Alt-Svc": "clear",
 };
 
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8" };
@@ -97,6 +100,9 @@ export default {
     if (url.pathname === "/api/request") {
       return json(405, { ok: false, error: "POST only." });
     }
-    return withSecurity(await env.ASSETS.fetch(request));
+    const asset = withSecurity(await env.ASSETS.fetch(request));
+    const cached = new Response(asset.body, asset);
+    cached.headers.set("Cache-Control", cacheControl(url.pathname, asset.headers.get("content-type") || ""));
+    return cached;
   },
 };
