@@ -245,7 +245,7 @@ describe("The Yard CRM edit and Money invoice send", () => {
     assert.match(page, /id="i-gmail"/);
     assert.match(page, /\/x\/invoice\/invoice\/create/);
     assert.match(page, /\/x\/invoice\/invoice\/document\//);
-    assert.match(page, /Gmail opened to you — forward it to the customer/);
+    assert.match(page, /is ready\. Gmail opened to you — forward it to the customer/);
     assert.match(page, /officeMail\("christopher"\)/);
     assert.match(page, /officeMail\("aliyah"\)/);
     assert.match(index, /invoice\/document\//);

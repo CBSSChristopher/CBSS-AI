@@ -1675,7 +1675,7 @@ export function pageHtml(): string {
         docAbs,
         payMethod
       );
-      $("i-out").textContent = (res.j.cardText||"Invoice built.")+" Gmail opened to you — forward it to the customer.";
+      $("i-out").textContent = "Invoice "+(number||"built")+" is ready. Gmail opened to you — forward it to the customer. Do not invent a price.";
       if (lastGmail) window.open(lastGmail, "_blank", "noopener");
     }
     $("i-ach").addEventListener("click", function(){ makeInvoice("ach"); });
