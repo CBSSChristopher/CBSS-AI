@@ -1,0 +1,31 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cbssos",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-29",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "kv_namespaces": [
+    { "binding": "SESSIONS", "id": "263964e72f644f63b9499b0da95a1b5c" }
+  ],
+  "services": [
+    { "binding": "CRM", "service": "cbsscrm" },
+    { "binding": "DESK", "service": "cbssbrain" },
+    { "binding": "PROPOSAL", "service": "cbsscompletetool" },
+    { "binding": "PAY", "service": "cbsspay" },
+    { "binding": "INVOICE", "service": "cbssinvoice" }
+  ],
+  "vars": {
+    "PUBLIC_TITLE": "The Yard",
+    "CRM_ORIGIN": "https://cbsscrm.cbss.workers.dev",
+    "DESK_ORIGIN": "https://cbssbrain.cbss.workers.dev",
+    "PROPOSAL_ORIGIN": "https://cbsscompletetool.cbss.workers.dev",
+    "PAY_ORIGIN": "https://cbsspay.cbss.workers.dev",
+    "INVOICE_ORIGIN": "https://cbssinvoice.cbss.workers.dev"
+  }
+}
