@@ -136,6 +136,13 @@ async function proxyTool(request: Request, env: Env, key: ToolKey, rest: string)
   out.set("Cache-Control", "no-store");
   for (const [k, v] of Object.entries(SECURITY)) out.set(k, v);
   out.delete("set-cookie");
+  if (key === "invoice" && rest.startsWith("/invoice/document/")) {
+    out.delete("X-Frame-Options");
+    out.set(
+      "Content-Security-Policy",
+      SECURITY["Content-Security-Policy"].replace("frame-ancestors 'none'", "frame-ancestors 'self'"),
+    );
+  }
   return new Response(res.body, { status: res.status, headers: out });
 }
 

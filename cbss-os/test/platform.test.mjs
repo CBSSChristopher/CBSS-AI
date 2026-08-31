@@ -55,7 +55,7 @@ describe("CBSS platform brand", () => {
     assert.match(page, /Schedule another/);
     assert.match(page, /Just completed\. Set the next follow-up\./);
     assert.match(page, /The new follow-up stays on the book/);
-    assert.match(page, /grid-template-columns: repeat\(8,/);
+    assert.match(page, /grid-template-columns: repeat\(11,/);
     assert.match(page, /id="desk-q"/);
     assert.match(page, /id="desk-hits"/);
     assert.match(page, /id="desk-sel"/);
@@ -172,5 +172,85 @@ describe("session stays small", () => {
     assert.equal(got?.tools.crm.length, 800);
     assert.deepEqual(toolsReady(got.tools), { crm: true, desk: true, proposal: true, pay: true, invoice: true });
     assert.deepEqual(toolsReady(emptyTools()), { crm: false, desk: false, proposal: false, pay: false, invoice: false });
+  });
+});
+
+describe("The Yard CRM edit and Money invoice send", () => {
+  it("shows stage and the same edit fields as the other CRM", () => {
+    assert.match(page, /<th>Stage<\/th>/);
+    assert.match(page, /id="crm-edit"/);
+    assert.match(page, /id="contact-edit"/);
+    assert.match(page, /id="crm-stage"/);
+    assert.match(page, /function contactStage/);
+    assert.match(page, /function openContactEdit/);
+    assert.match(page, /function persistContactPatch/);
+    assert.match(page, /action:"saveContactEdits"/);
+    assert.match(page, /action:"saveDeals"/);
+    for (const stage of [
+      "New Lead",
+      "Contacted",
+      "CTE in progress",
+      "Follow up in progress",
+      "Email campaign",
+      "Quote",
+      "Proposal Sent",
+      "Flex Buy",
+      "Won",
+      "Lost",
+      "DNC",
+    ]) {
+      assert.match(page, new RegExp(stage.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    }
+    for (const id of [
+      "m-name",
+      "m-email",
+      "m-phone",
+      "m-city",
+      "m-state",
+      "m-zip",
+      "m-company",
+      "m-owner",
+      "m-status",
+      "m-source",
+      "m-client",
+      "m-size",
+      "m-condition",
+      "m-depot",
+      "m-delivery",
+      "m-payment",
+      "m-amount",
+      "m-wholesale",
+      "m-dnc",
+    ]) {
+      assert.match(page, new RegExp('id="' + id + '"'));
+    }
+    assert.match(page, /Quote Form/);
+    assert.match(page, /Drive Deals/);
+    assert.match(page, /Proposal Tool/);
+    assert.match(page, /Residential/);
+    assert.match(page, /Commercial/);
+    assert.match(page, /20STD/);
+    assert.match(page, /40HC/);
+    assert.match(page, /New\/Unassigned/);
+    const officeChristopher = ["christopher", "cbshippingsolutions.com"].join("@");
+    assert.doesNotMatch(page, new RegExp(officeChristopher.replace(/\./g, "\\.")));
+  });
+
+  it("builds the invoice and opens Gmail to the agent", () => {
+    assert.match(page, /function agentInvoiceGmail/);
+    assert.match(page, /function makeInvoice/);
+    assert.match(page, /function showInvoiceDoc/);
+    assert.match(page, /Send invoice to me/);
+    assert.match(page, /id="i-preview"/);
+    assert.match(page, /id="i-gmail"/);
+    assert.match(page, /\/x\/invoice\/invoice\/create/);
+    assert.match(page, /\/x\/invoice\/invoice\/document\//);
+    assert.match(page, /is ready\. Gmail opened to you — forward it to the customer/);
+    assert.match(page, /officeMail\("christopher"\)/);
+    assert.match(page, /officeMail\("aliyah"\)/);
+    assert.match(index, /invoice\/document\//);
+    assert.match(index, /frame-ancestors 'self'/);
+    const officeChristopher = ["christopher", "cbshippingsolutions.com"].join("@");
+    assert.doesNotMatch(index, new RegExp(officeChristopher.replace(/\./g, "\\.")));
   });
 });
