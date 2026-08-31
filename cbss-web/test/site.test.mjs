@@ -61,6 +61,11 @@ describe("CBSS public website", () => {
     assert.match(pages.find((p) => p.f === "request.html").t, /requestForm/);
   });
 
+  it("clears cached HTTP/3 so Windows Chrome does not drop the connection", () => {
+    const worker = readFileSync(new URL("../src/worker.js", import.meta.url), "utf8");
+    assert.match(worker, /"Alt-Svc": "clear"/);
+  });
+
   it("does not wait on Google Fonts or a 180KB stamp favicon", () => {
     assert.doesNotMatch(all, /fonts\.googleapis\.com/);
     assert.doesNotMatch(all, /fonts\.gstatic\.com/);

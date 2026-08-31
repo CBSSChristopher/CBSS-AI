@@ -7,6 +7,8 @@ const SECURITY = {
   "Referrer-Policy": "strict-origin-when-cross-origin",
   "X-Frame-Options": "DENY",
   "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+  // Chrome caches HTTP/3 from alt-svc; a failed QUIC hop shows ERR_CONNECTION_CLOSED.
+  "Alt-Svc": "clear",
 };
 
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8" };
