@@ -135,6 +135,8 @@ export function pageHtml(): string {
     .pc-meta { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; font-size: 12px; }
     .pc-amt { font-weight: 700; color: var(--navy); }
     .work-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+    .sched-box { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(11,31,58,.12); }
+    .sched-box input { width: 100%; margin-top: 6px; }
     .acts { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0 12px; }
     .acts a, .acts button { text-decoration: none; display: inline-flex; align-items: center; }
     .acts a { background: var(--navy); color: #fff; }
@@ -829,6 +831,12 @@ export function pageHtml(): string {
         updatedAt: followupStamp()
       };
     }
+    function setCrmMsg(text, isErr){
+      const el = $("crm-err");
+      if (!el) return;
+      el.textContent = text || "";
+      el.style.color = isErr ? "#b42318" : "";
+    }
     async function persistOpenFollowup(id, nextAction, followUpDate){
       const row = followupRow(nextAction, followUpDate);
       if (!row.nextAction && !row.followUpDate) return null;
@@ -836,8 +844,14 @@ export function pageHtml(): string {
       patch[id] = row;
       const edits = {};
       edits[id] = { nextAction: row.nextAction, followUpDate: row.followUpDate };
-      await api("/x/crm/crm-data?action=saveFollowups", { method:"POST", body: JSON.stringify({ action:"saveFollowups", followups: patch }) });
-      await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"saveContactEdits", contactEdits: edits }) });
+      const saved = await api("/x/crm/crm-data?action=saveFollowups", { method:"POST", body: JSON.stringify({ action:"saveFollowups", followups: patch }) });
+      if (!saved.r.ok || saved.j.ok === false){
+        throw new Error((saved.j && saved.j.error) || "Could not save the follow-up.");
+      }
+      const edited = await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"saveContactEdits", contactEdits: edits }) });
+      if (!edited.r.ok || edited.j.ok === false){
+        throw new Error((edited.j && edited.j.error) || "Follow-up saved, but the contact card did not update.");
+      }
       book.followups[id] = row;
       book.followups[String(id)] = row;
       const c = contactForId(id);
@@ -846,25 +860,44 @@ export function pageHtml(): string {
     }
     async function saveFollowup(){
       if (!selected) return;
-      const row = await persistOpenFollowup(selected.id, $("fu-act").value, $("fu-date").value);
-      if (!row) return;
-      renderStats();
+      const nextAction = $("fu-act").value;
+      const followUpDate = $("fu-date").value;
+      if (!String(nextAction||"").trim() && !String(followUpDate||"").trim()){
+        setCrmMsg("Type the next action or pick a date, then Save follow-up.", true);
+        return;
+      }
+      try {
+        const row = await persistOpenFollowup(selected.id, nextAction, followUpDate);
+        if (!row) return;
+        setCrmMsg("Follow-up saved. It stays on the book.", false);
+        renderStats(); renderFollowups(); renderTasks();
+      } catch (err) {
+        setCrmMsg((err && err.message) || "Could not save the follow-up.", true);
+      }
     }
     async function completeTask(){
       if (!selected) return;
       const prev = $("fu-act").value.trim() || "Follow-up";
-      await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"completeFollowup", contactId:String(selected.id), nextAction:prev }) });
-      const stamp = new Date().toISOString().slice(0,16).replace("T"," ");
-      const doneRow = { text:prev, author:(user&&(user.name||user.email))||"User", timestamp:stamp, status:"completed" };
-      book.completed = book.completed || {};
-      const prevDone = (book.completed[selected.id] || book.completed[String(selected.id)] || []).slice();
-      prevDone.unshift(doneRow);
-      book.completed[selected.id] = prevDone;
-      selected.completedTasks = prevDone;
-      book.followups[selected.id] = { nextAction:"", followUpDate:"", completed:true, status:"completed", pendingNext:true };
-      selected.nextAction = "";
-      selected.followUpDate = "";
-      renderStats(); renderFollowups(); renderTasks(); openContact(selected.id);
+      try {
+        const doneRes = await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"completeFollowup", contactId:String(selected.id), nextAction:prev }) });
+        if (!doneRes.r.ok || doneRes.j.ok === false){
+          throw new Error((doneRes.j && doneRes.j.error) || "Could not complete that follow-up.");
+        }
+        const stamp = new Date().toISOString().slice(0,16).replace("T"," ");
+        const doneRow = { text:prev, author:(user&&(user.name||user.email))||"User", timestamp:stamp, status:"completed" };
+        book.completed = book.completed || {};
+        const prevDone = (book.completed[selected.id] || book.completed[String(selected.id)] || []).slice();
+        prevDone.unshift(doneRow);
+        book.completed[selected.id] = prevDone;
+        selected.completedTasks = prevDone;
+        book.followups[selected.id] = { nextAction:"", followUpDate:"", completed:true, status:"completed", pendingNext:true };
+        selected.nextAction = "";
+        selected.followUpDate = "";
+        setCrmMsg("Completed. Type the next follow-up and tap Save follow-up — it stays on the book.", false);
+        renderStats(); renderFollowups(); renderTasks(); openContact(selected.id);
+      } catch (err) {
+        setCrmMsg((err && err.message) || "Could not complete that follow-up.", true);
+      }
     }
     async function addNote(){
       if (!selected) return;
@@ -970,9 +1003,12 @@ export function pageHtml(): string {
       return '<tr data-id="'+esc(String(c.id))+'"><td>'+esc(c.name||"")+"</td><td>"+esc(action)+"</td><td>"+esc(when)+"</td><td>"+esc(c.owner||"")+'</td><td><div class="work-actions">'
         +(pending ? "" : '<button type="button" class="gold" data-done="'+esc(String(c.id))+'">Complete</button>')
         +"</div>"
-        +'<label>'+(pending ? "Just completed. Set the next follow-up." : "Schedule another")+'</label><input data-next-act="'+esc(String(c.id))+'" placeholder="Next action" />'
+        +'<div class="sched-box" data-sched-box="'+esc(String(c.id))+'">'
+        +'<label>'+(pending ? "Just completed. Set the next follow-up." : "Schedule another")+'</label>'
+        +'<input data-next-act="'+esc(String(c.id))+'" placeholder="Next action — e.g. Call this afternoon" autocomplete="off" />'
         +'<input type="datetime-local" data-next-date="'+esc(String(c.id))+'" />'
-        +'<div class="row" style="margin-top:6px"><button type="button" class="secondary" data-sched="'+esc(String(c.id))+'">Save next follow-up</button></div></td></tr>';
+        +'<div class="row" style="margin-top:6px"><button type="button" class="'+(pending ? "gold" : "secondary")+'" data-sched="'+esc(String(c.id))+'">Save next follow-up</button></div>'
+        +"</div></td></tr>";
     }
     function workTable(rows, empty, doneToday){
       if (!rows.length) return '<p class="muted">'+empty+"</p>";
@@ -982,25 +1018,43 @@ export function pageHtml(): string {
     function renderFollowups(){
       const rows = openWorkRows();
       const done = doneTodayRows();
-      $("crm-followups").innerHTML = "<h2>Follow-ups</h2><p class=\\"muted\\">Complete one, then type the next call on that same row. The new follow-up stays on the book. People you finished today stay under Done today — they are still in the CRM.</p>"
+      $("crm-followups").innerHTML = "<h2>Follow-ups</h2><p class=\\"muted\\">Complete one, then type the next call on that same row and tap Save next follow-up. The new follow-up stays on the book. People you finished today stay under Done today — schedule them again from there.</p>"
         +workTable(rows, "No open follow-ups.", false)
-        +(done.length ? "<h2>Done today</h2><p class=\\"muted\\">"+done.length+" finished today. Set the next call here if they still need one.</p>"+workTable(done, "", true) : "");
+        +(done.length ? "<h2>Done today</h2><p class=\\"muted\\">"+done.length+" finished today. Type the next action on their row and tap Save next follow-up — it will move back onto Follow-ups.</p>"+workTable(done, "", true) : "");
     }
     function renderTasks(){
       const rows = openWorkRows();
       const done = doneTodayRows();
       $("crm-tasks").innerHTML = "<h2>Tasks</h2><p class=\\"muted\\">Same book as follow-ups. Complete, then save the next one on that row so it does not disappear.</p>"
         +workTable(rows, "No open tasks.", false)
-        +(done.length ? "<h2>Done today</h2><p class=\\"muted\\">"+done.length+" finished today. They are still in the CRM.</p>"+workTable(done, "", true) : "");
+        +(done.length ? "<h2>Done today</h2><p class=\\"muted\\">"+done.length+" finished today. Save the next follow-up on their row.</p>"+workTable(done, "", true) : "");
+    }
+    function workFields(id, row){
+      const root = row || document;
+      const box = (row && row.querySelector && row.querySelector('[data-sched-box="'+id+'"]')) || root;
+      const act = box.querySelector ? box.querySelector('[data-next-act="'+id+'"]') : null;
+      const when = box.querySelector ? box.querySelector('[data-next-date="'+id+'"]') : null;
+      return {
+        nextAction: act ? String(act.value || "").trim() : "",
+        followUpDate: when ? String(when.value || "").trim() : ""
+      };
     }
     function bindWorkLists(root){
       root.addEventListener("click", async function(e){
         const done = e.target.closest("[data-done]");
         const sched = e.target.closest("[data-sched]");
-        if (done){ e.stopPropagation(); await completeWork(done.getAttribute("data-done")); return; }
-        if (sched){ e.stopPropagation(); await scheduleWork(sched.getAttribute("data-sched")); return; }
+        if (done){
+          e.stopPropagation();
+          await completeWork(done.getAttribute("data-done"), done.closest("tr"));
+          return;
+        }
+        if (sched){
+          e.stopPropagation();
+          await scheduleWork(sched.getAttribute("data-sched"), sched.closest("tr"));
+          return;
+        }
         const tr = e.target.closest("tr[data-id]");
-        if (tr && !e.target.closest("button, input, label, select")) {
+        if (tr && !e.target.closest("button, input, label, select, .sched-box")) {
           const tab = document.querySelector('[data-crm="contacts"]');
           if (tab) tab.click();
           openContact(tr.getAttribute("data-id"));
@@ -1009,41 +1063,56 @@ export function pageHtml(): string {
     }
     bindWorkLists($("crm-followups"));
     bindWorkLists($("crm-tasks"));
-    async function completeWork(id){
+    async function completeWork(id, row){
       const c = contactForId(id);
       if (!c) return;
-      const act = document.querySelector('[data-next-act="'+id+'"]');
-      const when = document.querySelector('[data-next-date="'+id+'"]');
-      const nextAction = act ? act.value.trim() : "";
-      const followUpDate = when ? when.value : "";
+      const fields = workFields(id, row);
+      const nextAction = fields.nextAction;
+      const followUpDate = fields.followUpDate;
       const f = (book.followups||{})[id]||(book.followups||{})[String(id)]||{};
       const action = c.nextAction || f.nextAction || "Follow-up";
-      await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"completeFollowup", contactId:String(id), nextAction:action }) });
-      const stamp = new Date().toISOString().slice(0,16).replace("T"," ");
-      const doneRow = { text:action, author:(user&&(user.name||user.email))||"User", timestamp:stamp, status:"completed" };
-      book.completed = book.completed || {};
-      const prevDone = (book.completed[id] || book.completed[String(id)] || []).slice();
-      prevDone.unshift(doneRow);
-      book.completed[id] = prevDone;
-      book.completed[String(id)] = prevDone;
-      c.completedTasks = prevDone;
-      if (nextAction || followUpDate){
-        await persistOpenFollowup(id, nextAction, followUpDate);
-      } else {
-        c.nextAction = ""; c.followUpDate = "";
-        book.followups[id] = { nextAction:"", followUpDate:"", completed:true, status:"completed", pendingNext:true };
-        book.followups[String(id)] = book.followups[id];
+      try {
+        const doneRes = await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"completeFollowup", contactId:String(id), nextAction:action }) });
+        if (!doneRes.r.ok || doneRes.j.ok === false){
+          throw new Error((doneRes.j && doneRes.j.error) || "Could not complete that follow-up.");
+        }
+        const stamp = new Date().toISOString().slice(0,16).replace("T"," ");
+        const doneRow = { text:action, author:(user&&(user.name||user.email))||"User", timestamp:stamp, status:"completed" };
+        book.completed = book.completed || {};
+        const prevDone = (book.completed[id] || book.completed[String(id)] || []).slice();
+        prevDone.unshift(doneRow);
+        book.completed[id] = prevDone;
+        book.completed[String(id)] = prevDone;
+        c.completedTasks = prevDone;
+        if (nextAction || followUpDate){
+          await persistOpenFollowup(id, nextAction, followUpDate);
+          setCrmMsg("Completed and saved the next follow-up.", false);
+        } else {
+          c.nextAction = ""; c.followUpDate = "";
+          book.followups[id] = { nextAction:"", followUpDate:"", completed:true, status:"completed", pendingNext:true };
+          book.followups[String(id)] = book.followups[id];
+          setCrmMsg("Completed. Type the next action on that row and tap Save next follow-up.", false);
+        }
+        renderStats(); renderFollowups(); renderTasks();
+      } catch (err) {
+        setCrmMsg((err && err.message) || "Could not complete that follow-up.", true);
       }
-      renderStats(); renderFollowups(); renderTasks();
     }
-    async function scheduleWork(id){
-      const act = document.querySelector('[data-next-act="'+id+'"]');
-      const when = document.querySelector('[data-next-date="'+id+'"]');
-      const nextAction = act ? act.value.trim() : "";
-      const followUpDate = when ? when.value : "";
-      if (!nextAction && !followUpDate) return;
-      await persistOpenFollowup(id, nextAction, followUpDate);
-      renderStats(); renderFollowups(); renderTasks();
+    async function scheduleWork(id, row){
+      const fields = workFields(id, row);
+      const nextAction = fields.nextAction;
+      const followUpDate = fields.followUpDate;
+      if (!nextAction && !followUpDate){
+        setCrmMsg("Type the next action or pick a date, then Save next follow-up.", true);
+        return;
+      }
+      try {
+        await persistOpenFollowup(id, nextAction, followUpDate);
+        setCrmMsg("Next follow-up saved. It stays on Follow-ups.", false);
+        renderStats(); renderFollowups(); renderTasks();
+      } catch (err) {
+        setCrmMsg((err && err.message) || "Could not save the next follow-up.", true);
+      }
     }
     function renderPipeline(){
       const deals = scopedDeals();

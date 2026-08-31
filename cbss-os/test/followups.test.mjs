@@ -113,24 +113,32 @@ describe("complete then schedule does not drop the row", () => {
     assert.match(page, /The new follow-up stays on the book/);
     assert.match(page, /data-next-act/);
     const js = page.slice(page.indexOf("async function completeWork"));
-    const readNext = js.indexOf("data-next-act");
+    const readNext = js.indexOf("workFields(id, row)");
     const completeCall = js.indexOf("completeFollowup");
     const persist = js.indexOf("persistOpenFollowup");
     assert.ok(readNext >= 0 && completeCall > readNext && persist > completeCall);
   });
 
-  it("is build 15", () => {
-    assert.equal(BRAND.stamp, "build 15 · The Yard");
-    assert.match(page, /build 15 · The Yard/);
+  it("is build 16", () => {
+    assert.equal(BRAND.stamp, "build 16 · The Yard");
+    assert.match(page, /build 16 · The Yard/);
   });
 
   it("keeps people finished today on the book", () => {
     assert.match(page, /Done today/);
-    assert.match(page, /they are still in the CRM/);
     assert.match(page, /doneTodayRows/);
     assert.match(page, /crm-list-note/);
     assert.match(page, /__mine__/);
     const fill = page.slice(page.indexOf("function fillOwners"));
     assert.match(fill, /crm-owner"\)\.value = "__mine__"/);
+  });
+
+  it("schedules from the clicked row so Tasks does not steal empty inputs", () => {
+    assert.match(page, /function workFields\(id, row\)/);
+    assert.match(page, /data-sched-box/);
+    assert.match(page, /scheduleWork\(sched\.getAttribute\("data-sched"\), sched\.closest\("tr"\)\)/);
+    assert.match(page, /completeWork\(done\.getAttribute\("data-done"\), done\.closest\("tr"\)\)/);
+    assert.match(page, /Type the next action or pick a date, then Save next follow-up/);
+    assert.match(page, /Next follow-up saved\. It stays on Follow-ups/);
   });
 });
