@@ -74,6 +74,9 @@ export function pageHtml(): string {
     .err { color: #8A1F1F; font-size: 13px; min-height: 1.1em; margin: 8px 0 0; }
     .ok { color: #1f5b38; font-size: 13px; }
     .hide { display: none !important; }
+    .modal-back { position: fixed; inset: 0; background: rgba(11,31,58,.45); z-index: 80; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .modal-card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 18px; width: min(520px, 100%); max-height: 90vh; overflow: auto; }
+    .stage-chip { display: inline-block; background: #e8f0f7; border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px; font-size: 12px; font-weight: 700; color: var(--navy); }
     .split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .split3 { display: grid; grid-template-columns: 2fr 80px 1fr; gap: 10px; }
     .tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
@@ -126,7 +129,7 @@ export function pageHtml(): string {
     tr.sel td { background: #FBF6E8; }
     .stat { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; margin: 0 0 12px; }
     .stat strong { color: var(--navy); }
-    .board { display: grid; grid-template-columns: repeat(8, minmax(210px, 1fr)); gap: 10px; overflow-x: auto; padding-bottom: 8px; }
+    .board { display: grid; grid-template-columns: repeat(11, minmax(210px, 1fr)); gap: 10px; overflow-x: auto; padding-bottom: 8px; }
     .col { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 8px; min-height: 280px; min-width: 210px; }
     .col h3 { margin: 0 0 8px; font-size: 12px; color: var(--gold); letter-spacing: .04em; display: flex; justify-content: space-between; gap: 8px; }
     .col h3 em { font-style: normal; background: var(--navy); color: #fff; border-radius: 999px; padding: 1px 8px; font-size: 11px; }
@@ -536,8 +539,8 @@ export function pageHtml(): string {
 
         <section id="mod-money" class="hide">
           <div class="card">
-            <h2>Invoice — navy/gold · ACH / wire or card</h2>
-            <p class="muted">Money in. The amount is the number from the proposal after the customer agreed — do not change it. ACH / wire only still gives them the invoice with no card link. This tool does not send Gmail.</p>
+            <h2>Send invoice</h2>
+            <p class="muted">Builds the navy/gold invoice and opens Gmail to you so you can forward it to the customer — same as a proposal. The amount is the number they agreed to. Do not invent a price. ACH / wire only is the house path.</p>
             <div class="split">
               <div><label>Customer name</label><input id="i-name" required /></div>
               <div><label>Customer email</label><input id="i-email" type="email" /></div>
@@ -573,10 +576,15 @@ export function pageHtml(): string {
               <button type="button" class="secondary" id="i-lookup">Use last agreed proposal amount</button>
               <button type="button" class="gold" id="i-ach">Invoice — ACH / wire only</button>
               <button type="button" id="i-card">Invoice + card pay link</button>
-              <button type="button" class="secondary" id="i-gmail">Open Gmail</button>
+              <button type="button" class="secondary" id="i-gmail">Send invoice to me</button>
             </div>
             <p class="err" id="i-err"></p>
-            <div class="outbox" id="i-out">The invoice card lands here.</div>
+            <div class="outbox" id="i-out">The invoice lands here, then Gmail opens to you.</div>
+            <div class="row hide" id="i-doc-actions">
+              <button type="button" class="secondary" id="i-open-doc">Open invoice</button>
+              <button type="button" class="secondary" id="i-print-doc">Print / Save PDF</button>
+            </div>
+            <iframe id="i-preview" class="hide" title="Invoice preview" style="width:100%;min-height:420px;border:1px solid var(--line);border-radius:8px;margin-top:10px;background:#fff"></iframe>
           </div>
           <div class="card" style="margin-top:12px">
             <h2>Recent invoices</h2>
@@ -588,8 +596,107 @@ export function pageHtml(): string {
       </main>
     </div>
   </div>
+  <div id="contact-edit" class="modal-back hide">
+    <div class="modal-card">
+      <h2>Edit contact</h2>
+      <input type="hidden" id="m-id" />
+      <div><label for="m-name">Name</label><input id="m-name" /></div>
+      <div class="split">
+        <div><label for="m-email">Email</label><input id="m-email" /></div>
+        <div><label for="m-phone">Phone</label><input id="m-phone" /></div>
+      </div>
+      <div class="split">
+        <div><label for="m-city">City</label><input id="m-city" /></div>
+        <div><label for="m-state">State</label><input id="m-state" /></div>
+      </div>
+      <div class="split">
+        <div><label for="m-zip">ZIP</label><input id="m-zip" /></div>
+        <div><label for="m-company">Company</label><input id="m-company" /></div>
+      </div>
+      <div class="split">
+        <div>
+          <label for="m-owner">Owner</label>
+          <input id="m-owner" list="m-owner-list" placeholder="New/Unassigned or a rep name" />
+          <datalist id="m-owner-list"></datalist>
+        </div>
+        <div>
+          <label for="m-status">Stage</label>
+          <select id="m-status"></select>
+        </div>
+      </div>
+      <div class="split">
+        <div>
+          <label for="m-source">Source</label>
+          <select id="m-source">
+            <option value="Manual">Manual</option>
+            <option value="Quote Form">Quote Form</option>
+            <option value="Drive Deals">Drive Deals</option>
+            <option value="Proposal Tool">Proposal Tool</option>
+          </select>
+        </div>
+        <div>
+          <label for="m-client">Client type</label>
+          <select id="m-client">
+            <option value="">—</option>
+            <option>Residential</option>
+            <option>Commercial</option>
+          </select>
+        </div>
+      </div>
+      <div class="split">
+        <div>
+          <label for="m-size">Size</label>
+          <select id="m-size">
+            <option value="">—</option>
+            <option>20STD</option>
+            <option>20HC</option>
+            <option>40STD</option>
+            <option>40HC</option>
+            <option>Specialized</option>
+          </select>
+        </div>
+        <div>
+          <label for="m-condition">Condition</label>
+          <select id="m-condition">
+            <option value="">—</option>
+            <option value="CW">CW</option>
+            <option value="WWT">WWT</option>
+            <option value="one-trip">one-trip</option>
+            <option value="as-is">as-is</option>
+          </select>
+        </div>
+      </div>
+      <div class="split">
+        <div><label for="m-depot">Depot</label><input id="m-depot" /></div>
+        <div><label for="m-delivery">Delivery</label><input id="m-delivery" /></div>
+      </div>
+      <div class="split">
+        <div>
+          <label for="m-payment">Payment</label>
+          <select id="m-payment">
+            <option value="">—</option>
+            <option value="cash">Cash</option>
+            <option value="flex">Flex Buy</option>
+          </select>
+        </div>
+        <div>
+          <label for="m-amount">Amount</label>
+          <input id="m-amount" inputmode="decimal" placeholder="Agreed number only" />
+        </div>
+      </div>
+      <div class="split">
+        <div><label for="m-wholesale">Wholesale</label><input id="m-wholesale" inputmode="decimal" placeholder="Posted number only" /></div>
+        <div><label class="row" style="margin-top:22px"><input id="m-dnc" type="checkbox" style="width:auto" /> DNC</label></div>
+      </div>
+      <p class="err" id="m-err"></p>
+      <div class="row">
+        <button type="button" class="gold" id="m-save">Save</button>
+        <button type="button" class="secondary" id="m-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
   <script>
-    const STAGES = ["New Lead","Contacted","Quote","Proposal Sent","Flex Buy","Won","Lost","DNC"];
+    const STAGES = ["New Lead","Contacted","CTE in progress","Follow up in progress","Email campaign","Quote","Proposal Sent","Flex Buy","Won","Lost","DNC"];
     const SIZES = [{v:"20",l:"20 ft"},{v:"40",l:"40 ft"},{v:"10",l:"10 ft"},{v:"45",l:"45 ft"},{v:"53",l:"53 ft"}];
     const HEIGHTS = [{v:"DC",l:"Standard / DC"},{v:"HC",l:"High cube / HC"}];
     const CONFIGS = [
@@ -600,7 +707,7 @@ export function pageHtml(): string {
     const GRADES = [{v:"WWT",l:"WWT"},{v:"CW",l:"CW"},{v:"IICL",l:"IICL / Multi-Trip"},{v:"OneTrip",l:"One-Trip"},{v:"AsIs",l:"As-Is"}];
     const TEAM = ${JSON.stringify(TEAM_OWNERS)};
     const SPARKS = ${JSON.stringify(SALES_SPARKS)};
-    let user = null, book = null, selected = null, deskContact = null, deskHits = [], deskSearchSeq = 0, deskSearchTimer = 0, lastGmail = "", pick = {size:"40",height:"HC",config:"standard",grade:"CW"};
+    let user = null, book = null, selected = null, deskContact = null, deskHits = [], deskSearchSeq = 0, deskSearchTimer = 0, lastGmail = "", lastDoc = "", pick = {size:"40",height:"HC",config:"standard",grade:"CW"};
     let lastQuote = null;
     let campaignIds = {};
     let offers = [];
@@ -630,7 +737,7 @@ export function pageHtml(): string {
       document.querySelectorAll("#nav [data-mod]").forEach(function(b){ b.classList.toggle("on", b.dataset.mod===mod); });
       ["home","crm","desk","proposal","money"].forEach(function(m){ $("mod-"+m).classList.toggle("hide", m!==mod); });
       if (mod==="desk") { openDesk("chat"); loadTemplates(); seedAsk(); }
-      if (mod==="money") loadInvoices();
+      if (mod==="money") { seedInvoiceFromContact(); loadInvoices(); }
       if (mod==="home") paintSpark();
     }
     let sparkAt = Math.floor(Math.random()*SPARKS.length);
@@ -668,6 +775,41 @@ export function pageHtml(): string {
       return map[first] || raw;
     }
     function mineName(){ return titleOwner((user && (user.name||user.email))||""); }
+    function contactStage(c){
+      if (!c) return "";
+      const deal = ((book&&book.deals)||[]).find(function(d){ return String(d.contactId)===String(c.id); });
+      return String((deal && deal.stage) || c.status || "").trim();
+    }
+    function stageOptions(selected){
+      const cur = String(selected||"");
+      return '<option value="">—</option>'+STAGES.map(function(st){
+        return '<option'+(st===cur?" selected":"")+">"+st+"</option>";
+      }).join("");
+    }
+    function officeMail(local){ return [local, "cbshippingsolutions.com"].join("@"); }
+    function agentInvoiceGmail(rep, customerName, customerEmail, amount, notes, invoiceNo, docUrl, payMethod){
+      const first = String((rep && rep.name) || "there").trim().split(/\s+/)[0] || "there";
+      const to = String((rep && rep.email) || "").trim();
+      const cc = [officeMail("christopher"), officeMail("aliyah")].filter(function(e){ return e && e!==to; }).join(",");
+      const subject = "Invoice "+invoiceNo+" ready to forward — "+(customerName||"customer");
+      const body = [
+        "Hi "+first+",",
+        "",
+        "Invoice "+invoiceNo+" for "+(customerName||"the customer")+(customerEmail?" ("+customerEmail+")":"")+" is ready.",
+        amount ? ("Amount: "+amount+" — do not invent a price.") : "Amount is on the invoice. Do not invent a price.",
+        notes ? ("Notes: "+notes) : "",
+        payMethod==="ach" ? "ACH / wire only — no card link. Forward the invoice to the customer." : "Forward the invoice to the customer.",
+        "",
+        docUrl ? ("Branded invoice: "+docUrl) : "",
+        customerEmail ? ("Forward to: "+customerEmail) : "",
+        "",
+        "CBGC LLC DBA CB Shipping Solutions"
+      ].filter(function(line, i, arr){ return line!=="" || arr[i-1]!==""; }).join("\\n");
+      return "https://mail.google.com/mail/?view=cm&fs=1&to="+encodeURIComponent(to)
+        +(cc ? "&cc="+encodeURIComponent(cc) : "")
+        +"&su="+encodeURIComponent(subject)
+        +"&body="+encodeURIComponent(body);
+    }
 
     document.getElementById("login-form").addEventListener("submit", async function(e){
       e.preventDefault();
@@ -778,7 +920,7 @@ export function pageHtml(): string {
       if (!book) return;
       const hit = filtered();
       $("crm-rows").innerHTML = hit.rows.map(function(c){
-        return '<tr data-id="'+esc(String(c.id))+'"><td>'+esc(c.name||"")+'</td><td class="phone-hide">'+esc(c.company||"")+'</td><td class="phone-hide">'+esc(c.city||"")+"</td><td>"+esc(c.owner||"")+"</td><td>"+esc(c.status||"")+"</td></tr>";
+        return '<tr data-id="'+esc(String(c.id))+'"><td>'+esc(c.name||"")+'</td><td class="phone-hide">'+esc(c.company||"")+'</td><td class="phone-hide">'+esc(c.city||"")+"</td><td>"+esc(c.owner||"")+"</td><td>"+esc(contactStage(c)||"")+"</td></tr>";
       }).join("");
       const note = $("crm-list-note");
       if (note) {
@@ -815,12 +957,14 @@ export function pageHtml(): string {
       const callHref = tel.length>=7 ? "tel:+1"+tel : "";
       const textHref = tel.length>=7 ? "sms:+1"+tel : "";
       $("crm-detail").innerHTML = "<h2>"+esc(selected.name||"")+"</h2>"
-        +'<p class="muted">'+esc([selected.company,selected.phone,selected.city,selected.state].filter(Boolean).join(" · "))+"</p>"
-        +"<p>Owner "+esc(selected.owner||"")+" · "+esc(selected.status||"")+(selected.amount?" · "+money(selected.amount):"")+"</p>"
+        +'<p class="muted">'+esc([selected.company,selected.phone,selected.email,selected.city,selected.state,selected.zip].filter(Boolean).join(" · "))+"</p>"
+        +'<p>Owner '+esc(selected.owner||"—")+' · <span class="stage-chip">'+esc(contactStage(selected)||"No stage")+"</span>"+(selected.source?" · "+esc(selected.source):"")+(selected.amount?" · "+money(selected.amount):"")+(selected.dnc?" · DNC":"")+"</p>"
+        +'<label for="crm-stage">Stage</label><select id="crm-stage">'+stageOptions(contactStage(selected))+"</select>"
         +'<div class="acts">'
         +(callHref ? '<a class="gold" href="'+callHref+'">Call</a>' : '<button type="button" class="secondary" disabled title="No phone on this contact">Call</button>')
         +(gmail ? '<a class="secondary" href="'+esc(gmail)+'" target="_blank" rel="noopener">Email</a>' : '<button type="button" class="secondary" disabled title="No email on this contact">Email</button>')
         +(textHref ? '<a class="secondary" href="'+textHref+'">Text</a>' : '<button type="button" class="secondary" disabled title="No phone on this contact">Text</button>')
+        +'<button type="button" id="crm-edit">Edit</button>'
         +'<button type="button" class="secondary" id="add-campaign">Add to email campaign</button>'
         +"</div>"
         +(fu.pendingNext || fu.completed ? '<p class="muted">Just completed. Type the next follow-up and save it — it stays on the book.</p>' : "")
@@ -835,6 +979,10 @@ export function pageHtml(): string {
       $("note-add").onclick = addNote;
       const campBtn = $("add-campaign");
       if (campBtn) campBtn.onclick = addToCampaign;
+      const editBtn = $("crm-edit");
+      if (editBtn) editBtn.onclick = function(){ openContactEdit(selected); };
+      const stageSel = $("crm-stage");
+      if (stageSel) stageSel.onchange = function(){ saveContactStage(selected.id, stageSel.value); };
       if (window.matchMedia("(max-width: 860px)").matches) $("crm-detail").scrollIntoView({ behavior:"smooth", block:"start" });
     }
     function followupStamp(){
@@ -904,6 +1052,108 @@ export function pageHtml(): string {
       selected = null;
       renderStats(); renderContacts(); renderFollowups(); renderTasks(); renderPipeline(); renderCampaign();
     }
+    function fillOwnerList(){
+      $("m-owner-list").innerHTML = TEAM.map(function(n){ return '<option value="'+esc(n)+'"></option>'; }).join("");
+    }
+    function closeContactEdit(){ $("contact-edit").classList.add("hide"); }
+    function openContactEdit(c){
+      if (!c) return;
+      fillOwnerList();
+      $("m-id").value = String(c.id);
+      $("m-name").value = c.name||"";
+      $("m-email").value = c.email||"";
+      $("m-phone").value = c.phone||"";
+      $("m-city").value = c.city||"";
+      $("m-state").value = c.state||"";
+      $("m-zip").value = c.zip||"";
+      $("m-company").value = c.company||"";
+      $("m-owner").value = c.owner||"";
+      $("m-status").innerHTML = stageOptions(contactStage(c));
+      $("m-source").value = c.source||"Manual";
+      $("m-client").value = c.clientType||"";
+      $("m-size").value = c.containerSize||"";
+      $("m-condition").value = c.condition||"";
+      $("m-depot").value = c.depot||"";
+      $("m-delivery").value = c.delivery||"";
+      $("m-payment").value = c.paymentMode||"";
+      $("m-amount").value = c.amount==null||c.amount==="" ? "" : String(c.amount);
+      $("m-wholesale").value = c.wholesale==null||c.wholesale==="" ? "" : String(c.wholesale);
+      $("m-dnc").checked = Boolean(c.dnc);
+      $("m-err").textContent = "";
+      $("contact-edit").classList.remove("hide");
+    }
+    function readContactEdit(){
+      return {
+        name: $("m-name").value.trim(),
+        email: $("m-email").value.trim(),
+        phone: $("m-phone").value.trim(),
+        city: $("m-city").value.trim(),
+        state: $("m-state").value.trim(),
+        zip: $("m-zip").value.trim(),
+        company: $("m-company").value.trim(),
+        owner: titleOwner($("m-owner").value),
+        status: $("m-status").value,
+        source: $("m-source").value,
+        clientType: $("m-client").value,
+        containerSize: $("m-size").value,
+        condition: $("m-condition").value,
+        depot: $("m-depot").value.trim(),
+        delivery: $("m-delivery").value.trim(),
+        paymentMode: $("m-payment").value,
+        amount: $("m-amount").value.trim(),
+        wholesale: $("m-wholesale").value.trim(),
+        dnc: $("m-dnc").checked
+      };
+    }
+    async function persistContactPatch(id, patch){
+      const edits = {};
+      edits[id] = patch;
+      edits[String(id)] = patch;
+      await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"saveContactEdits", contactEdits: edits }) });
+      const row = (book.contacts||[]).find(function(c){ return String(c.id)===String(id); });
+      if (row) Object.assign(row, patch);
+      if (selected && String(selected.id)===String(id)) Object.assign(selected, patch);
+      if (patch.status){
+        book.deals = book.deals || [];
+        let deal = book.deals.find(function(d){ return String(d.contactId)===String(id); });
+        if (!deal){
+          deal = {
+            id: "c-"+String(id),
+            contactId: String(id),
+            contactName: (row && row.name) || "",
+            owner: (row && row.owner) || "",
+            stage: patch.status,
+            amount: (row && row.amount) || patch.amount || ""
+          };
+          book.deals.push(deal);
+        } else {
+          deal.stage = patch.status;
+          if (patch.amount!==undefined && patch.amount!=="") deal.amount = patch.amount;
+          if (patch.name) deal.contactName = patch.name;
+          if (patch.owner) deal.owner = patch.owner;
+        }
+        await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"saveDeals", deals: book.deals }) });
+      }
+    }
+    async function saveContactStage(id, status){
+      if (!id || !status) return;
+      await persistContactPatch(id, { status: status });
+      renderStats(); renderContacts(); renderPipeline();
+      if (selected && String(selected.id)===String(id)) openContact(id);
+    }
+    async function saveContactEdit(){
+      $("m-err").textContent = "";
+      const id = $("m-id").value;
+      const patch = readContactEdit();
+      if (!patch.name){ $("m-err").textContent = "Name the contact first."; return; }
+      await persistContactPatch(id, patch);
+      closeContactEdit();
+      renderStats(); renderContacts(); renderFollowups(); renderTasks(); renderPipeline();
+      openContact(id);
+    }
+    $("m-save").addEventListener("click", saveContactEdit);
+    $("m-cancel").addEventListener("click", closeContactEdit);
+    $("contact-edit").addEventListener("click", function(e){ if (e.target===this) closeContactEdit(); });
     function renderCampaign(){
       const rows = Object.keys(campaignIds).map(function(id){ return campaignIds[id]; });
       $("crm-campaign").innerHTML = "<h2>Email campaign</h2><p class=\\"muted\\">Leads pulled off the working book for a future campaign tool. They stay in the CRM book. This hold list lives here.</p>"
@@ -1377,9 +1627,27 @@ export function pageHtml(): string {
       $("p-err").textContent = res.j.status==="sent" ? "Proposal generated and emailed." : (res.j.status==="flagged" ? "LOW MARGIN FLAG — below $300." : (res.j.error||"Could not submit."));
     });
 
+    function seedInvoiceFromContact(){
+      if (!selected) return;
+      if (!$("i-name").value) $("i-name").value = selected.name||"";
+      if (!$("i-email").value) $("i-email").value = selected.email||"";
+      if (!$("i-phone").value) $("i-phone").value = selected.phone||"";
+      if (!$("i-co").value) $("i-co").value = selected.company||"";
+      if (!$("i-amount").value && selected.amount) $("i-amount").value = String(selected.amount);
+      if (!$("i-bcity").value && selected.city) $("i-bcity").value = selected.city;
+      if (!$("i-bstate").value && selected.state) $("i-bstate").value = selected.state;
+      if (!$("i-bzip").value && selected.zip) $("i-bzip").value = selected.zip;
+    }
+    function showInvoiceDoc(number){
+      if (!number) return;
+      lastDoc = "/x/invoice/invoice/document/"+encodeURIComponent(String(number));
+      $("i-doc-actions").classList.remove("hide");
+      $("i-preview").classList.remove("hide");
+      $("i-preview").src = lastDoc;
+    }
     async function makeInvoice(payMethod){
       $("i-err").textContent="";
-      $("i-out").textContent = payMethod==="ach" ? "Creating the branded ACH / wire invoice…" : "Creating the branded invoice…";
+      $("i-out").textContent = payMethod==="ach" ? "Building the branded ACH / wire invoice…" : "Building the branded invoice…";
       const same = $("i-same").checked;
       const res = await api("/x/invoice/invoice/create", { method:"POST", body: JSON.stringify({
         name:$("i-name").value, email:$("i-email").value, phone:$("i-phone").value, amountRaw:$("i-amount").value,
@@ -1392,18 +1660,35 @@ export function pageHtml(): string {
         deliveryZip:same?$("i-bzip").value:$("i-dzip").value,
         sameAsBilling: same, payMethod:payMethod
       })});
-      if (!res.r.ok || !res.j.ok){ $("i-err").textContent=res.j.error||"Could not create that invoice."; $("i-out").textContent="The invoice card lands here."; return; }
-      $("i-out").textContent = res.j.cardText||"";
-      lastGmail = (res.j.card && res.j.card.gmailLink)||"";
+      if (!res.r.ok || !res.j.ok){ $("i-err").textContent=res.j.error||"Could not create that invoice."; $("i-out").textContent="The invoice lands here, then Gmail opens to you."; return; }
+      const number = res.j.documentNumber || (res.j.card && res.j.card.documentNumber) || "";
+      const origin = window.location.origin;
+      const docAbs = number ? origin+"/x/invoice/invoice/document/"+encodeURIComponent(String(number)) : "";
+      showInvoiceDoc(number);
+      lastGmail = agentInvoiceGmail(
+        user,
+        $("i-name").value.trim() || (res.j.card && res.j.card.name) || "",
+        $("i-email").value.trim() || (res.j.card && res.j.card.email) || "",
+        res.j.amount || ($("i-amount").value ? "$"+$("i-amount").value : ""),
+        $("i-notes").value.trim(),
+        number || "invoice",
+        docAbs,
+        payMethod
+      );
+      $("i-out").textContent = (res.j.cardText||"Invoice built.")+" Gmail opened to you — forward it to the customer.";
+      if (lastGmail) window.open(lastGmail, "_blank", "noopener");
     }
     $("i-ach").addEventListener("click", function(){ makeInvoice("ach"); });
     $("i-card").addEventListener("click", function(){ makeInvoice("card"); });
-    $("i-gmail").addEventListener("click", function(){ if(!lastGmail){ $("i-err").textContent="Create an invoice first."; return;} window.open(lastGmail,"_blank","noopener"); });
+    $("i-gmail").addEventListener("click", function(){ if(!lastGmail){ $("i-err").textContent="Build the invoice first."; return;} window.open(lastGmail,"_blank","noopener"); });
+    $("i-open-doc").addEventListener("click", function(){ if(!lastDoc){ $("i-err").textContent="Build the invoice first."; return;} window.open(lastDoc,"_blank","noopener"); });
+    $("i-print-doc").addEventListener("click", function(){ if(!lastDoc){ $("i-err").textContent="Build the invoice first."; return;} const frame=$("i-preview"); if(frame&&frame.contentWindow) frame.contentWindow.print(); else window.open(lastDoc,"_blank","noopener"); });
     $("i-lookup").addEventListener("click", async function(){
       $("i-err").textContent = "Looking up the last agreed proposal amount…";
       const res = await api("/x/invoice/invoice/lookup", { method:"POST", body: JSON.stringify({ email:$("i-email").value, phone:$("i-phone").value }) });
       if (!res.r.ok || !res.j.ok || !res.j.amount){ $("i-err").textContent = res.j.error || "No agreed proposal amount on that contact."; return; }
       $("i-amount").value = String(res.j.amount);
+      if (res.j.name && !$("i-name").value) $("i-name").value = res.j.name;
       $("i-err").textContent = "";
     });
     async function loadInvoices(){
