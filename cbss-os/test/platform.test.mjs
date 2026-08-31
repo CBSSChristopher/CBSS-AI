@@ -56,6 +56,17 @@ describe("CBSS platform brand", () => {
     assert.match(page, /Just completed\. Set the next follow-up\./);
     assert.match(page, /The new follow-up stays on the book/);
     assert.match(page, /grid-template-columns: repeat\(8,/);
+    assert.match(page, /id="desk-q"/);
+    assert.match(page, /id="desk-hits"/);
+    assert.match(page, /id="desk-sel"/);
+    assert.match(page, /id="desk-clear"/);
+    assert.match(page, /Working contact/);
+    assert.match(page, /function pickDeskContact/);
+    assert.match(page, /function renderDeskHits/);
+    assert.match(page, /data-contact/);
+    assert.match(page, /pointerdown/);
+    assert.match(page, /contactId: String\(deskContact\.id\)/);
+    assert.doesNotMatch(page, /closest\("\[data-desk\]"\)/);
     assert.match(page, />Call</);
     assert.match(page, />Text</);
     assert.match(page, />Email</);

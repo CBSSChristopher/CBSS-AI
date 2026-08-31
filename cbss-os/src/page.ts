@@ -141,9 +141,12 @@ export function pageHtml(): string {
     .acts a.gold { background: var(--gold); color: var(--navy); }
     .acts a.secondary { background: #fff; color: var(--navy); border: 1px solid var(--line); }
     .note { border-bottom: 1px dashed var(--line); padding: 8px 0; font-size: 13px; }
-    .hits { border: 1px solid var(--line); border-radius: 8px; }
-    .hit { padding: 10px 11px; border-bottom: 1px solid var(--line); }
+    .hits { border: 1px solid var(--line); border-radius: 8px; max-height: 220px; overflow: auto; margin-top: 6px; }
+    .hit { display: block; width: 100%; text-align: left; padding: 10px 11px; border: 0; border-bottom: 1px solid var(--line); background: #fff; color: var(--ink); cursor: pointer; font-weight: 500; }
     .hit:last-child { border-bottom: 0; }
+    .hit:hover, .hit.on { background: #e8f0f7; }
+    button, .hit { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+    .picked { background: #e8f5ee; border: 1px solid #c8e4d4; border-radius: 8px; padding: 9px 11px; margin-top: 8px; font-size: 14px; }
     .outbox { white-space: pre-wrap; background: #f7fafc; border: 1px dashed var(--line); border-radius: 8px; padding: 11px; min-height: 4em; font-size: 14px; }
     .warn { background: #FBF6E8; border: 1px solid #e3d7a8; border-radius: 8px; padding: 10px; font-size: 13px; }
     .spark {
@@ -193,7 +196,7 @@ export function pageHtml(): string {
         margin-top: 0; padding-bottom: 4px;
       }
       .scroll-row button { flex: 0 0 auto; }
-      button, .acts a, .picks button, .comp-picks .pick, .tabs button { min-height: 44px; }
+      button, .hit, .acts a, .picks button, .comp-picks .pick, .tabs button { min-height: 44px; }
       input, textarea, select { font-size: 16px; }
       .log { min-height: 34vh; max-height: 40vh; }
       .composer { flex-direction: column; align-items: stretch; }
@@ -378,9 +381,11 @@ export function pageHtml(): string {
           <div id="desk-call" class="card hide" style="margin-top:12px">
             <h2>Call scraps</h2>
             <p class="muted">I will not invent a price. Saves a real CRM note. Home delivery is cash before the truck.</p>
-            <label>Find contact</label>
-            <input id="desk-q" placeholder="Search CRM contacts" />
-            <div class="hits" id="desk-hits"></div>
+            <label for="desk-q">Working contact</label>
+            <input id="desk-q" placeholder="Name, phone, email, ZIP" autocomplete="off" />
+            <div class="hits hide" id="desk-hits"></div>
+            <div class="picked hide" id="desk-sel"></div>
+            <div class="row"><button type="button" class="secondary" id="desk-clear">Clear</button></div>
             <label>Call scraps</label>
             <textarea id="desk-scraps" rows="4" placeholder="What they said, ZIP, box, next step"></textarea>
             <label class="row" style="margin-top:8px"><input id="desk-past" type="checkbox" style="width:auto" /> Past CTE — book one real follow-up</label>
@@ -581,7 +586,7 @@ export function pageHtml(): string {
     const GRADES = [{v:"WWT",l:"WWT"},{v:"CW",l:"CW"},{v:"IICL",l:"IICL / Multi-Trip"},{v:"OneTrip",l:"One-Trip"},{v:"AsIs",l:"As-Is"}];
     const TEAM = ${JSON.stringify(TEAM_OWNERS)};
     const SPARKS = ${JSON.stringify(SALES_SPARKS)};
-    let user = null, book = null, selected = null, deskContact = null, lastGmail = "", pick = {size:"40",height:"HC",config:"standard",grade:"CW"};
+    let user = null, book = null, selected = null, deskContact = null, deskHits = [], deskSearchSeq = 0, deskSearchTimer = 0, lastGmail = "", pick = {size:"40",height:"HC",config:"standard",grade:"CW"};
     let lastQuote = null;
     let campaignIds = {};
     let offers = [];
@@ -1143,25 +1148,90 @@ export function pageHtml(): string {
       const tpls = res.j.templates||[];
       $("desk-tpl").innerHTML = tpls.map(function(t){ return '<option value="'+esc(t.id)+'">'+esc(t.group||"")+" — "+esc(t.title||t.id)+"</option>"; }).join("");
     }
-    $("desk-q").addEventListener("input", async function(){
+    function renderDeskPicked(){
+      const box = $("desk-sel");
+      if (!deskContact || deskContact.id == null || String(deskContact.id)===""){
+        box.classList.add("hide");
+        box.textContent = "";
+        return;
+      }
+      box.classList.remove("hide");
+      box.textContent = [deskContact.name, deskContact.phone, deskContact.email, deskContact.city, deskContact.stage].filter(Boolean).join(" · ");
+    }
+    function pickDeskContact(c){
+      if (!c || c.id == null || String(c.id)==="") return;
+      deskContact = {
+        id: String(c.id),
+        name: c.name || "",
+        phone: c.phone || "",
+        email: c.email || "",
+        city: c.city || "",
+        zip: c.zip || "",
+        stage: c.stage || c.status || ""
+      };
+      $("desk-q").value = deskContact.name || "";
+      $("desk-hits").innerHTML = "";
+      $("desk-hits").classList.add("hide");
+      $("desk-err").textContent = "";
+      renderDeskPicked();
+    }
+    function renderDeskHits(rows){
+      deskHits = Array.isArray(rows) ? rows : [];
+      const box = $("desk-hits");
+      box.innerHTML = "";
+      if (!deskHits.length){ box.classList.add("hide"); return; }
+      box.classList.remove("hide");
+      deskHits.slice(0,8).forEach(function(c){
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "hit" + (deskContact && String(deskContact.id)===String(c.id) ? " on" : "");
+        b.setAttribute("data-contact", String(c.id));
+        b.textContent = [c.name || "Unnamed", c.phone, c.city].filter(Boolean).join(" · ");
+        function choose(e){
+          if (e) e.preventDefault();
+          pickDeskContact(c);
+        }
+        b.addEventListener("pointerdown", choose);
+        b.addEventListener("click", choose);
+        box.appendChild(b);
+      });
+    }
+    $("desk-q").addEventListener("input", function(){
       const q = $("desk-q").value.trim();
-      if (q.length<2){ $("desk-hits").innerHTML=""; return; }
-      const res = await api("/x/desk/contacts?q="+encodeURIComponent(q));
-      const rows = res.j.contacts||[];
-      $("desk-hits").innerHTML = rows.slice(0,8).map(function(c){ return '<div class="hit" data-desk="'+esc(String(c.id))+'"><strong>'+esc(c.name||"")+"</strong><div>"+esc(c.phone||"")+" · "+esc(c.city||"")+"</div></div>"; }).join("");
+      const seq = ++deskSearchSeq;
+      clearTimeout(deskSearchTimer);
+      if (q.length<2){ renderDeskHits([]); return; }
+      deskSearchTimer = setTimeout(async function(){
+        const res = await api("/x/desk/contacts?q="+encodeURIComponent(q));
+        if (seq !== deskSearchSeq) return;
+        if (!res.r.ok){
+          $("desk-err").textContent = res.j.error || "Could not search the CRM.";
+          renderDeskHits([]);
+          return;
+        }
+        renderDeskHits(res.j.contacts||[]);
+      }, 280);
     });
-    $("desk-hits").addEventListener("click", function(e){
-      const hit = e.target.closest("[data-desk]");
-      if (!hit) return;
-      deskContact = ((book && book.contacts)||[]).find(function(c){ return String(c.id)===hit.getAttribute("data-desk"); }) || { id: hit.getAttribute("data-desk"), name: hit.querySelector("strong").textContent };
-      $("desk-q").value = deskContact.name||"";
+    $("desk-clear").addEventListener("click", function(){
+      deskContact = null;
+      $("desk-q").value = "";
+      renderDeskHits([]);
+      renderDeskPicked();
+      $("desk-err").textContent = "";
     });
     $("desk-save").addEventListener("click", async function(){
       $("desk-err").textContent="";
-      if (!deskContact){ $("desk-err").textContent="Search and pick a contact first."; return; }
+      if (!deskContact || deskContact.id == null || String(deskContact.id)===""){
+        $("desk-err").textContent="Search and pick a contact first.";
+        return;
+      }
       const res = await api("/x/desk/call/save", { method:"POST", body: JSON.stringify({
-        contactId: deskContact.id, scraps: $("desk-scraps").value, pastCte: $("desk-past").checked,
-        nextAction: $("desk-action").value, followUpDate: $("desk-when").value
+        contactId: String(deskContact.id),
+        scraps: $("desk-scraps").value,
+        pastCte: $("desk-past").checked,
+        nextAction: $("desk-action").value,
+        followUpDate: $("desk-when").value,
+        create: { name: deskContact.name, phone: deskContact.phone, email: deskContact.email, zip: deskContact.zip }
       }) });
       $("desk-err").textContent = (!res.r.ok||!res.j.ok) ? (res.j.error||"Could not save to the CRM.") : (res.j.summary || "Saved to CRM.");
     });
