@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { parseInquiry, validateInquiry, inquiryText, officeMail } from "../src/request.js";
+import {
+  collectionResult,
+  crmIngestBody,
+  inquiryText,
+  officeMail,
+  parseInquiry,
+  validateInquiry,
+} from "../src/request.js";
 
 describe("website information request", () => {
   it("accepts a commercial request and rejects a honeypot", () => {
@@ -50,5 +57,15 @@ describe("website information request", () => {
       use: "Whatever",
     });
     assert.match(validateInquiry(badUse), /list/);
+  });
+
+  it("fails closed only when nothing kept the request", () => {
+    assert.equal(collectionResult({ stored: false, emailed: false, crmOk: false }).ok, false);
+    assert.equal(collectionResult({ stored: true, emailed: false, crmOk: false }).ok, true);
+    assert.equal(collectionResult({ stored: false, emailed: false, crmOk: true }).ok, true);
+    const body = crmIngestBody({ name: "Pat", phone: "870", zip: "72201", use: "Jobsite storage" }, "abc");
+    assert.equal(body.action, "ingestWebsiteLead");
+    assert.equal(body.name, "Pat");
+    assert.equal(body.requestId, "abc");
   });
 });

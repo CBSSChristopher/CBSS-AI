@@ -1,6 +1,13 @@
 import { EmailMessage } from "cloudflare:email";
 import { cacheControl } from "./cache.js";
-import { parseInquiry, validateInquiry, inquiryText, officeMail } from "./request.js";
+import {
+  collectionResult,
+  crmIngestBody,
+  inquiryText,
+  officeMail,
+  parseInquiry,
+  validateInquiry,
+} from "./request.js";
 
 const SECURITY = {
   "X-Content-Type-Options": "nosniff",
@@ -13,6 +20,7 @@ const SECURITY = {
 
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8" };
 const FROM = ["requests", "cbshippingsolutions.app"].join("@");
+const CRM_INGEST = "https://cbsscrm.cbss.workers.dev/crm-data";
 
 function withSecurity(res) {
   const out = new Response(res.body, res);
@@ -37,7 +45,7 @@ async function readBody(request) {
 async function notifyOffice(env, data, id) {
   const to = officeMail();
   const text = inquiryText(data, id);
-  const subject = "Website request · " + data.company + " · " + data.zip;
+  const subject = "Website request · " + (data.company || data.name) + " · " + data.zip;
   if (env.EMAIL) {
     const raw = [
       "From: CBSS Website <" + FROM + ">",
@@ -54,6 +62,26 @@ async function notifyOffice(env, data, id) {
   throw new Error("no-email-binding");
 }
 
+async function notifyCrm(env, data, id) {
+  const url = (env && env.CRM_INGEST_URL) || CRM_INGEST;
+  const secret = (env && env.CRM_INGEST_SECRET) || "";
+  if (!secret) throw new Error("no-crm-secret");
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-ingest-secret": secret,
+      Origin: "https://cbsscrm.cbss.workers.dev",
+      "User-Agent":
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+    },
+    body: JSON.stringify(crmIngestBody(data, id)),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok || !body.ok) throw new Error(body.error || "crm-ingest-" + res.status);
+  return body;
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -61,7 +89,12 @@ export default {
       url.hostname = "cbshippingsolutions.app";
       return Response.redirect(url.toString(), 301);
     }
-    if (url.pathname === "/quote" || url.pathname === "/quote.html") {
+    if (
+      url.pathname === "/quote" ||
+      url.pathname === "/quote.html" ||
+      url.pathname === "/contact" ||
+      url.pathname === "/contact.html"
+    ) {
       return withSecurity(Response.redirect(new URL("/request", url), 301));
     }
     if (url.pathname === "/api/request" && request.method === "POST") {
@@ -82,20 +115,37 @@ export default {
       const id = Date.now().toString(36) + "-" + crypto.randomUUID().slice(0, 8);
       const record = { id, at: new Date().toISOString(), ip, ...data };
       delete record.honey;
+      let stored = false;
       if (env.WEB_INQUIRIES) {
         await env.WEB_INQUIRIES.put("inq:" + id, JSON.stringify(record));
         await env.WEB_INQUIRIES.put(rlKey, "1", { expirationTtl: 60 });
+        stored = true;
       }
+      let emailed = false;
       try {
         await notifyOffice(env, data, id);
-      } catch {
-        return json(200, {
-          ok: true,
-          id,
-          warning: "We stored the request. If you do not hear back, call the office.",
-        });
+        emailed = true;
+      } catch (_) {}
+      let crmOk = false;
+      let contactId = "";
+      try {
+        const crm = await notifyCrm(env, data, id);
+        crmOk = Boolean(crm && crm.ok);
+        contactId = crm && crm.contactId != null ? String(crm.contactId) : "";
+      } catch (_) {}
+      const result = collectionResult({ stored, emailed, crmOk });
+      if (!result.ok) {
+        return json(500, { ok: false, error: result.error, id });
       }
-      return json(200, { ok: true, id });
+      return json(200, {
+        ok: true,
+        id,
+        stored: result.stored,
+        emailed: result.emailed,
+        crm: result.crm,
+        contactId,
+        warning: result.emailed ? "" : "We kept the request. If you do not hear back, call the office.",
+      });
     }
     if (url.pathname === "/api/request") {
       return json(405, { ok: false, error: "POST only." });
