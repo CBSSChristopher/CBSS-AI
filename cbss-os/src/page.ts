@@ -308,6 +308,7 @@ export function pageHtml(): string {
             <div id="crm-contacts">
               <div class="split book-split">
                 <div class="table-scroll">
+                  <p class="muted" id="crm-list-note"></p>
                   <table><thead><tr><th>Name</th><th class="phone-hide">Company</th><th class="phone-hide">City</th><th>Owner</th><th>Stage</th></tr></thead><tbody id="crm-rows"></tbody></table>
                 </div>
                 <div id="crm-detail"><p class="muted">Select a contact to view details</p></div>
@@ -696,6 +697,8 @@ export function pageHtml(): string {
           if (fu.followUpDate) c.followUpDate = fu.followUpDate;
         }
         c.owner = titleOwner(c.owner);
+        const done = (j.completedTasks||{})[c.id] || (j.completedTasks||{})[String(c.id)];
+        c.completedTasks = Array.isArray(done) ? done.slice() : [];
       });
       const deals = (j.deals||[]).map(function(d){ d.owner = titleOwner(d.owner); if (d.stage==="Quoted") d.stage="Quote"; return d; });
       book = { contacts:contacts, deals:deals, followups:j.followups||{}, completed:j.completedTasks||{} };
@@ -708,6 +711,7 @@ export function pageHtml(): string {
       campaignIds = {};
       (res.j.items||[]).forEach(function(row){ campaignIds[String(row.id)] = row; });
     }
+    let ownerReady = false;
     function fillOwners(){
       const skip = { Ivyanna:true };
       const names = new Set(TEAM);
@@ -718,7 +722,12 @@ export function pageHtml(): string {
       $("crm-owner").innerHTML = '<option value="">All owners</option><option value="__mine__">Mine</option>'
         + extras.map(function(n){ return '<option value="'+esc(n)+'">'+esc(n)+"</option>"; }).join("")
         + '<option value="New/Unassigned">New/Unassigned</option>';
-      if (current && Array.from($("crm-owner").options).some(function(o){ return o.value===current; })) $("crm-owner").value = current;
+      if (!ownerReady) {
+        $("crm-owner").value = "__mine__";
+        ownerReady = true;
+      } else if (Array.from($("crm-owner").options).some(function(o){ return o.value===current; })) {
+        $("crm-owner").value = current;
+      }
     }
     function ownerScope(owner){
       const want = $("crm-owner").value;
@@ -738,16 +747,25 @@ export function pageHtml(): string {
     }
     function filtered(){
       const q = $("crm-q").value.trim().toLowerCase();
-      return scopedContacts().filter(function(c){
+      const rows = scopedContacts().filter(function(c){
         if (!q) return true;
         return [c.name,c.company,c.phone,c.city,c.email,c.owner].join(" ").toLowerCase().indexOf(q)>=0;
-      }).slice(0,80);
+      });
+      const cap = q ? 400 : 200;
+      return { rows: rows.slice(0, cap), total: rows.length, cap: cap };
     }
     function renderContacts(){
       if (!book) return;
-      $("crm-rows").innerHTML = filtered().map(function(c){
+      const hit = filtered();
+      $("crm-rows").innerHTML = hit.rows.map(function(c){
         return '<tr data-id="'+esc(String(c.id))+'"><td>'+esc(c.name||"")+'</td><td class="phone-hide">'+esc(c.company||"")+'</td><td class="phone-hide">'+esc(c.city||"")+"</td><td>"+esc(c.owner||"")+"</td><td>"+esc(c.status||"")+"</td></tr>";
       }).join("");
+      const note = $("crm-list-note");
+      if (note) {
+        note.textContent = hit.total > hit.rows.length
+          ? "Showing "+hit.rows.length+" of "+hit.total+". Search to find anyone."
+          : (hit.total ? hit.total+" in this book." : "");
+      }
     }
     $("crm-q").addEventListener("input", renderContacts);
     $("crm-owner").addEventListener("change", function(){
@@ -785,10 +803,12 @@ export function pageHtml(): string {
         +(textHref ? '<a class="secondary" href="'+textHref+'">Text</a>' : '<button type="button" class="secondary" disabled title="No phone on this contact">Text</button>')
         +'<button type="button" class="secondary" id="add-campaign">Add to email campaign</button>'
         +"</div>"
-        +'<label>Follow-up</label><input id="fu-act" value="'+esc(fu.nextAction||"")+'" placeholder="e.g. Call about 40ft WWT pricing" />'
-        +'<input id="fu-date" type="datetime-local" value="'+esc((fu.followUpDate||"").slice(0,16))+'" />'
+        +(fu.pendingNext || fu.completed ? '<p class="muted">Just completed. Type the next follow-up and save it — it stays on the book.</p>' : "")
+        +'<label>Follow-up</label><input id="fu-act" value="'+esc(fu.pendingNext || fu.completed ? "" : (fu.nextAction||""))+'" placeholder="e.g. Call about 40ft WWT pricing" />'
+        +'<input id="fu-date" type="datetime-local" value="'+esc(fu.pendingNext || fu.completed ? "" : (fu.followUpDate||"").slice(0,16))+'" />'
         +'<div class="row"><button type="button" class="secondary" id="fu-save">Save follow-up</button><button type="button" id="fu-done">Complete</button></div>'
         +'<label>Add note</label><textarea id="note-text" rows="2"></textarea><div class="row"><button type="button" class="secondary" id="note-add">Add note</button></div>'
+        +doneTodayHtml(selected)
         +"<div>"+(notes.slice(0,12).map(function(n){ return '<div class="note"><strong>'+esc(n.tag||n.author||"")+"</strong> "+esc(n.timestamp||"")+"<div>"+esc(n.text||"")+"</div></div>"; }).join("")||'<p class="muted">No notes yet.</p>')+"</div>";
       $("fu-save").onclick = saveFollowup;
       $("fu-done").onclick = completeTask;
@@ -797,19 +817,54 @@ export function pageHtml(): string {
       if (campBtn) campBtn.onclick = addToCampaign;
       if (window.matchMedia("(max-width: 860px)").matches) $("crm-detail").scrollIntoView({ behavior:"smooth", block:"start" });
     }
+    function followupStamp(){
+      return new Date(Date.now() + 120000).toISOString();
+    }
+    function followupRow(nextAction, followUpDate){
+      return {
+        nextAction: String(nextAction||"").trim(),
+        followUpDate: String(followUpDate||"").trim(),
+        completed: false,
+        status: "open",
+        updatedAt: followupStamp()
+      };
+    }
+    async function persistOpenFollowup(id, nextAction, followUpDate){
+      const row = followupRow(nextAction, followUpDate);
+      if (!row.nextAction && !row.followUpDate) return null;
+      const patch = {};
+      patch[id] = row;
+      const edits = {};
+      edits[id] = { nextAction: row.nextAction, followUpDate: row.followUpDate };
+      await api("/x/crm/crm-data?action=saveFollowups", { method:"POST", body: JSON.stringify({ action:"saveFollowups", followups: patch }) });
+      await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"saveContactEdits", contactEdits: edits }) });
+      book.followups[id] = row;
+      book.followups[String(id)] = row;
+      const c = contactForId(id);
+      if (c){ c.nextAction = row.nextAction; c.followUpDate = row.followUpDate; }
+      return row;
+    }
     async function saveFollowup(){
       if (!selected) return;
-      const patch = {};
-      patch[selected.id] = { nextAction:$("fu-act").value, followUpDate:$("fu-date").value };
-      await api("/x/crm/crm-data?action=saveFollowups", { method:"POST", body: JSON.stringify({ action:"saveFollowups", followups: patch }) });
-      book.followups[selected.id] = patch[selected.id];
+      const row = await persistOpenFollowup(selected.id, $("fu-act").value, $("fu-date").value);
+      if (!row) return;
       renderStats();
     }
     async function completeTask(){
       if (!selected) return;
-      await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"completeFollowup", contactId:String(selected.id), nextAction:$("fu-act").value }) });
-      delete book.followups[selected.id];
-      renderStats(); openContact(selected.id);
+      const prev = $("fu-act").value.trim() || "Follow-up";
+      await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"completeFollowup", contactId:String(selected.id), nextAction:prev }) });
+      const stamp = new Date().toISOString().slice(0,16).replace("T"," ");
+      const doneRow = { text:prev, author:(user&&(user.name||user.email))||"User", timestamp:stamp, status:"completed" };
+      book.completed = book.completed || {};
+      const prevDone = (book.completed[selected.id] || book.completed[String(selected.id)] || []).slice();
+      prevDone.unshift(doneRow);
+      book.completed[selected.id] = prevDone;
+      selected.completedTasks = prevDone;
+      book.followups[selected.id] = { nextAction:"", followUpDate:"", completed:true, status:"completed", pendingNext:true };
+      selected.nextAction = "";
+      selected.followUpDate = "";
+      renderStats(); renderFollowups(); renderTasks(); openContact(selected.id);
     }
     async function addNote(){
       if (!selected) return;
@@ -862,9 +917,43 @@ export function pageHtml(): string {
       const c = contactForId(d && d.contactId);
       return displayAmount(c && c.amount);
     }
+    function todayKey(){
+      const d = new Date();
+      return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+    }
+    function completedRowsFor(c){
+      const fromContact = Array.isArray(c && c.completedTasks) ? c.completedTasks : [];
+      const fromBook = ((book&&book.completed)||{})[c && c.id] || ((book&&book.completed)||{})[String(c && c.id)] || [];
+      return fromContact.length ? fromContact : (Array.isArray(fromBook) ? fromBook : []);
+    }
+    function latestDoneToday(c){
+      const day = todayKey();
+      const hits = completedRowsFor(c).filter(function(t){ return t && String(t.timestamp||"").replace("T"," ").slice(0,10)===day; });
+      return hits[0] || null;
+    }
+    function doneTodayRows(){
+      const open = {};
+      openWorkRows().forEach(function(c){ open[String(c.id)] = true; });
+      return scopedContacts().filter(function(c){
+        if (open[String(c.id)]) return false;
+        return Boolean(latestDoneToday(c));
+      }).sort(function(a,b){
+        const ta = String((latestDoneToday(a)||{}).timestamp||"");
+        const tb = String((latestDoneToday(b)||{}).timestamp||"");
+        return tb.localeCompare(ta);
+      });
+    }
+    function doneTodayHtml(c){
+      const rows = completedRowsFor(c).slice(0,8);
+      if (!rows.length) return "";
+      return "<h3>Completed</h3>"+rows.map(function(t){
+        return '<div class="note"><strong>'+esc(t.author||"")+"</strong> "+esc(t.timestamp||"")+"<div>"+esc(t.text||"Follow-up")+"</div></div>";
+      }).join("");
+    }
     function openWorkRows(){
       return scopedContacts().filter(function(c){
         const f = (book.followups||{})[c.id]||(book.followups||{})[String(c.id)]||{};
+        if (f.pendingNext) return true;
         const action = c.nextAction || f.nextAction;
         const when = c.followUpDate || f.followUpDate;
         return !f.completed && (String(action||"").trim() || String(when||"").trim());
@@ -872,32 +961,50 @@ export function pageHtml(): string {
         return String(a.followUpDate||"9999").localeCompare(String(b.followUpDate||"9999"));
       });
     }
-    function workRow(c){
+    function workRow(c, doneToday){
       const f = (book.followups||{})[c.id]||(book.followups||{})[String(c.id)]||{};
-      const action = c.nextAction || f.nextAction || "";
-      const when = (c.followUpDate || f.followUpDate || "").slice(0,16);
+      const pending = !!f.pendingNext || !!doneToday;
+      const last = doneToday ? latestDoneToday(c) : null;
+      const action = pending ? (last && last.text) || "Completed today" : (c.nextAction || f.nextAction || "");
+      const when = pending ? (last && last.timestamp) || "" : (c.followUpDate || f.followUpDate || "").slice(0,16);
       return '<tr data-id="'+esc(String(c.id))+'"><td>'+esc(c.name||"")+"</td><td>"+esc(action)+"</td><td>"+esc(when)+"</td><td>"+esc(c.owner||"")+'</td><td><div class="work-actions">'
-        +'<button type="button" class="gold" data-done="'+esc(String(c.id))+'">Complete</button></div>'
-        +'<label>Schedule another</label><input data-next-act="'+esc(String(c.id))+'" placeholder="Next action" />'
+        +(pending ? "" : '<button type="button" class="gold" data-done="'+esc(String(c.id))+'">Complete</button>')
+        +"</div>"
+        +'<label>'+(pending ? "Just completed. Set the next follow-up." : "Schedule another")+'</label><input data-next-act="'+esc(String(c.id))+'" placeholder="Next action" />'
         +'<input type="datetime-local" data-next-date="'+esc(String(c.id))+'" />'
         +'<div class="row" style="margin-top:6px"><button type="button" class="secondary" data-sched="'+esc(String(c.id))+'">Save next follow-up</button></div></td></tr>';
     }
+    function workTable(rows, empty, doneToday){
+      if (!rows.length) return '<p class="muted">'+empty+"</p>";
+      return '<table><thead><tr><th>Name</th><th>Next action</th><th>Date</th><th>Owner</th><th></th></tr></thead><tbody>'
+        +rows.map(function(c){ return workRow(c, doneToday); }).join("")+"</tbody></table>";
+    }
     function renderFollowups(){
       const rows = openWorkRows();
-      $("crm-followups").innerHTML = "<h2>Follow-ups</h2><p class=\\"muted\\">Complete one, then schedule the next if they still need a call.</p>"
-        +(rows.length ? '<table><thead><tr><th>Name</th><th>Next action</th><th>Date</th><th>Owner</th><th></th></tr></thead><tbody>'+rows.map(workRow).join("")+"</tbody></table>" : '<p class="muted">No open follow-ups.</p>');
+      const done = doneTodayRows();
+      $("crm-followups").innerHTML = "<h2>Follow-ups</h2><p class=\\"muted\\">Complete one, then type the next call on that same row. The new follow-up stays on the book. People you finished today stay under Done today — they are still in the CRM.</p>"
+        +workTable(rows, "No open follow-ups.", false)
+        +(done.length ? "<h2>Done today</h2><p class=\\"muted\\">"+done.length+" finished today. Set the next call here if they still need one.</p>"+workTable(done, "", true) : "");
     }
     function renderTasks(){
       const rows = openWorkRows();
-      $("crm-tasks").innerHTML = "<h2>Tasks</h2><p class=\\"muted\\">Same book as follow-ups. Complete or set the next one.</p>"
-        +(rows.length ? '<table><thead><tr><th>Name</th><th>Next action</th><th>Date</th><th>Owner</th><th></th></tr></thead><tbody>'+rows.map(workRow).join("")+"</tbody></table>" : '<p class="muted">No open tasks.</p>');
+      const done = doneTodayRows();
+      $("crm-tasks").innerHTML = "<h2>Tasks</h2><p class=\\"muted\\">Same book as follow-ups. Complete, then save the next one on that row so it does not disappear.</p>"
+        +workTable(rows, "No open tasks.", false)
+        +(done.length ? "<h2>Done today</h2><p class=\\"muted\\">"+done.length+" finished today. They are still in the CRM.</p>"+workTable(done, "", true) : "");
     }
     function bindWorkLists(root){
       root.addEventListener("click", async function(e){
         const done = e.target.closest("[data-done]");
         const sched = e.target.closest("[data-sched]");
         if (done){ e.stopPropagation(); await completeWork(done.getAttribute("data-done")); return; }
-        if (sched){ e.stopPropagation(); await scheduleWork(sched.getAttribute("data-sched")); }
+        if (sched){ e.stopPropagation(); await scheduleWork(sched.getAttribute("data-sched")); return; }
+        const tr = e.target.closest("tr[data-id]");
+        if (tr && !e.target.closest("button, input, label, select")) {
+          const tab = document.querySelector('[data-crm="contacts"]');
+          if (tab) tab.click();
+          openContact(tr.getAttribute("data-id"));
+        }
       });
     }
     bindWorkLists($("crm-followups"));
@@ -905,12 +1012,28 @@ export function pageHtml(): string {
     async function completeWork(id){
       const c = contactForId(id);
       if (!c) return;
+      const act = document.querySelector('[data-next-act="'+id+'"]');
+      const when = document.querySelector('[data-next-date="'+id+'"]');
+      const nextAction = act ? act.value.trim() : "";
+      const followUpDate = when ? when.value : "";
       const f = (book.followups||{})[id]||(book.followups||{})[String(id)]||{};
       const action = c.nextAction || f.nextAction || "Follow-up";
       await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"completeFollowup", contactId:String(id), nextAction:action }) });
-      c.nextAction = ""; c.followUpDate = "";
-      if (book.followups[id]) delete book.followups[id];
-      if (book.followups[String(id)]) delete book.followups[String(id)];
+      const stamp = new Date().toISOString().slice(0,16).replace("T"," ");
+      const doneRow = { text:action, author:(user&&(user.name||user.email))||"User", timestamp:stamp, status:"completed" };
+      book.completed = book.completed || {};
+      const prevDone = (book.completed[id] || book.completed[String(id)] || []).slice();
+      prevDone.unshift(doneRow);
+      book.completed[id] = prevDone;
+      book.completed[String(id)] = prevDone;
+      c.completedTasks = prevDone;
+      if (nextAction || followUpDate){
+        await persistOpenFollowup(id, nextAction, followUpDate);
+      } else {
+        c.nextAction = ""; c.followUpDate = "";
+        book.followups[id] = { nextAction:"", followUpDate:"", completed:true, status:"completed", pendingNext:true };
+        book.followups[String(id)] = book.followups[id];
+      }
       renderStats(); renderFollowups(); renderTasks();
     }
     async function scheduleWork(id){
@@ -919,12 +1042,7 @@ export function pageHtml(): string {
       const nextAction = act ? act.value.trim() : "";
       const followUpDate = when ? when.value : "";
       if (!nextAction && !followUpDate) return;
-      const patch = {};
-      patch[id] = { nextAction:nextAction, followUpDate:followUpDate };
-      await api("/x/crm/crm-data?action=saveFollowups", { method:"POST", body: JSON.stringify({ action:"saveFollowups", followups: patch }) });
-      book.followups[id] = patch[id];
-      const c = contactForId(id);
-      if (c){ c.nextAction = nextAction; c.followUpDate = followUpDate; }
+      await persistOpenFollowup(id, nextAction, followUpDate);
       renderStats(); renderFollowups(); renderTasks();
     }
     function renderPipeline(){
