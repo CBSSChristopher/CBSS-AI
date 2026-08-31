@@ -306,6 +306,7 @@ export function pageHtml(): string {
             <button type="button" class="secondary" data-crm="tasks">Tasks</button>
             <button type="button" class="secondary" data-crm="pipeline">Pipeline</button>
             <button type="button" class="secondary" data-crm="campaign">Email campaign</button>
+            <button type="button" class="secondary" data-crm="facebook">Facebook</button>
           </div>
           <div class="card" style="margin-top:12px">
             <div id="crm-contacts">
@@ -321,6 +322,19 @@ export function pageHtml(): string {
             <div id="crm-tasks" class="hide"></div>
             <div id="crm-pipeline" class="hide"></div>
             <div id="crm-campaign" class="hide"></div>
+            <div id="crm-facebook" class="hide">
+              <h2>Facebook app</h2>
+              <p class="muted">Paste the App ID, app secret, and client token from Meta for Developers. Empty boxes keep what is already saved. The secret and token are not shown again.</p>
+              <p class="muted" id="fb-status">Facebook is not connected yet.</p>
+              <label for="fb-app-id">App ID</label>
+              <input id="fb-app-id" autocomplete="off" placeholder="App ID" />
+              <label for="fb-app-secret">App secret</label>
+              <input id="fb-app-secret" type="password" autocomplete="off" placeholder="App secret" />
+              <label for="fb-client-token">Client token</label>
+              <input id="fb-client-token" type="password" autocomplete="off" placeholder="Client token" />
+              <div class="row"><button type="button" id="fb-save">Save Facebook credentials</button></div>
+              <p class="err" id="fb-err"></p>
+            </div>
             <p class="err" id="crm-err"></p>
           </div>
         </section>
@@ -671,11 +685,12 @@ export function pageHtml(): string {
     });
     document.querySelectorAll("[data-crm]").forEach(function(btn){
       btn.addEventListener("click", function(){
-        ["contacts","followups","tasks","pipeline","campaign"].forEach(function(v){ $("crm-"+v).classList.toggle("hide", v!==btn.dataset.crm); });
+        ["contacts","followups","tasks","pipeline","campaign","facebook"].forEach(function(v){ $("crm-"+v).classList.toggle("hide", v!==btn.dataset.crm); });
         if (btn.dataset.crm==="followups") renderFollowups();
         if (btn.dataset.crm==="tasks") renderTasks();
         if (btn.dataset.crm==="pipeline") renderPipeline();
         if (btn.dataset.crm==="campaign") renderCampaign();
+        if (btn.dataset.crm==="facebook") loadFacebook();
       });
     });
 
@@ -906,6 +921,40 @@ export function pageHtml(): string {
       campaignIds = {};
       (res.j.items||[]).forEach(function(row){ campaignIds[String(row.id)] = row; });
       renderStats(); renderContacts(); renderCampaign();
+    });
+    function paintFacebookStatus(j){
+      const bits = [];
+      if (j && j.appId) bits.push("App ID "+j.appId);
+      bits.push((j && j.hasAppSecret) ? "App secret saved" : "No app secret");
+      bits.push((j && j.hasClientToken) ? "Client token saved" : "No client token");
+      $("fb-status").textContent = bits.join(" · ");
+      if (j && j.appId) $("fb-app-id").value = j.appId;
+    }
+    async function loadFacebook(){
+      $("fb-err").textContent = "";
+      const res = await api("/facebook/status");
+      if (!res.r.ok){
+        $("fb-err").textContent = res.j.error || "Could not read Facebook status.";
+        $("fb-status").textContent = "Facebook credentials stay with Christopher.";
+        return;
+      }
+      paintFacebookStatus(res.j);
+    }
+    $("fb-save").addEventListener("click", async function(){
+      $("fb-err").textContent = "";
+      const res = await api("/facebook/save", { method:"POST", body: JSON.stringify({
+        appId: $("fb-app-id").value,
+        appSecret: $("fb-app-secret").value,
+        clientToken: $("fb-client-token").value
+      }) });
+      if (!res.r.ok || !res.j.ok){
+        $("fb-err").textContent = res.j.error || "Could not save Facebook credentials.";
+        return;
+      }
+      $("fb-app-secret").value = "";
+      $("fb-client-token").value = "";
+      paintFacebookStatus(res.j);
+      $("fb-err").textContent = "Saved. The secret and token stay off the screen.";
     });
     function contactForId(id){ return ((book&&book.contacts)||[]).find(function(c){ return String(c.id)===String(id); }); }
     function scopedDeals(){

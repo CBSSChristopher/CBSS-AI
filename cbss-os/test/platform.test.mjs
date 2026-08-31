@@ -130,6 +130,8 @@ describe("hard rules stay on the platform", () => {
     assert.match(index, /\/x\/invoice/);
     assert.match(index, /\/quote\/match/);
     assert.match(index, /\/geo\/zip/);
+    assert.match(index, /\/facebook\/status/);
+    assert.match(index, /\/facebook\/save/);
     assert.equal(origins({}).crm, LIVE_TOOLS.crm);
     assert.equal(origins({}).desk, LIVE_TOOLS.desk);
     assert.equal(origins({}).proposal, LIVE_TOOLS.proposal);
