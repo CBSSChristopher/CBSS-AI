@@ -12,6 +12,7 @@ import {
   type ToolKey,
 } from "./auth.ts";
 import { addCampaign, listCampaign, returnCampaign } from "./campaign.ts";
+import { rewriteCrmWrite } from "./followups.ts";
 import { lookupZipFromZippopotam, matchPostedBox, type BoxPick } from "./xchange-match.ts";
 import { pageHtml } from "./page.ts";
 
@@ -80,6 +81,22 @@ function matchTool(path: string): { key: ToolKey; rest: string } | null {
   return null;
 }
 
+async function stampCrmFollowupBody(request: Request): Promise<ArrayBuffer> {
+  const buf = await request.arrayBuffer();
+  try {
+    const text = new TextDecoder().decode(buf);
+    if (!text.trim()) return buf;
+    const body = JSON.parse(text) as Record<string, unknown>;
+    if (!body || typeof body !== "object" || Array.isArray(body)) return buf;
+    const action = String(body.action || new URL(request.url).searchParams.get("action") || "").trim();
+    const next = rewriteCrmWrite(action, body);
+    if (next === body) return buf;
+    return new TextEncoder().encode(JSON.stringify(next)).buffer as ArrayBuffer;
+  } catch {
+    return buf;
+  }
+}
+
 async function proxyTool(request: Request, env: Env, key: ToolKey, rest: string): Promise<Response> {
   const user = await readSession(request, env);
   if (!user) return json(401, { error: "Sign in first." });
@@ -99,7 +116,9 @@ async function proxyTool(request: Request, env: Env, key: ToolKey, rest: string)
     headers,
     redirect: "manual",
   };
-  if (request.method !== "GET" && request.method !== "HEAD") init.body = await request.arrayBuffer();
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    init.body = key === "crm" ? await stampCrmFollowupBody(request) : await request.arrayBuffer();
+  }
   const binding =
     key === "crm" ? env.CRM
     : key === "desk" ? env.DESK

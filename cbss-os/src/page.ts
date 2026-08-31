@@ -785,8 +785,9 @@ export function pageHtml(): string {
         +(textHref ? '<a class="secondary" href="'+textHref+'">Text</a>' : '<button type="button" class="secondary" disabled title="No phone on this contact">Text</button>')
         +'<button type="button" class="secondary" id="add-campaign">Add to email campaign</button>'
         +"</div>"
-        +'<label>Follow-up</label><input id="fu-act" value="'+esc(fu.nextAction||"")+'" placeholder="e.g. Call about 40ft WWT pricing" />'
-        +'<input id="fu-date" type="datetime-local" value="'+esc((fu.followUpDate||"").slice(0,16))+'" />'
+        +(fu.pendingNext || fu.completed ? '<p class="muted">Just completed. Type the next follow-up and save it — it stays on the book.</p>' : "")
+        +'<label>Follow-up</label><input id="fu-act" value="'+esc(fu.pendingNext || fu.completed ? "" : (fu.nextAction||""))+'" placeholder="e.g. Call about 40ft WWT pricing" />'
+        +'<input id="fu-date" type="datetime-local" value="'+esc(fu.pendingNext || fu.completed ? "" : (fu.followUpDate||"").slice(0,16))+'" />'
         +'<div class="row"><button type="button" class="secondary" id="fu-save">Save follow-up</button><button type="button" id="fu-done">Complete</button></div>'
         +'<label>Add note</label><textarea id="note-text" rows="2"></textarea><div class="row"><button type="button" class="secondary" id="note-add">Add note</button></div>'
         +"<div>"+(notes.slice(0,12).map(function(n){ return '<div class="note"><strong>'+esc(n.tag||n.author||"")+"</strong> "+esc(n.timestamp||"")+"<div>"+esc(n.text||"")+"</div></div>"; }).join("")||'<p class="muted">No notes yet.</p>')+"</div>";
@@ -797,18 +798,46 @@ export function pageHtml(): string {
       if (campBtn) campBtn.onclick = addToCampaign;
       if (window.matchMedia("(max-width: 860px)").matches) $("crm-detail").scrollIntoView({ behavior:"smooth", block:"start" });
     }
+    function followupStamp(){
+      return new Date(Date.now() + 120000).toISOString();
+    }
+    function followupRow(nextAction, followUpDate){
+      return {
+        nextAction: String(nextAction||"").trim(),
+        followUpDate: String(followUpDate||"").trim(),
+        completed: false,
+        status: "open",
+        updatedAt: followupStamp()
+      };
+    }
+    async function persistOpenFollowup(id, nextAction, followUpDate){
+      const row = followupRow(nextAction, followUpDate);
+      if (!row.nextAction && !row.followUpDate) return null;
+      const patch = {};
+      patch[id] = row;
+      const edits = {};
+      edits[id] = { nextAction: row.nextAction, followUpDate: row.followUpDate };
+      await api("/x/crm/crm-data?action=saveFollowups", { method:"POST", body: JSON.stringify({ action:"saveFollowups", followups: patch }) });
+      await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"saveContactEdits", contactEdits: edits }) });
+      book.followups[id] = row;
+      book.followups[String(id)] = row;
+      const c = contactForId(id);
+      if (c){ c.nextAction = row.nextAction; c.followUpDate = row.followUpDate; }
+      return row;
+    }
     async function saveFollowup(){
       if (!selected) return;
-      const patch = {};
-      patch[selected.id] = { nextAction:$("fu-act").value, followUpDate:$("fu-date").value };
-      await api("/x/crm/crm-data?action=saveFollowups", { method:"POST", body: JSON.stringify({ action:"saveFollowups", followups: patch }) });
-      book.followups[selected.id] = patch[selected.id];
+      const row = await persistOpenFollowup(selected.id, $("fu-act").value, $("fu-date").value);
+      if (!row) return;
       renderStats();
     }
     async function completeTask(){
       if (!selected) return;
-      await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"completeFollowup", contactId:String(selected.id), nextAction:$("fu-act").value }) });
-      delete book.followups[selected.id];
+      const prev = $("fu-act").value.trim() || "Follow-up";
+      await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"completeFollowup", contactId:String(selected.id), nextAction:prev }) });
+      book.followups[selected.id] = { nextAction:"", followUpDate:"", completed:true, status:"completed", pendingNext:true };
+      selected.nextAction = "";
+      selected.followUpDate = "";
       renderStats(); openContact(selected.id);
     }
     async function addNote(){
@@ -865,6 +894,7 @@ export function pageHtml(): string {
     function openWorkRows(){
       return scopedContacts().filter(function(c){
         const f = (book.followups||{})[c.id]||(book.followups||{})[String(c.id)]||{};
+        if (f.pendingNext) return true;
         const action = c.nextAction || f.nextAction;
         const when = c.followUpDate || f.followUpDate;
         return !f.completed && (String(action||"").trim() || String(when||"").trim());
@@ -874,22 +904,24 @@ export function pageHtml(): string {
     }
     function workRow(c){
       const f = (book.followups||{})[c.id]||(book.followups||{})[String(c.id)]||{};
-      const action = c.nextAction || f.nextAction || "";
-      const when = (c.followUpDate || f.followUpDate || "").slice(0,16);
+      const pending = !!f.pendingNext;
+      const action = pending ? "" : (c.nextAction || f.nextAction || "");
+      const when = pending ? "" : (c.followUpDate || f.followUpDate || "").slice(0,16);
       return '<tr data-id="'+esc(String(c.id))+'"><td>'+esc(c.name||"")+"</td><td>"+esc(action)+"</td><td>"+esc(when)+"</td><td>"+esc(c.owner||"")+'</td><td><div class="work-actions">'
-        +'<button type="button" class="gold" data-done="'+esc(String(c.id))+'">Complete</button></div>'
-        +'<label>Schedule another</label><input data-next-act="'+esc(String(c.id))+'" placeholder="Next action" />'
+        +(pending ? "" : '<button type="button" class="gold" data-done="'+esc(String(c.id))+'">Complete</button>')
+        +"</div>"
+        +'<label>'+(pending ? "Just completed. Set the next follow-up." : "Schedule another")+'</label><input data-next-act="'+esc(String(c.id))+'" placeholder="Next action" />'
         +'<input type="datetime-local" data-next-date="'+esc(String(c.id))+'" />'
         +'<div class="row" style="margin-top:6px"><button type="button" class="secondary" data-sched="'+esc(String(c.id))+'">Save next follow-up</button></div></td></tr>';
     }
     function renderFollowups(){
       const rows = openWorkRows();
-      $("crm-followups").innerHTML = "<h2>Follow-ups</h2><p class=\\"muted\\">Complete one, then schedule the next if they still need a call.</p>"
+      $("crm-followups").innerHTML = "<h2>Follow-ups</h2><p class=\\"muted\\">Complete one, then type the next call on that same row. The new follow-up stays on the book.</p>"
         +(rows.length ? '<table><thead><tr><th>Name</th><th>Next action</th><th>Date</th><th>Owner</th><th></th></tr></thead><tbody>'+rows.map(workRow).join("")+"</tbody></table>" : '<p class="muted">No open follow-ups.</p>');
     }
     function renderTasks(){
       const rows = openWorkRows();
-      $("crm-tasks").innerHTML = "<h2>Tasks</h2><p class=\\"muted\\">Same book as follow-ups. Complete or set the next one.</p>"
+      $("crm-tasks").innerHTML = "<h2>Tasks</h2><p class=\\"muted\\">Same book as follow-ups. Complete, then save the next one on that row so it does not disappear.</p>"
         +(rows.length ? '<table><thead><tr><th>Name</th><th>Next action</th><th>Date</th><th>Owner</th><th></th></tr></thead><tbody>'+rows.map(workRow).join("")+"</tbody></table>" : '<p class="muted">No open tasks.</p>');
     }
     function bindWorkLists(root){
@@ -905,12 +937,20 @@ export function pageHtml(): string {
     async function completeWork(id){
       const c = contactForId(id);
       if (!c) return;
+      const act = document.querySelector('[data-next-act="'+id+'"]');
+      const when = document.querySelector('[data-next-date="'+id+'"]');
+      const nextAction = act ? act.value.trim() : "";
+      const followUpDate = when ? when.value : "";
       const f = (book.followups||{})[id]||(book.followups||{})[String(id)]||{};
       const action = c.nextAction || f.nextAction || "Follow-up";
       await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"completeFollowup", contactId:String(id), nextAction:action }) });
-      c.nextAction = ""; c.followUpDate = "";
-      if (book.followups[id]) delete book.followups[id];
-      if (book.followups[String(id)]) delete book.followups[String(id)];
+      if (nextAction || followUpDate){
+        await persistOpenFollowup(id, nextAction, followUpDate);
+      } else {
+        c.nextAction = ""; c.followUpDate = "";
+        book.followups[id] = { nextAction:"", followUpDate:"", completed:true, status:"completed", pendingNext:true };
+        book.followups[String(id)] = book.followups[id];
+      }
       renderStats(); renderFollowups(); renderTasks();
     }
     async function scheduleWork(id){
@@ -919,12 +959,7 @@ export function pageHtml(): string {
       const nextAction = act ? act.value.trim() : "";
       const followUpDate = when ? when.value : "";
       if (!nextAction && !followUpDate) return;
-      const patch = {};
-      patch[id] = { nextAction:nextAction, followUpDate:followUpDate };
-      await api("/x/crm/crm-data?action=saveFollowups", { method:"POST", body: JSON.stringify({ action:"saveFollowups", followups: patch }) });
-      book.followups[id] = patch[id];
-      const c = contactForId(id);
-      if (c){ c.nextAction = nextAction; c.followUpDate = followUpDate; }
+      await persistOpenFollowup(id, nextAction, followUpDate);
       renderStats(); renderFollowups(); renderTasks();
     }
     function renderPipeline(){

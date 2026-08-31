@@ -53,6 +53,8 @@ describe("CBSS platform brand", () => {
     assert.match(page, /All owners/);
     assert.match(page, /Complete/);
     assert.match(page, /Schedule another/);
+    assert.match(page, /Just completed\. Set the next follow-up\./);
+    assert.match(page, /The new follow-up stays on the book/);
     assert.match(page, /grid-template-columns: repeat\(8,/);
     assert.match(page, />Call</);
     assert.match(page, />Text</);
