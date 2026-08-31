@@ -20,7 +20,7 @@ Navy `#0B1F3A` / gold `#C9A227` / cream `#F7F4EC`.
 
 - **CRM** — contacts, follow-ups, tasks, pipeline, notes, email-campaign hold
 - **Desk** — Harbor (CBSS AI) first, Container One / USA Containers price match, then call scraps and email
-- **Proposal** — stepped quote: pick the box, match posted wholesale, proposal amount, submit
+- **Proposal** — stepped quote: pick the box, Get CBSS Price, proposal amount, submit
 - **Money** — branded invoice (ACH/wire or card). No Veem.
 
 ## Hard rules

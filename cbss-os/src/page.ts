@@ -444,9 +444,9 @@ export function pageHtml(): string {
               <div class="zip-wrap"><label for="p-zip">Client ZIP</label><input id="p-zip" inputmode="numeric" maxlength="5" placeholder="85001" /></div>
               <div class="zip-wrap"><label for="p-qty">Qty</label><input id="p-qty" inputmode="numeric" value="1" /></div>
               <button type="button" class="secondary" id="p-pull">Pull xChange</button>
-              <button type="button" class="gold" id="p-match">Match posted wholesale</button>
+              <button type="button" class="gold" id="p-match">Get CBSS Price</button>
             </div>
-            <p class="muted" id="p-status">Type the client ZIP, pick the exact box, then match. That number is the yard’s posted wholesale, not our proposal.</p>
+            <p class="muted" id="p-status">Type the client ZIP, pick the exact box, then Get CBSS Price. The yard’s posted wholesale stays theirs. Our proposal amount is what we send.</p>
           </div>
 
           <div class="card step">

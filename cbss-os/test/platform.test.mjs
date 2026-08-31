@@ -37,7 +37,8 @@ describe("CBSS platform brand", () => {
     assert.match(page, /Pick the box/);
     assert.match(page, /Proposal amount/);
     assert.match(page, /Proposal each/);
-    assert.match(page, /Match posted wholesale/);
+    assert.match(page, /Get CBSS Price/);
+    assert.doesNotMatch(page, /Match posted wholesale/);
     assert.match(page, /id="p-ticket"/);
     assert.match(page, /class="card step"/);
     assert.doesNotMatch(page, /Find posted box/);
