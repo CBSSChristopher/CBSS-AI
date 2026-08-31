@@ -13,6 +13,12 @@ import {
 } from "./auth.ts";
 import { addCampaign, listCampaign, returnCampaign } from "./campaign.ts";
 import { rewriteCrmWrite } from "./followups.ts";
+import {
+  FACEBOOK_TOKEN_KEY,
+  isChristopherUser,
+  publicFacebookStatus,
+  readFacebookUpload,
+} from "./facebook.ts";
 import { lookupZipFromZippopotam, matchPostedBox, type BoxPick } from "./xchange-match.ts";
 import { pageHtml } from "./page.ts";
 
@@ -215,6 +221,97 @@ export default {
       const geo = lookupZipFromZippopotam(await res.json() as { places?: Array<Record<string, string>> });
       if (!geo) return json(404, { error: "Could not find that ZIP." });
       return json(200, { ok: true, zip: digits, ...geo });
+    }
+
+    if (request.method === "GET" && path === "/facebook/status") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      if (!isChristopherUser(user.email, user.name)) {
+        return json(403, { error: "Only Christopher can open Facebook credentials." });
+      }
+      const crmReq = new Request(new URL("/x/crm/crm-data", request.url), {
+        method: "POST",
+        headers: {
+          Cookie: request.headers.get("Cookie") || "",
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "getMetaStatus" }),
+      });
+      const crmRes = await proxyTool(crmReq, env, "crm", "/crm-data");
+      const crm = await crmRes.json().catch(() => ({})) as {
+        appId?: string;
+        hasAppSecret?: boolean;
+        webhookUrl?: string;
+      };
+      const stored = env.SESSIONS ? await env.SESSIONS.get(FACEBOOK_TOKEN_KEY) : "";
+      return json(200, {
+        ok: true,
+        ...publicFacebookStatus({
+          appId: crm.appId,
+          hasAppSecret: crm.hasAppSecret,
+          hasClientToken: Boolean(stored && String(stored).trim()),
+          webhookUrl: crm.webhookUrl,
+        }),
+      });
+    }
+
+    if (request.method === "POST" && path === "/facebook/save") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      if (!isChristopherUser(user.email, user.name)) {
+        return json(403, { error: "Only Christopher can upload Facebook credentials." });
+      }
+      const uploaded = readFacebookUpload(await readJson(request));
+      if (!uploaded.appId && !uploaded.appSecret && !uploaded.clientToken) {
+        return json(400, { error: "Paste the App ID, app secret, or client token." });
+      }
+      if (uploaded.appId || uploaded.appSecret) {
+        const crmReq = new Request(new URL("/x/crm/crm-data", request.url), {
+          method: "POST",
+          headers: {
+            Cookie: request.headers.get("Cookie") || "",
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            action: "saveMetaConfig",
+            appId: uploaded.appId,
+            appSecret: uploaded.appSecret,
+          }),
+        });
+        const crmRes = await proxyTool(crmReq, env, "crm", "/crm-data");
+        const crm = await crmRes.json().catch(() => ({})) as { error?: string };
+        if (!crmRes.ok) return json(crmRes.status, { error: crm.error || "Could not save the Facebook app to CRM." });
+      }
+      if (uploaded.clientToken && env.SESSIONS) {
+        await env.SESSIONS.put(FACEBOOK_TOKEN_KEY, uploaded.clientToken);
+      }
+      const checkReq = new Request(new URL("/x/crm/crm-data", request.url), {
+        method: "POST",
+        headers: {
+          Cookie: request.headers.get("Cookie") || "",
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "getMetaStatus" }),
+      });
+      const checkRes = await proxyTool(checkReq, env, "crm", "/crm-data");
+      const check = await checkRes.json().catch(() => ({})) as {
+        appId?: string;
+        hasAppSecret?: boolean;
+        webhookUrl?: string;
+      };
+      const stored = env.SESSIONS ? await env.SESSIONS.get(FACEBOOK_TOKEN_KEY) : "";
+      return json(200, {
+        ok: true,
+        ...publicFacebookStatus({
+          appId: check.appId || uploaded.appId,
+          hasAppSecret: Boolean(check.hasAppSecret || uploaded.appSecret),
+          hasClientToken: Boolean(stored && String(stored).trim()),
+          webhookUrl: check.webhookUrl,
+        }),
+      });
     }
 
     if (request.method === "POST" && path === "/quote/match") {
