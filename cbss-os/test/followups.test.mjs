@@ -4,9 +4,11 @@ import { readFileSync } from "node:fs";
 import {
   FOLLOWUP_CLOCK_SLACK_MS,
   applyLiveCrmFollowupPatch,
+  isDoneOnDay,
   rewriteCrmWrite,
   stampFollowupPatch,
   stampFollowupRow,
+  taskDay,
 } from "../src/followups.ts";
 import { pageHtml } from "../src/page.ts";
 import { BRAND } from "../src/brand.ts";
@@ -56,6 +58,21 @@ describe("live CRM drops a next follow-up after complete", () => {
   });
 });
 
+describe("done today stays on the book", () => {
+  it("matches completed timestamps on that day", () => {
+    assert.equal(taskDay("2026-08-31 16:05"), "2026-08-31");
+    assert.equal(taskDay("2026-08-31T16:05:00.000Z"), "2026-08-31");
+    assert.equal(
+      isDoneOnDay([{ timestamp: "2026-08-31 16:05", text: "FU", author: "James" }], "2026-08-31"),
+      true,
+    );
+    assert.equal(
+      isDoneOnDay([{ timestamp: "2026-08-30 16:05", text: "FU", author: "James" }], "2026-08-31"),
+      false,
+    );
+  });
+});
+
 describe("The Yard stamps follow-up writes", () => {
   it("marks a live row open and pushes updatedAt ahead of the clock", () => {
     const row = stampFollowupRow({ nextAction: "Text James", followUpDate: "" }, NOW);
@@ -102,8 +119,18 @@ describe("complete then schedule does not drop the row", () => {
     assert.ok(readNext >= 0 && completeCall > readNext && persist > completeCall);
   });
 
-  it("is build 14", () => {
-    assert.equal(BRAND.stamp, "build 14 · The Yard");
-    assert.match(page, /build 14 · The Yard/);
+  it("is build 15", () => {
+    assert.equal(BRAND.stamp, "build 15 · The Yard");
+    assert.match(page, /build 15 · The Yard/);
+  });
+
+  it("keeps people finished today on the book", () => {
+    assert.match(page, /Done today/);
+    assert.match(page, /they are still in the CRM/);
+    assert.match(page, /doneTodayRows/);
+    assert.match(page, /crm-list-note/);
+    assert.match(page, /__mine__/);
+    const fill = page.slice(page.indexOf("function fillOwners"));
+    assert.match(fill, /crm-owner"\)\.value = "__mine__"/);
   });
 });

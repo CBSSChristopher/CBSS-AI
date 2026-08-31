@@ -63,6 +63,15 @@ export function stampFollowupPatch(
   return out;
 }
 
+export function taskDay(ts: unknown): string {
+  return String(ts || "").replace("T", " ").slice(0, 10);
+}
+
+export function isDoneOnDay(rows: unknown, day: string): boolean {
+  if (!day || !Array.isArray(rows)) return false;
+  return rows.some((row) => row && typeof row === "object" && taskDay((row as { timestamp?: unknown }).timestamp) === day);
+}
+
 export function rewriteCrmWrite(
   action: string,
   body: Record<string, unknown>,
