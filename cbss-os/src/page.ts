@@ -1103,7 +1103,7 @@ export function pageHtml(): string {
       const zip = String($("p-zip").value||"").replace(/\\D/g,"").slice(0,5);
       if (zip.length!==5){ $("p-status").textContent = "Type a 5-digit client ZIP first."; return; }
       $("p-pull").disabled = true; $("p-match").disabled = true;
-      $("p-status").textContent = refresh ? "Pulling posted xChange book for that ZIP…" : "Matching the posted book to that ZIP…";
+      $("p-status").textContent = refresh ? "Pulling posted xChange book for that ZIP…" : "Getting the CBSS price for that ZIP…";
       try {
         const res = await api("/quote/match", { method:"POST", body: JSON.stringify({
           zip:zip, size:pick.size, height:pick.height, config:pick.config, grade:pick.grade,
