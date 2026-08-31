@@ -29,7 +29,7 @@ function navHtml() {
 }
 
 function markHtml() {
-  return `<img class="brand-mark" src="/brand/stamp.png" width="36" height="36" alt="CB Shipping Solutions" />`;
+  return `<img class="brand-mark" src="/brand/mark.webp" width="36" height="36" alt="CB Shipping Solutions" />`;
 }
 
 function renderChrome() {
@@ -59,14 +59,14 @@ function renderChrome() {
     <div class="wrap">
       <div>
         <div class="footer-brand">
-          <img class="footer-stamp" src="/brand/stamp.png" width="72" height="72" alt="" />
+          <img class="footer-stamp" src="/brand/mark.webp" width="72" height="72" alt="" />
           <div>
             <strong>CBGC LLC DBA CBShippingSolutions</strong>
             <p>Business or home. One inclusive price. Save 20% on delivery.</p>
           </div>
         </div>
         <p class="fine">One inclusive price. A person calls you back.</p>
-        <img class="bbb-mark" src="/brand/bbb-accredited.png" width="140" height="51" alt="BBB Accredited Business" />
+        <img class="bbb-mark" src="/brand/bbb-accredited.webp" width="140" height="51" alt="BBB Accredited Business" />
       </div>
       <div>
         <a href="/business">Business</a><br />
