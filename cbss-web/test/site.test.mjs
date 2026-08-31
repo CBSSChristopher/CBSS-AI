@@ -66,6 +66,16 @@ describe("CBSS public website", () => {
     assert.match(worker, /"Alt-Svc": "clear"/);
   });
 
+  it("sends a kept request to CRM New/Unassigned and does not invent a price", () => {
+    const worker = readFileSync(new URL("../src/worker.js", import.meta.url), "utf8");
+    assert.match(worker, /\/contact/);
+    assert.match(worker, /crmIngestBody/);
+    assert.match(worker, /collectionResult/);
+    const requestJs = readFileSync(new URL("../src/request.js", import.meta.url), "utf8");
+    assert.match(requestJs, /ingestWebsiteLead/);
+    assert.doesNotMatch(worker, /We stored the request\. If you do not hear back/);
+  });
+
   it("does not wait on Google Fonts or a 180KB stamp favicon", () => {
     assert.doesNotMatch(all, /fonts\.googleapis\.com/);
     assert.doesNotMatch(all, /fonts\.gstatic\.com/);
