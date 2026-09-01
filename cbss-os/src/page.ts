@@ -672,6 +672,7 @@ export function pageHtml(): string {
             <option value="Quote Form">Quote Form</option>
             <option value="Drive Deals">Drive Deals</option>
             <option value="Proposal Tool">Proposal Tool</option>
+            <option value="Desk">Desk</option>
           </select>
         </div>
         <div>
@@ -712,7 +713,7 @@ export function pageHtml(): string {
       </div>
       <div class="split">
         <div>
-          <label for="m-payment">Payment</label>
+          <label for="m-payment">Payment type</label>
           <select id="m-payment">
             <option value="">—</option>
             <option value="cash">Cash</option>
@@ -720,13 +721,22 @@ export function pageHtml(): string {
           </select>
         </div>
         <div>
-          <label for="m-amount">Amount</label>
-          <input id="m-amount" inputmode="decimal" placeholder="Agreed number only" />
+          <label for="m-amount">Proposal amount</label>
+          <input id="m-amount" inputmode="decimal" placeholder="Agreed proposal number only" />
         </div>
       </div>
       <div class="split">
+        <div>
+          <label for="m-invoice-paid">Invoice paid</label>
+          <select id="m-invoice-paid">
+            <option value="no">No — they have not paid the invoice</option>
+            <option value="yes">Yes — they paid the invoice</option>
+          </select>
+        </div>
         <div><label for="m-wholesale">Wholesale</label><input id="m-wholesale" inputmode="decimal" placeholder="Posted number only" /></div>
-        <div><label class="row" style="margin-top:22px"><input id="m-dnc" type="checkbox" style="width:auto" /> DNC</label></div>
+      </div>
+      <div>
+        <label class="row"><input id="m-dnc" type="checkbox" style="width:auto" /> DNC</label>
       </div>
       <p class="err" id="m-err"></p>
       <div class="row">
@@ -806,6 +816,10 @@ export function pageHtml(): string {
       const n = typeof v==="number" ? v : parseFloat(String(v).replace(/[$,]/g,""));
       if (!Number.isFinite(n) || n===0) return "";
       return "$" + n.toLocaleString("en-US",{maximumFractionDigits:2});
+    }
+    function invoicePaidYes(c){
+      const raw = String(c && c.invoicePaid != null ? c.invoicePaid : "").trim().toLowerCase();
+      return raw==="yes" || raw==="paid" || raw==="true";
     }
     function titleOwner(s){
       const raw = String(s||"").trim().replace(/\\s+/g," ");
@@ -1000,7 +1014,7 @@ export function pageHtml(): string {
       const textHref = tel.length>=7 ? "sms:+1"+tel : "";
       $("crm-detail").innerHTML = "<h2>"+esc(selected.name||"")+"</h2>"
         +'<p class="muted">'+esc([selected.company,selected.phone,selected.email,selected.city,selected.state,selected.zip].filter(Boolean).join(" · "))+"</p>"
-        +'<p>Owner '+esc(selected.owner||"—")+' · <span class="stage-chip">'+esc(contactStage(selected)||"No stage")+"</span>"+(selected.source?" · "+esc(selected.source):"")+(selected.amount?" · "+money(selected.amount):"")+(selected.dnc?" · DNC":"")+"</p>"
+        +'<p>Owner '+esc(selected.owner||"—")+' · <span class="stage-chip">'+esc(contactStage(selected)||"No stage")+"</span>"+(selected.source?" · "+esc(selected.source):"")+(selected.amount?" · proposal "+money(selected.amount):"")+(invoicePaidYes(selected)?" · invoice paid":(selected.amount?" · invoice not paid":""))+(selected.dnc?" · DNC":"")+"</p>"
         +'<label for="crm-stage">Stage</label><select id="crm-stage">'+stageOptions(contactStage(selected))+"</select>"
         +'<div class="acts">'
         +(callHref ? '<a class="gold" href="'+callHref+'">Call</a>' : '<button type="button" class="secondary" disabled title="No phone on this contact">Call</button>')
@@ -1130,6 +1144,12 @@ export function pageHtml(): string {
       $("m-zip").value = c.zip||"";
       $("m-company").value = c.company||"";
       $("m-status").innerHTML = stageOptions(contactStage(c));
+      if (c.source && !$("m-source").querySelector('option[value="'+CSS.escape(c.source)+'"]')){
+        const extra = document.createElement("option");
+        extra.value = c.source;
+        extra.textContent = c.source;
+        $("m-source").appendChild(extra);
+      }
       $("m-source").value = c.source||"Manual";
       $("m-client").value = c.clientType||"";
       $("m-size").value = c.containerSize||"";
@@ -1138,6 +1158,7 @@ export function pageHtml(): string {
       $("m-delivery").value = c.delivery||"";
       $("m-payment").value = c.paymentMode||"";
       $("m-amount").value = c.amount==null||c.amount==="" ? "" : String(c.amount);
+      $("m-invoice-paid").value = invoicePaidYes(c) ? "yes" : "no";
       $("m-wholesale").value = c.wholesale==null||c.wholesale==="" ? "" : String(c.wholesale);
       $("m-dnc").checked = Boolean(c.dnc);
       $("m-err").textContent = "";
@@ -1162,6 +1183,7 @@ export function pageHtml(): string {
         delivery: $("m-delivery").value.trim(),
         paymentMode: $("m-payment").value,
         amount: $("m-amount").value.trim(),
+        invoicePaid: $("m-invoice-paid").value === "yes" ? "yes" : "no",
         wholesale: $("m-wholesale").value.trim(),
         dnc: $("m-dnc").checked
       };
@@ -1171,8 +1193,8 @@ export function pageHtml(): string {
       Object.keys(patch||{}).forEach(function(key){
         const label = CHANGE_LABELS[key];
         if (!label) return;
-        const oldRaw = key==="dnc" ? (before && before.dnc ? "yes" : "no") : String(before && before[key]!=null ? before[key] : "").trim();
-        const newRaw = key==="dnc" ? (patch.dnc ? "yes" : "no") : String(patch[key]==null ? "" : patch[key]).trim();
+        const oldRaw = key==="dnc" ? (before && before.dnc ? "yes" : "no") : key==="invoicePaid" ? (invoicePaidYes(before) ? "yes" : "no") : String(before && before[key]!=null ? before[key] : "").trim();
+        const newRaw = key==="dnc" ? (patch.dnc ? "yes" : "no") : key==="invoicePaid" ? (invoicePaidYes(patch) ? "yes" : "no") : String(patch[key]==null ? "" : patch[key]).trim();
         const oldV = key==="owner" ? titleOwner(oldRaw) : oldRaw;
         const newV = key==="owner" ? titleOwner(newRaw) : newRaw;
         if (oldV===newV) return;
@@ -1196,7 +1218,7 @@ export function pageHtml(): string {
         company: row.company, owner: row.owner, status: contactStage(row), source: row.source,
         clientType: row.clientType, containerSize: row.containerSize, condition: row.condition,
         depot: row.depot, delivery: row.delivery, paymentMode: row.paymentMode,
-        amount: row.amount, wholesale: row.wholesale, dnc: row.dnc
+        amount: row.amount, invoicePaid: row.invoicePaid, wholesale: row.wholesale, dnc: row.dnc
       };
       const edits = {};
       edits[id] = patch;

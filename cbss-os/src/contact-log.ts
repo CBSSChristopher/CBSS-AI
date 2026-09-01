@@ -16,14 +16,21 @@ export const CONTACT_CHANGE_LABELS: Record<string, string> = {
   condition: "condition",
   depot: "depot",
   delivery: "delivery",
-  paymentMode: "payment",
-  amount: "amount",
+  paymentMode: "payment type",
+  amount: "proposal amount",
+  invoicePaid: "invoice paid",
   wholesale: "wholesale",
   dnc: "DNC",
 };
 
 function displayValue(key: string, value: unknown): string {
   if (key === "dnc") return value ? "yes" : "no";
+  if (key === "invoicePaid") {
+    const raw = String(value == null ? "" : value).trim().toLowerCase();
+    if (raw === "yes" || raw === "paid" || raw === "true") return "yes";
+    if (raw === "no" || raw === "unpaid" || raw === "false") return "no";
+    return raw;
+  }
   const raw = String(value == null ? "" : value).trim();
   if (key === "owner") return titleOwner(raw);
   return raw;
