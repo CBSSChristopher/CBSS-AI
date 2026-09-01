@@ -348,6 +348,7 @@ export function pageHtml(): string {
             <button type="button" class="on" data-desk="chat">CBSS AI</button>
             <button type="button" data-desk="call">Call</button>
             <button type="button" data-desk="email">Email templates</button>
+            <button type="button" data-desk="new">New contact</button>
           </div>
           <div id="desk-chat" class="card" style="margin-top:12px">
             <div class="ai-head">
@@ -403,7 +404,10 @@ export function pageHtml(): string {
             <input id="desk-q" placeholder="Name, phone, email, ZIP" autocomplete="off" />
             <div class="hits hide" id="desk-hits"></div>
             <div class="picked hide" id="desk-sel"></div>
-            <div class="row"><button type="button" class="secondary" id="desk-clear">Clear</button></div>
+            <div class="row">
+              <button type="button" class="secondary" id="desk-new-open">New contact</button>
+              <button type="button" class="secondary" id="desk-clear">Clear</button>
+            </div>
             <label>Call scraps</label>
             <textarea id="desk-scraps" rows="4" placeholder="What they said, ZIP, box, next step"></textarea>
             <label class="row" style="margin-top:8px"><input id="desk-past" type="checkbox" style="width:auto" /> Past CTE — book one real follow-up</label>
@@ -423,6 +427,42 @@ export function pageHtml(): string {
               <button type="button" class="secondary" id="desk-copy">Copy</button>
             </div>
             <div class="outbox" id="desk-body">Pick a template.</div>
+          </div>
+          <div id="desk-new" class="card hide" style="margin-top:12px">
+            <h2>New contact</h2>
+            <p class="muted">Saves a real CRM lead for the signed-in rep. Notes go on that lead. I will not invent a price.</p>
+            <div class="split">
+              <div><label for="n-first">First name</label><input id="n-first" autocomplete="given-name" /></div>
+              <div><label for="n-last">Last name</label><input id="n-last" autocomplete="family-name" /></div>
+            </div>
+            <div class="split">
+              <div><label for="n-email">Email</label><input id="n-email" type="email" autocomplete="email" /></div>
+              <div><label for="n-phone">Phone</label><input id="n-phone" type="tel" autocomplete="tel" /></div>
+            </div>
+            <label for="n-company">Business name</label>
+            <input id="n-company" autocomplete="organization" />
+            <label for="n-street">Address</label>
+            <input id="n-street" autocomplete="street-address" />
+            <div class="split">
+              <div><label for="n-city">City</label><input id="n-city" autocomplete="address-level2" /></div>
+              <div><label for="n-state">State</label><input id="n-state" autocomplete="address-level1" /></div>
+            </div>
+            <label for="n-zip">ZIP</label>
+            <input id="n-zip" inputmode="numeric" maxlength="10" autocomplete="postal-code" />
+            <label for="n-notes">Notes</label>
+            <textarea id="n-notes" rows="4" placeholder="What they need, next step, anything the book should keep"></textarea>
+            <label>Is this CTE or follow-up?</label>
+            <div class="picks" id="n-track">
+              <button type="button" class="on" data-track="cte">CTE</button>
+              <button type="button" data-track="followup">Follow-up</button>
+            </div>
+            <p class="muted" id="n-track-help">CTE is first outreach — Call, then Text, then Email. Follow-up is after they connected.</p>
+            <div class="split">
+              <div><label for="n-action">Next action</label><input id="n-action" placeholder="Call about site access" /></div>
+              <div><label for="n-when">Follow-up date</label><input id="n-when" type="datetime-local" /></div>
+            </div>
+            <div class="row"><button type="button" class="gold" id="n-save">Save to CRM</button></div>
+            <p class="err" id="n-err"></p>
           </div>
         </section>
 
@@ -1438,7 +1478,7 @@ export function pageHtml(): string {
 
     function openDesk(tab){
       document.querySelectorAll("#desk-tabs [data-desk]").forEach(function(b){ b.classList.toggle("on", b.dataset.desk===tab); });
-      ["chat","call","email"].forEach(function(t){ $("desk-"+t).classList.toggle("hide", t!==tab); });
+      ["chat","call","email","new"].forEach(function(t){ $("desk-"+t).classList.toggle("hide", t!==tab); });
     }
     document.querySelectorAll("#desk-tabs [data-desk]").forEach(function(btn){
       btn.addEventListener("click", function(){
@@ -1569,6 +1609,71 @@ export function pageHtml(): string {
       renderDeskHits([]);
       renderDeskPicked();
       $("desk-err").textContent = "";
+    });
+    $("desk-new-open").addEventListener("click", function(){ openDesk("new"); $("n-first").focus(); });
+    let newTrack = "cte";
+    $("n-track").addEventListener("click", function(e){
+      const b = e.target.closest("[data-track]");
+      if (!b) return;
+      newTrack = b.getAttribute("data-track") === "followup" ? "followup" : "cte";
+      $("n-track").querySelectorAll("[data-track]").forEach(function(x){ x.classList.toggle("on", x===b); });
+      $("n-track-help").textContent = newTrack==="followup"
+        ? "They already connected. Book one real follow-up."
+        : "CTE is first outreach — Call, then Text, then Email. Follow-up is after they connected.";
+    });
+    function readNewContact(){
+      return {
+        firstName: $("n-first").value.trim(),
+        lastName: $("n-last").value.trim(),
+        email: $("n-email").value.trim(),
+        phone: $("n-phone").value.trim(),
+        company: $("n-company").value.trim(),
+        street: $("n-street").value.trim(),
+        city: $("n-city").value.trim(),
+        state: $("n-state").value.trim(),
+        zip: $("n-zip").value.trim(),
+        notes: $("n-notes").value.trim(),
+        track: newTrack,
+        nextAction: $("n-action").value.trim(),
+        followUpDate: $("n-when").value.trim()
+      };
+    }
+    $("n-save").addEventListener("click", async function(){
+      $("n-err").className = "err";
+      $("n-err").textContent = "";
+      const draft = readNewContact();
+      if (!draft.firstName || !draft.lastName){
+        $("n-err").textContent = "Type first and last name.";
+        return;
+      }
+      const res = await api("/desk/contact", { method:"POST", body: JSON.stringify(draft) });
+      if (!res.r.ok || !res.j.ok){
+        $("n-err").textContent = res.j.error || "Could not save the contact to the CRM.";
+        return;
+      }
+      const c = res.j.contact || {};
+      pickDeskContact({
+        id: c.id,
+        name: c.name || (draft.firstName+" "+draft.lastName).trim(),
+        phone: c.phone || draft.phone,
+        email: c.email || draft.email,
+        city: c.city || draft.city,
+        zip: c.zip || draft.zip,
+        stage: c.status || res.j.stage || "New Lead"
+      });
+      if (book && book.contacts && c.id != null){
+        const id = String(c.id);
+        const row = Object.assign({ source:"Desk", owner: titleOwner((user&&(user.name||user.email))||"") }, c, { status: c.status || res.j.stage || "New Lead" });
+        const hit = (book.contacts||[]).find(function(item){ return String(item.id)===id; });
+        if (hit) Object.assign(hit, row);
+        else book.contacts.unshift(row);
+        if (!book.followups) book.followups = {};
+        book.followups[id] = { nextAction: c.nextAction || "", followUpDate: c.followUpDate || "", completed:false, status:"open" };
+        fillOwners(); renderStats(); renderContacts();
+      }
+      $("n-notes").value = "";
+      $("n-err").textContent = res.j.summary || "Saved to CRM.";
+      $("n-err").className = "ok";
     });
     $("desk-save").addEventListener("click", async function(){
       $("desk-err").textContent="";

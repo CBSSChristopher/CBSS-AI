@@ -1,4 +1,4 @@
-import { BRAND } from "./brand.ts";
+import { BRAND, titleOwner } from "./brand.ts";
 import {
   clearSession,
   isCompanyEmail,
@@ -21,6 +21,14 @@ import {
 } from "./facebook.ts";
 import { lookupZipFromZippopotam, matchPostedBox, type BoxPick } from "./xchange-match.ts";
 import { pageHtml } from "./page.ts";
+import {
+  buildDeskAddedContact,
+  deskContactName,
+  deskContactNote,
+  findOwnDeskContact,
+  readDeskContactDraft,
+  scheduleDeskTrack,
+} from "./desk-contact.ts";
 
 const SECURITY = {
   "X-Content-Type-Options": "nosniff",
@@ -318,6 +326,130 @@ export default {
           hasClientToken: Boolean(stored && String(stored).trim()),
           webhookUrl: check.webhookUrl,
         }),
+      });
+    }
+
+    if (request.method === "POST" && path === "/desk/contact") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      const draft = readDeskContactDraft(await readJson(request));
+      const name = deskContactName(draft);
+      if (!draft.firstName || !draft.lastName || !name) {
+        return json(400, { error: "Type first and last name." });
+      }
+      const owner = titleOwner(user.name || user.email) || user.name || user.email;
+      const getReq = new Request(new URL("/x/crm/crm-data?action=get&omitNotes=1", request.url), {
+        method: "GET",
+        headers: {
+          Cookie: request.headers.get("Cookie") || "",
+          Accept: "application/json",
+        },
+      });
+      const getRes = await proxyTool(getReq, env, "crm", "/crm-data");
+      const book = await getRes.json().catch(() => ({})) as {
+        contacts?: Array<Record<string, unknown>>;
+        contactsAdded?: Array<Record<string, unknown>>;
+        error?: string;
+      };
+      if (!getRes.ok) return json(getRes.status, { error: book.error || "Could not read the CRM." });
+      const added = Array.isArray(book.contactsAdded) ? book.contactsAdded.slice() : [];
+      const pool = added.concat(Array.isArray(book.contacts) ? book.contacts : []);
+      const plan = scheduleDeskTrack(draft);
+      const existing = findOwnDeskContact(pool, draft, owner);
+      let contact: Record<string, unknown>;
+      let created = false;
+      if (existing && existing.id != null) {
+        contact = existing;
+      } else {
+        contact = buildDeskAddedContact(draft, owner);
+        contact.status = plan.stage;
+        contact.nextAction = plan.nextAction;
+        contact.followUpDate = plan.followUpDate;
+        added.unshift(contact);
+        const saveReq = new Request(new URL("/x/crm/crm-data", request.url), {
+          method: "POST",
+          headers: {
+            Cookie: request.headers.get("Cookie") || "",
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ action: "saveContactsAdded", contactsAdded: added }),
+        });
+        const saveRes = await proxyTool(saveReq, env, "crm", "/crm-data");
+        const saved = await saveRes.json().catch(() => ({})) as { error?: string };
+        if (!saveRes.ok) return json(saveRes.status, { error: saved.error || "Could not save the contact to the CRM." });
+        created = true;
+      }
+      const id = String(contact.id);
+      const edits: Record<string, Record<string, unknown>> = {};
+      edits[id] = { status: plan.stage, nextAction: plan.nextAction, followUpDate: plan.followUpDate };
+      const followups: Record<string, Record<string, unknown>> = {};
+      followups[id] = { nextAction: plan.nextAction, followUpDate: plan.followUpDate, completed: false, status: "open" };
+      const extraReq = new Request(new URL("/x/crm/crm-data", request.url), {
+        method: "POST",
+        headers: {
+          Cookie: request.headers.get("Cookie") || "",
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "saveContactEdits", contactEdits: edits }),
+      });
+      const extraRes = await proxyTool(extraReq, env, "crm", "/crm-data");
+      if (!extraRes.ok) {
+        const extra = await extraRes.json().catch(() => ({})) as { error?: string };
+        return json(extraRes.status, { error: extra.error || "Contact is on the book. Stage did not save. Try again.", contact, created });
+      }
+      const fuReq = new Request(new URL("/x/crm/crm-data?action=saveFollowups", request.url), {
+        method: "POST",
+        headers: {
+          Cookie: request.headers.get("Cookie") || "",
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "saveFollowups", followups }),
+      });
+      const fuRes = await proxyTool(fuReq, env, "crm", "/crm-data");
+      if (!fuRes.ok) {
+        const fu = await fuRes.json().catch(() => ({})) as { error?: string };
+        return json(fuRes.status, { error: fu.error || "Contact is on the book. The follow-up did not save. Try again.", contact, created });
+      }
+      const noteText = deskContactNote(draft.notes, plan);
+      const noteReq = new Request(new URL("/x/crm/crm-data", request.url), {
+        method: "POST",
+        headers: {
+          Cookie: request.headers.get("Cookie") || "",
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "appendNote",
+          contactId: id,
+          text: noteText,
+          tag: "Desk",
+        }),
+      });
+      const noteRes = await proxyTool(noteReq, env, "crm", "/crm-data");
+      if (!noteRes.ok) {
+        const note = await noteRes.json().catch(() => ({})) as { error?: string };
+        return json(noteRes.status, {
+          error: note.error || "Contact is on the book. The note did not save. Try again.",
+          contact,
+          created,
+        });
+      }
+      contact.status = plan.stage;
+      contact.nextAction = plan.nextAction;
+      contact.followUpDate = plan.followUpDate;
+      return json(200, {
+        ok: true,
+        created,
+        reused: !created,
+        track: plan.track,
+        stage: plan.stage,
+        contact,
+        summary: created
+          ? (plan.track === "followup" ? "Saved to CRM. Follow-up booked." : "Saved to CRM. CTE booked.")
+          : "That contact is already on your book. CTE or follow-up updated.",
       });
     }
 
