@@ -1,3 +1,5 @@
+import { titleOwner } from "./brand.ts";
+
 export const CONTACT_CHANGE_LABELS: Record<string, string> = {
   name: "name",
   email: "email",
@@ -22,7 +24,9 @@ export const CONTACT_CHANGE_LABELS: Record<string, string> = {
 
 function displayValue(key: string, value: unknown): string {
   if (key === "dnc") return value ? "yes" : "no";
-  return String(value == null ? "" : value).trim();
+  const raw = String(value == null ? "" : value).trim();
+  if (key === "owner") return titleOwner(raw);
+  return raw;
 }
 
 export function formatContactChanges(
@@ -60,8 +64,8 @@ export function contactNameChoices(names: string[], current: string): string[] {
 }
 
 export function ownerChoices(team: readonly string[], current: string): string[] {
-  const cur = String(current || "").trim();
-  const list = Array.from(new Set((team || []).map((n) => String(n || "").trim()).filter(Boolean)));
+  const cur = titleOwner(String(current || "").trim());
+  const list = Array.from(new Set((team || []).map((n) => titleOwner(String(n || "").trim())).filter(Boolean)));
   if (cur && !list.includes(cur)) list.unshift(cur);
   return list;
 }

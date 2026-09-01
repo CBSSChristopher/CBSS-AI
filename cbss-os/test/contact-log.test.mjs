@@ -6,7 +6,7 @@ import {
   formatContactChanges,
   ownerChoices,
 } from "../src/contact-log.ts";
-import { TEAM_OWNERS } from "../src/brand.ts";
+import { TEAM_OWNERS, titleOwner } from "../src/brand.ts";
 
 describe("contact change lines", () => {
   it("records name and owner moves in plain lead language", () => {
@@ -20,6 +20,13 @@ describe("contact change lines", () => {
     ]);
     assert.match(contactChangeNote("James", lines), /James · owner changed from New\/Unassigned to James/);
     assert.doesNotMatch(contactChangeNote("James", lines), /audit|security|liability/i);
+  });
+
+  it("treats Kyle and Kyle Hodgkiss as the same owner", () => {
+    assert.deepEqual(
+      formatContactChanges({ owner: "Kyle", status: "New Lead" }, { owner: "Kyle Hodgkiss", status: "New Lead" }),
+      [],
+    );
   });
 
   it("skips fields that did not move", () => {
@@ -37,8 +44,16 @@ describe("contact change lines", () => {
   it("keeps owner picks on the team list", () => {
     const list = ownerChoices(TEAM_OWNERS, "James");
     assert.ok(list.includes("James"));
+    assert.ok(list.includes("Kyle Hodgkiss"));
     assert.ok(list.includes("New/Unassigned"));
     assert.ok(list.includes("Christopher Banks"));
+    assert.equal(titleOwner("Kyle"), "Kyle Hodgkiss");
+    assert.equal(titleOwner("kyle@cbshippingsolutions.com"), "Kyle Hodgkiss");
+    assert.equal(titleOwner("Kyle Hodgkiss"), "Kyle Hodgkiss");
+    const kyleList = ownerChoices(TEAM_OWNERS, "Kyle");
+    assert.equal(kyleList.filter((n) => /kyle/i.test(n)).length, 1);
+    assert.ok(kyleList.includes("Kyle Hodgkiss"));
+    assert.ok(!kyleList.includes("Kyle"));
     const extra = ownerChoices(TEAM_OWNERS, "Temp Rep");
     assert.equal(extra[0], "Temp Rep");
   });

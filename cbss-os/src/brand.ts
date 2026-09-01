@@ -25,6 +25,7 @@ export const SALES_SPARKS = [
 export const TEAM_OWNERS = [
   "Christopher Banks",
   "James",
+  "Kyle Hodgkiss",
   "Bryan Reese",
   "Matthew Brent",
   "Kawika Pangelinan",
@@ -33,6 +34,29 @@ export const TEAM_OWNERS = [
   "Derrek Clements",
   "New/Unassigned",
 ] as const;
+
+export const OWNER_ALIASES: Record<string, string> = {
+  christopher: "Christopher Banks",
+  james: "James",
+  kyle: "Kyle Hodgkiss",
+  bryan: "Bryan Reese",
+  matthew: "Matthew Brent",
+  veeka: "Kawika Pangelinan",
+  veek: "Kawika Pangelinan",
+  aliyah: "Aliyah",
+  brittni: "Brittni Keeling",
+  derrek: "Derrek Clements",
+};
+
+export function titleOwner(value: string): string {
+  const raw = String(value || "").trim().replace(/\s+/g, " ");
+  if (!raw) return "";
+  const compact = raw.toLowerCase().replace(/[\s_-]+/g, "");
+  if (compact === "new/unassigned" || compact === "newunassigned" || compact === "unassigned") return "New/Unassigned";
+  if (compact === "kylehodgkiss") return "Kyle Hodgkiss";
+  const first = raw.split(/[\s@]/)[0].toLowerCase();
+  return OWNER_ALIASES[first] || raw;
+}
 
 export const LIVE_TOOLS = {
   crm: "https://cbsscrm.cbss.workers.dev",
