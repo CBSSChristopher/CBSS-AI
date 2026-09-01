@@ -72,6 +72,16 @@ function html(body: string): Response {
   });
 }
 
+function yardPage(request: Request, opts?: { loginError?: string }): Response {
+  const page = html(pageHtml(opts));
+  if (request.method === "HEAD") return new Response(null, { status: 200, headers: page.headers });
+  return page;
+}
+
+function isYardPagePath(path: string): boolean {
+  return path === "/" || path === "/index.html" || path === "/auth/login";
+}
+
 async function readJson(request: Request): Promise<Record<string, unknown>> {
   try {
     const data = await request.json();
@@ -79,6 +89,28 @@ async function readJson(request: Request): Promise<Record<string, unknown>> {
   } catch {
     return {};
   }
+}
+
+async function readLoginBody(request: Request): Promise<Record<string, unknown>> {
+  const ct = String(request.headers.get("Content-Type") || "").toLowerCase();
+  if (ct.includes("application/x-www-form-urlencoded") || ct.includes("multipart/form-data")) {
+    try {
+      const form = await request.formData();
+      return {
+        email: String(form.get("email") || ""),
+        password: String(form.get("password") || ""),
+      };
+    } catch {
+      return {};
+    }
+  }
+  return readJson(request);
+}
+
+function loginWantsRedirect(request: Request): boolean {
+  const ct = String(request.headers.get("Content-Type") || "").toLowerCase();
+  const accept = String(request.headers.get("Accept") || "").toLowerCase();
+  return ct.includes("application/x-www-form-urlencoded") || (accept.includes("text/html") && !accept.includes("application/json"));
 }
 
 function str(v: unknown): string {
@@ -163,7 +195,9 @@ export default {
     const path = url.pathname;
 
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: SECURITY });
-    if (request.method === "GET" && (path === "/" || path === "/index.html")) return html(pageHtml());
+    if ((request.method === "GET" || request.method === "HEAD") && isYardPagePath(path)) {
+      return yardPage(request);
+    }
 
     if (request.method === "GET" && path === "/health") {
       return json(200, { ok: true, stamp: BRAND.stamp, live: origins(env) });
@@ -175,19 +209,26 @@ export default {
     }
 
     if (request.method === "POST" && path === "/auth/login") {
-      if (!env.AUTH_SECRET) return json(500, { error: "Platform is not set up yet." });
-      const body = await readJson(request);
+      const asPage = loginWantsRedirect(request);
+      if (!env.AUTH_SECRET) {
+        return asPage ? html(pageHtml({ loginError: "Platform is not set up yet." })) : json(500, { error: "Platform is not set up yet." });
+      }
+      const body = await readLoginBody(request);
       const email = str(body.email).toLowerCase();
       const password = str(body.password);
-      if (!password) return json(401, { error: "Enter your password." });
-      if (!email || !isCompanyEmail(email)) return json(401, { error: "Use your company email and CRM password." });
+      const fail = (status: number, error: string) =>
+        asPage ? html(pageHtml({ loginError: error })) : json(status, { error });
+      if (!password) return fail(401, "Type your CRM password in the password box, then Open The Yard.");
+      if (!email || !isCompanyEmail(email)) return fail(401, "Use your full company email — name@cbshippingsolutions.com.");
       const result = await loginAllTools(env, email, password);
-      if (!result.ok) return json(result.status, { error: result.error });
-      return withCookies(
-        200,
-        { ok: true, user: publicUser(result.user) },
-        await makeSession(request, env, result.user),
-      );
+      if (!result.ok) return fail(result.status, result.error || "Could not sign in.");
+      const cookies = await makeSession(request, env, result.user);
+      if (asPage) {
+        const headers = new Headers({ Location: "/", ...SECURITY });
+        for (const c of cookies) headers.append("Set-Cookie", c);
+        return new Response(null, { status: 303, headers });
+      }
+      return withCookies(200, { ok: true, user: publicUser(result.user) }, cookies);
     }
 
     if (request.method === "POST" && path === "/auth/logout") {

@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { readFileSync } from "node:fs";
 import { pageHtml } from "../src/page.ts";
+import { yardAliasAction } from "../src/harbor-alias.ts";
 
 const alias = readFileSync(new URL("../src/harbor-alias.ts", import.meta.url), "utf8");
 const wrangler = readFileSync(new URL("../wrangler.harbor.jsonc", import.meta.url), "utf8");
+const index = readFileSync(new URL("../src/index.ts", import.meta.url), "utf8");
 const page = pageHtml();
 
 describe("The Yard public name", () => {
@@ -23,5 +25,32 @@ describe("The Yard public name", () => {
     assert.match(page, /This is The Yard/);
     assert.match(page, /theyard\.cbshippingsolutions\.app/);
     assert.match(page, /not a workers\.dev link/);
+    assert.match(pageHtml({ loginError: "Type your CRM password." }), /Type your CRM password\./);
+    assert.match(index, /loginWantsRedirect/);
+    assert.match(index, /pageHtml\(\{ loginError/);
+    assert.match(index, /isYardPagePath/);
+    assert.match(index, /path === "\/auth\/login"/);
+  });
+});
+
+describe("The Yard sign-in on the company hostname", () => {
+  it("does not 302 a login POST off workers.dev", () => {
+    assert.equal(yardAliasAction("theyard.cbss.workers.dev", "GET"), "redirect");
+    assert.equal(yardAliasAction("theyard.cbss.workers.dev", "POST"), "proxy");
+    assert.equal(yardAliasAction("theyard.cbshippingsolutions.app", "GET"), "proxy");
+    assert.equal(yardAliasAction("theyard.cbshippingsolutions.app", "POST"), "proxy");
+  });
+
+  it("shows a sign-in error and does not let boot kick them back to login", () => {
+    assert.match(page, /id="login-form" method="post" action="\/auth\/login"/);
+    assert.match(page, /name="email"/);
+    assert.match(page, /name="password"/);
+    assert.match(page, /id="login-go"/);
+    assert.match(page, /Opening…/);
+    assert.match(page, /allow401: true/);
+    assert.match(page, /if \(user\) return;/);
+    assert.match(page, /Could not sign in\. Try again\./);
+    assert.match(index, /readLoginBody/);
+    assert.match(index, /status: 303/);
   });
 });
