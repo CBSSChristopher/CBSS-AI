@@ -524,7 +524,7 @@ export function pageHtml(): string {
               <div class="ai-mark">Q</div>
               <div>
                 <h2>Write the proposal</h2>
-                <p class="muted">Proposal Builder · one depot. Posted xChange wholesale only. Do not invent a price.</p>
+                <p class="muted">Proposal Builder · posted xChange wholesale only. Add a second box when they want two grades. Do not invent a price.</p>
               </div>
             </div>
             <div class="warn">Side door OS 2D ≠ Side door OS 4D ≠ Full open side. OS 2D, OS 4D, and Full open side are different boxes — do not mix them. Pick the exact config the yard posted.</div>
@@ -535,7 +535,7 @@ export function pageHtml(): string {
               <div class="step-num">1</div>
               <div>
                 <h2>Pick the box</h2>
-                <p class="muted">Size, height, door type, and grade. The posted book has to match this exact box.</p>
+                <p class="muted">Size, height, door type, and grade. Get a posted price, add this box, then add another if they want a second grade — 20 ft WWT next to 20 ft one-trip.</p>
               </div>
             </div>
             <label>Size</label>
@@ -595,18 +595,24 @@ export function pageHtml(): string {
               <p class="cash" id="p-ticket-cash">—</p>
               <p class="muted" id="p-ticket-meta"></p>
             </div>
+            <div class="row">
+              <button type="button" class="gold" id="p-add">Add this box</button>
+              <button type="button" class="secondary" id="p-another">Add another box</button>
+            </div>
+            <div id="p-lines"></div>
           </div>
 
+          <form id="p-form">
           <div class="card step">
             <div class="step-head">
               <div class="step-num">4</div>
               <div>
                 <h2>Who it is for</h2>
-                <p class="muted">Put the customer on the proposal while the yes is still warm.</p>
+                <p class="muted">Put the customer on the proposal while the yes is still warm. Enter submits it.</p>
               </div>
             </div>
             <div class="split">
-              <div><label>Customer name</label><input id="p-name" /></div>
+              <div><label>Customer name</label><input id="p-name" required /></div>
               <div><label>Customer email</label><input id="p-email" type="email" /></div>
               <div><label>Phone</label><input id="p-phone" /></div>
               <div><label>Company</label><input id="p-co" /></div>
@@ -622,12 +628,13 @@ export function pageHtml(): string {
               <div class="step-num">5</div>
               <div>
                 <h2>Send it</h2>
-                <p class="muted">Needs a posted wholesale. This writes the proposal. It does not invent a number.</p>
+                <p class="muted">Needs a posted wholesale on every box. This writes the proposal and emails it. It does not invent a number.</p>
               </div>
             </div>
-            <div class="row"><button type="button" class="gold" id="p-send">Submit proposal</button></div>
+            <div class="row"><button type="submit" class="gold" id="p-send">Submit proposal</button></div>
             <p class="err" id="p-err"></p>
           </div>
+          </form>
         </section>
 
         <section id="mod-modified" class="hide">
@@ -789,6 +796,14 @@ export function pageHtml(): string {
       </main>
     </div>
   </div>
+  <div id="p-saved" class="save-alert hide" role="alertdialog" aria-modal="true" aria-labelledby="p-saved-title" aria-describedby="p-saved-body">
+    <div class="box">
+      <p class="kicker">Proposal</p>
+      <h3 id="p-saved-title">Proposal written</h3>
+      <p id="p-saved-body"></p>
+      <div class="row"><button type="button" class="gold" id="p-saved-ok">Got it</button></div>
+    </div>
+  </div>
   <div id="n-saved" class="save-alert hide" role="alertdialog" aria-modal="true" aria-labelledby="n-saved-title" aria-describedby="n-saved-body">
     <div class="box">
       <p class="kicker">Success</p>
@@ -924,6 +939,7 @@ export function pageHtml(): string {
     const MOD_USES = ${JSON.stringify(MODIFIED_USES)};
     let user = null, book = null, selected = null, deskContact = null, deskHits = [], deskSearchSeq = 0, deskSearchTimer = 0, lastGmail = "", lastDoc = "", pick = {size:"40",height:"HC",config:"standard",grade:"CW"};
     let lastQuote = null;
+    let proposalLines = [];
     let campaignIds = {};
     let offers = [];
     let chatHistory = [];
@@ -2141,24 +2157,115 @@ export function pageHtml(): string {
     function recastCash(){ if (lastQuote && lastQuote.ok) applyQuoteMatch(lastQuote); }
     $("p-margin").addEventListener("change", recastCash);
     $("p-ful").addEventListener("change", recastCash);
-    $("p-send").addEventListener("click", async function(){
-      $("p-err").textContent="";
+    function configLabel(v){
+      const hit = CONFIGS.find(function(c){ return c.v===v; });
+      return hit ? hit.l : (v || "Standard");
+    }
+    function currentProposalLine(){
+      if (!lastQuote || !lastQuote.ok) return null;
       const wholesale = Number($("p-wholesale").value);
-      if (!wholesale){ $("p-err").textContent="Need a posted xChange wholesale. Do not invent one."; return; }
-      const res = await api("/x/proposal/submit-proposal", { method:"POST", body: JSON.stringify({
-        customerName:$("p-name").value, email:$("p-email").value, phone:$("p-phone").value, company:$("p-co").value,
-        zip:$("p-zip").value, delivery:$("p-del").value, quantity:$("p-qty").value,
-        wholesaleCost:wholesale, unitPrice:Number($("p-cash").value), netMargin:Number($("p-margin").value),
-        fulfillment:$("p-ful").value, containerSize: sizeToken(),
-        condition: pick.grade, notes:$("p-notes").value,
-        containerDesc: pick.size+" "+pick.height+" "+CONFIGS.find(function(c){ return c.v===pick.config; }).l+" "+pick.grade,
-        clientType:"Residential", paymentMode:"cash",
-        repName: user && user.name, repEmail: user && user.email,
-        depot: lastQuote && lastQuote.depot, depotCity: lastQuote && lastQuote.city,
-        region: lastQuote && lastQuote.region, miles: lastQuote && lastQuote.miles,
-        deliveryCost: lastQuote && $("p-ful").value==="pickup" ? 0 : (lastQuote && lastQuote.delivery)
-      })});
-      $("p-err").textContent = res.j.status==="sent" ? "Proposal generated and emailed." : (res.j.status==="flagged" ? "LOW MARGIN FLAG — below $300." : (res.j.error||"Could not submit."));
+      const cash = Number($("p-cash").value);
+      if (!wholesale || !cash) return null;
+      const delivery = $("p-ful").value==="pickup" ? 0 : Number(lastQuote.delivery||0);
+      return {
+        size: pick.size, height: pick.height, config: pick.config, configLabel: configLabel(pick.config),
+        grade: pick.grade, qty: Math.max(1, Number($("p-qty").value)||1),
+        wholesale: wholesale, delivery: delivery, margin: Math.max(300, Number($("p-margin").value)||700),
+        cash: cash, city: lastQuote.city || "", depot: lastQuote.depot || lastQuote.city || "",
+        miles: lastQuote.miles, place: lastQuote.place || "", fulfillment: $("p-ful").value
+      };
+    }
+    function proposalLineText(line){
+      const qty = Math.max(1, Number(line.qty)||1);
+      const height = line.height==="HC" ? "high cube" : line.height==="DC" ? "standard" : line.height;
+      return (line.size||"")+" ft "+height+" "+(line.configLabel||"")+" "+(line.grade||"")+(qty>1?" × "+qty:"");
+    }
+    function paintProposalLines(){
+      const box = $("p-lines");
+      if (!proposalLines.length){ box.innerHTML = '<p class="muted">No second box yet. Get a posted price, Add this box, then Add another box for a different grade.</p>'; return; }
+      box.innerHTML = proposalLines.map(function(line, i){
+        return '<div class="picked" data-pline="'+i+'"><strong>'+esc(proposalLineText(line))+'</strong>'
+          +" · proposal "+money(line.cash)+(line.city?" · depot "+esc(line.city):"")
+          +' <button type="button" class="secondary" data-pline-x="'+i+'" style="margin-left:8px">Remove</button></div>';
+      }).join("");
+    }
+    function addCurrentBox(){
+      const line = currentProposalLine();
+      if (!line){ $("p-err").className="err"; $("p-err").textContent="Get a posted CBSS price on this box first. Do not invent a wholesale."; return false; }
+      const same = proposalLines.some(function(row){
+        return row.size===line.size && row.height===line.height && row.config===line.config && row.grade===line.grade && row.qty===line.qty;
+      });
+      if (!same) proposalLines.push(line);
+      paintProposalLines();
+      $("p-err").className="ok";
+      $("p-err").textContent = proposalLines.length===1 ? "Box 1 is on the proposal." : proposalLines.length+" boxes are on the proposal.";
+      return true;
+    }
+    $("p-add").addEventListener("click", function(){ addCurrentBox(); });
+    $("p-another").addEventListener("click", function(){
+      if (lastQuote && lastQuote.ok) addCurrentBox();
+      lastQuote = null;
+      $("p-wholesale").value = "";
+      $("p-cash").value = "";
+      $("p-ticket").classList.add("hide");
+      $("p-status").textContent = "Pick the next box — a different size or grade — then Get CBSS Price. Do not invent a wholesale.";
+    });
+    $("p-lines").addEventListener("click", function(e){
+      const b = e.target.closest("[data-pline-x]");
+      if (!b) return;
+      proposalLines.splice(Number(b.getAttribute("data-pline-x")), 1);
+      paintProposalLines();
+    });
+    paintProposalLines();
+    function showProposalSaved(title, body){
+      $("p-saved-title").textContent = title;
+      $("p-saved-body").textContent = body;
+      $("p-saved").classList.remove("hide");
+      $("p-saved-ok").focus();
+    }
+    $("p-saved-ok").addEventListener("click", function(){ $("p-saved").classList.add("hide"); });
+    $("p-saved").addEventListener("click", function(e){ if (e.target === $("p-saved")) $("p-saved").classList.add("hide"); });
+    $("p-form").addEventListener("submit", async function(e){
+      e.preventDefault();
+      $("p-err").className = "err";
+      $("p-err").textContent = "";
+      if (!proposalLines.length && lastQuote && lastQuote.ok) addCurrentBox();
+      if (!$("p-name").value.trim()){
+        $("p-err").textContent = "Name the customer before you submit the proposal.";
+        $("p-name").focus();
+        return;
+      }
+      const lines = proposalLines.slice();
+      if (!lines.length){
+        $("p-err").textContent = "Get a posted CBSS price and add the box first. Do not invent a wholesale.";
+        return;
+      }
+      $("p-send").disabled = true;
+      try {
+        const res = await api("/proposal/submit", { method:"POST", body: JSON.stringify({
+          customerName:$("p-name").value, email:$("p-email").value, phone:$("p-phone").value, company:$("p-co").value,
+          zip:$("p-zip").value, delivery:$("p-del").value, notes:$("p-notes").value,
+          fulfillment:$("p-ful").value, clientType:"Residential", paymentMode:"cash",
+          repName: user && (user.name || user.email), repEmail: user && user.email,
+          lines: lines
+        })});
+        if (!res.r.ok || !res.j.ok){
+          $("p-err").textContent = res.j.error || res.j.message || "The proposal did not write. Try again.";
+          return;
+        }
+        if (res.j.status==="flagged"){
+          $("p-err").textContent = "LOW MARGIN FLAG — below $300. No client proposal was sent.";
+          showProposalSaved("Low margin flag", "Margin is under $300. Christopher and Bryan were notified. No client proposal went out.");
+          return;
+        }
+        $("p-err").className = "ok";
+        $("p-err").textContent = "Proposal written and emailed: "+(res.j.desc||"the boxes on this ticket")+".";
+        showProposalSaved("Proposal written", (res.j.desc||"The boxes are on the proposal")+". It was emailed to you. Forward it to the customer.");
+      } catch (err) {
+        $("p-err").textContent = "Could not reach the proposal tool. Sign out and sign in again.";
+      } finally {
+        $("p-send").disabled = false;
+      }
     });
 
     function seedInvoiceFromContact(){

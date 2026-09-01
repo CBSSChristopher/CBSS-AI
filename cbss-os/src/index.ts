@@ -30,6 +30,7 @@ import {
   scheduleDeskTrack,
 } from "./desk-contact.ts";
 import { buildModifiedSpec, readModifiedDraft } from "./modified-catalog.ts";
+import { buildProposalSubmit, readProposalLine } from "./proposal-lines.ts";
 
 const SECURITY = {
   "X-Content-Type-Options": "nosniff",
@@ -485,6 +486,56 @@ export default {
         }
       }
       return json(200, { ok: true, spec, saved: Boolean(contactId) });
+    }
+
+    if (request.method === "POST" && path === "/proposal/submit") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      const raw = await readJson(request);
+      const rawLines = Array.isArray(raw.lines) ? raw.lines : [];
+      const lines = rawLines
+        .map((row) => (row && typeof row === "object" ? readProposalLine(row as Record<string, unknown>) : null))
+        .filter((row): row is NonNullable<typeof row> => Boolean(row));
+      const built = buildProposalSubmit({
+        customerName: raw.customerName,
+        email: raw.email,
+        phone: raw.phone,
+        company: raw.company,
+        zip: raw.zip,
+        delivery: raw.delivery,
+        notes: raw.notes,
+        clientType: raw.clientType,
+        paymentMode: raw.paymentMode,
+        fulfillment: raw.fulfillment,
+        repName: raw.repName || user.name,
+        repEmail: raw.repEmail || user.email,
+        lines,
+      });
+      if (!built.ok || !built.body) return json(400, { error: built.error || "Could not build that proposal." });
+      const sendReq = new Request(new URL("/x/proposal/submit-proposal", request.url), {
+        method: "POST",
+        headers: {
+          Cookie: request.headers.get("Cookie") || "",
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(built.body),
+      });
+      const sendRes = await proxyTool(sendReq, env, "proposal", "/submit-proposal");
+      const sent = await sendRes.json().catch(() => ({})) as { status?: string; error?: string; message?: string };
+      if (!sendRes.ok) {
+        return json(sendRes.status, {
+          error: sent.error || sent.message || "The proposal tool did not write that proposal.",
+          message: sent.message,
+        });
+      }
+      return json(200, {
+        ok: true,
+        status: sent.status || "sent",
+        desc: built.body.containerDesc,
+        quantity: built.body.quantity,
+        unitPrice: built.body.unitPrice,
+      });
     }
 
     if (request.method === "POST" && path === "/quote/match") {
