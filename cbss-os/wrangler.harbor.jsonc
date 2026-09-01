@@ -5,6 +5,9 @@
   "compatibility_date": "2026-08-29",
   "workers_dev": true,
   "preview_urls": false,
+  "routes": [
+    { "pattern": "theyard.cbshippingsolutions.app", "custom_domain": true }
+  ],
   "services": [
     { "binding": "HOUSE", "service": "cbssos" }
   ]

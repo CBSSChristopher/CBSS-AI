@@ -1,4 +1,4 @@
-import { BRAND, OWNER_ALIASES, SALES_SPARKS, TEAM_OWNERS } from "./brand.ts";
+import { BRAND, OWNER_ALIASES, SALES_SPARKS, TEAM_OWNERS, YARD_PUBLIC } from "./brand.ts";
 import { CONTACT_CHANGE_LABELS } from "./contact-log.ts";
 import { MODIFIED_CATEGORIES, MODIFIED_ITEMS, MODIFIED_USES } from "./modified-catalog.ts";
 
@@ -278,7 +278,7 @@ export function pageHtml(): string {
     <section class="card login-card">
       <div class="seal">CB</div>
       <h1>The Yard</h1>
-      <p class="muted">The CB Shipping Solutions house tool. One login for CRM, Desk, Proposal, Modified, and Money. Company email only. Same password as the CRM. Bookmark this page.</p>
+      <p class="muted">The CB Shipping Solutions house tool. One login for CRM, Desk, Proposal, Modified, and Money. Company email only. Same password as the CRM. Bookmark ${YARD_PUBLIC} — not a workers.dev link.</p>
       <form id="login-form">
         <label for="email">Company email</label>
         <input id="email" type="email" autocomplete="username" placeholder="you@cbshippingsolutions.com" required />

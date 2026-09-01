@@ -35,6 +35,7 @@ const SECURITY = {
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "same-origin",
   "X-Frame-Options": "DENY",
+  "Strict-Transport-Security": "max-age=31536000",
   "Content-Security-Policy":
     "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'none'; connect-src 'self'; frame-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
 };
