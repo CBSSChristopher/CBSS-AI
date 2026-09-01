@@ -28,6 +28,8 @@ describe("The Yard public name", () => {
     assert.match(pageHtml({ loginError: "Type your CRM password." }), /Type your CRM password\./);
     assert.match(index, /loginWantsRedirect/);
     assert.match(index, /pageHtml\(\{ loginError/);
+    assert.match(index, /isYardPagePath/);
+    assert.match(index, /path === "\/auth\/login"/);
   });
 });
 

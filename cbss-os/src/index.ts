@@ -72,6 +72,16 @@ function html(body: string): Response {
   });
 }
 
+function yardPage(request: Request, opts?: { loginError?: string }): Response {
+  const page = html(pageHtml(opts));
+  if (request.method === "HEAD") return new Response(null, { status: 200, headers: page.headers });
+  return page;
+}
+
+function isYardPagePath(path: string): boolean {
+  return path === "/" || path === "/index.html" || path === "/auth/login";
+}
+
 async function readJson(request: Request): Promise<Record<string, unknown>> {
   try {
     const data = await request.json();
@@ -185,7 +195,9 @@ export default {
     const path = url.pathname;
 
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: SECURITY });
-    if (request.method === "GET" && (path === "/" || path === "/index.html")) return html(pageHtml());
+    if ((request.method === "GET" || request.method === "HEAD") && isYardPagePath(path)) {
+      return yardPage(request);
+    }
 
     if (request.method === "GET" && path === "/health") {
       return json(200, { ok: true, stamp: BRAND.stamp, live: origins(env) });
