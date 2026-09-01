@@ -245,6 +245,7 @@ describe("The Yard CRM edit and Money invoice send", () => {
     assert.match(page, /Quote Form/);
     assert.match(page, /Drive Deals/);
     assert.match(page, /Proposal Tool/);
+    assert.match(page, /<option value="Desk">Desk<\/option>/);
     assert.match(page, /Residential/);
     assert.match(page, /Commercial/);
     assert.match(page, /20STD/);

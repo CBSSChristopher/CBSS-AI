@@ -672,6 +672,7 @@ export function pageHtml(): string {
             <option value="Quote Form">Quote Form</option>
             <option value="Drive Deals">Drive Deals</option>
             <option value="Proposal Tool">Proposal Tool</option>
+            <option value="Desk">Desk</option>
           </select>
         </div>
         <div>
@@ -1143,6 +1144,12 @@ export function pageHtml(): string {
       $("m-zip").value = c.zip||"";
       $("m-company").value = c.company||"";
       $("m-status").innerHTML = stageOptions(contactStage(c));
+      if (c.source && !$("m-source").querySelector('option[value="'+CSS.escape(c.source)+'"]')){
+        const extra = document.createElement("option");
+        extra.value = c.source;
+        extra.textContent = c.source;
+        $("m-source").appendChild(extra);
+      }
       $("m-source").value = c.source||"Manual";
       $("m-client").value = c.clientType||"";
       $("m-size").value = c.containerSize||"";
