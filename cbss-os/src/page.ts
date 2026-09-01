@@ -608,7 +608,7 @@ export function pageHtml(): string {
               <div class="step-num">4</div>
               <div>
                 <h2>Who it is for</h2>
-                <p class="muted">Put the customer on the proposal while the yes is still warm. Enter submits it.</p>
+                <p class="muted">Put the customer on the proposal while the yes is still warm. Enter writes it. Shift+Enter adds a line in notes.</p>
               </div>
             </div>
             <div class="split">
@@ -628,10 +628,10 @@ export function pageHtml(): string {
               <div class="step-num">5</div>
               <div>
                 <h2>Send it</h2>
-                <p class="muted">Needs a posted wholesale on every box. This writes the proposal and emails it. It does not invent a number.</p>
+                <p class="muted">Needs a posted wholesale on every box. Enter writes the proposal and emails it. It does not invent a number.</p>
               </div>
             </div>
-            <div class="row"><button type="submit" class="gold" id="p-send">Submit proposal</button></div>
+            <div class="row"><button type="submit" class="gold" id="p-send">Enter proposal</button></div>
             <p class="err" id="p-err"></p>
           </div>
           </form>
@@ -2225,6 +2225,22 @@ export function pageHtml(): string {
     }
     $("p-saved-ok").addEventListener("click", function(){ $("p-saved").classList.add("hide"); });
     $("p-saved").addEventListener("click", function(e){ if (e.target === $("p-saved")) $("p-saved").classList.add("hide"); });
+    function writeProposal(){
+      if (typeof $("p-form").requestSubmit === "function") $("p-form").requestSubmit();
+      else $("p-send").click();
+    }
+    $("p-zip").addEventListener("keydown", function(e){
+      if (e.key === "Enter"){ e.preventDefault(); quoteMatch(false); }
+    });
+    $("p-qty").addEventListener("keydown", function(e){
+      if (e.key === "Enter"){ e.preventDefault(); quoteMatch(false); }
+    });
+    $("p-form").addEventListener("keydown", function(e){
+      if (e.key !== "Enter") return;
+      if (e.target && e.target.tagName === "TEXTAREA" && e.shiftKey) return;
+      e.preventDefault();
+      writeProposal();
+    });
     $("p-form").addEventListener("submit", async function(e){
       e.preventDefault();
       $("p-err").className = "err";

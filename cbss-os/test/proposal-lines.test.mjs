@@ -82,6 +82,9 @@ describe("Proposal on The Yard can take a second box", () => {
     assert.match(page, /Add this box/);
     assert.match(page, /Add another box/);
     assert.match(page, /id="p-form"/);
+    assert.match(page, /Enter proposal/);
+    assert.match(page, /writeProposal/);
+    assert.match(page, /requestSubmit/);
     assert.match(page, /api\("\/proposal\/submit"/);
     assert.match(index, /path === "\/proposal\/submit"/);
     assert.match(index, /buildProposalSubmit/);
