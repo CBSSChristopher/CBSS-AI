@@ -67,6 +67,14 @@ describe("CBSS public website", () => {
     assert.match(worker, /inlineBrandCss/);
   });
 
+  it("uses zone routes on the public hostname, not Workers custom domains", () => {
+    const wrangler = readFileSync(new URL("../wrangler.jsonc", import.meta.url), "utf8");
+    assert.match(wrangler, /cbshippingsolutions\.app\/\*/);
+    assert.match(wrangler, /www\.cbshippingsolutions\.app\/\*/);
+    assert.match(wrangler, /"zone_name": "cbshippingsolutions\.app"/);
+    assert.doesNotMatch(wrangler, /custom_domain/);
+  });
+
   it("sends a kept request to CRM New/Unassigned and does not invent a price", () => {
     const worker = readFileSync(new URL("../src/worker.js", import.meta.url), "utf8");
     assert.match(worker, /\/contact/);
