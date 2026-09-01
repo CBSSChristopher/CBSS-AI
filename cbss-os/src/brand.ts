@@ -58,6 +58,8 @@ export function titleOwner(value: string): string {
   return OWNER_ALIASES[first] || raw;
 }
 
+export const YARD_PUBLIC = "https://theyard.cbshippingsolutions.app";
+
 export const LIVE_TOOLS = {
   crm: "https://cbsscrm.cbss.workers.dev",
   desk: "https://cbssbrain.cbss.workers.dev",

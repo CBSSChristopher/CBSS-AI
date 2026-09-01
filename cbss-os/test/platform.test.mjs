@@ -125,7 +125,8 @@ describe("hard rules stay on the platform", () => {
     assert.match(page, />The Yard</);
     assert.match(page, /Open The Yard/);
     assert.match(page, /This is The Yard/);
-    assert.match(page, /Bookmark this page/);
+    assert.match(page, /theyard\.cbshippingsolutions\.app/);
+    assert.match(page, /not a workers\.dev link/);
     assert.doesNotMatch(page, /CBSS Platform/);
     assert.doesNotMatch(page, /side platform/);
     assert.match(wrangler, /"name": "cbssos"/);
