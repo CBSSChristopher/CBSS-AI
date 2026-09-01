@@ -60,6 +60,9 @@ describe("CBSS platform brand", () => {
     assert.match(page, /id="desk-hits"/);
     assert.match(page, /id="desk-sel"/);
     assert.match(page, /id="desk-clear"/);
+    assert.match(page, /id="desk-new"/);
+    assert.match(page, /id="desk-new-open"/);
+    assert.match(page, /id="n-save"/);
     assert.match(page, /Working contact/);
     assert.match(page, /function pickDeskContact/);
     assert.match(page, /function renderDeskHits/);

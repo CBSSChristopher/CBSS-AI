@@ -1,4 +1,4 @@
-import { BRAND } from "./brand.ts";
+import { BRAND, titleOwner } from "./brand.ts";
 import {
   clearSession,
   isCompanyEmail,
@@ -21,6 +21,7 @@ import {
 } from "./facebook.ts";
 import { lookupZipFromZippopotam, matchPostedBox, type BoxPick } from "./xchange-match.ts";
 import { pageHtml } from "./page.ts";
+import { buildDeskAddedContact, deskContactName, findOwnDeskContact, readDeskContactDraft } from "./desk-contact.ts";
 
 const SECURITY = {
   "X-Content-Type-Options": "nosniff",
@@ -318,6 +319,87 @@ export default {
           hasClientToken: Boolean(stored && String(stored).trim()),
           webhookUrl: check.webhookUrl,
         }),
+      });
+    }
+
+    if (request.method === "POST" && path === "/desk/contact") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      const draft = readDeskContactDraft(await readJson(request));
+      const name = deskContactName(draft);
+      if (!draft.firstName || !draft.lastName || !name) {
+        return json(400, { error: "Type first and last name." });
+      }
+      const owner = titleOwner(user.name || user.email) || user.name || user.email;
+      const getReq = new Request(new URL("/x/crm/crm-data?action=get&omitNotes=1", request.url), {
+        method: "GET",
+        headers: {
+          Cookie: request.headers.get("Cookie") || "",
+          Accept: "application/json",
+        },
+      });
+      const getRes = await proxyTool(getReq, env, "crm", "/crm-data");
+      const book = await getRes.json().catch(() => ({})) as {
+        contacts?: Array<Record<string, unknown>>;
+        contactsAdded?: Array<Record<string, unknown>>;
+        error?: string;
+      };
+      if (!getRes.ok) return json(getRes.status, { error: book.error || "Could not read the CRM." });
+      const added = Array.isArray(book.contactsAdded) ? book.contactsAdded.slice() : [];
+      const pool = added.concat(Array.isArray(book.contacts) ? book.contacts : []);
+      const existing = findOwnDeskContact(pool, draft, owner);
+      let contact: Record<string, unknown>;
+      let created = false;
+      if (existing && existing.id != null) {
+        contact = existing;
+      } else {
+        contact = buildDeskAddedContact(draft, owner);
+        added.unshift(contact);
+        const saveReq = new Request(new URL("/x/crm/crm-data", request.url), {
+          method: "POST",
+          headers: {
+            Cookie: request.headers.get("Cookie") || "",
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ action: "saveContactsAdded", contactsAdded: added }),
+        });
+        const saveRes = await proxyTool(saveReq, env, "crm", "/crm-data");
+        const saved = await saveRes.json().catch(() => ({})) as { error?: string };
+        if (!saveRes.ok) return json(saveRes.status, { error: saved.error || "Could not save the contact to the CRM." });
+        created = true;
+      }
+      if (draft.notes) {
+        const noteReq = new Request(new URL("/x/crm/crm-data", request.url), {
+          method: "POST",
+          headers: {
+            Cookie: request.headers.get("Cookie") || "",
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            action: "appendNote",
+            contactId: String(contact.id),
+            text: draft.notes,
+            tag: "Desk",
+          }),
+        });
+        const noteRes = await proxyTool(noteReq, env, "crm", "/crm-data");
+        if (!noteRes.ok) {
+          const note = await noteRes.json().catch(() => ({})) as { error?: string };
+          return json(noteRes.status, {
+            error: note.error || "Contact is on the book. The note did not save. Try again.",
+            contact,
+            created,
+          });
+        }
+      }
+      return json(200, {
+        ok: true,
+        created,
+        reused: !created,
+        contact,
+        summary: created ? "Saved to CRM." : "That contact is already on your book. Notes saved if you typed them.",
       });
     }
 
