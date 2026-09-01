@@ -1,5 +1,6 @@
 import { BRAND, OWNER_ALIASES, SALES_SPARKS, TEAM_OWNERS } from "./brand.ts";
 import { CONTACT_CHANGE_LABELS } from "./contact-log.ts";
+import { MODIFIED_CATEGORIES, MODIFIED_ITEMS, MODIFIED_USES } from "./modified-catalog.ts";
 
 export function pageHtml(): string {
   return `<!doctype html>
@@ -129,6 +130,22 @@ export function pageHtml(): string {
     .quote-ticket .kicker { color: var(--gold); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; }
     .quote-ticket .cash { font-size: 28px; margin: 6px 0 0; font-family: "Times New Roman", Times, serif; color: #fff; }
     .quote-ticket .muted { color: #9eb0c4; margin: 6px 0 0; }
+    .mod-item {
+      display: grid; grid-template-columns: auto 1fr 72px; gap: 10px; align-items: start;
+      padding: 10px 8px; border-bottom: 1px solid var(--line);
+    }
+    .mod-item:last-child { border-bottom: 0; }
+    .mod-item.on { background: #FBF6E8; border-radius: 8px; border-bottom-color: transparent; }
+    .mod-item input[type="checkbox"] { width: auto; margin-top: 4px; }
+    .mod-item .name { font-weight: 700; color: var(--navy); }
+    .mod-item .spec { color: var(--muted); font-size: 13px; margin: 3px 0 0; }
+    .mod-item input[type="number"] { padding: 7px 8px; }
+    .mod-apex { background: #0b1f3a; color: #fff; border: 2px solid var(--gold); border-radius: 12px; padding: 14px 16px; margin: 0 0 12px; }
+    .mod-apex .kicker { color: var(--gold); }
+    .mod-apex h3 { color: #fff; margin: 4px 0 0; font-size: 20px; letter-spacing: 0; font-family: "Times New Roman", Times, serif; }
+    .mod-apex p { color: #d5deea; margin: 8px 0 0; }
+    .mod-apex label { color: #d5deea; }
+    .mod-apex input { background: #fff; }
     .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
     .tabs button { background: #fff; color: var(--navy); border: 1px solid var(--line); }
     .tabs button.on { background: var(--navy); color: #fff; }
@@ -249,6 +266,7 @@ export function pageHtml(): string {
       .acts a, .acts button { padding: 10px 14px; }
       .spark p { font-size: 16px; }
       .quote-ticket .cash { font-size: 24px; }
+      .mod-item { grid-template-columns: auto 1fr 64px; }
       .picks.big button { min-width: 0; flex: 1 1 auto; }
       .login-wrap { padding: 24px 14px; padding-top: max(24px, env(safe-area-inset-top)); }
       #crm-detail { scroll-margin-top: 12px; }
@@ -260,7 +278,7 @@ export function pageHtml(): string {
     <section class="card login-card">
       <div class="seal">CB</div>
       <h1>The Yard</h1>
-      <p class="muted">The CB Shipping Solutions house tool. One login for CRM, Desk, Proposal, and Money. Company email only. Same password as the CRM. Bookmark this page.</p>
+      <p class="muted">The CB Shipping Solutions house tool. One login for CRM, Desk, Proposal, Modified, and Money. Company email only. Same password as the CRM. Bookmark this page.</p>
       <form id="login-form">
         <label for="email">Company email</label>
         <input id="email" type="email" autocomplete="username" placeholder="you@cbshippingsolutions.com" required />
@@ -287,6 +305,7 @@ export function pageHtml(): string {
         <button type="button" data-mod="crm">CRM</button>
         <button type="button" data-mod="desk">Desk</button>
         <button type="button" data-mod="proposal">Proposal</button>
+        <button type="button" data-mod="modified">Modified</button>
         <button type="button" data-mod="money">Money</button>
       </nav>
     </aside>
@@ -294,7 +313,7 @@ export function pageHtml(): string {
       <header>
         <div>
           <div class="brand">THE YARD</div>
-          <div class="sub">CRM · Desk · Proposal · Money</div>
+          <div class="sub">CRM · Desk · Proposal · Modified · Money</div>
         </div>
         <div class="right">
           <div class="who" id="who"></div>
@@ -303,13 +322,14 @@ export function pageHtml(): string {
       </header>
       <main>
         <section id="mod-home">
-          <h1>One book. Four models.</h1>
-          <p class="muted">This is The Yard. Sign in once. Work CRM, Desk, Proposal, and Money from here.</p>
+          <h1>One book. The whole desk.</h1>
+          <p class="muted">This is The Yard. Sign in once. Work CRM, Desk, Proposal, Modified, and Money from here.</p>
           <div class="chips" id="tool-chips"></div>
           <div class="tiles" style="margin-top:14px">
             <div class="card tile" data-go="crm"><div class="kicker">Book</div><h2>CRM</h2><p class="muted">Contacts, follow-ups, tasks, pipeline, notes.</p></div>
             <div class="card tile" data-go="desk"><div class="kicker">Assist</div><h2>Desk</h2><p class="muted">Your CBSS AI — built for every CB Shipping Solutions employee. Ask it. Then go close.</p></div>
             <div class="card tile" data-go="proposal"><div class="kicker">Quote</div><h2>Proposal</h2><p class="muted">Build the quote. Send the proposal. Put the deal in writing before they cool off.</p></div>
+            <div class="card tile" data-go="modified"><div class="kicker">Build</div><h2>Modified</h2><p class="muted">Doors, windows, electrical, insulation, framing, roll-up, and the CB Apex helical foundation.</p></div>
             <div class="card tile" data-go="money"><div class="kicker">Collect</div><h2>Money</h2><p class="muted">Invoice the cash they agreed to. ACH, wire, or card — get it in the account.</p></div>
           </div>
           <div class="spark" id="sales-spark" title="Tap for another">
@@ -610,6 +630,106 @@ export function pageHtml(): string {
           </div>
         </section>
 
+        <section id="mod-modified" class="hide">
+          <div class="card">
+            <div class="ai-head">
+              <div class="ai-mark">M</div>
+              <div>
+                <h2>Modified container</h2>
+                <p class="muted">Build the spec from the products we actually install. CB Apex helical pylons, doors, roll-up, windows, framing, insulation, electrical. I will not invent a price.</p>
+              </div>
+            </div>
+            <div class="warn">This is the build-out book, not an xChange dry-box quote. Side door OS 2D, OS 4D, and Full open are different boxes — do not mix them. Pile count and money wait for the land walk and an agreed number.</div>
+          </div>
+
+          <div class="card step">
+            <div class="step-head">
+              <div class="step-num">1</div>
+              <div>
+                <h2>The box and the land</h2>
+                <p class="muted">Size, height, and grade of the container. Site ZIP is for the land, not a pretend price.</p>
+              </div>
+            </div>
+            <label>Size</label>
+            <div class="picks big" id="x-size"></div>
+            <label>Height</label>
+            <div class="picks big" id="x-height"></div>
+            <label>Grade</label>
+            <div class="picks big" id="x-grade"></div>
+            <label>What they are building</label>
+            <div class="picks" id="x-use"></div>
+            <div class="split">
+              <div><label for="x-qty">How many boxes</label><input id="x-qty" inputmode="numeric" value="1" /></div>
+              <div><label for="x-zip">Site ZIP</label><input id="x-zip" inputmode="numeric" maxlength="5" placeholder="72401" /></div>
+            </div>
+          </div>
+
+          <div class="card step">
+            <div class="step-head">
+              <div class="step-num">2</div>
+              <div>
+                <h2>CB Apex foundation</h2>
+                <p class="muted">Helical pylons for container loads. Installed before the box is set. No slab delay.</p>
+              </div>
+            </div>
+            <div class="mod-apex">
+              <div class="kicker">House product</div>
+              <h3>CB Apex — helical pylons</h3>
+              <p>Resists frost heave and wind uplift. Faster and cleaner than a pour. Count the piles on the land walk. Do not guess.</p>
+            </div>
+            <label class="row"><input id="x-apex" type="checkbox" style="width:auto" checked /> Use CB Apex helical pylons</label>
+            <div class="split">
+              <div><label for="x-piles">Pylon count from the land walk</label><input id="x-piles" inputmode="numeric" placeholder="Blank until the walk" /></div>
+              <div><label for="x-apex-note">Land / soil note</label><input id="x-apex-note" placeholder="Frost, slope, access" /></div>
+            </div>
+            <label class="row"><input id="x-apex-hw" type="checkbox" style="width:auto" checked /> Include Apex pile-to-box hardware</label>
+          </div>
+
+          <div class="card step">
+            <div class="step-head">
+              <div class="step-num">3</div>
+              <div>
+                <h2>Openings, shell, and power</h2>
+                <p class="muted">Doors, roll-up, windows, framing, insulation, electrical, vents, finish. Check what they need. Qty is pieces, not a dollar.</p>
+              </div>
+            </div>
+            <div id="x-catalog"></div>
+          </div>
+
+          <div class="card step">
+            <div class="step-head">
+              <div class="step-num">4</div>
+              <div>
+                <h2>The spec</h2>
+                <p class="muted">This is the build list. An amount goes here only if they already agreed to a number.</p>
+              </div>
+            </div>
+            <div class="quote-ticket" id="x-ticket">
+              <div class="kicker">Build list</div>
+              <p class="cash" id="x-ticket-title">Modified container</p>
+              <p class="muted" id="x-ticket-body">Pick the box or a modification.</p>
+            </div>
+            <label for="x-notes">Extra notes</label>
+            <textarea id="x-notes" rows="3" placeholder="Cuts, interior layout, anything the book should keep. Do not invent a price."></textarea>
+            <div class="split">
+              <div><label for="x-amount">Agreed amount (optional)</label><input id="x-amount" inputmode="decimal" placeholder="Agreed number only" /></div>
+              <div>
+                <label for="x-q">Attach CRM contact</label>
+                <input id="x-q" placeholder="Name, phone, email" autocomplete="off" />
+                <div class="hits hide" id="x-hits"></div>
+                <div class="picked hide" id="x-sel"></div>
+              </div>
+            </div>
+            <div class="row">
+              <button type="button" class="gold" id="x-save">Save spec to CRM</button>
+              <button type="button" class="secondary" id="x-copy">Copy spec</button>
+              <button type="button" class="secondary" id="x-proposal">Open in Proposal</button>
+              <button type="button" class="secondary" id="x-money">Open in Money</button>
+            </div>
+            <p class="err" id="x-err"></p>
+          </div>
+        </section>
+
         <section id="mod-money" class="hide">
           <div class="card">
             <h2>Send invoice</h2>
@@ -799,6 +919,9 @@ export function pageHtml(): string {
     const OWNER_ALIASES = ${JSON.stringify(OWNER_ALIASES)};
     const SPARKS = ${JSON.stringify(SALES_SPARKS)};
     const CHANGE_LABELS = ${JSON.stringify(CONTACT_CHANGE_LABELS)};
+    const MOD_CATS = ${JSON.stringify(MODIFIED_CATEGORIES)};
+    const MOD_ITEMS = ${JSON.stringify(MODIFIED_ITEMS)};
+    const MOD_USES = ${JSON.stringify(MODIFIED_USES)};
     let user = null, book = null, selected = null, deskContact = null, deskHits = [], deskSearchSeq = 0, deskSearchTimer = 0, lastGmail = "", lastDoc = "", pick = {size:"40",height:"HC",config:"standard",grade:"CW"};
     let lastQuote = null;
     let campaignIds = {};
@@ -806,6 +929,8 @@ export function pageHtml(): string {
     let chatHistory = [];
     let compPick = { size:"40HC", grade:"CW", config:"Standard" };
     let deskSeeded = false;
+    let xPick = { size:"40", height:"HC", grade:"CW", use:"shop" };
+    let xContact = null, xSearchSeq = 0, xSearchTimer = 0, xCatalogReady = false;
 
     function $(id){ return document.getElementById(id); }
     function esc(s){
@@ -827,8 +952,9 @@ export function pageHtml(): string {
     }
     function openMod(mod){
       document.querySelectorAll("#nav [data-mod]").forEach(function(b){ b.classList.toggle("on", b.dataset.mod===mod); });
-      ["home","crm","desk","proposal","money"].forEach(function(m){ $("mod-"+m).classList.toggle("hide", m!==mod); });
+      ["home","crm","desk","proposal","modified","money"].forEach(function(m){ $("mod-"+m).classList.toggle("hide", m!==mod); });
       if (mod==="desk") { openDesk("chat"); loadTemplates(); seedAsk(); }
+      if (mod==="modified") seedModified();
       if (mod==="money") { seedInvoiceFromContact(); loadInvoices(); }
       if (mod==="home") paintSpark();
     }
@@ -1783,6 +1909,170 @@ export function pageHtml(): string {
       $("desk-body").textContent = res.j.body || res.j.text || JSON.stringify(res.j);
     });
     $("desk-copy").addEventListener("click", async function(){ try { await navigator.clipboard.writeText($("desk-body").textContent||""); } catch (e) {} });
+
+    function xpicks(el, items, key){
+      el.innerHTML = items.map(function(it){ return '<button type="button" data-v="'+it.v+'">'+it.l+"</button>"; }).join("");
+      el.addEventListener("click", function(e){
+        const b = e.target.closest("button"); if(!b) return;
+        xPick[key]=b.dataset.v;
+        el.querySelectorAll("button").forEach(function(x){ x.classList.toggle("on", x===b); });
+        paintModifiedTicket();
+      });
+      const first = el.querySelector('[data-v="'+xPick[key]+'"]');
+      if (first) first.classList.add("on");
+    }
+    function paintModifiedCatalog(){
+      const skip = { foundation:true };
+      $("x-catalog").innerHTML = MOD_CATS.filter(function(c){ return !skip[c.id]; }).map(function(cat){
+        const items = MOD_ITEMS.filter(function(it){ return it.category===cat.id; });
+        return '<div id="x-'+cat.id+'" style="margin-top:14px">'
+          +"<h3>"+esc(cat.title)+"</h3>"
+          +'<p class="muted">'+esc(cat.help)+"</p>"
+          +items.map(function(it){
+            return '<label class="mod-item" data-mod-item="'+esc(it.id)+'">'
+              +'<input type="checkbox" data-mod-on="'+esc(it.id)+'" />'
+              +'<span><span class="name">'+esc(it.name)+'</span><p class="spec">'+esc(it.spec)+"</p></span>"
+              +'<input type="number" min="1" step="1" value="1" data-mod-qty="'+esc(it.id)+'" />'
+              +"</label>";
+          }).join("")
+          +"</div>";
+      }).join("");
+    }
+    function readModifiedUi(){
+      const items = [];
+      if ($("x-apex").checked) items.push({ id:"apex-helical", qty:"1" });
+      if ($("x-apex-hw").checked) items.push({ id:"apex-hardware", qty:"1" });
+      document.querySelectorAll("[data-mod-on]").forEach(function(box){
+        if (!box.checked) return;
+        const id = box.getAttribute("data-mod-on");
+        const qtyEl = document.querySelector('[data-mod-qty="'+id+'"]');
+        items.push({ id:id, qty: qtyEl ? qtyEl.value : "1" });
+      });
+      return {
+        size: xPick.size, height: xPick.height, grade: xPick.grade, use: xPick.use,
+        boxQty: $("x-qty").value, zip: $("x-zip").value,
+        apexPiles: $("x-piles").value, apexNote: $("x-apex-note").value,
+        items: items, agreedAmount: $("x-amount").value, notes: $("x-notes").value
+      };
+    }
+    function modifiedSpecPreview(){
+      const d = readModifiedUi();
+      const lines = [];
+      const box = [d.size?d.size+" ft":"", d.height==="HC"?"high cube":d.height==="DC"?"standard / DC":"", d.grade].filter(Boolean).join(" ");
+      if (box) lines.push("Base box: "+(d.boxQty && String(d.boxQty)!=="1"?d.boxQty+" × ":"")+box);
+      const use = MOD_USES.find(function(u){ return u.v===d.use; });
+      if (use) lines.push("Use: "+use.l);
+      if (d.zip) lines.push("Site ZIP: "+d.zip);
+      d.items.forEach(function(line){
+        const item = MOD_ITEMS.find(function(it){ return it.id===line.id; });
+        if (!item) return;
+        let row = item.name;
+        if (line.qty && String(line.qty)!=="1") row += " × "+line.qty;
+        if (item.id==="apex-helical" && d.apexPiles) row += " — "+d.apexPiles+" pylons from the land walk";
+        if (item.id==="apex-helical" && d.apexNote) row += " ("+d.apexNote+")";
+        lines.push(row);
+      });
+      if (d.notes) lines.push("Notes: "+d.notes);
+      if (String(d.agreedAmount||"").trim()) lines.push("Agreed amount (typed, not invented): "+String(d.agreedAmount).trim());
+      const hasApex = d.items.some(function(it){ return it.id==="apex-helical" || it.id==="apex-hardware"; });
+      const title = hasApex ? (box ? "Modified "+box+" on CB Apex" : "Modified container on CB Apex") : (box ? "Modified "+box : "Modified container");
+      return { title:title, lines:lines, text:[title].concat(lines).join("\\n") };
+    }
+    function paintModifiedTicket(){
+      const spec = modifiedSpecPreview();
+      $("x-ticket-title").textContent = spec.title;
+      $("x-ticket-body").textContent = spec.lines.length ? spec.lines.join(" · ") : "Pick the box or a modification.";
+    }
+    function renderXHits(rows){
+      const box = $("x-hits");
+      box.innerHTML = "";
+      if (!rows || !rows.length){ box.classList.add("hide"); return; }
+      box.classList.remove("hide");
+      rows.slice(0,8).forEach(function(c){
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "hit";
+        b.textContent = [c.name || "Unnamed", c.phone, c.city].filter(Boolean).join(" · ");
+        b.addEventListener("click", function(){
+          xContact = c;
+          $("x-q").value = c.name || "";
+          $("x-sel").textContent = (c.name || "Unnamed")+" · "+(c.phone||"—");
+          $("x-sel").classList.remove("hide");
+          box.classList.add("hide");
+        });
+        box.appendChild(b);
+      });
+    }
+    function seedModified(){
+      if (xCatalogReady){ paintModifiedTicket(); return; }
+      xCatalogReady = true;
+      xpicks($("x-size"), SIZES, "size");
+      xpicks($("x-height"), HEIGHTS, "height");
+      xpicks($("x-grade"), GRADES, "grade");
+      xpicks($("x-use"), MOD_USES, "use");
+      paintModifiedCatalog();
+      $("x-catalog").addEventListener("change", paintModifiedTicket);
+      $("x-catalog").addEventListener("input", paintModifiedTicket);
+      ["x-qty","x-zip","x-piles","x-apex-note","x-notes","x-amount"].forEach(function(id){
+        $(id).addEventListener("input", paintModifiedTicket);
+      });
+      $("x-apex").addEventListener("change", paintModifiedTicket);
+      $("x-apex-hw").addEventListener("change", paintModifiedTicket);
+      paintModifiedTicket();
+    }
+    $("x-q").addEventListener("input", function(){
+      const q = $("x-q").value.trim();
+      const seq = ++xSearchSeq;
+      clearTimeout(xSearchTimer);
+      if (q.length<2){ renderXHits([]); return; }
+      xSearchTimer = setTimeout(async function(){
+        const res = await api("/x/desk/contacts?q="+encodeURIComponent(q));
+        if (seq !== xSearchSeq) return;
+        if (!res.r.ok){ $("x-err").textContent = res.j.error || "Could not search the CRM."; renderXHits([]); return; }
+        renderXHits(res.j.contacts||[]);
+      }, 280);
+    });
+    $("x-save").addEventListener("click", async function(){
+      $("x-err").className = "err";
+      $("x-err").textContent = "";
+      const draft = readModifiedUi();
+      if (xContact && xContact.id != null) draft.contactId = String(xContact.id);
+      const res = await api("/modified/spec", { method:"POST", body: JSON.stringify(draft) });
+      if (!res.r.ok || !res.j.ok){
+        $("x-err").textContent = res.j.error || "Could not save that spec.";
+        return;
+      }
+      $("x-err").className = "ok";
+      $("x-err").textContent = res.j.saved
+        ? "Spec saved to the CRM on "+((xContact && xContact.name) || "that contact")+"."
+        : "Spec is ready. Attach a contact to put it on the book.";
+    });
+    $("x-copy").addEventListener("click", async function(){
+      try { await navigator.clipboard.writeText(modifiedSpecPreview().text); $("x-err").className="ok"; $("x-err").textContent="Spec copied."; }
+      catch (e) { $("x-err").className="err"; $("x-err").textContent="Could not copy."; }
+    });
+    $("x-proposal").addEventListener("click", function(){
+      const spec = modifiedSpecPreview();
+      $("p-notes").value = spec.text;
+      if (xContact){
+        $("p-name").value = xContact.name || $("p-name").value;
+        $("p-email").value = xContact.email || $("p-email").value;
+        $("p-phone").value = xContact.phone || $("p-phone").value;
+      }
+      if ($("x-zip").value) $("p-zip").value = $("x-zip").value;
+      openMod("proposal");
+    });
+    $("x-money").addEventListener("click", function(){
+      const spec = modifiedSpecPreview();
+      $("i-notes").value = spec.text;
+      if (xContact){
+        $("i-name").value = xContact.name || $("i-name").value;
+        $("i-email").value = xContact.email || $("i-email").value;
+        $("i-phone").value = xContact.phone || $("i-phone").value;
+      }
+      if (String($("x-amount").value||"").trim()) $("i-amount").value = $("x-amount").value;
+      openMod("money");
+    });
 
     function picks(el, items, key){
       el.innerHTML = items.map(function(it){ return '<button type="button" data-v="'+it.v+'">'+it.l+"</button>"; }).join("");

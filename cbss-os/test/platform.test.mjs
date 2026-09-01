@@ -30,6 +30,7 @@ describe("CBSS platform brand", () => {
     assert.match(page, /data-mod="crm"/);
     assert.match(page, /data-mod="desk"/);
     assert.match(page, /data-mod="proposal"/);
+    assert.match(page, /data-mod="modified"/);
     assert.match(page, /data-mod="money"/);
     assert.match(page, /Call scraps/);
     assert.match(page, /Proposal Builder/);
