@@ -4,9 +4,11 @@ import { readFileSync } from "node:fs";
 import {
   buildDeskAddedContact,
   deskContactName,
+  deskContactNote,
   findOwnDeskContact,
   phoneDigits,
   readDeskContactDraft,
+  scheduleDeskTrack,
 } from "../src/desk-contact.ts";
 import { pageHtml } from "../src/page.ts";
 
@@ -33,7 +35,7 @@ describe("Desk new contact on The Yard", () => {
     const row = buildDeskAddedContact(draft, "kyle@cbshippingsolutions.com", new Date("2026-09-01T12:00:00Z"));
     assert.equal(row.name, "Pat Lee");
     assert.equal(row.owner, "Kyle Hodgkiss");
-    assert.equal(row.status, "New Lead");
+    assert.equal(row.status, "CTE in progress");
     assert.equal(row.source, "Desk");
     assert.equal(row.street, "14 Depot Rd");
     assert.equal(row.created, "2026-09-01");
@@ -46,6 +48,25 @@ describe("Desk new contact on The Yard", () => {
     assert.equal(phoneDigits("870-555-0100"), "8705550100");
     assert.equal(findOwnDeskContact([other], draft, "Kyle Hodgkiss"), null);
     assert.equal(findOwnDeskContact([other, mine], draft, "Kyle Hodgkiss"), mine);
+  });
+
+  it("books CTE or one follow-up from the same two buttons as Desk", () => {
+    const cte = scheduleDeskTrack({ track: "cte", nextAction: "", followUpDate: "" }, new Date("2026-09-01T15:00:00Z"));
+    assert.equal(cte.track, "cte");
+    assert.equal(cte.stage, "CTE in progress");
+    assert.match(cte.noteSuffix, /CTE plan/);
+    const follow = scheduleDeskTrack(
+      { track: "followup", nextAction: "Call about site access", followUpDate: "2026-09-03T09:00" },
+      new Date("2026-09-01T15:00:00Z"),
+    );
+    assert.equal(follow.stage, "Follow up in progress");
+    assert.equal(follow.nextAction, "Call about site access");
+    assert.equal(follow.followUpDate, "2026-09-03T09:00");
+    assert.doesNotMatch(follow.noteSuffix, /CTE plan/);
+    const draft = readDeskContactDraft({ firstName: "Pat", lastName: "Lee", pastCte: true });
+    assert.equal(draft.track, "followup");
+    assert.match(deskContactNote("Need a 40HC.", follow), /Need a 40HC/);
+    assert.match(deskContactNote("Need a 40HC.", follow), /Follow-up set/);
   });
 
   it("puts the New contact form on Desk and writes through /desk/contact", () => {
@@ -62,11 +83,19 @@ describe("Desk new contact on The Yard", () => {
     assert.match(page, /id="n-state"/);
     assert.match(page, /id="n-zip"/);
     assert.match(page, /id="n-notes"/);
+    assert.match(page, /id="n-track"/);
+    assert.match(page, /data-track="cte"/);
+    assert.match(page, /data-track="followup"/);
+    assert.match(page, /Is this CTE or follow-up\?/);
+    assert.match(page, /id="n-action"/);
+    assert.match(page, /id="n-when"/);
     assert.match(page, /id="n-save"/);
     assert.match(page, /Save to CRM/);
     assert.match(page, /api\("\/desk\/contact"/);
     assert.match(index, /path === "\/desk\/contact"/);
     assert.match(index, /saveContactsAdded/);
+    assert.match(index, /saveFollowups/);
+    assert.match(index, /scheduleDeskTrack/);
     assert.match(index, /appendNote/);
     assert.match(index, /Type first and last name/);
   });

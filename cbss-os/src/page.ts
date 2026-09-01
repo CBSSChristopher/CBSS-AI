@@ -451,6 +451,16 @@ export function pageHtml(): string {
             <input id="n-zip" inputmode="numeric" maxlength="10" autocomplete="postal-code" />
             <label for="n-notes">Notes</label>
             <textarea id="n-notes" rows="4" placeholder="What they need, next step, anything the book should keep"></textarea>
+            <label>Is this CTE or follow-up?</label>
+            <div class="picks" id="n-track">
+              <button type="button" class="on" data-track="cte">CTE</button>
+              <button type="button" data-track="followup">Follow-up</button>
+            </div>
+            <p class="muted" id="n-track-help">CTE is first outreach — Call, then Text, then Email. Follow-up is after they connected.</p>
+            <div class="split">
+              <div><label for="n-action">Next action</label><input id="n-action" placeholder="Call about site access" /></div>
+              <div><label for="n-when">Follow-up date</label><input id="n-when" type="datetime-local" /></div>
+            </div>
             <div class="row"><button type="button" class="gold" id="n-save">Save to CRM</button></div>
             <p class="err" id="n-err"></p>
           </div>
@@ -1601,6 +1611,16 @@ export function pageHtml(): string {
       $("desk-err").textContent = "";
     });
     $("desk-new-open").addEventListener("click", function(){ openDesk("new"); $("n-first").focus(); });
+    let newTrack = "cte";
+    $("n-track").addEventListener("click", function(e){
+      const b = e.target.closest("[data-track]");
+      if (!b) return;
+      newTrack = b.getAttribute("data-track") === "followup" ? "followup" : "cte";
+      $("n-track").querySelectorAll("[data-track]").forEach(function(x){ x.classList.toggle("on", x===b); });
+      $("n-track-help").textContent = newTrack==="followup"
+        ? "They already connected. Book one real follow-up."
+        : "CTE is first outreach — Call, then Text, then Email. Follow-up is after they connected.";
+    });
     function readNewContact(){
       return {
         firstName: $("n-first").value.trim(),
@@ -1612,7 +1632,10 @@ export function pageHtml(): string {
         city: $("n-city").value.trim(),
         state: $("n-state").value.trim(),
         zip: $("n-zip").value.trim(),
-        notes: $("n-notes").value.trim()
+        notes: $("n-notes").value.trim(),
+        track: newTrack,
+        nextAction: $("n-action").value.trim(),
+        followUpDate: $("n-when").value.trim()
       };
     }
     $("n-save").addEventListener("click", async function(){
@@ -1636,13 +1659,16 @@ export function pageHtml(): string {
         email: c.email || draft.email,
         city: c.city || draft.city,
         zip: c.zip || draft.zip,
-        stage: c.status || "New Lead"
+        stage: c.status || res.j.stage || "New Lead"
       });
       if (book && book.contacts && c.id != null){
         const id = String(c.id);
-        if (!(book.contacts||[]).some(function(row){ return String(row.id)===id; })){
-          book.contacts.unshift(Object.assign({ status:"New Lead", source:"Desk", owner: titleOwner((user&&(user.name||user.email))||"") }, c));
-        }
+        const row = Object.assign({ source:"Desk", owner: titleOwner((user&&(user.name||user.email))||"") }, c, { status: c.status || res.j.stage || "New Lead" });
+        const hit = (book.contacts||[]).find(function(item){ return String(item.id)===id; });
+        if (hit) Object.assign(hit, row);
+        else book.contacts.unshift(row);
+        if (!book.followups) book.followups = {};
+        book.followups[id] = { nextAction: c.nextAction || "", followUpDate: c.followUpDate || "", completed:false, status:"open" };
         fillOwners(); renderStats(); renderContacts();
       }
       $("n-notes").value = "";
