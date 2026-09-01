@@ -54,6 +54,7 @@ describe("CBSS public website", () => {
     assert.doesNotMatch(all, /573-525-8324/);
     assert.match(js, /\["christopher", "cbshippingsolutions\.com"\]\.join\("@"\)/);
     assert.match(js, /\/api\/request/);
+    assert.match(js, /cbssweb\.cbss\.workers\.dev\/api\/request/);
     assert.match(js, /\/brand\/mark\.webp/);
     assert.match(js, /\/brand\/bbb-accredited\.webp/);
     assert.doesNotMatch(js, /brand-mark" viewBox/);
@@ -65,6 +66,8 @@ describe("CBSS public website", () => {
     const worker = readFileSync(new URL("../src/worker.js", import.meta.url), "utf8");
     assert.match(worker, /"Alt-Svc": "clear"/);
     assert.match(worker, /inlineBrandCss/);
+    assert.match(worker, /Access-Control-Allow-Origin/);
+    assert.match(worker, /OPTIONS/);
   });
 
   it("uses zone routes on the public hostname, not Workers custom domains", () => {

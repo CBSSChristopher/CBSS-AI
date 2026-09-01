@@ -6,4 +6,4 @@ Live: `https://cbshippingsolutions.app`
 
 This is not a quote tool. It does not invent a price. Staff still price a box from the posted yard number plus delivery in the Proposal tool.
 
-Hosted as Cloudflare Worker `cbssweb` on the `cbshippingsolutions.app` zone (proxied DNS + Worker routes).
+Public pages are served from GitHub Pages on `cbshippingsolutions.app` so a default browser can complete TLS. The information-request form still posts to Worker `cbssweb`.
