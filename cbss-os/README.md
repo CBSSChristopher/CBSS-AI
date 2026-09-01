@@ -1,6 +1,6 @@
 # The Yard
 
-The house tool for CB Shipping Solutions. One login for CRM, Desk, Proposal, and Money.
+The house tool for CB Shipping Solutions. One login for CRM, Desk, Proposal, Modified, and Money.
 
 Bookmark: `https://theyard.cbss.workers.dev`
 
@@ -21,6 +21,7 @@ Navy `#0B1F3A` / gold `#C9A227` / cream `#F7F4EC`.
 - **CRM** — contacts, follow-ups, tasks, pipeline, notes, email-campaign hold
 - **Desk** — Harbor (CBSS AI) first, Container One / USA Containers price match, then call scraps and email
 - **Proposal** — stepped quote: pick the box, Get CBSS Price, proposal amount, submit
+- **Modified** — build-out spec: Apex helical pylons, doors, roll-up, windows, framing, insulation, electrical. No invented prices
 - **Money** — branded invoice (ACH/wire or card). No Veem.
 
 ## Hard rules

@@ -66,4 +66,4 @@ export const LIVE_TOOLS = {
   invoice: "https://cbssinvoice.cbss.workers.dev",
 } as const;
 
-export const MODULES = ["CRM", "Desk", "Proposal", "Money"] as const;
+export const MODULES = ["CRM", "Desk", "Proposal", "Modified", "Money"] as const;

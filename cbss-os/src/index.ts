@@ -29,6 +29,7 @@ import {
   readDeskContactDraft,
   scheduleDeskTrack,
 } from "./desk-contact.ts";
+import { buildModifiedSpec, readModifiedDraft } from "./modified-catalog.ts";
 
 const SECURITY = {
   "X-Content-Type-Options": "nosniff",
@@ -451,6 +452,38 @@ export default {
           ? (plan.track === "followup" ? "Saved to CRM. Follow-up booked." : "Saved to CRM. CTE booked.")
           : "That contact is already on your book. CTE or follow-up updated.",
       });
+    }
+
+    if (request.method === "POST" && path === "/modified/spec") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      const body = await readJson(request);
+      const draft = readModifiedDraft(body);
+      const spec = buildModifiedSpec(draft);
+      if (!spec.ok) return json(400, { error: spec.error || "Pick the box or at least one modification first." });
+      const contactId = String(body.contactId == null ? "" : body.contactId).trim();
+      if (contactId) {
+        const noteReq = new Request(new URL("/x/crm/crm-data", request.url), {
+          method: "POST",
+          headers: {
+            Cookie: request.headers.get("Cookie") || "",
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            action: "appendNote",
+            contactId,
+            text: spec.text,
+            tag: "Modified",
+          }),
+        });
+        const noteRes = await proxyTool(noteReq, env, "crm", "/crm-data");
+        if (!noteRes.ok) {
+          const note = await noteRes.json().catch(() => ({})) as { error?: string };
+          return json(noteRes.status, { error: note.error || "Spec is ready. The CRM note did not save. Try again.", spec });
+        }
+      }
+      return json(200, { ok: true, spec, saved: Boolean(contactId) });
     }
 
     if (request.method === "POST" && path === "/quote/match") {
