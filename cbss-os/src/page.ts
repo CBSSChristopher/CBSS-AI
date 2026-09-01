@@ -279,12 +279,12 @@ export function pageHtml(): string {
       <div class="seal">CB</div>
       <h1>The Yard</h1>
       <p class="muted">The CB Shipping Solutions house tool. One login for CRM, Desk, Proposal, Modified, and Money. Company email only. Same password as the CRM. Bookmark ${YARD_PUBLIC} — not a workers.dev link.</p>
-      <form id="login-form">
+      <form id="login-form" method="post" action="/auth/login">
         <label for="email">Company email</label>
-        <input id="email" type="email" autocomplete="username" placeholder="you@cbshippingsolutions.com" required />
+        <input id="email" name="email" type="email" autocomplete="username" placeholder="you@cbshippingsolutions.com" required />
         <label for="password">Password</label>
-        <input id="password" type="password" autocomplete="current-password" required />
-        <div class="row"><button type="submit" class="gold">Open The Yard</button></div>
+        <input id="password" name="password" type="password" autocomplete="current-password" required />
+        <div class="row"><button type="submit" class="gold" id="login-go">Open The Yard</button></div>
         <p class="err" id="login-err"></p>
       </form>
     </section>
@@ -987,9 +987,17 @@ export function pageHtml(): string {
     setInterval(nextSpark, 9000);
     paintSpark();
     async function api(path, opt){
-      const r = await fetch(path, Object.assign({ credentials:"same-origin", headers:{ "Content-Type":"application/json" } }, opt||{}));
+      opt = opt || {};
+      const allow401 = opt.allow401;
+      const fetchOpt = Object.assign({ credentials:"same-origin", headers:{ "Content-Type":"application/json" } }, opt);
+      delete fetchOpt.allow401;
+      const r = await fetch(path, fetchOpt);
       const j = await r.json().catch(function(){ return {}; });
-      if (r.status===401){ show("login"); throw new Error("Sign in first."); }
+      if (r.status===401){
+        if (allow401) return { r:r, j:j };
+        if (!user) show("login");
+        throw new Error(j.error || "Sign in first.");
+      }
       return { r:r, j:j };
     }
     function money(n){ return "$" + Number(n||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}); }
@@ -1052,9 +1060,22 @@ export function pageHtml(): string {
     document.getElementById("login-form").addEventListener("submit", async function(e){
       e.preventDefault();
       $("login-err").textContent = "";
-      const res = await api("/auth/login", { method:"POST", body: JSON.stringify({ email:$("email").value, password:$("password").value }) });
-      if (!res.r.ok || !res.j.ok){ $("login-err").textContent = res.j.error || "Could not sign in."; return; }
-      user = res.j.user; greet(user.name); paintTools(user.tools); show("app"); openMod("home"); loadCrm();
+      const btn = $("login-go");
+      if (btn){ btn.disabled = true; btn.textContent = "Opening…"; }
+      try {
+        const res = await api("/auth/login", {
+          method:"POST",
+          body: JSON.stringify({ email:$("email").value, password:$("password").value }),
+          allow401: true
+        });
+        if (!res.r.ok || !res.j.ok){ $("login-err").textContent = res.j.error || "Could not sign in."; return; }
+        user = res.j.user; greet(user.name); paintTools(user.tools); show("app"); openMod("home");
+        try { await loadCrm(); } catch (err) { $("crm-err").textContent = "Signed in. Refresh if the book stays empty."; }
+      } catch (err) {
+        $("login-err").textContent = (err && err.message) ? err.message : "Could not sign in. Try again.";
+      } finally {
+        if (btn){ btn.disabled = false; btn.textContent = "Open The Yard"; }
+      }
     });
     $("out").addEventListener("click", async function(){ await api("/auth/logout",{method:"POST"}); show("login"); });
     document.querySelectorAll("#nav [data-mod]").forEach(function(btn){
@@ -2359,6 +2380,7 @@ export function pageHtml(): string {
 
     (async function boot(){
       const res = await api("/session");
+      if (user) return;
       if (res.j.ok && res.j.user){ user=res.j.user; greet(user.name); paintTools(user.tools); show("app"); openMod("home"); loadCrm(); }
       else show("login");
     })();

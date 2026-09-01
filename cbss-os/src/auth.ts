@@ -229,8 +229,14 @@ async function loginOrigin(
     method: "POST",
     headers: { "Content-Type": "application/json", "User-Agent": UA, Origin: origin },
     body: JSON.stringify({ email, password }),
+    signal: AbortSignal.timeout(15000),
   });
-  const res = fetcher ? await fetcher.fetch(req) : await fetch(req);
+  let res: Response;
+  try {
+    res = fetcher ? await fetcher.fetch(req) : await fetch(req);
+  } catch {
+    return { ok: false, status: 504, cookie: "", name: "", error: "That tool did not answer. Try again." };
+  }
   const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   const nested = (body.user && typeof body.user === "object" ? body.user : {}) as { email?: string; name?: string };
   const name = String(nested.name || body.name || email);

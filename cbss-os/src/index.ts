@@ -81,6 +81,28 @@ async function readJson(request: Request): Promise<Record<string, unknown>> {
   }
 }
 
+async function readLoginBody(request: Request): Promise<Record<string, unknown>> {
+  const ct = String(request.headers.get("Content-Type") || "").toLowerCase();
+  if (ct.includes("application/x-www-form-urlencoded") || ct.includes("multipart/form-data")) {
+    try {
+      const form = await request.formData();
+      return {
+        email: String(form.get("email") || ""),
+        password: String(form.get("password") || ""),
+      };
+    } catch {
+      return {};
+    }
+  }
+  return readJson(request);
+}
+
+function loginWantsRedirect(request: Request): boolean {
+  const ct = String(request.headers.get("Content-Type") || "").toLowerCase();
+  const accept = String(request.headers.get("Accept") || "").toLowerCase();
+  return ct.includes("application/x-www-form-urlencoded") || (accept.includes("text/html") && !accept.includes("application/json"));
+}
+
 function str(v: unknown): string {
   return typeof v === "string" ? v.trim() : "";
 }
@@ -176,18 +198,20 @@ export default {
 
     if (request.method === "POST" && path === "/auth/login") {
       if (!env.AUTH_SECRET) return json(500, { error: "Platform is not set up yet." });
-      const body = await readJson(request);
+      const body = await readLoginBody(request);
       const email = str(body.email).toLowerCase();
       const password = str(body.password);
       if (!password) return json(401, { error: "Enter your password." });
       if (!email || !isCompanyEmail(email)) return json(401, { error: "Use your company email and CRM password." });
       const result = await loginAllTools(env, email, password);
       if (!result.ok) return json(result.status, { error: result.error });
-      return withCookies(
-        200,
-        { ok: true, user: publicUser(result.user) },
-        await makeSession(request, env, result.user),
-      );
+      const cookies = await makeSession(request, env, result.user);
+      if (loginWantsRedirect(request)) {
+        const headers = new Headers({ Location: "/", ...SECURITY });
+        for (const c of cookies) headers.append("Set-Cookie", c);
+        return new Response(null, { status: 303, headers });
+      }
+      return withCookies(200, { ok: true, user: publicUser(result.user) }, cookies);
     }
 
     if (request.method === "POST" && path === "/auth/logout") {
