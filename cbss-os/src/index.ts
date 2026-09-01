@@ -197,16 +197,21 @@ export default {
     }
 
     if (request.method === "POST" && path === "/auth/login") {
-      if (!env.AUTH_SECRET) return json(500, { error: "Platform is not set up yet." });
+      const asPage = loginWantsRedirect(request);
+      if (!env.AUTH_SECRET) {
+        return asPage ? html(pageHtml({ loginError: "Platform is not set up yet." })) : json(500, { error: "Platform is not set up yet." });
+      }
       const body = await readLoginBody(request);
       const email = str(body.email).toLowerCase();
       const password = str(body.password);
-      if (!password) return json(401, { error: "Enter your password." });
-      if (!email || !isCompanyEmail(email)) return json(401, { error: "Use your company email and CRM password." });
+      const fail = (status: number, error: string) =>
+        asPage ? html(pageHtml({ loginError: error })) : json(status, { error });
+      if (!password) return fail(401, "Type your CRM password in the password box, then Open The Yard.");
+      if (!email || !isCompanyEmail(email)) return fail(401, "Use your full company email — name@cbshippingsolutions.com.");
       const result = await loginAllTools(env, email, password);
-      if (!result.ok) return json(result.status, { error: result.error });
+      if (!result.ok) return fail(result.status, result.error || "Could not sign in.");
       const cookies = await makeSession(request, env, result.user);
-      if (loginWantsRedirect(request)) {
+      if (asPage) {
         const headers = new Headers({ Location: "/", ...SECURITY });
         for (const c of cookies) headers.append("Set-Cookie", c);
         return new Response(null, { status: 303, headers });

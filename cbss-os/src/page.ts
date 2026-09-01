@@ -2,7 +2,14 @@ import { BRAND, OWNER_ALIASES, SALES_SPARKS, TEAM_OWNERS, YARD_PUBLIC } from "./
 import { CONTACT_CHANGE_LABELS } from "./contact-log.ts";
 import { MODIFIED_CATEGORIES, MODIFIED_ITEMS, MODIFIED_USES } from "./modified-catalog.ts";
 
-export function pageHtml(): string {
+function htmlEsc(value: string): string {
+  return String(value || "").replace(/[&<>"']/g, function (c) {
+    return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" } as Record<string, string>)[c] || c;
+  });
+}
+
+export function pageHtml(opts: { loginError?: string } = {}): string {
+  const loginError = htmlEsc(opts.loginError || "");
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -278,14 +285,14 @@ export function pageHtml(): string {
     <section class="card login-card">
       <div class="seal">CB</div>
       <h1>The Yard</h1>
-      <p class="muted">The CB Shipping Solutions house tool. One login for CRM, Desk, Proposal, Modified, and Money. Company email only. Same password as the CRM. Bookmark ${YARD_PUBLIC} — not a workers.dev link.</p>
+      <p class="muted">The CB Shipping Solutions house tool. One login for CRM, Desk, Proposal, Modified, and Money. Company email only. Same password as the CRM book — not Gmail. Bookmark ${YARD_PUBLIC} — not a workers.dev link.</p>
       <form id="login-form" method="post" action="/auth/login">
         <label for="email">Company email</label>
-        <input id="email" name="email" type="email" autocomplete="username" placeholder="you@cbshippingsolutions.com" required />
-        <label for="password">Password</label>
+        <input id="email" name="email" type="text" inputmode="email" autocomplete="username" placeholder="you@cbshippingsolutions.com" required />
+        <label for="password">CRM password</label>
         <input id="password" name="password" type="password" autocomplete="current-password" required />
         <div class="row"><button type="submit" class="gold" id="login-go">Open The Yard</button></div>
-        <p class="err" id="login-err"></p>
+        <p class="err" id="login-err">${loginError}</p>
       </form>
     </section>
   </div>
@@ -1058,6 +1065,14 @@ export function pageHtml(): string {
     }
 
     document.getElementById("login-form").addEventListener("submit", async function(e){
+      const email = String($("email").value||"").trim();
+      const password = String($("password").value||"");
+      if (!email || !password){
+        e.preventDefault();
+        $("login-err").textContent = password ? "Use your full company email — name@cbshippingsolutions.com." : "Type your CRM password in the password box, then Open The Yard.";
+        $(password ? "email" : "password").focus();
+        return;
+      }
       e.preventDefault();
       $("login-err").textContent = "";
       const btn = $("login-go");
@@ -1065,7 +1080,7 @@ export function pageHtml(): string {
       try {
         const res = await api("/auth/login", {
           method:"POST",
-          body: JSON.stringify({ email:$("email").value, password:$("password").value }),
+          body: JSON.stringify({ email:email, password:password }),
           allow401: true
         });
         if (!res.r.ok || !res.j.ok){ $("login-err").textContent = res.j.error || "Could not sign in."; return; }
