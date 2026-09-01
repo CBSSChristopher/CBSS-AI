@@ -1,4 +1,5 @@
 import { BRAND, SALES_SPARKS, TEAM_OWNERS } from "./brand.ts";
+import { CONTACT_CHANGE_LABELS } from "./contact-log.ts";
 
 export function pageHtml(): string {
   return `<!doctype html>
@@ -600,7 +601,7 @@ export function pageHtml(): string {
     <div class="modal-card">
       <h2>Edit contact</h2>
       <input type="hidden" id="m-id" />
-      <div><label for="m-name">Name</label><input id="m-name" /></div>
+      <div><label for="m-name">Name</label><select id="m-name"></select></div>
       <div class="split">
         <div><label for="m-email">Email</label><input id="m-email" /></div>
         <div><label for="m-phone">Phone</label><input id="m-phone" /></div>
@@ -616,8 +617,7 @@ export function pageHtml(): string {
       <div class="split">
         <div>
           <label for="m-owner">Owner</label>
-          <input id="m-owner" list="m-owner-list" placeholder="New/Unassigned or a rep name" />
-          <datalist id="m-owner-list"></datalist>
+          <select id="m-owner"></select>
         </div>
         <div>
           <label for="m-status">Stage</label>
@@ -707,6 +707,7 @@ export function pageHtml(): string {
     const GRADES = [{v:"WWT",l:"WWT"},{v:"CW",l:"CW"},{v:"IICL",l:"IICL / Multi-Trip"},{v:"OneTrip",l:"One-Trip"},{v:"AsIs",l:"As-Is"}];
     const TEAM = ${JSON.stringify(TEAM_OWNERS)};
     const SPARKS = ${JSON.stringify(SALES_SPARKS)};
+    const CHANGE_LABELS = ${JSON.stringify(CONTACT_CHANGE_LABELS)};
     let user = null, book = null, selected = null, deskContact = null, deskHits = [], deskSearchSeq = 0, deskSearchTimer = 0, lastGmail = "", lastDoc = "", pick = {size:"40",height:"HC",config:"standard",grade:"CW"};
     let lastQuote = null;
     let campaignIds = {};
@@ -973,7 +974,7 @@ export function pageHtml(): string {
         +'<div class="row"><button type="button" class="secondary" id="fu-save">Save follow-up</button><button type="button" id="fu-done">Complete</button></div>'
         +'<label>Add note</label><textarea id="note-text" rows="2"></textarea><div class="row"><button type="button" class="secondary" id="note-add">Add note</button></div>'
         +doneTodayHtml(selected)
-        +"<div>"+(notes.slice(0,12).map(function(n){ return '<div class="note"><strong>'+esc(n.tag||n.author||"")+"</strong> "+esc(n.timestamp||"")+"<div>"+esc(n.text||"")+"</div></div>"; }).join("")||'<p class="muted">No notes yet.</p>')+"</div>";
+        +"<div>"+(notes.slice(0,20).map(function(n){ return '<div class="note"><strong>'+esc(n.tag||n.author||"")+"</strong> "+esc(n.timestamp||"")+"<div>"+esc(n.text||"")+"</div></div>"; }).join("")||'<p class="muted">No notes yet.</p>')+"</div>";
       $("fu-save").onclick = saveFollowup;
       $("fu-done").onclick = completeTask;
       $("note-add").onclick = addNote;
@@ -1052,22 +1053,41 @@ export function pageHtml(): string {
       selected = null;
       renderStats(); renderContacts(); renderFollowups(); renderTasks(); renderPipeline(); renderCampaign();
     }
-    function fillOwnerList(){
-      $("m-owner-list").innerHTML = TEAM.map(function(n){ return '<option value="'+esc(n)+'"></option>'; }).join("");
+    function fillNameList(current){
+      const names = new Set();
+      const cur = String(current||"").trim();
+      if (cur) names.add(cur);
+      ((book&&book.contacts)||[]).forEach(function(c){
+        const n = String(c.name||"").trim();
+        if (n) names.add(n);
+      });
+      const list = Array.from(names).sort(function(a,b){ return a.localeCompare(b); });
+      $("m-name").innerHTML = list.map(function(n){
+        return '<option value="'+esc(n)+'">'+esc(n)+"</option>";
+      }).join("");
+      if (cur) $("m-name").value = cur;
+    }
+    function fillOwnerList(current){
+      const cur = titleOwner(current);
+      const list = TEAM.slice();
+      if (cur && list.indexOf(cur)<0) list.unshift(cur);
+      $("m-owner").innerHTML = list.map(function(n){
+        return '<option value="'+esc(n)+'">'+esc(n)+"</option>";
+      }).join("");
+      $("m-owner").value = cur || "New/Unassigned";
     }
     function closeContactEdit(){ $("contact-edit").classList.add("hide"); }
     function openContactEdit(c){
       if (!c) return;
-      fillOwnerList();
+      fillNameList(c.name||"");
+      fillOwnerList(c.owner||"");
       $("m-id").value = String(c.id);
-      $("m-name").value = c.name||"";
       $("m-email").value = c.email||"";
       $("m-phone").value = c.phone||"";
       $("m-city").value = c.city||"";
       $("m-state").value = c.state||"";
       $("m-zip").value = c.zip||"";
       $("m-company").value = c.company||"";
-      $("m-owner").value = c.owner||"";
       $("m-status").innerHTML = stageOptions(contactStage(c));
       $("m-source").value = c.source||"Manual";
       $("m-client").value = c.clientType||"";
@@ -1105,13 +1125,42 @@ export function pageHtml(): string {
         dnc: $("m-dnc").checked
       };
     }
+    function contactChangeLines(before, patch){
+      const lines = [];
+      Object.keys(patch||{}).forEach(function(key){
+        const label = CHANGE_LABELS[key];
+        if (!label) return;
+        const oldV = key==="dnc" ? (before && before.dnc ? "yes" : "no") : String(before && before[key]!=null ? before[key] : "").trim();
+        const newV = key==="dnc" ? (patch.dnc ? "yes" : "no") : String(patch[key]==null ? "" : patch[key]).trim();
+        if (oldV===newV) return;
+        lines.push(label+" changed from "+(oldV||"—")+" to "+(newV||"—"));
+      });
+      return lines;
+    }
+    async function recordContactChange(id, before, patch){
+      const lines = contactChangeLines(before, patch);
+      if (!lines.length) return;
+      const who = String((user && (user.name||user.email))||"").trim();
+      const text = (who ? who+" · " : "")+lines.join(". ")+".";
+      try {
+        await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"appendNote", contactId:String(id), text:text, tag:"Book" }) });
+      } catch (_) {}
+    }
     async function persistContactPatch(id, patch){
+      const row = (book.contacts||[]).find(function(c){ return String(c.id)===String(id); }) || {};
+      const before = {
+        name: row.name, email: row.email, phone: row.phone, city: row.city, state: row.state, zip: row.zip,
+        company: row.company, owner: row.owner, status: contactStage(row), source: row.source,
+        clientType: row.clientType, containerSize: row.containerSize, condition: row.condition,
+        depot: row.depot, delivery: row.delivery, paymentMode: row.paymentMode,
+        amount: row.amount, wholesale: row.wholesale, dnc: row.dnc
+      };
       const edits = {};
       edits[id] = patch;
       edits[String(id)] = patch;
       await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"saveContactEdits", contactEdits: edits }) });
-      const row = (book.contacts||[]).find(function(c){ return String(c.id)===String(id); });
-      if (row) Object.assign(row, patch);
+      await recordContactChange(id, before, patch);
+      if (row && row.id) Object.assign(row, patch);
       if (selected && String(selected.id)===String(id)) Object.assign(selected, patch);
       if (patch.status){
         book.deals = book.deals || [];

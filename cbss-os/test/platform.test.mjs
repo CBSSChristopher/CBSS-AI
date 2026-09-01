@@ -184,6 +184,13 @@ describe("The Yard CRM edit and Money invoice send", () => {
     assert.match(page, /function contactStage/);
     assert.match(page, /function openContactEdit/);
     assert.match(page, /function persistContactPatch/);
+    assert.match(page, /function fillNameList/);
+    assert.match(page, /<select id="m-name"><\/select>/);
+    assert.match(page, /<select id="m-owner"><\/select>/);
+    assert.doesNotMatch(page, /id="m-owner-list"/);
+    assert.match(page, /action:"appendNote"/);
+    assert.match(page, /tag:"Book"/);
+    assert.doesNotMatch(page, /audit|security|liability|changelog/i);
     assert.match(page, /action:"saveContactEdits"/);
     assert.match(page, /action:"saveDeals"/);
     for (const stage of [
