@@ -1,4 +1,4 @@
-import { BRAND, SALES_SPARKS, TEAM_OWNERS } from "./brand.ts";
+import { BRAND, OWNER_ALIASES, SALES_SPARKS, TEAM_OWNERS } from "./brand.ts";
 import { CONTACT_CHANGE_LABELS } from "./contact-log.ts";
 
 export function pageHtml(): string {
@@ -706,6 +706,7 @@ export function pageHtml(): string {
     ];
     const GRADES = [{v:"WWT",l:"WWT"},{v:"CW",l:"CW"},{v:"IICL",l:"IICL / Multi-Trip"},{v:"OneTrip",l:"One-Trip"},{v:"AsIs",l:"As-Is"}];
     const TEAM = ${JSON.stringify(TEAM_OWNERS)};
+    const OWNER_ALIASES = ${JSON.stringify(OWNER_ALIASES)};
     const SPARKS = ${JSON.stringify(SALES_SPARKS)};
     const CHANGE_LABELS = ${JSON.stringify(CONTACT_CHANGE_LABELS)};
     let user = null, book = null, selected = null, deskContact = null, deskHits = [], deskSearchSeq = 0, deskSearchTimer = 0, lastGmail = "", lastDoc = "", pick = {size:"40",height:"HC",config:"standard",grade:"CW"};
@@ -771,9 +772,9 @@ export function pageHtml(): string {
       if (!raw) return "";
       const compact = raw.toLowerCase().replace(/[\\s_-]+/g,"");
       if (compact==="new/unassigned" || compact==="newunassigned" || compact==="unassigned") return "New/Unassigned";
-      const map = { christopher:"Christopher Banks", james:"James", bryan:"Bryan Reese", matthew:"Matthew Brent", veeka:"Kawika Pangelinan", veek:"Kawika Pangelinan", aliyah:"Aliyah", brittni:"Brittni Keeling", derrek:"Derrek Clements" };
+      if (compact==="kylehodgkiss") return "Kyle Hodgkiss";
       const first = raw.split(/[\\s@]/)[0].toLowerCase();
-      return map[first] || raw;
+      return OWNER_ALIASES[first] || raw;
     }
     function mineName(){ return titleOwner((user && (user.name||user.email))||""); }
     function contactStage(c){
@@ -1130,8 +1131,10 @@ export function pageHtml(): string {
       Object.keys(patch||{}).forEach(function(key){
         const label = CHANGE_LABELS[key];
         if (!label) return;
-        const oldV = key==="dnc" ? (before && before.dnc ? "yes" : "no") : String(before && before[key]!=null ? before[key] : "").trim();
-        const newV = key==="dnc" ? (patch.dnc ? "yes" : "no") : String(patch[key]==null ? "" : patch[key]).trim();
+        const oldRaw = key==="dnc" ? (before && before.dnc ? "yes" : "no") : String(before && before[key]!=null ? before[key] : "").trim();
+        const newRaw = key==="dnc" ? (patch.dnc ? "yes" : "no") : String(patch[key]==null ? "" : patch[key]).trim();
+        const oldV = key==="owner" ? titleOwner(oldRaw) : oldRaw;
+        const newV = key==="owner" ? titleOwner(newRaw) : newRaw;
         if (oldV===newV) return;
         lines.push(label+" changed from "+(oldV||"—")+" to "+(newV||"—"));
       });
