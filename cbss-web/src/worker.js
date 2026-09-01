@@ -1,4 +1,5 @@
 import { EmailMessage } from "cloudflare:email";
+import { inlineBrandCss } from "./brand-html.js";
 import { cacheControl } from "./cache.js";
 import {
   collectionResult,
@@ -151,8 +152,23 @@ export default {
       return json(405, { ok: false, error: "POST only." });
     }
     const asset = withSecurity(await env.ASSETS.fetch(request));
+    const type = asset.headers.get("content-type") || "";
+    if (type.includes("text/html")) {
+      const html = await asset.text();
+      const cssRes = await env.ASSETS.fetch(new Request(new URL("/styles.css", request.url)));
+      const css = cssRes.ok ? await cssRes.text() : "";
+      const branded = inlineBrandCss(html, css);
+      const page = withSecurity(
+        new Response(branded, {
+          status: asset.status,
+          headers: { "content-type": "text/html; charset=utf-8" },
+        }),
+      );
+      page.headers.set("Cache-Control", cacheControl(url.pathname, "text/html"));
+      return page;
+    }
     const cached = new Response(asset.body, asset);
-    cached.headers.set("Cache-Control", cacheControl(url.pathname, asset.headers.get("content-type") || ""));
+    cached.headers.set("Cache-Control", cacheControl(url.pathname, type));
     return cached;
   },
 };

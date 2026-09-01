@@ -64,6 +64,7 @@ describe("CBSS public website", () => {
   it("clears cached HTTP/3 so Windows Chrome does not drop the connection", () => {
     const worker = readFileSync(new URL("../src/worker.js", import.meta.url), "utf8");
     assert.match(worker, /"Alt-Svc": "clear"/);
+    assert.match(worker, /inlineBrandCss/);
   });
 
   it("sends a kept request to CRM New/Unassigned and does not invent a price", () => {
