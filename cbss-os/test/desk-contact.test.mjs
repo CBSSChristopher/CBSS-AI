@@ -91,6 +91,13 @@ describe("Desk new contact on The Yard", () => {
     assert.match(page, /id="n-when"/);
     assert.match(page, /id="n-save"/);
     assert.match(page, /Save to CRM/);
+    assert.match(page, /id="n-ok"/);
+    assert.match(page, /id="n-saved"/);
+    assert.match(page, /role="alertdialog"/);
+    assert.match(page, /showNewContactSaved/);
+    assert.match(page, /is in the CRM/);
+    assert.match(page, /Got it/);
+    assert.doesNotMatch(page, /\$\("n-err"\)\.className = "ok"/);
     assert.match(page, /api\("\/desk\/contact"/);
     assert.match(index, /path === "\/desk\/contact"/);
     assert.match(index, /saveContactsAdded/);

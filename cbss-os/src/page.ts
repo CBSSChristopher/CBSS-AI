@@ -75,6 +75,33 @@ export function pageHtml(): string {
     .err { color: #8A1F1F; font-size: 13px; min-height: 1.1em; margin: 8px 0 0; }
     .ok { color: #1f5b38; font-size: 13px; }
     .hide { display: none !important; }
+    .save-flash {
+      background: #0b3d24; color: #fff; border: 3px solid var(--gold); border-radius: 12px;
+      padding: 16px 18px; margin: 0 0 16px; scroll-margin-top: 16px;
+    }
+    .save-flash .kicker, .save-alert .kicker {
+      color: var(--gold); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; font-weight: 800; margin: 0;
+    }
+    .save-flash h3, .save-alert h3 {
+      margin: 6px 0 0; color: #fff; font-size: 24px; letter-spacing: 0;
+      font-family: "Times New Roman", Times, serif;
+    }
+    .save-flash p, .save-alert p { margin: 8px 0 0; color: #d7efe3; font-size: 16px; font-weight: 650; }
+    .save-alert {
+      position: fixed; inset: 0; z-index: 95; background: rgba(11,31,58,.68);
+      display: flex; align-items: center; justify-content: center; padding: 18px;
+    }
+    .save-alert .box {
+      width: min(500px, 100%); background: #0b3d24; color: #fff;
+      border: 4px solid var(--gold); border-radius: 14px; padding: 24px 22px 20px;
+      box-shadow: 0 18px 48px rgba(0,0,0,.4); animation: save-pop .18s ease-out;
+    }
+    .save-alert .row { margin-top: 16px; }
+    .save-alert button { min-height: 46px; min-width: 120px; font-size: 16px; }
+    @keyframes save-pop {
+      from { transform: scale(.92); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
     .modal-back { position: fixed; inset: 0; background: rgba(11,31,58,.45); z-index: 80; display: flex; align-items: center; justify-content: center; padding: 16px; }
     .modal-card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 18px; width: min(520px, 100%); max-height: 90vh; overflow: auto; }
     .stage-chip { display: inline-block; background: #e8f0f7; border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px; font-size: 12px; font-weight: 700; color: var(--navy); }
@@ -429,6 +456,11 @@ export function pageHtml(): string {
             <div class="outbox" id="desk-body">Pick a template.</div>
           </div>
           <div id="desk-new" class="card hide" style="margin-top:12px">
+            <div id="n-ok" class="save-flash hide" role="status" aria-live="polite">
+              <p class="kicker">Saved</p>
+              <h3 id="n-ok-title">Contact saved to CRM</h3>
+              <p id="n-ok-body"></p>
+            </div>
             <h2>New contact</h2>
             <p class="muted">Saves a real CRM lead for the signed-in rep. Notes go on that lead. I will not invent a price.</p>
             <div class="split">
@@ -635,6 +667,14 @@ export function pageHtml(): string {
         </section>
         <footer>${BRAND.company} · The Yard</footer>
       </main>
+    </div>
+  </div>
+  <div id="n-saved" class="save-alert hide" role="alertdialog" aria-modal="true" aria-labelledby="n-saved-title" aria-describedby="n-saved-body">
+    <div class="box">
+      <p class="kicker">Success</p>
+      <h3 id="n-saved-title">Contact saved</h3>
+      <p id="n-saved-body"></p>
+      <div class="row"><button type="button" class="gold" id="n-saved-ok">Got it</button></div>
     </div>
   </div>
   <div id="contact-edit" class="modal-back hide">
@@ -1632,7 +1672,32 @@ export function pageHtml(): string {
       renderDeskPicked();
       $("desk-err").textContent = "";
     });
-    $("desk-new-open").addEventListener("click", function(){ openDesk("new"); $("n-first").focus(); });
+    function hideNewContactSaved(){
+      $("n-saved").classList.add("hide");
+      $("n-ok").classList.add("hide");
+      $("n-ok-title").textContent = "Contact saved to CRM";
+      $("n-ok-body").textContent = "";
+      $("n-saved-title").textContent = "Contact saved";
+      $("n-saved-body").textContent = "";
+    }
+    function showNewContactSaved(name, summary){
+      const who = String(name||"").trim();
+      const line = String(summary||"Saved to CRM.").trim() || "Saved to CRM.";
+      const headline = who ? who + " is in the CRM" : "Contact saved to CRM";
+      $("n-ok-title").textContent = headline;
+      $("n-ok-body").textContent = line;
+      $("n-ok").classList.remove("hide");
+      $("n-saved-title").textContent = headline;
+      $("n-saved-body").textContent = line;
+      $("n-saved").classList.remove("hide");
+      $("n-err").className = "err";
+      $("n-err").textContent = "";
+      try { $("n-ok").scrollIntoView({ behavior:"smooth", block:"start" }); } catch (e) {}
+      $("n-saved-ok").focus();
+    }
+    $("n-saved-ok").addEventListener("click", function(){ $("n-saved").classList.add("hide"); });
+    $("n-saved").addEventListener("click", function(e){ if (e.target === $("n-saved")) $("n-saved").classList.add("hide"); });
+    $("desk-new-open").addEventListener("click", function(){ hideNewContactSaved(); openDesk("new"); $("n-first").focus(); });
     let newTrack = "cte";
     $("n-track").addEventListener("click", function(e){
       const b = e.target.closest("[data-track]");
@@ -1663,6 +1728,7 @@ export function pageHtml(): string {
     $("n-save").addEventListener("click", async function(){
       $("n-err").className = "err";
       $("n-err").textContent = "";
+      hideNewContactSaved();
       const draft = readNewContact();
       if (!draft.firstName || !draft.lastName){
         $("n-err").textContent = "Type first and last name.";
@@ -1694,8 +1760,7 @@ export function pageHtml(): string {
         fillOwners(); renderStats(); renderContacts();
       }
       $("n-notes").value = "";
-      $("n-err").textContent = res.j.summary || "Saved to CRM.";
-      $("n-err").className = "ok";
+      showNewContactSaved(c.name || (draft.firstName+" "+draft.lastName).trim(), res.j.summary || "Saved to CRM.");
     });
     $("desk-save").addEventListener("click", async function(){
       $("desk-err").textContent="";
