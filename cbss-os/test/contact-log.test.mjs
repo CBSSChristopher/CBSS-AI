@@ -29,6 +29,17 @@ describe("contact change lines", () => {
     );
   });
 
+  it("records proposal amount and whether the invoice was paid", () => {
+    const lines = formatContactChanges(
+      { amount: "4200", invoicePaid: "no" },
+      { amount: "4500", invoicePaid: "yes" },
+    );
+    assert.deepEqual(lines, [
+      "proposal amount changed from 4200 to 4500",
+      "invoice paid changed from no to yes",
+    ]);
+  });
+
   it("skips fields that did not move", () => {
     assert.deepEqual(
       formatContactChanges({ name: "Pat", email: "a@b.com" }, { name: "Pat", email: "a@b.com" }),

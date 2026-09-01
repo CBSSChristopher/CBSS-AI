@@ -232,11 +232,16 @@ describe("The Yard CRM edit and Money invoice send", () => {
       "m-delivery",
       "m-payment",
       "m-amount",
+      "m-invoice-paid",
       "m-wholesale",
       "m-dnc",
     ]) {
       assert.match(page, new RegExp('id="' + id + '"'));
     }
+    assert.match(page, />Proposal amount</);
+    assert.match(page, />Invoice paid</);
+    assert.match(page, /they paid the invoice/);
+    assert.match(page, /they have not paid the invoice/);
     assert.match(page, /Quote Form/);
     assert.match(page, /Drive Deals/);
     assert.match(page, /Proposal Tool/);
