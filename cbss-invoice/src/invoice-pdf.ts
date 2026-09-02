@@ -20,11 +20,14 @@ function hexRgb(hex: string): [number, number, number] {
 
 function pdfEscape(value: string): string {
   return String(value || "")
+    .replace(/[–—−]/g, "-")
+    .replace(/·/g, " | ")
+    .replace(/’/g, "'")
+    .replace(/“|”/g, '"')
+    .replace(/[^\x20-\x7E]/g, "?")
     .replace(/\\/g, "\\\\")
     .replace(/\(/g, "\\(")
-    .replace(/\)/g, "\\)")
-    .replace(/\r/g, " ")
-    .replace(/\n/g, " ");
+    .replace(/\)/g, "\\)");
 }
 
 function wrap(text: string, width: number, fontSize: number): string[] {
@@ -248,7 +251,8 @@ function assemblePdf(contents: string[]): Uint8Array {
   const font2 = add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
   const contentObjIds = contents.map((stream) => {
     const body = stream;
-    return add(`<< /Length ${body.length} >>\nstream\n${body}endstream`);
+    const bytes = new TextEncoder().encode(body).length;
+    return add(`<< /Length ${bytes} >>\nstream\n${body}endstream`);
   });
   const kids: number[] = [];
   contentObjIds.forEach((cid) => {
@@ -260,18 +264,29 @@ function assemblePdf(contents: string[]): Uint8Array {
   });
   objects[1] = `<< /Type /Pages /Kids [${kids.map((id) => id + " 0 R").join(" ")}] /Count ${kids.length} >>`;
 
-  let out = "%PDF-1.4\n";
+  const enc = new TextEncoder();
+  const chunks: Uint8Array[] = [enc.encode("%PDF-1.4\n")];
+  let size = chunks[0].length;
   const offsets = [0];
   for (let i = 0; i < objects.length; i++) {
-    offsets.push(out.length);
-    out += `${i + 1} 0 obj\n${objects[i]}\nendobj\n`;
+    offsets.push(size);
+    const obj = enc.encode(`${i + 1} 0 obj\n${objects[i]}\nendobj\n`);
+    chunks.push(obj);
+    size += obj.length;
   }
-  const xref = out.length;
-  out += `xref\n0 ${objects.length + 1}\n`;
-  out += "0000000000 65535 f \n";
+  const xref = size;
+  let tail = `xref\n0 ${objects.length + 1}\n`;
+  tail += "0000000000 65535 f \n";
   for (let i = 1; i <= objects.length; i++) {
-    out += String(offsets[i]).padStart(10, "0") + " 00000 n \n";
+    tail += String(offsets[i]).padStart(10, "0") + " 00000 n \n";
   }
-  out += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
-  return new TextEncoder().encode(out);
+  tail += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  chunks.push(enc.encode(tail));
+  const out = new Uint8Array(chunks.reduce((n, c) => n + c.length, 0));
+  let at = 0;
+  for (const c of chunks) {
+    out.set(c, at);
+    at += c.length;
+  }
+  return out;
 }
