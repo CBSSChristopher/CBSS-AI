@@ -12,6 +12,7 @@ import {
   renderInvoiceHtml,
   wireGross,
 } from "../src/document.ts";
+import { invoicePdfName, renderInvoicePdf } from "../src/invoice-pdf.ts";
 
 const page = readFileSync(new URL("../src/page.ts", import.meta.url), "utf8");
 const index = readFileSync(new URL("../src/index.ts", import.meta.url), "utf8");
@@ -90,6 +91,17 @@ describe("CBSS branded invoice document", () => {
     assert.match(page, /ACH, domestic wire, and SWIFT/);
     assert.match(index, /documentFromDraft/);
     assert.match(index, /\/invoice\/document\//);
+    assert.match(index, /renderInvoicePdf/);
+    assert.match(index, /documentPdfUrl/);
+    assert.match(page, /id="download-pdf"/);
+    assert.match(page, /function downloadPdf/);
+    const pdf = renderInvoicePdf(eastman);
+    const pdfText = new TextDecoder().decode(pdf);
+    assert.match(pdfText, /^%PDF-1\.4/);
+    assert.match(pdfText, /CBS-2026-110/);
+    assert.match(pdfText, /How to Pay/);
+    assert.match(pdfText, /101019644/);
+    assert.equal(invoicePdfName("CBS-2026-110"), "CBS-2026-110.pdf");
     assert.match(index, /createInvoice\(env, draft, url\.origin, user\.email\)/);
     assert.match(src, /ACH, e-check, or wire/);
     assert.match(src, /page 2 of the invoice/);

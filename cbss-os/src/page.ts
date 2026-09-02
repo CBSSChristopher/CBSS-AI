@@ -747,7 +747,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         <section id="mod-money" class="hide">
           <div class="card">
             <h2>Send invoice</h2>
-            <p class="muted">Builds the navy/gold invoice and opens Gmail to you so you can forward it to the customer — same as a proposal. The amount is the number they agreed to. Do not invent a price. ACH / wire only is the house path.</p>
+            <p class="muted">Builds the navy/gold invoice PDF, downloads it, and opens Gmail to you. Attach that PDF and send it to the customer. The amount is the number they agreed to. Do not invent a price. ACH / wire only is the house path.</p>
             <div class="split">
               <div><label>Customer name</label><input id="i-name" required /></div>
               <div><label>Customer email</label><input id="i-email" type="email" /></div>
@@ -786,10 +786,11 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
               <button type="button" class="secondary" id="i-gmail">Send invoice to me</button>
             </div>
             <p class="err" id="i-err"></p>
-            <div class="outbox" id="i-out">The invoice lands here, then Gmail opens to you.</div>
+            <div class="outbox" id="i-out">The invoice PDF downloads here, then Gmail opens so you can attach it.</div>
             <div class="row hide" id="i-doc-actions">
+              <button type="button" class="gold" id="i-download-pdf">Download PDF</button>
               <button type="button" class="secondary" id="i-open-doc">Open invoice</button>
-              <button type="button" class="secondary" id="i-print-doc">Print / Save PDF</button>
+              <button type="button" class="secondary" id="i-print-doc">Print</button>
             </div>
             <iframe id="i-preview" class="hide" title="Invoice preview" style="width:100%;min-height:420px;border:1px solid var(--line);border-radius:8px;margin-top:10px;background:#fff"></iframe>
           </div>
@@ -944,7 +945,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     const MOD_CATS = ${JSON.stringify(MODIFIED_CATEGORIES)};
     const MOD_ITEMS = ${JSON.stringify(MODIFIED_ITEMS)};
     const MOD_USES = ${JSON.stringify(MODIFIED_USES)};
-    let user = null, book = null, selected = null, deskContact = null, deskHits = [], deskSearchSeq = 0, deskSearchTimer = 0, lastGmail = "", lastDoc = "", pick = {size:"40",height:"HC",config:"standard",grade:"CW"};
+    let user = null, book = null, selected = null, deskContact = null, deskHits = [], deskSearchSeq = 0, deskSearchTimer = 0, lastGmail = "", lastDoc = "", lastPdf = "", pick = {size:"40",height:"HC",config:"standard",grade:"CW"};
     let lastQuote = null;
     let proposalLines = [];
     let campaignIds = {};
@@ -1051,10 +1052,11 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         "Invoice "+invoiceNo+" for "+(customerName||"the customer")+(customerEmail?" ("+customerEmail+")":"")+" is ready.",
         amount ? ("Amount: "+amount+" — do not invent a price.") : "Amount is on the invoice. Do not invent a price.",
         notes ? ("Notes: "+notes) : "",
-        payMethod==="ach" ? "ACH / wire only — no card link. Forward the invoice to the customer." : "Forward the invoice to the customer.",
+        payMethod==="ach" ? "ACH / wire only — no card link." : "",
         "",
-        docUrl ? ("Branded invoice: "+docUrl) : "",
-        customerEmail ? ("Forward to: "+customerEmail) : "",
+        "Attach the PDF that just downloaded ("+(invoiceNo||"invoice")+".pdf) and send this to the customer. Gmail will not attach a file by itself.",
+        docUrl ? ("On-screen invoice: "+docUrl) : "",
+        customerEmail ? ("Send to: "+customerEmail) : "",
         "",
         "CBGC LLC DBA CB Shipping Solutions"
       ].filter(function(line, i, arr){ return line!=="" || arr[i-1]!==""; }).join("\\n");
@@ -2334,13 +2336,28 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     function showInvoiceDoc(number){
       if (!number) return;
       lastDoc = "/x/invoice/invoice/document/"+encodeURIComponent(String(number));
+      lastPdf = lastDoc+".pdf";
       $("i-doc-actions").classList.remove("hide");
       $("i-preview").classList.remove("hide");
       $("i-preview").src = lastDoc;
     }
+    async function downloadInvoicePdf(number){
+      const path = lastPdf || (number ? "/x/invoice/invoice/document/"+encodeURIComponent(String(number))+".pdf" : "");
+      if (!path){ $("i-err").textContent="Build the invoice first."; return false; }
+      const res = await fetch(path, { credentials:"same-origin" });
+      if (!res.ok){ $("i-err").textContent="Could not build the invoice PDF."; return false; }
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = String(number||"invoice")+".pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      return true;
+    }
     async function makeInvoice(payMethod){
       $("i-err").textContent="";
-      $("i-out").textContent = payMethod==="ach" ? "Building the branded ACH / wire invoice…" : "Building the branded invoice…";
+      $("i-out").textContent = payMethod==="ach" ? "Building the branded ACH / wire invoice PDF…" : "Building the branded invoice PDF…";
       const same = $("i-same").checked;
       const res = await api("/x/invoice/invoice/create", { method:"POST", body: JSON.stringify({
         name:$("i-name").value, email:$("i-email").value, phone:$("i-phone").value, amountRaw:$("i-amount").value,
@@ -2353,7 +2370,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         deliveryZip:same?$("i-bzip").value:$("i-dzip").value,
         sameAsBilling: same, payMethod:payMethod
       })});
-      if (!res.r.ok || !res.j.ok){ $("i-err").textContent=res.j.error||"Could not create that invoice."; $("i-out").textContent="The invoice lands here, then Gmail opens to you."; return; }
+      if (!res.r.ok || !res.j.ok){ $("i-err").textContent=res.j.error||"Could not create that invoice."; $("i-out").textContent="The invoice PDF downloads here, then Gmail opens so you can attach it."; return; }
       const number = res.j.documentNumber || (res.j.card && res.j.card.documentNumber) || "";
       const origin = window.location.origin;
       const docAbs = number ? origin+"/x/invoice/invoice/document/"+encodeURIComponent(String(number)) : "";
@@ -2368,12 +2385,16 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         docAbs,
         payMethod
       );
-      $("i-out").textContent = "Invoice "+(number||"built")+" is ready. Gmail opened to you — forward it to the customer. Do not invent a price.";
+      const gotPdf = number ? await downloadInvoicePdf(number) : false;
+      $("i-out").textContent = gotPdf
+        ? "Invoice "+number+" PDF downloaded. Gmail opened — attach "+number+".pdf and send it to the customer. Do not invent a price."
+        : "Invoice "+(number||"built")+" is on screen. Download the PDF, then attach it in Gmail. Do not invent a price.";
       if (lastGmail) window.open(lastGmail, "_blank", "noopener");
     }
     $("i-ach").addEventListener("click", function(){ makeInvoice("ach"); });
     $("i-card").addEventListener("click", function(){ makeInvoice("card"); });
     $("i-gmail").addEventListener("click", function(){ if(!lastGmail){ $("i-err").textContent="Build the invoice first."; return;} window.open(lastGmail,"_blank","noopener"); });
+    $("i-download-pdf").addEventListener("click", function(){ downloadInvoicePdf(); });
     $("i-open-doc").addEventListener("click", function(){ if(!lastDoc){ $("i-err").textContent="Build the invoice first."; return;} window.open(lastDoc,"_blank","noopener"); });
     $("i-print-doc").addEventListener("click", function(){ if(!lastDoc){ $("i-err").textContent="Build the invoice first."; return;} const frame=$("i-preview"); if(frame&&frame.contentWindow) frame.contentWindow.print(); else window.open(lastDoc,"_blank","noopener"); });
     $("i-lookup").addEventListener("click", async function(){

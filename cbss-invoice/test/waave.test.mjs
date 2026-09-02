@@ -307,6 +307,9 @@ describe("CBSS Invoicing · WAAVE", () => {
     );
     const decoded = decodeURIComponent(link);
     assert.match(decoded, /Invoice CBS-2026-112/);
+    assert.match(decoded, /attached invoice PDF/);
+    assert.match(decoded, /CBS-2026-112\.pdf/);
+    assert.doesNotMatch(decoded, /Attached is invoice/);
     assert.match(decoded, /ACH \/ wire only/);
     assert.doesNotMatch(decoded, /WAAVE/);
     assert.doesNotMatch(decoded, /PayPal/);

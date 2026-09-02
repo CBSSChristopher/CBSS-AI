@@ -152,7 +152,8 @@ export function pageHtml(): string {
           <p class="err" id="inv-err"></p>
         </form>
         <div class="outbox" id="card">The invoice card lands here.</div>
-        <div class="row hide" id="doc-actions">
+            <div class="row hide" id="doc-actions">
+          <button type="button" class="gold" id="download-pdf">Download PDF</button>
           <button type="button" class="secondary" id="open-invoice">Open branded invoice</button>
           <button type="button" class="secondary" id="print-invoice">Print / save PDF</button>
         </div>
@@ -175,6 +176,8 @@ export function pageHtml(): string {
     const who = document.getElementById("who");
     let lastGmail = "";
     let lastDoc = "";
+    let lastPdf = "";
+    let lastPdfName = "";
 
     function show(view) {
       login.classList.toggle("hide", view !== "login");
@@ -268,6 +271,8 @@ export function pageHtml(): string {
       const box = document.getElementById("card");
       err.textContent = "";
       lastGmail = "";
+      lastPdf = "";
+      lastPdfName = "";
       box.textContent = payMethod === "ach"
         ? "Creating the branded ACH / wire invoice…"
         : "Creating the branded invoice…";
@@ -304,6 +309,9 @@ export function pageHtml(): string {
       box.textContent = j.cardText || "";
       lastGmail = (j.card && j.card.gmailLink) || "";
       lastDoc = j.documentUrl || "";
+      const number = j.documentNumber || (j.card && j.card.documentNumber) || "";
+      lastPdf = j.documentPdfUrl || (number ? "/invoice/document/" + encodeURIComponent(String(number)) + ".pdf" : "");
+      lastPdfName = j.documentPdfName || (number ? String(number) + ".pdf" : "invoice.pdf");
       if (j.warn) err.textContent = j.warn;
       if (lastDoc) {
         document.getElementById("doc-actions").classList.remove("hide");
@@ -311,7 +319,27 @@ export function pageHtml(): string {
         preview.src = lastDoc;
         preview.classList.remove("hide");
       }
+      if (lastPdf) await downloadPdf();
+      box.textContent = (j.cardText || "") + (lastPdfName ? " PDF " + lastPdfName + " downloaded. Attach that file in Gmail before you send." : "");
       refresh();
+    }
+    async function downloadPdf() {
+      if (!lastPdf) {
+        document.getElementById("inv-err").textContent = "Create an invoice first.";
+        return;
+      }
+      const r = await fetch(lastPdf, { credentials: "same-origin" });
+      if (!r.ok) {
+        document.getElementById("inv-err").textContent = "Could not build the invoice PDF.";
+        return;
+      }
+      const blob = await r.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = lastPdfName || "invoice.pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
     }
     document.getElementById("inv-form").addEventListener("submit", (e) => {
       e.preventDefault();
@@ -338,6 +366,7 @@ export function pageHtml(): string {
       }
       window.open(lastGmail, "_blank", "noopener");
     });
+    document.getElementById("download-pdf").addEventListener("click", () => { downloadPdf(); });
     document.getElementById("open-invoice").addEventListener("click", () => {
       if (!lastDoc) {
         document.getElementById("inv-err").textContent = "Create an invoice first.";
