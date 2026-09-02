@@ -22,6 +22,7 @@ import {
   renderInvoiceHtml,
   saveDocument,
 } from "./document";
+import { invoicePdfName, renderInvoicePdf } from "./invoice-pdf";
 
 const SECURITY = {
   "X-Content-Type-Options": "nosniff",
@@ -170,6 +171,7 @@ export default {
       });
       await saveDocument(env, document);
       const documentUrl = `${url.origin}/invoice/document/${encodeURIComponent(number)}`;
+      const documentPdfUrl = `${documentUrl}.pdf`;
       const ccEmails = invoiceCopyEmails(user.email);
       const payMethod = isAchPayMethod(body.payMethod) ? "ach" : "card";
       const result =
@@ -182,6 +184,7 @@ export default {
             payMethod: "card" as const,
             documentNumber: number,
             documentUrl,
+            documentPdfUrl,
             referenceId: number,
             gmailLink: gmailDraft(
               draft.email,
@@ -194,6 +197,7 @@ export default {
               delLine,
               number,
               "card",
+              invoicePdfName(number),
             ),
           }
         : {
@@ -217,6 +221,7 @@ export default {
               delLine,
               number,
               payMethod,
+              invoicePdfName(number),
             ),
             referenceId: number,
             timeCreated: new Date().toISOString(),
@@ -227,6 +232,7 @@ export default {
             delivery: draft.delivery,
             documentNumber: number,
             documentUrl,
+            documentPdfUrl,
           };
       if (!(result && result.ok)) await rememberInvoice(env, card);
       const warn =
@@ -241,6 +247,8 @@ export default {
         cardText: formatInvoiceCard(card),
         document,
         documentUrl,
+        documentPdfUrl,
+        documentPdfName: invoicePdfName(number),
         documentNumber: number,
         payMethod,
         warn,
@@ -251,9 +259,22 @@ export default {
     if (request.method === "GET" && path.startsWith("/invoice/document/")) {
       const user = await readSession(request, env);
       if (!user) return json(401, { error: "Sign in first." });
-      const number = decodeURIComponent(path.slice("/invoice/document/".length)).trim();
+      const raw = decodeURIComponent(path.slice("/invoice/document/".length)).trim();
+      const asPdf = raw.toLowerCase().endsWith(".pdf");
+      const number = asPdf ? raw.slice(0, -4) : raw;
       const document = await readDocument(env, number);
       if (!document) return json(404, { error: "Invoice not found." });
+      if (asPdf) {
+        const file = invoicePdfName(document.number);
+        return new Response(renderInvoicePdf(document), {
+          headers: {
+            "Content-Type": "application/pdf",
+            "Content-Disposition": `attachment; filename="${file}"`,
+            "Cache-Control": "no-store",
+            ...SECURITY,
+          },
+        });
+      }
       return new Response(renderInvoiceHtml(document), {
         headers: {
           "Content-Type": "text/html; charset=utf-8",

@@ -58,6 +58,7 @@ export type InvoiceCard = {
   delivery?: Address;
   documentNumber?: string;
   documentUrl?: string;
+  documentPdfUrl?: string;
   payMethod?: "card" | "ach";
 };
 
@@ -288,18 +289,21 @@ export function gmailDraft(
   delivery = "",
   invoiceNo = "",
   payMethod: "card" | "ach" = "card",
+  pdfFile = "",
 ): string {
   const subject = invoiceNo
     ? `Invoice ${invoiceNo} — ${money(amount)}`
     : `CBShippingSolutions invoice ${money(amount)}`;
   const copies = ccEmails.filter(Boolean);
   const memo = invoiceNo || "the invoice number";
+  const file = pdfFile || (invoiceNo ? `${invoiceNo}.pdf` : "the invoice PDF");
   const body = [
     `Hi ${name.split(" ")[0] || "there"},`,
     "",
     invoiceNo
-      ? `Attached is invoice ${invoiceNo} for ${notes}. Amount due: ${money(amount)} USD.`
+      ? `Invoice ${invoiceNo} for ${notes}. Amount due: ${money(amount)} USD.`
       : `Invoice for ${notes}. Amount due: ${money(amount)} USD.`,
+    `Please see the attached invoice PDF (${file}).`,
     "This is the invoice amount already set — not a new quote.",
     "Pay by ACH, e-check, or wire using the bank details on page 2 of the invoice. Put " +
       memo +
