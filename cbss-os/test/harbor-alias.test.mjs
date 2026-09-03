@@ -15,8 +15,9 @@ describe("The Yard public name", () => {
     assert.match(wrangler, /src\/harbor-alias\.ts/);
     assert.match(alias, /env\.HOUSE\.fetch/);
     assert.match(wrangler, /"service": "cbssos"/);
-    assert.match(wrangler, /theyard\.cbshippingsolutions\.app/);
-    assert.match(wrangler, /custom_domain": true/);
+    assert.match(wrangler, /theyard\.cbshippingsolutions\.app\/\*/);
+    assert.match(wrangler, /zone_name": "cbshippingsolutions\.app"/);
+    assert.doesNotMatch(wrangler, /custom_domain/);
     assert.match(alias, /YARD_PUBLIC/);
     assert.match(alias, /\.workers\.dev/);
     assert.match(alias, /Response\.redirect/);

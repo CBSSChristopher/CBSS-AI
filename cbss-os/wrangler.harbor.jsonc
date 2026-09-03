@@ -6,7 +6,7 @@
   "workers_dev": true,
   "preview_urls": false,
   "routes": [
-    { "pattern": "theyard.cbshippingsolutions.app", "custom_domain": true }
+    { "pattern": "theyard.cbshippingsolutions.app/*", "zone_name": "cbshippingsolutions.app" }
   ],
   "services": [
     { "binding": "HOUSE", "service": "cbssos" }
