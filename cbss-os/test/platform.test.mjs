@@ -183,6 +183,26 @@ describe("session stays small", () => {
   });
 });
 
+describe("Safari can open The Yard", () => {
+  it("lets Cloudflare finish so Safari does not sit on a spinning tab", () => {
+    assert.match(index, /static\.cloudflareinsights\.com/);
+    assert.match(index, /challenges\.cloudflare\.com/);
+    assert.match(index, /cloudflareinsights\.com/);
+    assert.doesNotMatch(index, /img-src 'none'/);
+    assert.match(index, /script-src 'self' 'unsafe-inline'/);
+  });
+
+  it("sizes the login for WebKit instead of locking html to height 100%", () => {
+    assert.match(page, /-webkit-fill-available/);
+    assert.match(page, /display: -webkit-flex/);
+    assert.match(page, /id="login"/);
+    assert.match(page, /Turn JavaScript on in Safari/);
+    assert.doesNotMatch(page, /html, body \{ height: 100%; margin: 0; \}/);
+    assert.match(page, /e\.target\.submit\(\)/);
+    assert.match(page, /catch \(err\) \{\s*show\("login"\)/);
+  });
+});
+
 describe("The Yard CRM edit and Money invoice send", () => {
   it("shows stage and the same edit fields as the other CRM", () => {
     assert.match(page, /<th>Stage<\/th>/);

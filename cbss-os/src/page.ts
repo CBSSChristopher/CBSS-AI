@@ -34,9 +34,20 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     }
     * { box-sizing: border-box; }
     html { -webkit-text-size-adjust: 100%; }
-    html, body { height: 100%; margin: 0; }
-    body { font-family: Helvetica, Arial, "Segoe UI", sans-serif; background: var(--paper); color: var(--ink); font-size: 15px; }
-    .shell { min-height: 100%; display: grid; grid-template-columns: 232px 1fr; }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      min-height: 100dvh;
+      min-height: -webkit-fill-available;
+    }
+    body { font-family: Helvetica, Arial, "Segoe UI", sans-serif; background: var(--paper); color: var(--ink); font-size: 15px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .shell {
+      min-height: 100%;
+      min-height: 100dvh;
+      min-height: -webkit-fill-available;
+      display: grid;
+      grid-template-columns: 232px 1fr;
+    }
     aside {
       background: var(--navy); color: #fff; padding: 22px 16px 18px;
       display: flex; flex-direction: column; gap: 18px;
@@ -214,7 +225,19 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     .chip { border: 1px solid var(--line); border-radius: 999px; padding: 4px 9px; font-size: 11px; background: #fff; color: var(--navy); }
     .chip.on { background: #e8f5ee; border-color: #c8e4d4; }
     .chip.off { background: #f8ecec; border-color: #e4c8c8; }
-    .login-wrap { min-height: 100%; display: grid; place-items: center; padding: 24px 14px; }
+    .login-wrap {
+      box-sizing: border-box;
+      min-height: 100%;
+      min-height: 100dvh;
+      min-height: -webkit-fill-available;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-align-items: center;
+      align-items: center;
+      -webkit-justify-content: center;
+      justify-content: center;
+      padding: 24px 14px;
+    }
     .login-card { width: min(460px, 100%); }
     .login-card .seal { margin-bottom: 12px; }
     footer { margin-top: 16px; color: var(--muted); font-size: 11px; }
@@ -222,7 +245,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     .table-scroll { overflow: auto; }
     .scroll-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; align-items: center; }
     @media (max-width: 860px) {
-      html, body { height: auto; min-height: 100%; }
+      html, body { height: auto; min-height: 100%; min-height: 100dvh; min-height: -webkit-fill-available; }
       body { padding-bottom: env(safe-area-inset-bottom); }
       .shell { grid-template-columns: 1fr; min-height: 100dvh; }
       aside {
@@ -293,6 +316,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         <input id="password" name="password" type="password" autocomplete="current-password" required />
         <div class="row"><button type="submit" class="gold" id="login-go">Open The Yard</button></div>
         <p class="err" id="login-err">${loginError}</p>
+        <noscript><p class="err">Turn JavaScript on in Safari, then open this page again.</p></noscript>
       </form>
     </section>
   </div>
@@ -1089,7 +1113,8 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         user = res.j.user; greet(user.name); paintTools(user.tools); show("app"); openMod("home");
         try { await loadCrm(); } catch (err) { $("crm-err").textContent = "Signed in. Refresh if the book stays empty."; }
       } catch (err) {
-        $("login-err").textContent = (err && err.message) ? err.message : "Could not sign in. Try again.";
+        try { e.target.submit(); return; }
+        catch (ignored) { $("login-err").textContent = (err && err.message) ? err.message : "Could not sign in. Try again."; }
       } finally {
         if (btn){ btn.disabled = false; btn.textContent = "Open The Yard"; }
       }
@@ -2415,10 +2440,14 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     $("i-list").addEventListener("click", loadInvoices);
 
     (async function boot(){
-      const res = await api("/session");
-      if (user) return;
-      if (res.j.ok && res.j.user){ user=res.j.user; greet(user.name); paintTools(user.tools); show("app"); openMod("home"); loadCrm(); }
-      else show("login");
+      try {
+        const res = await api("/session");
+        if (user) return;
+        if (res.j.ok && res.j.user){ user=res.j.user; greet(user.name); paintTools(user.tools); show("app"); openMod("home"); loadCrm(); }
+        else show("login");
+      } catch (err) {
+        show("login");
+      }
     })();
   </script>
 </body>
