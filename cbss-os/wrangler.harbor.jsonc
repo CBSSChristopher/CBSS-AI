@@ -6,6 +6,7 @@
   "workers_dev": true,
   "preview_urls": false,
   "routes": [
+    { "pattern": "yard.cbshippingsolutions.app/*", "zone_name": "cbshippingsolutions.app" },
     { "pattern": "theyard.cbshippingsolutions.app/*", "zone_name": "cbshippingsolutions.app" },
     { "pattern": "crm.cbshippingsolutions.app/*", "zone_name": "cbshippingsolutions.app" }
   ],

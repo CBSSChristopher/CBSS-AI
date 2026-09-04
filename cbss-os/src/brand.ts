@@ -4,7 +4,7 @@ export const BRAND = {
   paper: "#F7F4EC",
   company: "CBGC LLC DBA CB Shipping Solutions",
   title: "The Yard",
-  stamp: "build 16 · The Yard",
+  stamp: "build 17 · The Yard",
 } as const;
 
 export const SALES_SPARKS = [
@@ -58,7 +58,8 @@ export function titleOwner(value: string): string {
   return OWNER_ALIASES[first] || raw;
 }
 
-export const YARD_PUBLIC = "https://theyard.cbshippingsolutions.app";
+/** Floor bookmark. New host so Safari's cached HTTP/3 on theyard does not apply. */
+export const YARD_PUBLIC = "https://yard.cbshippingsolutions.app";
 
 export const LIVE_TOOLS = {
   crm: "https://cbsscrm.cbss.workers.dev",
