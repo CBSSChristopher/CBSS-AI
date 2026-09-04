@@ -609,7 +609,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
                 <label>Fulfillment</label>
                 <select id="p-ful"><option value="deliver">Delivered</option><option value="pickup">Picked up</option></select>
               </div>
-              <div><label>Net margin (min $300)</label><input id="p-margin" inputmode="decimal" value="700" /></div>
+              <div><label>Net margin (per unit)</label><input id="p-margin" inputmode="decimal" value="700" /></div>
             </div>
             <div class="split">
               <div>
@@ -2436,8 +2436,8 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
           return;
         }
         if (res.j.status==="flagged"){
-          $("p-err").textContent = "LOW MARGIN FLAG — below $300. No client proposal was sent.";
-          showProposalSaved("Low margin flag", "Margin is under $300. Christopher and Bryan were notified. No client proposal went out.");
+          $("p-err").textContent = "LOW MARGIN FLAG — below $300 per unit. No client proposal was sent.";
+          showProposalSaved("Low margin flag", "Margin per unit is under $300. Christopher and Bryan were notified. No client proposal went out.");
           return;
         }
         $("p-err").className = "ok";

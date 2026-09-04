@@ -436,12 +436,12 @@
         </div>
         <div class="row" id="netMarginRow">
           <div class="full">
-            <label for="netMargin">Net margin $300–$2,000</label>
+            <label for="netMargin">Net margin (per unit) $300–$2,000</label>
             <div class="margin-row">
               <input type="range" id="netMargin" min="300" max="2000" step="25" value="700" oninput="onNetMarginChange()" />
               <strong id="netMarginOut">$700</strong>
             </div>
-            <p class="note">CBSS profit on top of the posted xChange wholesale and delivery. Slide it from $300 to $2,000. This does not invent a wholesale.</p>
+            <p class="note">CBSS profit per unit on top of the posted xChange wholesale and delivery. Slide it from $300 to $2,000. This does not invent a wholesale.</p>
           </div>
         </div>
         <div class="picks" id="approved-picks">
@@ -623,7 +623,7 @@
     </form>
 
     <footer>
-      CBShippingSolutions · Pricing + Depot + Flex Buy · Net margin $300–$2,000
+      CBShippingSolutions · Pricing + Depot + Flex Buy · Net margin (per unit) $300–$2,000
     </footer>
   </div>
 
@@ -1731,7 +1731,7 @@
         <div class="price-row"><span>Your depot</span><span>${escapeHtml(depotCity)}</span></div>
         ${howFar}
         <div class="price-row"><span>Wholesale</span><span>$${wholesale.toLocaleString()}</span></div>
-        <div class="price-row"><span>${isApprovedPricingUnlocked() ? "Approved cash" : "Net Margin"}</span><span class="${marginClass}">${isApprovedPricingUnlocked() ? "Christopher approved pricing" : "$" + margin.toLocaleString()}</span></div>
+        <div class="price-row"><span>${isApprovedPricingUnlocked() ? "Approved cash" : "Net margin (per unit)"}</span><span class="${marginClass}">${isApprovedPricingUnlocked() ? "Christopher approved pricing" : "$" + margin.toLocaleString()}</span></div>
         ${isApprovedPricingUnlocked() ? `<div class="price-row"><span>Derived net</span><span class="${marginClass}">$${margin.toLocaleString()}</span></div>` : ""}
         <div class="price-row"><span>Quantity</span><span>${qty}</span></div>
         <div class="price-row total"><span>${cashEach}</span><span>$${recommended.toLocaleString()}</span></div>

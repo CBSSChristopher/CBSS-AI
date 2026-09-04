@@ -32,6 +32,7 @@ import {
   deliveredCashFromPosted,
   fulfillmentHaul,
   isPickupFulfillment,
+  marginPerUnit,
   MAX_NET_MARGIN,
   MIN_NET_MARGIN,
   normalizeFulfillment,
@@ -213,10 +214,12 @@ describe("Proposal tool picker, depot, and cash price", () => {
     assert.equal(deliveredCashFromPosted(1850, 500, 2000), 4350);
     assert.equal(deliveredCashFromPosted(0, 500, 700), null);
     assert.match(page, /id="netMargin"/);
+    assert.match(page, /Net margin \(per unit\) \$300–\$2,000/);
     assert.match(page, /min="300"/);
     assert.match(page, /max="2000"/);
     assert.match(page, /currentNetMargin/);
     assert.match(page, /This does not invent a wholesale/);
+    assert.match(page, /CBSS profit per unit/);
     assert.match(page, /targetMargin = currentNetMargin\(\)/);
     assert.doesNotMatch(page, /TARGET_MARGIN = 700/);
     assert.match(submit, /clampNetMargin/);
@@ -263,7 +266,8 @@ describe("Proposal tool picker, depot, and cash price", () => {
     assert.match(submit, /isPickupFulfillment/);
     assert.match(submit, /Pickup cash price \(each\)/);
     assert.match(submit, /Do not add a pickup fee/);
-    assert.match(submit, /const deliveryPer = isPickupFulfillment/);
+    assert.match(submit, /const pickup = isPickupFulfillment/);
+    assert.match(submit, /const deliveryPer = pickup/);
     assert.doesNotMatch(page, /pickup fee \$/);
   });
 
@@ -354,7 +358,7 @@ describe("Proposal tool picker, depot, and cash price", () => {
     assert.match(page, /pulledAt/);
     assert.match(page, /build 10/);
     assert.match(page, /id="netMargin"/);
-    assert.match(page, /Net margin \$300–\$2,000/);
+    assert.match(page, /Net margin \(per unit\) \$300–\$2,000/);
     assert.match(page, /viewport-fit=cover/);
     assert.match(page, /@media \(max-width: 600px\)/);
     assert.match(page, /did not post this box/);
@@ -701,6 +705,9 @@ describe("Client proposal options PDF", () => {
     assert.equal(priced.ok, true);
     assert.equal(priced.chooseOne, true);
     assert.equal(priced.isLowMargin, false);
+    assert.equal(priced.marginPer, 1950 - 725 - 475);
+    assert.equal(priced.wholesale, 725);
+    assert.equal(priced.deliveryPer, 475);
     const low = resolveProposalPricing({
       ...twoOptions,
       options: [
@@ -709,7 +716,97 @@ describe("Client proposal options PDF", () => {
       ],
     }, {});
     assert.equal(low.isLowMargin, true);
+    assert.equal(low.marginPer, 800 - 725 - 475);
+    assert.deepEqual(low.lowOptions, ["A"]);
+    assert.ok(low.marginPer < 300);
     assert.equal(readClientOptions(twoOptions).options[0].letter, "A");
+  });
+
+  it("does not flag qty 2+ when the slider is $600 per unit", () => {
+    assert.equal(marginPerUnit(2700, 1500, 600, "deliver"), 600);
+    assert.equal(MIN_NET_MARGIN, 300);
+    const tony = {
+      customerName: "Tony Rosales",
+      fulfillment: "deliver",
+      quantity: 2,
+      unitPrice: 2700,
+      wholesaleCost: 3000,
+      deliveryCost: 1200,
+      netMargin: 600,
+      options: [
+        {
+          letter: "A",
+          label: "Cargo Worthy",
+          grade: "CW",
+          qty: 2,
+          cash: 2700,
+          wholesale: 1500,
+          delivery: 600,
+          margin: 600,
+          fulfillment: "deliver",
+        },
+      ],
+    };
+    const priced = resolveProposalPricing(tony, {});
+    assert.equal(priced.ok, true);
+    assert.equal(priced.chooseOne, false);
+    assert.equal(priced.isLowMargin, false);
+    assert.equal(priced.marginPer, 600);
+    assert.equal(priced.wholesale, 1500);
+    assert.equal(priced.deliveryPer, 600);
+    const toolForm = resolveProposalPricing({
+      fulfillment: "deliver",
+      quantity: 2,
+      unitPrice: 2700,
+      wholesaleCost: 1500,
+      deliveryCost: 600,
+      netMargin: 600,
+    }, {});
+    assert.equal(toolForm.isLowMargin, false);
+    assert.equal(toolForm.marginPer, 600);
+    const actuallyLow = resolveProposalPricing({
+      fulfillment: "deliver",
+      quantity: 2,
+      unitPrice: 2000,
+      wholesaleCost: 1500,
+      deliveryCost: 600,
+      options: [{ letter: "A", cash: 2000, wholesale: 1500, delivery: 600, qty: 2, fulfillment: "deliver", grade: "CW" }],
+    }, {});
+    assert.equal(actuallyLow.isLowMargin, true);
+    assert.equal(actuallyLow.marginPer, -100);
+  });
+
+  it("does not flag three choose-one options when each is at least $300 per unit", () => {
+    const priced = resolveProposalPricing(threeOptions, {});
+    assert.equal(priced.ok, true);
+    assert.equal(priced.chooseOne, true);
+    assert.equal(priced.isLowMargin, false);
+    assert.equal(priced.marginPer, 3250 - 1850 - 600);
+    assert.ok(priced.marginPer >= 300);
+    assert.equal(priced.wholesale, 1850);
+    assert.equal(priced.deliveryPer, 600);
+    assert.notEqual(priced.marginPer, 3250 - 6050 - 1800);
+    assert.deepEqual(priced.lowOptions, []);
+    for (const option of threeOptions.options) {
+      assert.ok(marginPerUnit(option.cash, option.wholesale, option.delivery, option.fulfillment) >= 300);
+    }
+  });
+
+  it("flags only the choose-one option that is under $300 per unit", () => {
+    const lowC = resolveProposalPricing({
+      ...threeOptions,
+      options: [
+        threeOptions.options[0],
+        threeOptions.options[1],
+        { ...threeOptions.options[2], cash: 2800, wholesale: 2400, delivery: 600, margin: -200 },
+      ],
+    }, {});
+    assert.equal(lowC.isLowMargin, true);
+    assert.equal(lowC.marginPer, 2800 - 2400 - 600);
+    assert.deepEqual(lowC.lowOptions, ["C"]);
+    assert.equal(lowC.marginPer, -200);
+    assert.match(submit, /Margin per unit: \$\$\{marginPer\.toFixed\(2\)\} \(below \$300\)/);
+    assert.doesNotMatch(submit, /Margin\/unit:/);
   });
 
   const threeOptions = {
