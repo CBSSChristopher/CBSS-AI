@@ -5,6 +5,7 @@ import {
   buildProposalSubmit,
   combineProposalLines,
   describeLine,
+  rateSheetSize,
   readProposalLine,
 } from "../src/proposal-lines.ts";
 import { pageHtml } from "../src/page.ts";
@@ -71,6 +72,11 @@ describe("proposal lines", () => {
 
   it("labels one line in plain box language", () => {
     assert.equal(describeLine(line({ qty: 2 })), "20 ft standard Standard WWT × 2");
+  });
+
+  it("buckets 10 and 45 onto the delivery rate sheet only", () => {
+    assert.equal(rateSheetSize("10", "standard"), "20ft");
+    assert.equal(rateSheetSize("45", "standard"), "40ft");
   });
 });
 

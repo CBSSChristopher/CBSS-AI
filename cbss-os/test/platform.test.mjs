@@ -315,3 +315,22 @@ describe("The Yard CRM edit and Money invoice send", () => {
     assert.doesNotMatch(index, new RegExp(officeChristopher.replace(/\./g, "\\.")));
   });
 });
+
+describe("live HTML contracts for build 20", () => {
+  it("emits a real whitespace split for the invoice greeting, not /s+/", () => {
+    assert.match(page, /\.split\(\/\\s\+\/\)\[0\]/);
+    assert.doesNotMatch(page, /\.split\(\/s\+\/\)/);
+    assert.ok(page.includes(".split(/\\s+/)"), "generated HTML must keep the backslash before s");
+  });
+
+  it("throws on non-OK api() unless the caller opts in", () => {
+    assert.match(page, /const allowError = opt\.allowError/);
+    assert.match(page, /if \(!r\.ok && !allowError\)/);
+    assert.match(page, /allowError: true/);
+    assert.match(page, /id="crm-notes-err"/);
+    assert.match(page, /Notes did not load/);
+    assert.match(page, /Could not load notes/);
+    assert.doesNotMatch(page, /function sizeToken/);
+  });
+});
+

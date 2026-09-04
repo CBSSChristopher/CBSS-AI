@@ -233,6 +233,7 @@ export function haversine(lat1: number, lon1: number, lat2: number, lon2: number
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+/** Delivery rate-sheet bucket only. Does not change posted-box identity. */
 export function rateSheetSize(size: string, config: string): string {
   if (config && config !== "standard") return "Specialized";
   if (size === "10" || size === "20") return "20ft";

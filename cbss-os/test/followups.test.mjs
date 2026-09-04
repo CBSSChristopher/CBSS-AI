@@ -119,9 +119,9 @@ describe("complete then schedule does not drop the row", () => {
     assert.ok(readNext >= 0 && completeCall > readNext && persist > completeCall);
   });
 
-  it("is build 19", () => {
-    assert.equal(BRAND.stamp, "build 19 · The Yard");
-    assert.match(page, /build 19 · The Yard/);
+  it("is build 20", () => {
+    assert.equal(BRAND.stamp, "build 20 · The Yard");
+    assert.match(page, /build 20 · The Yard/);
   });
 
   it("keeps people finished today on the book", () => {

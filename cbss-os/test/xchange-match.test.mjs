@@ -4,6 +4,7 @@ import {
   mapOfferCondition,
   matchPostedBox,
   parseOfferSpec,
+  rateSheetSize,
   specsCompatible,
 } from "../src/xchange-match.ts";
 
@@ -45,6 +46,30 @@ describe("xChange posted match", () => {
   it("does not take a cheaper wrong-size New Orleans box", () => {
     const hit = matchPostedBox(offers, { size: "40", height: "HC", config: "standard", grade: "OneTrip" }, littleRock, 1, "pickup");
     assert.notEqual(hit.wholesale, 1675);
+  });
+
+  it("does not treat a 10 as a 20 or a 45 as a 40 for posted match", () => {
+    assert.equal(parseOfferSpec("10DC").size, "10");
+    assert.equal(parseOfferSpec("45HC").size, "45");
+    assert.equal(specsCompatible({ size: "10", height: "DC", config: "standard", grade: "CW" }, parseOfferSpec("20DC")), false);
+    assert.equal(specsCompatible({ size: "45", height: "HC", config: "standard", grade: "CW" }, parseOfferSpec("40HC")), false);
+    const twenty = [
+      { size: "20DC", condition: "CW", depot: "Memphis, TN", city: "Memphis", location: "Memphis, TN", wholesaleCost: 900, qty: 4, lat: 35.15, lon: -90.05 },
+    ];
+    const miss10 = matchPostedBox(twenty, { size: "10", height: "DC", config: "standard", grade: "CW" }, littleRock, 1, "pickup");
+    assert.equal(miss10.ok, false);
+    const forty = [
+      { size: "40HC", condition: "CW", depot: "Memphis, TN", city: "Memphis", location: "Memphis, TN", wholesaleCost: 1600, qty: 6, lat: 35.15, lon: -90.05 },
+    ];
+    const miss45 = matchPostedBox(forty, { size: "45", height: "HC", config: "standard", grade: "CW" }, littleRock, 1, "pickup");
+    assert.equal(miss45.ok, false);
+  });
+
+  it("maps 10→20ft and 45→40ft on the delivery rate sheet only", () => {
+    assert.equal(rateSheetSize("10", "standard"), "20ft");
+    assert.equal(rateSheetSize("45", "standard"), "40ft");
+    assert.equal(rateSheetSize("20", "standard"), "20ft");
+    assert.equal(rateSheetSize("40", "standard"), "40ft");
   });
 
   it("fails closed when that grade is not posted nearby", () => {

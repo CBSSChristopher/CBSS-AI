@@ -43,6 +43,8 @@ function moneyNum(value: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/** Delivery rate-sheet bucket only. A 10' uses 20ft haul rates; a 45' uses 40ft haul rates.
+ *  Posted-box match and the proposal line still use the exact size (10 ≠ 20, 45 ≠ 40). */
 export function rateSheetSize(size: string, config: string): string {
   if (config && config !== "standard") return "Specialized";
   if (size === "20" || size === "10") return "20ft";

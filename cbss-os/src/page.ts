@@ -1021,14 +1021,19 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     async function api(path, opt){
       opt = opt || {};
       const allow401 = opt.allow401;
+      const allowError = opt.allowError;
       const fetchOpt = Object.assign({ credentials:"same-origin", headers:{ "Content-Type":"application/json" } }, opt);
       delete fetchOpt.allow401;
+      delete fetchOpt.allowError;
       const r = await fetch(path, fetchOpt);
       const j = await r.json().catch(function(){ return {}; });
       if (r.status===401){
         if (allow401) return { r:r, j:j };
         if (!user) show("login");
         throw new Error(j.error || "Sign in first.");
+      }
+      if (!r.ok && !allowError){
+        throw new Error(j.error || j.message || ("Request failed ("+r.status+")."));
       }
       return { r:r, j:j };
     }
@@ -1066,7 +1071,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     }
     function officeMail(local){ return [local, "cbshippingsolutions.com"].join("@"); }
     function agentInvoiceGmail(rep, customerName, customerEmail, amount, notes, invoiceNo, docUrl, payMethod){
-      const first = String((rep && rep.name) || "there").trim().split(/\s+/)[0] || "there";
+      const first = String((rep && rep.name) || "there").trim().split(/\\s+/)[0] || "there";
       const to = String((rep && rep.email) || "").trim();
       const cc = [officeMail("christopher"), officeMail("aliyah")].filter(function(e){ return e && e!==to; }).join(",");
       const subject = "Invoice "+invoiceNo+" ready to forward — "+(customerName||"customer");
@@ -1107,7 +1112,8 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         const res = await api("/auth/login", {
           method:"POST",
           body: JSON.stringify({ email:email, password:password }),
-          allow401: true
+          allow401: true,
+          allowError: true
         });
         if (!res.r.ok || !res.j.ok){ $("login-err").textContent = res.j.error || "Could not sign in."; return; }
         user = res.j.user; greet(user.name); paintTools(user.tools); show("app"); openMod("home");
@@ -1119,7 +1125,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         if (btn){ btn.disabled = false; btn.textContent = "Open The Yard"; }
       }
     });
-    $("out").addEventListener("click", async function(){ await api("/auth/logout",{method:"POST"}); show("login"); });
+    $("out").addEventListener("click", async function(){ try { await api("/auth/logout",{method:"POST"}); } catch (e) {} show("login"); });
     document.querySelectorAll("#nav [data-mod]").forEach(function(btn){
       btn.addEventListener("click", function(){ openMod(btn.dataset.mod); });
     });
@@ -1139,8 +1145,14 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
 
     async function loadCrm(){
       $("crm-err").textContent = "Loading book…";
-      const res = await api("/x/crm/crm-data?action=get&omitNotes=1");
-      if (!res.r.ok){ $("crm-err").textContent = "Could not load CRM."; return; }
+      let res;
+      try {
+      res = await api("/x/crm/crm-data?action=get&omitNotes=1", { allowError: true });
+      } catch (err) {
+        $("crm-err").textContent = (err && err.message) || "Could not load CRM.";
+        return;
+      }
+      if (!res.r.ok){ $("crm-err").textContent = res.j.error || res.j.message || "Could not load CRM."; return; }
       const j = res.j;
       const contacts = (j.contacts||[]).slice();
       const added = j.contactsAdded||[];
@@ -1170,9 +1182,12 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       fillOwners(); renderStats(); renderContacts();
     }
     async function loadCampaign(){
-      const res = await api("/campaign");
-      campaignIds = {};
-      (res.j.items||[]).forEach(function(row){ campaignIds[String(row.id)] = row; });
+      try {
+        const res = await api("/campaign", { allowError: true });
+        if (!res.r.ok) return;
+        campaignIds = {};
+        (res.j.items||[]).forEach(function(row){ campaignIds[String(row.id)] = row; });
+      } catch (e) {}
     }
     let ownerReady = false;
     function fillOwners(){
@@ -1247,9 +1262,19 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       selected = (book.contacts||[]).find(function(c){ return String(c.id)===String(id); });
       if (!selected) return;
       document.querySelectorAll("#crm-rows tr").forEach(function(tr){ tr.classList.toggle("sel", tr.getAttribute("data-id")===String(id)); });
-      const res = await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"getNotes", contactId:String(id) }) });
-      const notes = (res.j.notes && (res.j.notes[id]||res.j.notes[String(id)])) || selected.notes || [];
-      selected.notes = notes;
+      let notes = [];
+      let notesErr = "";
+      try {
+        const res = await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"getNotes", contactId:String(id) }), allowError: true });
+        if (!res.r.ok){
+          notesErr = res.j.error || res.j.message || "Could not load notes. Try again.";
+        } else {
+          notes = (res.j.notes && (res.j.notes[id]||res.j.notes[String(id)])) || [];
+          selected.notes = notes;
+        }
+      } catch (err) {
+        notesErr = (err && err.message) ? err.message : "Could not load notes. Try again.";
+      }
       const fu = (book.followups||{})[id] || (book.followups||{})[String(id)] || {};
       const digits = String(selected.phone||"").replace(/\\D/g,"");
       const tel = digits.length===11 && digits.charAt(0)==="1" ? digits.slice(1) : digits;
@@ -1274,7 +1299,8 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         +'<div class="row"><button type="button" class="secondary" id="fu-save">Save follow-up</button><button type="button" id="fu-done">Complete</button></div>'
         +'<label>Add note</label><textarea id="note-text" rows="2"></textarea><div class="row"><button type="button" class="secondary" id="note-add">Add note</button></div>'
         +doneTodayHtml(selected)
-        +"<div>"+(notes.slice(0,20).map(function(n){ return '<div class="note"><strong>'+esc(n.tag||n.author||"")+"</strong> "+esc(n.timestamp||"")+"<div>"+esc(n.text||"")+"</div></div>"; }).join("")||'<p class="muted">No notes yet.</p>')+"</div>";
+        +(notesErr ? '<p class="err" id="crm-notes-err">'+esc(notesErr)+"</p>" : "")
+        +"<div>"+(notesErr ? '<p class="muted">Notes did not load.</p>' : (notes.slice(0,20).map(function(n){ return '<div class="note"><strong>'+esc(n.tag||n.author||"")+"</strong> "+esc(n.timestamp||"")+"<div>"+esc(n.text||"")+"</div></div>"; }).join("")||'<p class="muted">No notes yet.</p>'))+"</div>";
       $("fu-save").onclick = saveFollowup;
       $("fu-done").onclick = completeTask;
       $("note-add").onclick = addNote;
@@ -1315,43 +1341,63 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     }
     async function saveFollowup(){
       if (!selected) return;
-      const row = await persistOpenFollowup(selected.id, $("fu-act").value, $("fu-date").value);
-      if (!row) return;
-      renderStats();
+      try {
+        const row = await persistOpenFollowup(selected.id, $("fu-act").value, $("fu-date").value);
+        if (!row) return;
+        $("crm-err").textContent = "";
+        renderStats();
+      } catch (err) {
+        $("crm-err").textContent = (err && err.message) || "Could not save follow-up.";
+      }
     }
     async function completeTask(){
       if (!selected) return;
       const prev = $("fu-act").value.trim() || "Follow-up";
-      await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"completeFollowup", contactId:String(selected.id), nextAction:prev }) });
-      const stamp = new Date().toISOString().slice(0,16).replace("T"," ");
-      const doneRow = { text:prev, author:(user&&(user.name||user.email))||"User", timestamp:stamp, status:"completed" };
-      book.completed = book.completed || {};
-      const prevDone = (book.completed[selected.id] || book.completed[String(selected.id)] || []).slice();
-      prevDone.unshift(doneRow);
-      book.completed[selected.id] = prevDone;
-      selected.completedTasks = prevDone;
-      book.followups[selected.id] = { nextAction:"", followUpDate:"", completed:true, status:"completed", pendingNext:true };
-      selected.nextAction = "";
-      selected.followUpDate = "";
-      renderStats(); renderFollowups(); renderTasks(); openContact(selected.id);
+      try {
+        await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"completeFollowup", contactId:String(selected.id), nextAction:prev }) });
+        const stamp = new Date().toISOString().slice(0,16).replace("T"," ");
+        const doneRow = { text:prev, author:(user&&(user.name||user.email))||"User", timestamp:stamp, status:"completed" };
+        book.completed = book.completed || {};
+        const prevDone = (book.completed[selected.id] || book.completed[String(selected.id)] || []).slice();
+        prevDone.unshift(doneRow);
+        book.completed[selected.id] = prevDone;
+        selected.completedTasks = prevDone;
+        book.followups[selected.id] = { nextAction:"", followUpDate:"", completed:true, status:"completed", pendingNext:true };
+        selected.nextAction = "";
+        selected.followUpDate = "";
+        $("crm-err").textContent = "";
+        renderStats(); renderFollowups(); renderTasks(); openContact(selected.id);
+      } catch (err) {
+        $("crm-err").textContent = (err && err.message) || "Could not complete that follow-up.";
+      }
     }
     async function addNote(){
       if (!selected) return;
       const text = $("note-text").value.trim();
       if (!text) return;
-      await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"appendNote", contactId:String(selected.id), text:text, tag:"Desk" }) });
-      openContact(selected.id);
+      try {
+        await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"appendNote", contactId:String(selected.id), text:text, tag:"Desk" }) });
+        $("crm-err").textContent = "";
+        openContact(selected.id);
+      } catch (err) {
+        $("crm-err").textContent = (err && err.message) || "Could not add that note.";
+      }
     }
     async function addToCampaign(){
       if (!selected) return;
-      const res = await api("/campaign/add", { method:"POST", body: JSON.stringify({
-        id:String(selected.id), name:selected.name||"", email:selected.email||"", phone:selected.phone||"",
-        city:selected.city||"", owner:selected.owner||""
-      }) });
-      (res.j.items||[]).forEach(function(row){ campaignIds[String(row.id)] = row; });
-      $("crm-detail").innerHTML = '<p class="muted">'+esc(selected.name||"That lead")+" moved to Email campaign. The future campaign tool will work this list.</p>";
-      selected = null;
-      renderStats(); renderContacts(); renderFollowups(); renderTasks(); renderPipeline(); renderCampaign();
+      try {
+        const res = await api("/campaign/add", { method:"POST", body: JSON.stringify({
+          id:String(selected.id), name:selected.name||"", email:selected.email||"", phone:selected.phone||"",
+          city:selected.city||"", owner:selected.owner||""
+        }) });
+        (res.j.items||[]).forEach(function(row){ campaignIds[String(row.id)] = row; });
+        $("crm-err").textContent = "";
+        $("crm-detail").innerHTML = '<p class="muted">'+esc(selected.name||"That lead")+" moved to Email campaign. The future campaign tool will work this list.</p>";
+        selected = null;
+        renderStats(); renderContacts(); renderFollowups(); renderTasks(); renderPipeline(); renderCampaign();
+      } catch (err) {
+        $("crm-err").textContent = (err && err.message) || "Could not add to campaign.";
+      }
     }
     function fillNameList(current){
       const names = new Set();
@@ -1496,19 +1542,28 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     }
     async function saveContactStage(id, status){
       if (!id || !status) return;
-      await persistContactPatch(id, { status: status });
-      renderStats(); renderContacts(); renderPipeline();
-      if (selected && String(selected.id)===String(id)) openContact(id);
+      try {
+        await persistContactPatch(id, { status: status });
+        $("crm-err").textContent = "";
+        renderStats(); renderContacts(); renderPipeline();
+        if (selected && String(selected.id)===String(id)) openContact(id);
+      } catch (err) {
+        $("crm-err").textContent = (err && err.message) || "Could not save stage.";
+      }
     }
     async function saveContactEdit(){
       $("m-err").textContent = "";
       const id = $("m-id").value;
       const patch = readContactEdit();
       if (!patch.name){ $("m-err").textContent = "Name the contact first."; return; }
-      await persistContactPatch(id, patch);
-      closeContactEdit();
-      renderStats(); renderContacts(); renderFollowups(); renderTasks(); renderPipeline();
-      openContact(id);
+      try {
+        await persistContactPatch(id, patch);
+        closeContactEdit();
+        renderStats(); renderContacts(); renderFollowups(); renderTasks(); renderPipeline();
+        openContact(id);
+      } catch (err) {
+        $("m-err").textContent = (err && err.message) || "Could not save that contact.";
+      }
     }
     $("m-save").addEventListener("click", saveContactEdit);
     $("m-cancel").addEventListener("click", closeContactEdit);
@@ -1526,10 +1581,15 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       const btn = e.target.closest("[data-return]");
       if (!btn) return;
       const id = btn.getAttribute("data-return");
-      const res = await api("/campaign/return", { method:"POST", body: JSON.stringify({ id:id }) });
-      campaignIds = {};
-      (res.j.items||[]).forEach(function(row){ campaignIds[String(row.id)] = row; });
-      renderStats(); renderContacts(); renderCampaign();
+      try {
+        const res = await api("/campaign/return", { method:"POST", body: JSON.stringify({ id:id }) });
+        campaignIds = {};
+        (res.j.items||[]).forEach(function(row){ campaignIds[String(row.id)] = row; });
+        $("crm-err").textContent = "";
+        renderStats(); renderContacts(); renderCampaign();
+      } catch (err) {
+        $("crm-err").textContent = (err && err.message) || "Could not return that lead.";
+      }
     });
     function paintFacebookStatus(j){
       const bits = [];
@@ -1541,7 +1601,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     }
     async function loadFacebook(){
       $("fb-err").textContent = "";
-      const res = await api("/facebook/status");
+      const res = await api("/facebook/status", { allowError: true });
       if (!res.r.ok){
         $("fb-err").textContent = res.j.error || "Could not read Facebook status.";
         $("fb-status").textContent = "Facebook credentials stay with Christopher.";
@@ -1555,7 +1615,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         appId: $("fb-app-id").value,
         appSecret: $("fb-app-secret").value,
         clientToken: $("fb-client-token").value
-      }) });
+      }), allowError: true });
       if (!res.r.ok || !res.j.ok){
         $("fb-err").textContent = res.j.error || "Could not save Facebook credentials.";
         return;
@@ -1681,6 +1741,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       const followUpDate = when ? when.value : "";
       const f = (book.followups||{})[id]||(book.followups||{})[String(id)]||{};
       const action = c.nextAction || f.nextAction || "Follow-up";
+      try {
       await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"completeFollowup", contactId:String(id), nextAction:action }) });
       const stamp = new Date().toISOString().slice(0,16).replace("T"," ");
       const doneRow = { text:action, author:(user&&(user.name||user.email))||"User", timestamp:stamp, status:"completed" };
@@ -1697,7 +1758,11 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         book.followups[id] = { nextAction:"", followUpDate:"", completed:true, status:"completed", pendingNext:true };
         book.followups[String(id)] = book.followups[id];
       }
+      $("crm-err").textContent = "";
       renderStats(); renderFollowups(); renderTasks();
+      } catch (err) {
+        $("crm-err").textContent = (err && err.message) || "Could not complete that follow-up.";
+      }
     }
     async function scheduleWork(id){
       const act = document.querySelector('[data-next-act="'+id+'"]');
@@ -1705,8 +1770,13 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       const nextAction = act ? act.value.trim() : "";
       const followUpDate = when ? when.value : "";
       if (!nextAction && !followUpDate) return;
-      await persistOpenFollowup(id, nextAction, followUpDate);
-      renderStats(); renderFollowups(); renderTasks();
+      try {
+        await persistOpenFollowup(id, nextAction, followUpDate);
+        $("crm-err").textContent = "";
+        renderStats(); renderFollowups(); renderTasks();
+      } catch (err) {
+        $("crm-err").textContent = (err && err.message) || "Could not save that follow-up.";
+      }
     }
     function renderPipeline(){
       const deals = scopedDeals();
@@ -1738,9 +1808,17 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       if (!sel) return;
       const deal = (book.deals||[]).find(function(d){ return String(d.id)===sel.getAttribute("data-deal"); });
       if (!deal) return;
+      const prev = deal.stage;
       deal.stage = sel.value;
-      await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"saveDeals", deals: book.deals }) });
-      renderStats(); renderPipeline();
+      try {
+        await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"saveDeals", deals: book.deals }) });
+        $("crm-err").textContent = "";
+        renderStats(); renderPipeline();
+      } catch (err) {
+        deal.stage = prev;
+        sel.value = prev;
+        $("crm-err").textContent = (err && err.message) || "Could not save that deal.";
+      }
     });
 
     function openDesk(tab){
@@ -1772,10 +1850,14 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       bubble("user", q);
       chatHistory.push({ role:"user", content:q });
       $("desk-ai").value = "";
-      const res = await api("/x/desk/chat", { method:"POST", body: JSON.stringify({ message:q, history:chatHistory }) });
-      const reply = res.j.reply || res.j.text || res.j.error || "No reply.";
-      chatHistory.push({ role:"assistant", content:reply });
-      bubble("assistant", reply);
+      try {
+        const res = await api("/x/desk/chat", { method:"POST", body: JSON.stringify({ message:q, history:chatHistory }) });
+        const reply = res.j.reply || res.j.text || res.j.error || "No reply.";
+        chatHistory.push({ role:"assistant", content:reply });
+        bubble("assistant", reply);
+      } catch (err) {
+        $("desk-chat-err").textContent = (err && err.message) || "Desk did not reply.";
+      }
     }
     $("desk-ask-form").addEventListener("submit", function(e){ e.preventDefault(); askDesk($("desk-ai").value); });
     document.querySelectorAll("#comp-picks .pick").forEach(function(b){
@@ -1793,18 +1875,25 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       const who = vendor==="usa-containers" ? "USA Containers" : "Container One";
       const path = vendor==="usa-containers" ? "/x/desk/comp/usa-containers" : "/x/desk/comp/container-one";
       bubble("user", "Pull "+who+" for ZIP "+zip+" — "+compPick.size+" "+compPick.grade+" "+compPick.config);
-      const res = await api(path, { method:"POST", body: JSON.stringify({ zip:zip, size:compPick.size, grade:compPick.grade, config:compPick.config }) });
-      const reply = res.j.reply || res.j.error || "Could not pull that posted price. Do not invent a number.";
-      bubble("assistant", reply);
-      chatHistory.push({ role:"user", content:"Pull "+who+" "+zip+" "+compPick.size+" "+compPick.grade+" "+compPick.config });
-      chatHistory.push({ role:"assistant", content:reply });
+      try {
+        const res = await api(path, { method:"POST", body: JSON.stringify({ zip:zip, size:compPick.size, grade:compPick.grade, config:compPick.config }) });
+        const reply = res.j.reply || res.j.error || "Could not pull that posted price. Do not invent a number.";
+        bubble("assistant", reply);
+        chatHistory.push({ role:"user", content:"Pull "+who+" "+zip+" "+compPick.size+" "+compPick.grade+" "+compPick.config });
+        chatHistory.push({ role:"assistant", content:reply });
+      } catch (err) {
+        $("desk-chat-err").textContent = (err && err.message) || "Could not pull that posted price. Do not invent a number.";
+      }
     }
     $("comp-pull").addEventListener("click", function(){ pullCompetitor("container-one"); });
     $("comp-pull-usa").addEventListener("click", function(){ pullCompetitor("usa-containers"); });
     async function loadTemplates(){
-      const res = await api("/x/desk/templates");
-      const tpls = res.j.templates||[];
-      $("desk-tpl").innerHTML = tpls.map(function(t){ return '<option value="'+esc(t.id)+'">'+esc(t.group||"")+" — "+esc(t.title||t.id)+"</option>"; }).join("");
+      try {
+        const res = await api("/x/desk/templates", { allowError: true });
+        if (!res.r.ok) return;
+        const tpls = res.j.templates||[];
+        $("desk-tpl").innerHTML = tpls.map(function(t){ return '<option value="'+esc(t.id)+'">'+esc(t.group||"")+" — "+esc(t.title||t.id)+"</option>"; }).join("");
+      } catch (e) {}
     }
     function renderDeskPicked(){
       const box = $("desk-sel");
@@ -1860,7 +1949,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       clearTimeout(deskSearchTimer);
       if (q.length<2){ renderDeskHits([]); return; }
       deskSearchTimer = setTimeout(async function(){
-        const res = await api("/x/desk/contacts?q="+encodeURIComponent(q));
+        const res = await api("/x/desk/contacts?q="+encodeURIComponent(q), { allowError: true });
         if (seq !== deskSearchSeq) return;
         if (!res.r.ok){
           $("desk-err").textContent = res.j.error || "Could not search the CRM.";
@@ -1939,7 +2028,13 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         $("n-err").textContent = "Type first and last name.";
         return;
       }
-      const res = await api("/desk/contact", { method:"POST", body: JSON.stringify(draft) });
+      let res;
+      try {
+        res = await api("/desk/contact", { method:"POST", body: JSON.stringify(draft), allowError: true });
+      } catch (err) {
+        $("n-err").textContent = (err && err.message) || "Could not save the contact to the CRM.";
+        return;
+      }
       if (!res.r.ok || !res.j.ok){
         $("n-err").textContent = res.j.error || "Could not save the contact to the CRM.";
         return;
@@ -1973,19 +2068,29 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         $("desk-err").textContent="Search and pick a contact first.";
         return;
       }
-      const res = await api("/x/desk/call/save", { method:"POST", body: JSON.stringify({
+      let res;
+      try {
+        res = await api("/x/desk/call/save", { method:"POST", body: JSON.stringify({
         contactId: String(deskContact.id),
         scraps: $("desk-scraps").value,
         pastCte: $("desk-past").checked,
         nextAction: $("desk-action").value,
         followUpDate: $("desk-when").value,
         create: { name: deskContact.name, phone: deskContact.phone, email: deskContact.email, zip: deskContact.zip }
-      }) });
+      }), allowError: true });
+      } catch (err) {
+        $("desk-err").textContent = (err && err.message) || "Could not save to the CRM.";
+        return;
+      }
       $("desk-err").textContent = (!res.r.ok||!res.j.ok) ? (res.j.error||"Could not save to the CRM.") : (res.j.summary || "Saved to CRM.");
     });
     $("desk-render").addEventListener("click", async function(){
-      const res = await api("/x/desk/templates/render", { method:"POST", body: JSON.stringify({ id: $("desk-tpl").value, name: deskContact && deskContact.name, firstName: (deskContact&&deskContact.name||"").split(" ")[0] }) });
-      $("desk-body").textContent = res.j.body || res.j.text || JSON.stringify(res.j);
+      try {
+        const res = await api("/x/desk/templates/render", { method:"POST", body: JSON.stringify({ id: $("desk-tpl").value, name: deskContact && deskContact.name, firstName: (deskContact&&deskContact.name||"").split(" ")[0] }) });
+        $("desk-body").textContent = res.j.body || res.j.text || JSON.stringify(res.j);
+      } catch (err) {
+        $("desk-err").textContent = (err && err.message) || "Could not render that template.";
+      }
     });
     $("desk-copy").addEventListener("click", async function(){ try { await navigator.clipboard.writeText($("desk-body").textContent||""); } catch (e) {} });
 
@@ -2105,7 +2210,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       clearTimeout(xSearchTimer);
       if (q.length<2){ renderXHits([]); return; }
       xSearchTimer = setTimeout(async function(){
-        const res = await api("/x/desk/contacts?q="+encodeURIComponent(q));
+        const res = await api("/x/desk/contacts?q="+encodeURIComponent(q), { allowError: true });
         if (seq !== xSearchSeq) return;
         if (!res.r.ok){ $("x-err").textContent = res.j.error || "Could not search the CRM."; renderXHits([]); return; }
         renderXHits(res.j.contacts||[]);
@@ -2116,7 +2221,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       $("x-err").textContent = "";
       const draft = readModifiedUi();
       if (xContact && xContact.id != null) draft.contactId = String(xContact.id);
-      const res = await api("/modified/spec", { method:"POST", body: JSON.stringify(draft) });
+      const res = await api("/modified/spec", { method:"POST", body: JSON.stringify(draft), allowError: true });
       if (!res.r.ok || !res.j.ok){
         $("x-err").textContent = res.j.error || "Could not save that spec.";
         return;
@@ -2166,12 +2271,6 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     picks($("p-size"), SIZES, "size"); picks($("p-height"), HEIGHTS, "height");
     picks($("p-config"), CONFIGS, "config"); picks($("p-grade"), GRADES, "grade");
 
-    function sizeToken(){
-      if (pick.config && pick.config!=="standard") return "Specialized";
-      if (pick.size==="20" || pick.size==="10") return "20ft";
-      if (pick.size==="40" || pick.size==="45") return "40ft";
-      return "Specialized";
-    }
     function applyQuoteMatch(j){
       lastQuote = j && j.ok ? j : null;
       if (!j || !j.ok){
@@ -2208,7 +2307,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         const res = await api("/quote/match", { method:"POST", body: JSON.stringify({
           zip:zip, size:pick.size, height:pick.height, config:pick.config, grade:pick.grade,
           qty:$("p-qty").value, fulfillment:$("p-ful").value, refresh:refresh
-        }) });
+        }), allowError: true });
         applyQuoteMatch(res.j);
       } catch (err) {
         $("p-status").textContent = "Could not match that ZIP to a posted box. Do not invent a wholesale.";
@@ -2327,7 +2426,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
           fulfillment:$("p-ful").value, clientType:"Residential", paymentMode:"cash",
           repName: user && (user.name || user.email), repEmail: user && user.email,
           lines: lines
-        })});
+        }), allowError: true});
         if (!res.r.ok || !res.j.ok){
           $("p-err").textContent = res.j.error || res.j.message || "The proposal did not write. Try again.";
           return;
@@ -2384,7 +2483,9 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       $("i-err").textContent="";
       $("i-out").textContent = payMethod==="ach" ? "Building the branded ACH / wire invoice PDF…" : "Building the branded invoice PDF…";
       const same = $("i-same").checked;
-      const res = await api("/x/invoice/invoice/create", { method:"POST", body: JSON.stringify({
+      let res;
+      try {
+      res = await api("/x/invoice/invoice/create", { method:"POST", body: JSON.stringify({
         name:$("i-name").value, email:$("i-email").value, phone:$("i-phone").value, amountRaw:$("i-amount").value,
         notes:$("i-notes").value, company:$("i-co").value, warrantyKind:$("i-warr").value,
         billingStreet:$("i-bstreet").value, billingCity:$("i-bcity").value,
@@ -2394,7 +2495,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         deliveryState:same?$("i-bstate").value:$("i-dstate").value,
         deliveryZip:same?$("i-bzip").value:$("i-dzip").value,
         sameAsBilling: same, payMethod:payMethod
-      })});
+      }), allowError: true});
       if (!res.r.ok || !res.j.ok){ $("i-err").textContent=res.j.error||"Could not create that invoice."; $("i-out").textContent="The invoice PDF downloads here, then Gmail opens so you can attach it."; return; }
       const number = res.j.documentNumber || (res.j.card && res.j.card.documentNumber) || "";
       const origin = window.location.origin;
@@ -2415,6 +2516,10 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         ? "Invoice "+number+" PDF downloaded. Gmail opened — attach "+number+".pdf and send it to the customer. Do not invent a price."
         : "Invoice "+(number||"built")+" is on screen. Download the PDF, then attach it in Gmail. Do not invent a price.";
       if (lastGmail) window.open(lastGmail, "_blank", "noopener");
+      } catch (err) {
+        $("i-err").textContent = (err && err.message) || "Could not create that invoice.";
+        $("i-out").textContent = "The invoice PDF downloads here, then Gmail opens so you can attach it.";
+      }
     }
     $("i-ach").addEventListener("click", function(){ makeInvoice("ach"); });
     $("i-card").addEventListener("click", function(){ makeInvoice("card"); });
@@ -2424,18 +2529,27 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     $("i-print-doc").addEventListener("click", function(){ if(!lastDoc){ $("i-err").textContent="Build the invoice first."; return;} const frame=$("i-preview"); if(frame&&frame.contentWindow) frame.contentWindow.print(); else window.open(lastDoc,"_blank","noopener"); });
     $("i-lookup").addEventListener("click", async function(){
       $("i-err").textContent = "Looking up the last agreed proposal amount…";
-      const res = await api("/x/invoice/invoice/lookup", { method:"POST", body: JSON.stringify({ email:$("i-email").value, phone:$("i-phone").value }) });
-      if (!res.r.ok || !res.j.ok || !res.j.amount){ $("i-err").textContent = res.j.error || "No agreed proposal amount on that contact."; return; }
-      $("i-amount").value = String(res.j.amount);
-      if (res.j.name && !$("i-name").value) $("i-name").value = res.j.name;
-      $("i-err").textContent = "";
+      try {
+        const res = await api("/x/invoice/invoice/lookup", { method:"POST", body: JSON.stringify({ email:$("i-email").value, phone:$("i-phone").value }), allowError: true });
+        if (!res.r.ok || !res.j.ok || !res.j.amount){ $("i-err").textContent = res.j.error || "No agreed proposal amount on that contact."; return; }
+        $("i-amount").value = String(res.j.amount);
+        if (res.j.name && !$("i-name").value) $("i-name").value = res.j.name;
+        $("i-err").textContent = "";
+      } catch (err) {
+        $("i-err").textContent = (err && err.message) || "No agreed proposal amount on that contact.";
+      }
     });
     async function loadInvoices(){
-      const res = await api("/x/invoice/invoice/list");
+      try {
+      const res = await api("/x/invoice/invoice/list", { allowError: true });
+      if (!res.r.ok){ $("i-err").textContent = res.j.error || res.j.message || "Could not load invoices."; return; }
       const cards = res.j.cards||[];
       $("i-hits").innerHTML = cards.slice(0,12).map(function(c){
         return '<div class="hit"><strong>'+esc(c.name||"")+" · "+esc(c.documentNumber||c.id||"")+" · "+(c.amount?money(c.amount):"")+"</strong><div>"+esc(c.status||"")+(c.payMethod?" · "+c.payMethod:"")+"</div></div>";
       }).join("") || '<p class="muted">No invoices in this list yet.</p>';
+      } catch (err) {
+        $("i-err").textContent = (err && err.message) || "Could not load invoices.";
+      }
     }
     $("i-list").addEventListener("click", loadInvoices);
 
