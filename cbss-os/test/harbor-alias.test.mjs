@@ -15,8 +15,11 @@ describe("The Yard public name", () => {
     assert.match(wrangler, /src\/harbor-alias\.ts/);
     assert.match(alias, /env\.HOUSE\.fetch/);
     assert.match(wrangler, /"service": "cbssos"/);
-    assert.match(wrangler, /theyard\.cbshippingsolutions\.app/);
-    assert.match(wrangler, /custom_domain": true/);
+    assert.match(wrangler, /theyard\.cbshippingsolutions\.app\/\*/);
+    assert.match(wrangler, /house\.cbshippingsolutions\.app\/\*/);
+    assert.match(wrangler, /crm\.cbshippingsolutions\.app\/\*/);
+    assert.match(wrangler, /zone_name": "cbshippingsolutions\.app"/);
+    assert.doesNotMatch(wrangler, /custom_domain/);
     assert.match(alias, /YARD_PUBLIC/);
     assert.match(alias, /\.workers\.dev/);
     assert.match(alias, /Response\.redirect/);
@@ -30,6 +33,7 @@ describe("The Yard public name", () => {
     assert.match(index, /pageHtml\(\{ loginError/);
     assert.match(index, /isYardPagePath/);
     assert.match(index, /path === "\/auth\/login"/);
+    assert.match(index, /"Alt-Svc": "clear"/);
   });
 });
 
@@ -39,6 +43,10 @@ describe("The Yard sign-in on the company hostname", () => {
     assert.equal(yardAliasAction("theyard.cbss.workers.dev", "POST"), "proxy");
     assert.equal(yardAliasAction("theyard.cbshippingsolutions.app", "GET"), "proxy");
     assert.equal(yardAliasAction("theyard.cbshippingsolutions.app", "POST"), "proxy");
+    assert.equal(yardAliasAction("house.cbshippingsolutions.app", "GET"), "proxy");
+    assert.equal(yardAliasAction("house.cbshippingsolutions.app", "POST"), "proxy");
+    assert.equal(yardAliasAction("crm.cbshippingsolutions.app", "GET"), "redirect");
+    assert.equal(yardAliasAction("crm.cbshippingsolutions.app", "POST"), "proxy");
   });
 
   it("shows a sign-in error and does not let boot kick them back to login", () => {
