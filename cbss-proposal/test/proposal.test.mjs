@@ -266,7 +266,8 @@ describe("Proposal tool picker, depot, and cash price", () => {
     assert.match(submit, /isPickupFulfillment/);
     assert.match(submit, /Pickup cash price \(each\)/);
     assert.match(submit, /Do not add a pickup fee/);
-    assert.match(submit, /const deliveryPer = isPickupFulfillment/);
+    assert.match(submit, /const pickup = isPickupFulfillment/);
+    assert.match(submit, /const deliveryPer = pickup/);
     assert.doesNotMatch(page, /pickup fee \$/);
   });
 
