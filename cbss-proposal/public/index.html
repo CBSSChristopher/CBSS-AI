@@ -1,0 +1,1990 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f1c2e" />
+  <title>CBShippingSolutions – Proposal Builder</title>
+  <style>
+    :root {
+      --primary: #1F4E79;
+      --primary-dark: #163A5F;
+      --navy: #0f1c2e;
+      --accent: #2E75B6;
+      --light: #F4F7FA;
+      --border: #D0D7DE;
+      --text: #1a1a1a;
+      --muted: #555;
+      --success: #0d7a3f;
+      --danger: #b42318;
+      --yellow: #FFF2CC;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #eef2f6;
+      color: var(--text);
+      line-height: 1.5;
+      padding: 24px 16px;
+    }
+    .container {
+      max-width: 820px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+    header {
+      background: var(--navy);
+      color: white;
+      padding: 26px 32px;
+      text-align: center;
+    }
+    header h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
+    header p { font-size: 0.9rem; opacity: 0.85; }
+    form, .body { padding: 26px 32px 36px; }
+    .section-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--primary);
+      margin: 24px 0 12px;
+      padding-bottom: 6px;
+      border-bottom: 2px solid var(--primary);
+    }
+    .section-title:first-of-type { margin-top: 0; }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 12px;
+    }
+    @media (max-width: 600px) {
+      .row { grid-template-columns: 1fr; }
+      body { padding: 0; padding-bottom: env(safe-area-inset-bottom); }
+      .container { border-radius: 0; }
+      header { padding: 18px 16px; padding-top: max(18px, env(safe-area-inset-top)); }
+      form, .body { padding: 18px 16px 28px; }
+      .zip-actions { flex-direction: column; }
+      .zip-actions .btn { width: 100%; }
+      .picks .pick, .btn { min-height: 44px; }
+      input, select, textarea { font-size: 16px; min-height: 44px; }
+      input[type="range"] { min-height: 32px; }
+      .flex-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 5px;
+      color: #333;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 11px 13px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 1rem;
+      background: #fff;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(46,117,182,0.15);
+    }
+    .full { grid-column: 1 / -1; }
+    .note { font-size: 0.8rem; color: var(--muted); margin-top: 5px; }
+    .btn {
+      padding: 13px 22px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-primary { background: var(--primary); color: white; width: 100%; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-secondary { background: #e8eef4; color: var(--primary); }
+    .zip-actions { display: flex; gap: 8px; width: 100%; }
+    .zip-actions .btn { width: auto; flex: 1; padding: 13px 12px; }
+    .picks { margin: 0 0 10px; }
+    .picks .lbl { font-size: 12px; font-weight: 700; color: #3d4d5c; margin: 10px 0 6px; }
+    .picks .btns { display: flex; flex-wrap: wrap; gap: 6px; }
+    .picks .pick {
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--primary);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .picks .pick.on { background: var(--navy); color: #fff; border-color: var(--navy); }
+    .depot-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 13px 15px;
+      margin-bottom: 9px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .depot-card:hover { border-color: var(--accent); background: #f8fbff; }
+    .depot-card.selected {
+      border-color: var(--primary);
+      background: #eef5fc;
+      box-shadow: 0 0 0 2px rgba(31,78,121,0.18);
+    }
+    .depot-name { font-weight: 700; }
+    .depot-meta { font-size: 0.84rem; color: var(--muted); margin-top: 2px; }
+    .depot-cost { font-weight: 700; color: var(--primary); margin-top: 5px; }
+    .price-box {
+      background: var(--light);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 18px;
+      margin-top: 12px;
+    }
+    .price-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 7px;
+      font-size: 0.95rem;
+    }
+    .price-row.total {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+    .margin-good { color: var(--success); }
+    .margin-warn { color: #b45309; }
+    .margin-row { display: flex; align-items: center; gap: 12px; }
+    .margin-row input[type="range"] { flex: 1; min-width: 0; }
+    .margin-row strong { min-width: 5.2em; text-align: right; color: var(--primary); }
+    .hidden { display: none; }
+    .radio-group { display: flex; gap: 22px; flex-wrap: wrap; margin-top: 4px; }
+    .radio-group label { display: flex; align-items: center; gap: 7px; font-weight: 500; cursor: pointer; margin: 0; }
+    .radio-group input { width: auto; }
+    .actions { margin-top: 28px; }
+    footer {
+      text-align: center;
+      padding: 13px;
+      font-size: 0.8rem;
+      color: #777;
+      background: #f8fafc;
+      border-top: 1px solid var(--border);
+    }
+    .status { font-size: 0.84rem; color: var(--muted); margin-top: 7px; }
+
+    /* Flex Buy styles */
+    .flex-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: 0.9rem;
+    }
+    .flex-table th {
+      background: var(--primary);
+      color: white;
+      padding: 10px 8px;
+      text-align: center;
+      font-weight: 600;
+      font-size: 0.78rem;
+    }
+    .flex-table td {
+      padding: 10px 8px;
+      border-bottom: 1px solid var(--border);
+      text-align: center;
+    }
+    .flex-table tr:nth-child(even) { background: #f8fafc; }
+    .flex-table tr.selected-row {
+      background: #e8f0fe !important;
+      outline: 2px solid var(--primary);
+    }
+    .flex-table tr { cursor: pointer; }
+    .flex-table tr:hover { background: #f0f6fc; }
+    .flex-option-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .flex-option-card:hover { border-color: var(--accent); }
+    .flex-option-card.selected {
+      border-color: var(--primary);
+      background: #eef5fc;
+      box-shadow: 0 0 0 2px rgba(31,78,121,0.18);
+    }
+    .flex-inputs {
+      background: #fffbeb;
+      border: 1px solid #f5e6a3;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 14px;
+    }
+    .flex-inputs .row { margin-bottom: 8px; }
+    .chip {
+      display: inline-block;
+      background: var(--primary);
+      color: white;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+      margin-left: 8px;
+    }
+    .netlify-identity-signup { display: none !important; }
+    #loginGate {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(145deg, #0f1c2e 0%, #1F4E79 100%);
+      padding: 24px;
+    }
+    #loginGate .login-card {
+      background: white;
+      border-radius: 14px;
+      padding: 40px 36px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+      text-align: center;
+    }
+    #loginGate h1 { font-size: 1.4rem; color: #0f1c2e; margin-bottom: 6px; }
+    #loginGate .sub { color: #555; font-size: 0.9rem; margin-bottom: 22px; }
+    #loginGate button {
+      width: 100%;
+      padding: 13px;
+      background: #1F4E79;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    #appWrap { display: none; }
+    #appWrap.show { display: block; }
+    .qty-row { display: flex; align-items: center; gap: 8px; }
+    .qty-row input { text-align: center; font-weight: 700; }
+    .qty-btn {
+      width: 44px; height: 44px; border: 1px solid var(--border); border-radius: 8px;
+      background: #fff; color: var(--primary); font-size: 1.3rem; font-weight: 700; cursor: pointer;
+    }
+    .upfront-highlight {
+      background: #e8f5e9;
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-top: 10px;
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="loginGate">
+    <div class="login-card">
+      <h1>CBShippingSolutions</h1>
+      <div class="sub">Proposal Builder — company login required</div>
+      <form id="loginForm" onsubmit="cbssDoLogin(event)" style="text-align:left;">
+        <label style="display:block;font-size:0.82rem;font-weight:600;margin-bottom:5px;">Company email</label>
+        <input type="email" id="loginEmail" autocomplete="username" placeholder="you@cbshippingsolutions.com" required style="width:100%;padding:12px 13px;border:1px solid #d0d7de;border-radius:8px;font-size:1rem;margin-bottom:12px;" />
+        <label style="display:block;font-size:0.82rem;font-weight:600;margin-bottom:5px;">Password</label>
+        <input type="password" id="loginPassword" autocomplete="current-password" placeholder="Password" required style="width:100%;padding:12px 13px;border:1px solid #d0d7de;border-radius:8px;font-size:1rem;margin-bottom:4px;" />
+        <button type="submit">Log In</button>
+      </form>
+      <p class="note" id="loginMsg" style="margin-top:16px;">Company email only. First login sets your password.</p>
+    </div>
+  </div>
+  <div id="appWrap">
+  <div class="container">
+    <header>
+      <h1>CBShippingSolutions</h1>
+      <p>Proposal Builder · One depot · Delivered or pickup cash · build 10</p>
+    </header>
+
+    <form id="proposalForm" onsubmit="submitProposal(event)">
+
+      <!-- 1. Container picks — same button style as AI Help Desk -->
+      <div class="section-title">1. Container</div>
+      <p class="note" style="margin-top:-6px;margin-bottom:8px;">Pick size, grade, and configuration the same way as Help Desk, then pull the posted xChange number. That number is theirs, not a CBSS quote.</p>
+      <div class="picks" id="box-picks">
+        <div class="lbl">Size</div>
+        <div class="btns">
+          <button type="button" class="pick" data-pick="size" data-val="20STD">20STD</button>
+          <button type="button" class="pick" data-pick="size" data-val="20HC">20HC</button>
+          <button type="button" class="pick" data-pick="size" data-val="40STD">40STD</button>
+          <button type="button" class="pick on" data-pick="size" data-val="40HC">40HC</button>
+          <button type="button" class="pick" data-pick="size" data-val="10STD">10</button>
+          <button type="button" class="pick" data-pick="size" data-val="45HC">45HC</button>
+          <button type="button" class="pick" data-pick="size" data-val="53STD">53</button>
+        </div>
+        <div class="lbl">Grade</div>
+        <div class="btns">
+          <button type="button" class="pick" data-pick="grade" data-val="WWT">WWT</button>
+          <button type="button" class="pick on" data-pick="grade" data-val="CW">CW</button>
+          <button type="button" class="pick" data-pick="grade" data-val="IICL">IICL / Multi-Trip</button>
+          <button type="button" class="pick" data-pick="grade" data-val="OneTrip">One-Trip</button>
+          <button type="button" class="pick" data-pick="grade" data-val="AsIs">As-Is</button>
+        </div>
+        <div class="lbl">Configuration</div>
+        <div class="btns">
+          <button type="button" class="pick on" data-pick="config" data-val="standard">Standard</button>
+          <button type="button" class="pick" data-pick="config" data-val="double-door">Double door</button>
+          <button type="button" class="pick" data-pick="config" data-val="side-os-2d">Side door (OS 2D)</button>
+          <button type="button" class="pick" data-pick="config" data-val="side-os-4d">Side door (OS 4D)</button>
+          <button type="button" class="pick" data-pick="config" data-val="tri-door">Tri-door</button>
+          <button type="button" class="pick" data-pick="config" data-val="full-open-side">Full open side</button>
+        </div>
+        <p class="note">OS 2D and OS 4D are side-door units on xChange. Full open side is a different box and usually costs more. Do not mix them.</p>
+      </div>
+      <div class="row">
+        <div>
+          <label for="boxQty">How many *</label>
+          <div class="qty-row">
+            <button type="button" class="qty-btn" onclick="nudgeQty(-1)" aria-label="Fewer">−</button>
+            <input type="number" id="boxQty" min="1" max="50" step="1" value="1" oninput="onSizeOrConditionChange()" />
+            <button type="button" class="qty-btn" onclick="nudgeQty(1)" aria-label="More">+</button>
+          </div>
+        </div>
+        <div>
+          <p class="note" style="margin-top:28px;">How many of this container they want. 1, 2, 3, and so on.</p>
+        </div>
+      </div>
+      <select id="boxSize" class="hidden" aria-hidden="true" onchange="onSizeOrConditionChange()">
+        <option value="10">10 ft</option>
+        <option value="20">20 ft</option>
+        <option value="40" selected>40 ft</option>
+        <option value="45">45 ft</option>
+        <option value="53">53 ft</option>
+      </select>
+      <select id="boxHeight" class="hidden" aria-hidden="true" onchange="onSizeOrConditionChange()">
+        <option value="DC">Standard height / DC</option>
+        <option value="HC" selected>High cube / HC</option>
+      </select>
+      <select id="boxConfig" class="hidden" aria-hidden="true" onchange="onSizeOrConditionChange()">
+        <option value="standard" selected>Standard</option>
+        <option value="tri-door">Tri-door</option>
+        <option value="double-door">Double door</option>
+        <option value="side-os-2d">Side door (OS 2D)</option>
+        <option value="side-os-4d">Side door (OS 4D)</option>
+        <option value="side-door">Side door</option>
+        <option value="full-open-side">Full open side</option>
+        <option value="other">Other / specialized</option>
+      </select>
+      <select id="condition" class="hidden" aria-hidden="true" onchange="onSizeOrConditionChange()">
+        <option value="CW">Cargo Worthy (CW)</option>
+        <option value="IICL">IICL/Multi-Trip</option>
+        <option value="WWT">Wind & Water Tight (WWT)</option>
+        <option value="OneTrip">One-Trip / New</option>
+        <option value="AsIs">As-Is</option>
+      </select>
+      <select id="size" class="hidden" aria-hidden="true">
+        <option value="20ft">20ft</option>
+        <option value="40ft" selected>40ft</option>
+        <option value="Specialized">Specialized</option>
+      </select>
+
+      <!-- 2. ZIP + Depot + Pull xChange -->
+      <div class="section-title">2. Customer Location & Depot</div>
+      <div class="row">
+        <div>
+          <label for="zip">Customer ZIP Code *</label>
+          <input type="text" id="zip" maxlength="5" placeholder="e.g. 38103" required />
+        </div>
+        <div style="display:flex; align-items:flex-end;">
+          <div class="zip-actions">
+            <button type="button" class="btn btn-primary" id="findBtn" onclick="findDepots()">Find depot</button>
+            <button type="button" class="btn btn-secondary" id="pullXchangeBtn" onclick="pullXchange()">Pull xChange</button>
+          </div>
+        </div>
+      </div>
+      <p class="status" id="zipStatus"></p>
+      <p class="status" id="inventoryStatus">Wholesale fills from the latest posted xChange pickup price. Pull xChange if it is missing or stale.</p>
+
+      <div id="depotSection" class="hidden">
+        <label style="margin-top:12px;">Your depot</label>
+        <div id="depotList"></div>
+      </div>
+
+      <!-- 3. Wholesale & cash -->
+      <div id="pricingSection">
+        <div class="section-title">3. Wholesale & Cash</div>
+        <div class="picks" id="fulfill-picks">
+          <div class="lbl">How they get the box</div>
+          <div class="btns">
+            <button type="button" class="pick on" data-fulfill="deliver" id="fulfillDeliverBtn">Delivered</button>
+            <button type="button" class="pick" data-fulfill="pickup" id="fulfillPickupBtn">Picked up</button>
+          </div>
+          <p class="note">Delivered puts weekday delivery inside the cash price. Picked up is depot pickup — no delivery charge and no invented pickup fee.</p>
+        </div>
+        <div class="row">
+          <div>
+            <label for="wholesale">Wholesale Cost (xChange) *</label>
+            <input type="number" id="wholesale" min="0" step="0.01" placeholder="Posted xChange pickup — do not invent" required oninput="recalcIfReady()" />
+          </div>
+          <div id="milesOverrideWrap">
+            <label for="milesOverride">Miles Override (optional)</label>
+            <input type="number" id="milesOverride" min="0" placeholder="Leave blank for estimate" oninput="recalcIfReady()" />
+          </div>
+        </div>
+        <div class="row" id="netMarginRow">
+          <div class="full">
+            <label for="netMargin">Net margin $300–$2,000</label>
+            <div class="margin-row">
+              <input type="range" id="netMargin" min="300" max="2000" step="25" value="700" oninput="onNetMarginChange()" />
+              <strong id="netMarginOut">$700</strong>
+            </div>
+            <p class="note">CBSS profit on top of the posted xChange wholesale and delivery. Slide it from $300 to $2,000. This does not invent a wholesale.</p>
+          </div>
+        </div>
+        <div class="picks" id="approved-picks">
+          <div class="lbl">Special pricing</div>
+          <div class="btns">
+            <button type="button" class="pick" id="approvedPricingBtn" onclick="startApprovedPricing()">Christopher approved pricing</button>
+            <button type="button" class="pick hidden" id="clearApprovedBtn" onclick="clearApprovedPricing()">Use formula price</button>
+          </div>
+          <p class="note">Use this only after you talk to Christopher and he gives you a number. You will need the manager approval code.</p>
+        </div>
+        <div id="approvalGate" class="hidden" style="margin-bottom:12px;">
+          <label for="managerApprovalCode">Manager approval code</label>
+          <div class="row">
+            <div>
+              <input type="password" id="managerApprovalCode" inputmode="numeric" autocomplete="one-time-code" placeholder="Ask Christopher" />
+            </div>
+            <div style="display:flex;align-items:flex-end;">
+              <button type="button" class="btn btn-secondary" id="verifyApprovalBtn" onclick="verifyApprovedPricing()">Unlock approved price</button>
+            </div>
+          </div>
+          <p class="status" id="approvalStatus"></p>
+        </div>
+        <div id="approvedPriceWrap" class="hidden" style="margin-bottom:12px;">
+          <label for="approvedUnitPrice">Christopher approved cash price (each) *</label>
+          <input type="number" id="approvedUnitPrice" min="0.01" step="0.01" placeholder="Enter the number Christopher approved" oninput="recalcIfReady()" />
+          <p class="note">Enter the cash number Christopher approved. Wholesale still comes from posted xChange. This does not invent a wholesale.</p>
+        </div>
+
+        <div id="priceBox" class="price-box hidden"></div>
+      </div>
+
+      <!-- 3. Flex Buy / Payment Options -->
+      <div id="flexSection" class="hidden">
+        <div class="section-title">4. Payment Options — Cash or Flex Buy</div>
+
+        <div class="radio-group" style="margin-bottom:14px;">
+          <label><input type="radio" name="payMode" value="cash" checked onchange="toggleFlexUI()" /> Cash / Full Payment</label>
+          <label><input type="radio" name="payMode" value="flex" onchange="toggleFlexUI()" /> Flex Buy (Financing)</label>
+        </div>
+
+        <div id="flexUI" class="hidden">
+          <div class="flex-inputs">
+            <div class="row">
+              <div>
+                <label for="downPct">Down Payment % (on container)</label>
+                <input type="number" id="downPct" value="10" min="5" max="50" step="1" oninput="recalcFlex()" />
+              </div>
+              <div id="modDownWrap" class="hidden">
+                <label for="modDownPct">Modification Down %</label>
+                <input type="number" id="modDownPct" value="35" min="10" max="100" step="1" oninput="recalcFlex()" />
+              </div>
+            </div>
+            <div class="row">
+              <div>
+                <label for="modPrice">Modification / Custom Price (if any)</label>
+                <input type="number" id="modPrice" value="0" min="0" step="50" oninput="recalcFlex(); updateFlexMode();" />
+              </div>
+              <div>
+                <label>&nbsp;</label>
+                <p class="note" id="flexModeLabel">Mode: Standard Container</p>
+              </div>
+            </div>
+          </div>
+
+          <div id="upfrontBox" class="upfront-highlight"></div>
+
+          <p class="note" style="margin:12px 0 6px;">Select a term below to include in the proposal (click a row):</p>
+          <div style="overflow-x:auto;">
+            <table class="flex-table" id="flexTable">
+              <thead>
+                <tr>
+                  <th>Term</th>
+                  <th>APR</th>
+                  <th>Monthly</th>
+                  <th>Total Paid*</th>
+                  <th>Interest</th>
+                </tr>
+              </thead>
+              <tbody id="flexBody"></tbody>
+            </table>
+          </div>
+          <p class="note" id="flexCashNote">* Cash price is delivered. Flex collects the down payment upfront from that delivered cash figure.</p>
+        </div>
+
+        <div id="cashSummary" class="upfront-highlight" style="margin-top:10px;">
+          Full payment due. No financing selected.
+        </div>
+      </div>
+
+      <!-- 4. Sales Rep -->
+      <div class="section-title">5. Sales Rep</div>
+      <div class="row">
+        <div>
+          <label for="repName">Sales Rep Name *</label>
+          <input type="text" id="repName" required placeholder="Your full name" />
+        </div>
+        <div>
+          <label for="repEmail">Your Company Email *</label>
+          <input type="email" id="repEmail" required placeholder="you@company.com" />
+        </div>
+      </div>
+
+      <!-- 5. Customer -->
+      <div class="section-title">6. Customer Information</div>
+      <div class="row">
+        <div>
+          <label for="customerName">Customer / Contact Name *</label>
+          <input type="text" id="customerName" required />
+        </div>
+        <div>
+          <label for="company">Company (optional)</label>
+          <input type="text" id="company" />
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label for="phone">Phone *</label>
+          <input type="tel" id="phone" required />
+        </div>
+        <div>
+          <label for="email">Email *</label>
+          <input type="email" id="email" required />
+        </div>
+      </div>
+      <div class="row">
+        <div class="full">
+          <label for="delivery" id="deliveryLabel">Delivery / Depot Location *</label>
+          <input type="text" id="delivery" required placeholder="e.g. Memphis depot -> customer site" />
+        </div>
+      </div>
+
+      <!-- 6. Client Type + Notes -->
+      <div class="section-title">7. Client Type & Notes</div>
+      <div class="radio-group">
+        <label><input type="radio" name="clientType" value="Residential" checked /> Residential</label>
+        <label><input type="radio" name="clientType" value="Commercial" /> Commercial / Large Deal</label>
+      </div>
+      <p class="note">Residential = Full payment only preferred. Commercial = Deposit / Flex Buy allowed.</p>
+
+      <div class="row" style="margin-top:14px;">
+        <div class="full">
+          <label for="containerNotes">Condition / Notes (optional)</label>
+          <input type="text" id="containerNotes" placeholder="Any details about condition, depot, etc." />
+        </div>
+      </div>
+      <div class="row">
+        <div class="full">
+          <label for="notes">Additional Notes for Proposal</label>
+          <textarea id="notes" rows="3" placeholder="Anything important for the customer or internal team..."></textarea>
+        </div>
+      </div>
+
+      <!-- Hidden fields -->
+      <input type="hidden" id="region" name="region" />
+      <input type="hidden" id="miles" name="miles" />
+      <input type="hidden" id="unitPrice" name="unitPrice" />
+      <input type="hidden" id="deliveryCost" name="deliveryCost" />
+      <input type="hidden" id="fulfillment" name="fulfillment" value="deliver" />
+      <input type="hidden" id="quantity" name="quantity" value="1" />
+      <input type="hidden" id="containerDesc" name="containerDesc" />
+      <input type="hidden" id="containerSize" name="containerSize" value="40ft" />
+      <input type="hidden" id="wholesaleCost" name="wholesaleCost" />
+      <input type="hidden" id="approvedPricing" name="approvedPricing" value="false" />
+
+      <!-- Flex Buy hidden outputs -->
+      <input type="hidden" id="flexSelected" value="false" />
+      <input type="hidden" id="flexTerm" value="" />
+      <input type="hidden" id="flexApr" value="" />
+      <input type="hidden" id="flexMonthly" value="" />
+      <input type="hidden" id="flexUpfront" value="" />
+      <input type="hidden" id="flexFinanced" value="" />
+      <input type="hidden" id="flexTotalInterest" value="" />
+      <input type="hidden" id="flexDownPct" value="" />
+      <input type="hidden" id="flexModPrice" value="" />
+
+      <div class="actions">
+        <button type="submit" class="btn btn-primary" id="submitBtn">Submit Proposal</button>
+      </div>
+    </form>
+
+    <footer>
+      CBShippingSolutions · Pricing + Depot + Flex Buy · Net margin $300–$2,000
+    </footer>
+  </div>
+
+  <script>
+    const COMPANY_RE = /@cbshippingsolutions\.com$/i;
+    let currentUser = null;
+
+    async function cbssMe() {
+      try {
+        const res = await fetch('/auth/me', { credentials: 'include' });
+        if (!res.ok) return null;
+        return await res.json();
+      } catch (e) {
+        return null;
+      }
+    }
+
+    async function cbssDoLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const msg = document.getElementById('loginMsg');
+      if (!isCompanyEmail(email)) {
+        if (msg) msg.textContent = 'Company email required (@cbshippingsolutions.com).';
+        return;
+      }
+      try {
+        const res = await fetch('/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          if (msg) msg.textContent = data.error || 'Login failed';
+          return;
+        }
+        applyUser({
+          email: data.email,
+          user_metadata: { full_name: data.name || data.email }
+        });
+      } catch (err) {
+        if (msg) msg.textContent = 'Network error. Try again.';
+      }
+    }
+
+    (async function initAuth() {
+      const me = await cbssMe();
+      if (me && me.email) {
+        applyUser({
+          email: me.email,
+          user_metadata: { full_name: me.name || me.email }
+        });
+      } else {
+        applyUser(null);
+      }
+    })();
+
+    function isCompanyEmail(email) {
+      return COMPANY_RE.test(String(email || '').trim());
+    }
+
+    function applyUser(user) {
+      const gate = document.getElementById('loginGate');
+      const app = document.getElementById('appWrap');
+      const msg = document.getElementById('loginMsg');
+      if (!user || !isCompanyEmail(user.email)) {
+        if (user) {
+          if (msg) msg.textContent = 'Company email required (@cbshippingsolutions.com). This account has been signed out.';
+        }
+        currentUser = null;
+        if (gate) gate.style.display = 'flex';
+        if (app) app.classList.remove('show');
+        return;
+      }
+      currentUser = user;
+      if (gate) gate.style.display = 'none';
+      if (app) app.classList.add('show');
+      const name = (user.user_metadata && user.user_metadata.full_name) || '';
+      const repName = document.getElementById('repName');
+      const repEmail = document.getElementById('repEmail');
+      if (repName && !repName.value) repName.value = name;
+      if (repEmail) repEmail.value = user.email || '';
+      applyPrefillFromQuery();
+      loadInventory();
+    }
+
+    function applyPrefillFromQuery() {
+      const q = new URLSearchParams(location.search);
+      const map = { name: 'customerName', company: 'company', email: 'email', phone: 'phone', zip: 'zip' };
+      Object.keys(map).forEach((k) => {
+        let v = q.get(k);
+        if (!v) return;
+        v = String(v).trim();
+        if (k === 'zip') v = v.replace(/\D/g, '').slice(0, 5);
+        if (!v) return;
+        const el = document.getElementById(map[k]);
+        if (el) el.value = v;
+      });
+      if (q.has('t') || q.has('hop')) {
+        q.delete('t');
+        q.delete('hop');
+        const next = q.toString();
+        history.replaceState({}, '', location.pathname + (next ? '?' + next : ''));
+      }
+    }
+
+    // ===== Depots =====
+    const DEPOTS = [
+      { name: "Memphis, TN", lat: 35.15, lon: -90.05, region: "Midwest" },
+      { name: "Chicago, IL", lat: 41.88, lon: -87.63, region: "Midwest" },
+      { name: "Detroit, MI", lat: 42.33, lon: -83.05, region: "Midwest" },
+      { name: "Indianapolis, IN", lat: 39.77, lon: -86.16, region: "Midwest" },
+      { name: "St. Louis, MO", lat: 38.63, lon: -90.20, region: "Midwest" },
+      { name: "Kansas City, MO", lat: 39.10, lon: -94.58, region: "Midwest" },
+      { name: "Louisville, KY", lat: 38.25, lon: -85.76, region: "Midwest" },
+      { name: "Columbus, OH", lat: 39.96, lon: -83.00, region: "Midwest" },
+      { name: "Cleveland, OH", lat: 41.50, lon: -81.69, region: "Midwest" },
+      { name: "Atlanta, GA", lat: 33.75, lon: -84.39, region: "East Coast" },
+      { name: "Charlotte, NC", lat: 35.23, lon: -80.84, region: "East Coast" },
+      { name: "Charleston, SC", lat: 32.78, lon: -79.93, region: "East Coast" },
+      { name: "Savannah, GA", lat: 32.08, lon: -81.09, region: "East Coast" },
+      { name: "Jacksonville, FL", lat: 30.33, lon: -81.66, region: "East Coast" },
+      { name: "Miami, FL", lat: 25.76, lon: -80.19, region: "East Coast" },
+      { name: "Tampa, FL", lat: 27.95, lon: -82.46, region: "East Coast" },
+      { name: "Norfolk, VA", lat: 36.85, lon: -76.29, region: "East Coast" },
+      { name: "Baltimore, MD", lat: 39.29, lon: -76.61, region: "East Coast" },
+      { name: "Philadelphia, PA", lat: 39.95, lon: -75.17, region: "East Coast" },
+      { name: "Newark, NJ", lat: 40.74, lon: -74.17, region: "East Coast" },
+      { name: "New York, NY", lat: 40.71, lon: -74.01, region: "East Coast" },
+      { name: "Boston, MA", lat: 42.36, lon: -71.06, region: "East Coast" },
+      { name: "Wilmington, NC", lat: 34.23, lon: -77.94, region: "East Coast" },
+      { name: "Chesapeake, VA", lat: 36.77, lon: -76.29, region: "East Coast" },
+      { name: "Cincinnati, OH", lat: 39.10, lon: -84.51, region: "Midwest" },
+      { name: "Minneapolis, MN", lat: 44.98, lon: -93.27, region: "Midwest" },
+      { name: "Nashville, TN", lat: 36.16, lon: -86.78, region: "Midwest" },
+      { name: "Omaha, NE", lat: 41.26, lon: -95.93, region: "Midwest" },
+      { name: "Mobile, AL", lat: 30.70, lon: -88.04, region: "East Coast" },
+      { name: "New Orleans, LA", lat: 29.95, lon: -90.07, region: "East Coast" },
+      { name: "Houston, TX", lat: 29.76, lon: -95.37, region: "West Coast" },
+      { name: "Dallas, TX", lat: 32.78, lon: -96.80, region: "West Coast" },
+      { name: "San Antonio, TX", lat: 29.42, lon: -98.49, region: "West Coast" },
+      { name: "El Paso, TX", lat: 31.76, lon: -106.49, region: "West Coast" },
+      { name: "Los Angeles, CA", lat: 34.05, lon: -118.24, region: "West Coast" },
+      { name: "Long Beach, CA", lat: 33.77, lon: -118.19, region: "West Coast" },
+      { name: "Oakland, CA", lat: 37.80, lon: -122.27, region: "West Coast" },
+      { name: "San Francisco, CA", lat: 37.77, lon: -122.42, region: "West Coast" },
+      { name: "Bakersfield, CA", lat: 35.37, lon: -119.02, region: "West Coast" },
+      { name: "Seattle, WA", lat: 47.61, lon: -122.33, region: "West Coast" },
+      { name: "Tacoma, WA", lat: 47.25, lon: -122.44, region: "West Coast" },
+      { name: "Portland, OR", lat: 45.52, lon: -122.68, region: "West Coast" },
+      { name: "Phoenix, AZ", lat: 33.45, lon: -112.07, region: "West Coast" },
+      { name: "Denver, CO", lat: 39.74, lon: -104.99, region: "West Coast" },
+      { name: "Salt Lake City, UT", lat: 40.76, lon: -111.89, region: "West Coast" }
+    ];
+
+    const RATE_SHEET = {
+      "Midwest":    { base: 475, perMile: 5 },
+      "East Coast": { base: 600, perMile: 7 },
+      "West Coast": { base: 600, perMile: 8 }
+    };
+    const SIZE_SURCHARGE = { "20ft": 0, "40ft": 125, "Specialized": 200 };
+    const MIN_MARGIN = 300;
+    const MAX_MARGIN = 2000;
+    const DEFAULT_MARGIN = 700;
+
+    function clampNetMargin(raw) {
+      const text = String(raw || "").replace(/[$,\s]/g, "");
+      if (!text) return DEFAULT_MARGIN;
+      const n = Number(text);
+      if (!Number.isFinite(n)) return DEFAULT_MARGIN;
+      const rounded = Math.round(n / 25) * 25;
+      return Math.min(MAX_MARGIN, Math.max(MIN_MARGIN, rounded));
+    }
+    function currentNetMargin() {
+      return clampNetMargin(document.getElementById("netMargin").value);
+    }
+    function onNetMarginChange() {
+      const n = currentNetMargin();
+      document.getElementById("netMargin").value = String(n);
+      document.getElementById("netMarginOut").textContent = "$" + n;
+      recalcIfReady();
+    }
+
+    let verifiedApprovalCode = "";
+
+    function isApprovedPricingUnlocked() {
+      return document.getElementById("approvedPricing").value === "true" && Boolean(verifiedApprovalCode);
+    }
+
+    function startApprovedPricing() {
+      document.getElementById("approvedPricingBtn").classList.add("on");
+      document.getElementById("clearApprovedBtn").classList.remove("hidden");
+      if (isApprovedPricingUnlocked()) {
+        document.getElementById("approvalGate").classList.add("hidden");
+        document.getElementById("approvedPriceWrap").classList.remove("hidden");
+        return;
+      }
+      document.getElementById("approvalGate").classList.remove("hidden");
+      document.getElementById("approvedPriceWrap").classList.add("hidden");
+      document.getElementById("approvalStatus").textContent = "Enter the manager approval code Christopher gave you.";
+      const codeBox = document.getElementById("managerApprovalCode");
+      if (codeBox) codeBox.focus();
+    }
+
+    function clearApprovedPricing() {
+      verifiedApprovalCode = "";
+      document.getElementById("approvedPricing").value = "false";
+      document.getElementById("approvedPricingBtn").classList.remove("on");
+      document.getElementById("clearApprovedBtn").classList.add("hidden");
+      document.getElementById("approvalGate").classList.add("hidden");
+      document.getElementById("approvedPriceWrap").classList.add("hidden");
+      document.getElementById("managerApprovalCode").value = "";
+      document.getElementById("approvedUnitPrice").value = "";
+      document.getElementById("approvalStatus").textContent = "";
+      const slider = document.getElementById("netMargin");
+      if (slider) slider.disabled = false;
+      const marginRow = document.getElementById("netMarginRow");
+      if (marginRow) marginRow.classList.remove("hidden");
+      recalcIfReady();
+    }
+
+    async function verifyApprovedPricing() {
+      const status = document.getElementById("approvalStatus");
+      const btn = document.getElementById("verifyApprovalBtn");
+      const code = String(document.getElementById("managerApprovalCode").value || "").replace(/\s+/g, "").trim();
+      if (!code) {
+        status.textContent = "Enter the manager approval code.";
+        return;
+      }
+      const user = currentUser;
+      if (!user) {
+        status.textContent = "Sign in with your company email first.";
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = "Checking...";
+      status.textContent = "Checking the manager approval code...";
+      try {
+        const res = await fetch("/approval/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ code: code })
+        });
+        const result = await res.json().catch(function () { return {}; });
+        if (res.ok && result.ok) {
+          verifiedApprovalCode = code;
+          document.getElementById("approvedPricing").value = "true";
+          document.getElementById("approvalGate").classList.add("hidden");
+          document.getElementById("approvedPriceWrap").classList.remove("hidden");
+          document.getElementById("approvedPricingBtn").classList.add("on");
+          document.getElementById("clearApprovedBtn").classList.remove("hidden");
+          const slider = document.getElementById("netMargin");
+          if (slider) slider.disabled = true;
+          const marginRow = document.getElementById("netMarginRow");
+          if (marginRow) marginRow.classList.add("hidden");
+          status.textContent = "Unlocked. Enter the cash number Christopher approved.";
+          document.getElementById("approvedUnitPrice").focus();
+          recalcIfReady();
+        } else {
+          verifiedApprovalCode = "";
+          document.getElementById("approvedPricing").value = "false";
+          status.textContent = result.error || "That code is not valid. Ask Christopher for the manager approval code.";
+        }
+      } catch (err) {
+        status.textContent = "Could not check the manager approval code. Try again.";
+      }
+      btn.disabled = false;
+      btn.textContent = "Unlock approved price";
+    }
+
+    // Flex Buy term presets (months + suggested APR)
+    const FLEX_TERMS = [
+      { months: 6,  apr: 0.12 },
+      { months: 12, apr: 0.14 },
+      { months: 18, apr: 0.15 },
+      { months: 24, apr: 0.16 },
+      { months: 36, apr: 0.18 },
+      { months: 48, apr: 0.20 },
+      { months: 60, apr: 0.22 },
+      { months: 72, apr: 0.24 }
+    ];
+
+    let selectedDepot = null;
+    let selectedPurchasingDepot = "";
+    let rankedDepots = [];
+    let selectedFlexIdx = -1;
+    let currentFlexOptions = [];
+    let inventoryOffers = [];
+    let inventoryMeta = { pulledAt: "", source: "" };
+    let inventoryLoaded = false;
+    let inventoryActive = false;
+    let lastZipGeo = null;
+    let skippedNearestCity = null;
+    const DEFAULT_SIZE_OPTIONS = [
+      { value: "20ft", label: "20ft Standard" },
+      { value: "40ft", label: "40ft Standard / High Cube" },
+      { value: "Specialized", label: "Specialized / Modified" }
+    ];
+    const DEFAULT_CONDITION_OPTIONS = [
+      { value: "CW", label: "Cargo Worthy (CW)" },
+      { value: "IICL", label: "IICL/Multi-Trip" },
+      { value: "WWT", label: "Wind & Water Tight (WWT)" },
+      { value: "OneTrip", label: "One-Trip / New" },
+      { value: "AsIs", label: "As-Is" }
+    ];
+    const SIZE_LABELS = {
+      "20ft": "20ft Standard",
+      "40ft": "40ft Standard / High Cube",
+      Specialized: "Specialized / Modified"
+    };
+    const CONDITION_LABELS = {
+      CW: "Cargo Worthy (CW)",
+      IICL: "IICL/Multi-Trip",
+      WWT: "Wind & Water Tight (WWT)",
+      OneTrip: "One-Trip / New",
+      AsIs: "As-Is"
+    };
+
+    function compactSpec(raw) {
+      return String(raw || "").toLowerCase().replace(/['’]/g, "").replace(/[\s_\-]/g, "");
+    }
+
+    function parseOfferSpec(raw) {
+      const n = compactSpec(raw);
+      let size = "";
+      if (n.includes("53")) size = "53";
+      else if (n.includes("45")) size = "45";
+      else if (n.includes("40")) size = "40";
+      else if (n.includes("20")) size = "20";
+      else if (n.includes("10")) size = "10";
+      let height = "DC";
+      if (n.includes("highcube") || n.includes("40hc") || n.includes("20hc") || n.includes("45hc") || n.includes("hq") || /(^|[^a-z])hc([^a-z]|$)/.test(n)) height = "HC";
+      return { size, height, config: parseOfferConfig(raw) };
+    }
+
+    function parseOfferConfig(raw) {
+      const n = compactSpec(raw);
+      if (!n) return "standard";
+      if (n.includes("tridoor") || n.includes("3door")) return "tri-door";
+      if (n.includes("fullopen") || n.includes("opensidefull") || n.includes("fullopenside")) return "full-open-side";
+      if (n.includes("opentop")) return "other";
+      const openSide =
+        n.includes("openside") ||
+        n.includes("sidedoor") ||
+        n.includes("os2d") ||
+        n.includes("os4d") ||
+        n.includes("os2door") ||
+        n.includes("os4door") ||
+        n.includes("hcos") ||
+        /(^|[^a-z])os([^a-z]|$)/.test(n);
+      if (openSide) {
+        if (
+          n.includes("os2d") ||
+          n.includes("os2door") ||
+          n.includes("openside2") ||
+          n.includes("sidedoor2") ||
+          n.includes("2doors") ||
+          /(?:os|openside|sidedoor)2d/.test(n)
+        ) {
+          return "side-os-2d";
+        }
+        if (
+          n.includes("os4d") ||
+          n.includes("os4door") ||
+          n.includes("openside4") ||
+          n.includes("sidedoor4") ||
+          n.includes("4doors") ||
+          /(?:os|openside|sidedoor)4d/.test(n)
+        ) {
+          return "side-os-4d";
+        }
+        return "side-door";
+      }
+      if (n.includes("doubledoor") || n.includes("tunnel")) return "double-door";
+      if (n.includes("reefer") || n.includes("refrigerat")) return "other";
+      if (n.includes("specialized") || n.includes("modified") || n.includes("custom")) return "other";
+      return "standard";
+    }
+
+    function specsCompatible(want, got) {
+      if (!want || !got) return false;
+      if (want.size && got.size && String(want.size) !== String(got.size)) return false;
+      if (want.height && got.height && want.height !== got.height) return false;
+      if (want.config && want.config !== "standard") {
+        if (got.config && got.config !== want.config) return false;
+      } else if (got.config && got.config !== "standard") {
+        return false;
+      }
+      return true;
+    }
+
+    function cleanPlace(raw) {
+      return String(raw || "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+    }
+
+    function cityKey(city, state) {
+      const n = function (s) { return cleanPlace(s).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); };
+      return n(city) + "|" + n(state);
+    }
+
+    function parseCityState(raw) {
+      const s = cleanPlace(raw);
+      const m = s.match(/^([^,]+),\s*([A-Za-z]{2})\s*$/);
+      if (!m) return null;
+      return { city: m[1].trim(), state: m[2].toUpperCase() };
+    }
+
+    function aliasCityState(parsed) {
+      if (!parsed || !parsed.city) return parsed;
+      const c = cleanPlace(parsed.city).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+      const st = String(parsed.state || "").toUpperCase();
+      if (c === "saint louis" || c === "st louis") return { city: "St. Louis", state: "MO" };
+      if (c === "kansas city") return { city: "Kansas City", state: "MO" };
+      if (c === "minneapolis" || c.indexOf("minneapolis") === 0 || c === "saint paul" || c === "st paul") {
+        return { city: "Minneapolis", state: "MN" };
+      }
+      if (c === "fort worth") return { city: "Dallas", state: "TX" };
+      if (c === "jersey city" || c === "elizabeth") return { city: "Newark", state: "NJ" };
+      if (c === "san pedro" || (c === "wilmington" && st === "CA")) return { city: "Long Beach", state: "CA" };
+      if (c === "newport news" || c === "portsmouth" || c === "virginia beach") return { city: "Norfolk", state: "VA" };
+      return parsed;
+    }
+
+    function findCityHub(text) {
+      const parsed = aliasCityState(parseCityState(text));
+      if (parsed) {
+        const hit = DEPOTS.find((d) => {
+          const parts = d.name.split(",");
+          return cityKey(parts[0], parts[1] || "") === cityKey(parsed.city, parsed.state);
+        });
+        if (hit) return { city: parsed.city, state: parsed.state, lat: hit.lat, lon: hit.lon, region: hit.region };
+        return { city: parsed.city, state: parsed.state, lat: null, lon: null, region: "" };
+      }
+      const n = cleanPlace(text).toLowerCase();
+      if (!n) return null;
+      if (/raines\s*road/i.test(n) || /lanport/i.test(n) || /mrs-?cmc/i.test(n)) {
+        const mem = DEPOTS.find((d) => d.name.indexOf("Memphis") === 0);
+        return mem ? { city: "Memphis", state: "TN", lat: mem.lat, lon: mem.lon, region: mem.region } : { city: "Memphis", state: "TN", lat: null, lon: null, region: "" };
+      }
+      if (/san\s*pedro/i.test(n)) {
+        const lb = DEPOTS.find((d) => d.name.indexOf("Long Beach") === 0);
+        return lb ? { city: "Long Beach", state: "CA", lat: lb.lat, lon: lb.lon, region: lb.region } : { city: "Long Beach", state: "CA", lat: null, lon: null, region: "" };
+      }
+      if (/port\s*newark/i.test(n) || /elizabeth\s*marine/i.test(n)) {
+        const nwk = DEPOTS.find((d) => d.name.indexOf("Newark") === 0);
+        return nwk ? { city: "Newark", state: "NJ", lat: nwk.lat, lon: nwk.lon, region: nwk.region } : { city: "Newark", state: "NJ", lat: null, lon: null, region: "" };
+      }
+      const hubs = DEPOTS.map((d) => {
+        const parts = d.name.split(",");
+        return { city: parts[0].trim(), state: (parts[1] || "").trim(), lat: d.lat, lon: d.lon, region: d.region };
+      }).sort((a, b) => b.city.length - a.city.length);
+      for (let i = 0; i < hubs.length; i++) {
+        if (n.indexOf(hubs[i].city.toLowerCase()) >= 0) return hubs[i];
+      }
+      return null;
+    }
+
+    function resolveOfferCity(o) {
+      if (!o) return null;
+      return findCityHub(o.location) || findCityHub(o.city) || findCityHub(o.depot);
+    }
+
+    function displayCityState(depot) {
+      if (!depot) return "";
+      if (depot.displayLocation) return depot.displayLocation;
+      if (depot.city && depot.state) return depot.city + ", " + depot.state;
+      const parsed = parseCityState(depot.location || depot.name || depot.depot);
+      if (parsed) return parsed.city + ", " + parsed.state;
+      const h = findCityHub(depot.name || depot.depot || depot.location || depot.city);
+      return h ? h.city + ", " + h.state : "";
+    }
+
+    function escapeHtml(s) {
+      return String(s || "").replace(/[&<>"']/g, function (c) {
+        return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c];
+      });
+    }
+
+    function rateSheetSize(size, config) {
+      if (config && config !== "standard") return "Specialized";
+      if (size === "10" || size === "20") return "20ft";
+      if (size === "40" || size === "45") return "40ft";
+      if (size === "53") return "Specialized";
+      return "40ft";
+    }
+
+    function describeContainer(size, height, config, grade) {
+      const sizeLabel = size + " ft";
+      const heightLabel = height === "HC" ? "High Cube" : "Standard";
+      const configMap = { standard: "Standard", "tri-door": "Tri-door", "double-door": "Double door", "side-os-2d": "Side door (OS 2D)", "side-os-4d": "Side door (OS 4D)", "side-door": "Side door", "full-open-side": "Full open side", other: "Specialized" };
+      const gradeMap = { CW: "Cargo Worthy (CW)", IICL: "IICL/Multi-Trip", WWT: "Wind & Water Tight (WWT)", OneTrip: "One-Trip / New", AsIs: "As-Is" };
+      const bits = [sizeLabel, heightLabel];
+      if (config && config !== "standard") bits.push(configMap[config] || config);
+      if (gradeMap[grade]) bits.push(gradeMap[grade]);
+      return bits.join(" ");
+    }
+
+    function currentBox() {
+      return {
+        size: document.getElementById("boxSize").value,
+        height: document.getElementById("boxHeight").value,
+        config: document.getElementById("boxConfig").value,
+        grade: document.getElementById("condition").value
+      };
+    }
+
+    function currentQty() {
+      const n = parseInt((document.getElementById("boxQty") || {}).value, 10);
+      if (!Number.isFinite(n) || n < 1) return 1;
+      return Math.min(50, n);
+    }
+
+    function nudgeQty(delta) {
+      const el = document.getElementById("boxQty");
+      if (!el) return;
+      el.value = String(Math.min(50, Math.max(1, currentQty() + delta)));
+      onSizeOrConditionChange();
+    }
+
+    function syncLegacySize() {
+      const box = currentBox();
+      document.getElementById("size").value = rateSheetSize(box.size, box.config);
+      document.getElementById("containerSize").value = rateSheetSize(box.size, box.config);
+    }
+
+    function mapOfferSize(raw) {
+      return parseOfferSpec(raw).size ? rateSheetSize(parseOfferSpec(raw).size, parseOfferSpec(raw).config) : "";
+    }
+
+    function mapOfferCondition(raw) {
+      const s = String(raw || "").trim();
+      if (!s) return "";
+      if (s === "CW" || s === "IICL" || s === "WWT" || s === "OneTrip" || s === "AsIs") return s;
+      const n = s.toLowerCase().replace(/[\s\-_&/().]/g, "");
+      if (n === "iicl" || n.indexOf("iicl") >= 0 || n.indexOf("multitrip") >= 0) return "IICL";
+      if (n === "cw" || n === "cargoworthy") return "CW";
+      if (n === "wwt" || n === "windwatertight" || n === "windandwatertight" || n.indexOf("wwt") >= 0) return "WWT";
+      if (n === "onetrip" || n === "onetripnew" || n === "new" || n === "newbuild" || n.indexOf("onetrip") >= 0) return "OneTrip";
+      if (n === "asis" || n.indexOf("asis") >= 0) return "AsIs";
+      return "";
+    }
+
+    function offerWholesale(o) {
+      if (!o || typeof o !== "object") return null;
+      const v = o.wholesaleCost != null ? o.wholesaleCost : (o.wholesale != null ? o.wholesale : (o.cost != null ? o.cost : o.price));
+      if (v == null || v === "") return null;
+      const n = parseFloat(String(v).replace(/[$,]/g, ""));
+      return Number.isFinite(n) && n > 0 ? n : null;
+    }
+
+    function offerQty(o) {
+      const n = parseFloat(o && o.qty != null ? o.qty : (o && o.quantity));
+      return Number.isFinite(n) ? n : null;
+    }
+
+    function offerDepotName(o) {
+      return String((o && (o.depot || o.location || o.city)) || "").trim();
+    }
+
+    function normalizeClientOffer(o) {
+      if (!o || typeof o !== "object") return null;
+      const size = cleanPlace(o.size || o.containerSize || o.type);
+      const conditionRaw = String(o.condition || "").trim();
+      const condition = mapOfferCondition(conditionRaw);
+      const depot = cleanPlace(offerDepotName(o));
+      if (!depot && !size && !conditionRaw) return null;
+      const lat = parseFloat(o.lat);
+      const lon = parseFloat(o.lon);
+      return {
+        id: o.id || "",
+        size,
+        condition: condition || conditionRaw,
+        depot,
+        location: cleanPlace(o.location),
+        city: cleanPlace(o.city),
+        lat: Number.isFinite(lat) ? lat : null,
+        lon: Number.isFinite(lon) ? lon : null,
+        wholesaleCost: offerWholesale(o),
+        qty: offerQty(o)
+      };
+    }
+
+    const SIZE_PICKS = {
+      "20STD": { size: "20", height: "DC" },
+      "20HC": { size: "20", height: "HC" },
+      "40STD": { size: "40", height: "DC" },
+      "40HC": { size: "40", height: "HC" },
+      "10STD": { size: "10", height: "DC" },
+      "45HC": { size: "45", height: "HC" },
+      "53STD": { size: "53", height: "DC" }
+    };
+
+    function setBoxPick(kind, val) {
+      document.querySelectorAll('#box-picks .pick[data-pick="' + kind + '"]').forEach((el) => {
+        el.classList.toggle("on", el.getAttribute("data-val") === val);
+      });
+      if (kind === "size") {
+        const mapped = SIZE_PICKS[val];
+        if (mapped) {
+          document.getElementById("boxSize").value = mapped.size;
+          document.getElementById("boxHeight").value = mapped.height;
+        }
+      } else if (kind === "grade") {
+        document.getElementById("condition").value = val;
+      } else if (kind === "config") {
+        document.getElementById("boxConfig").value = val;
+      }
+      onSizeOrConditionChange();
+    }
+
+    document.querySelectorAll("#box-picks .pick").forEach((b) => {
+      b.addEventListener("click", () => {
+        setBoxPick(b.getAttribute("data-pick"), b.getAttribute("data-val"));
+      });
+    });
+
+    function currentFulfillment() {
+      const on = document.querySelector("#fulfill-picks .pick.on");
+      return on && on.getAttribute("data-fulfill") === "pickup" ? "pickup" : "deliver";
+    }
+
+    function setFulfillment(val) {
+      const mode = val === "pickup" ? "pickup" : "deliver";
+      document.querySelectorAll("#fulfill-picks .pick").forEach((el) => {
+        el.classList.toggle("on", el.getAttribute("data-fulfill") === mode);
+      });
+      document.getElementById("fulfillment").value = mode;
+      const milesWrap = document.getElementById("milesOverrideWrap");
+      if (milesWrap) milesWrap.classList.toggle("hidden", mode === "pickup");
+      const loc = document.getElementById("delivery");
+      const locLabel = document.getElementById("deliveryLabel");
+      if (locLabel) locLabel.textContent = mode === "pickup" ? "Pickup depot *" : "Delivery / Depot Location *";
+      if (loc) {
+        loc.placeholder = mode === "pickup" ? "Customer pickup at depot city" : "e.g. Memphis depot -> customer site";
+      }
+      const flexNote = document.getElementById("flexCashNote");
+      if (flexNote) {
+        flexNote.textContent = mode === "pickup"
+          ? "* Cash price is depot pickup. Flex collects the down payment upfront. Do not add a pickup fee."
+          : "* Cash price is delivered. Flex collects the down payment upfront from that delivered cash figure.";
+      }
+      fillFulfillmentLocation();
+      recalcIfReady();
+    }
+
+    function fillFulfillmentLocation() {
+      if (!selectedDepot) return;
+      const loc = document.getElementById("delivery");
+      if (!loc) return;
+      const depotCity = displayCityState(selectedDepot) || selectedDepot.name;
+      const mode = currentFulfillment();
+      const autoDeliver = / -> Customer Site$/;
+      const autoPickup = /^Customer pickup at /;
+      if (mode === "pickup") {
+        if (!loc.value || autoDeliver.test(loc.value) || autoPickup.test(loc.value)) {
+          loc.value = "Customer pickup at " + depotCity;
+        }
+      } else if (!loc.value || autoPickup.test(loc.value) || autoDeliver.test(loc.value)) {
+        loc.value = depotCity + " -> Customer Site";
+      }
+    }
+
+    document.querySelectorAll("#fulfill-picks .pick").forEach((b) => {
+      b.addEventListener("click", () => {
+        setFulfillment(b.getAttribute("data-fulfill"));
+      });
+    });
+
+    function pulledLabel() {
+      return inventoryMeta.pulledAt
+        ? ("pulledAt " + String(inventoryMeta.pulledAt).replace("T", " ").slice(0, 16) + " UTC")
+        : "pulledAt unknown";
+    }
+
+    function setInventoryStatus(msg) {
+      const el = document.getElementById("inventoryStatus");
+      if (el) el.textContent = msg || "";
+    }
+
+    function fillSelect(id, options, preferred) {
+      const sel = document.getElementById(id);
+      if (!sel) return;
+      const current = preferred || sel.value;
+      sel.innerHTML = "";
+      options.forEach((opt) => {
+        const o = document.createElement("option");
+        o.value = opt.value;
+        o.textContent = opt.label;
+        sel.appendChild(o);
+      });
+      if (current && options.some((x) => x.value === current)) sel.value = current;
+    }
+
+    function populateSelectsFromOffers() {
+      // Grades and sizes stay fixed. Inventory must not dump every raw xChange label into the dropdowns.
+    }
+
+    function restoreDefaultSelects() {
+      const cond = document.getElementById("condition");
+      if (cond && !cond.value) cond.value = "CW";
+    }
+
+    async function loadInventory() {
+      try {
+        const res = await fetch("/inventory", { credentials: "include" });
+        if (!res.ok) {
+          inventoryOffers = [];
+          inventoryActive = false;
+          inventoryLoaded = true;
+          restoreDefaultSelects();
+          setInventoryStatus("No posted xChange inventory yet. Use Pull xChange. Do not invent a wholesale.");
+          return;
+        }
+        applyInventoryPayload(await res.json());
+      } catch (_) {
+        inventoryOffers = [];
+        inventoryActive = false;
+        inventoryLoaded = true;
+        restoreDefaultSelects();
+        setInventoryStatus("xChange inventory did not load. Use Pull xChange. Do not invent a wholesale.");
+      }
+    }
+
+    function applyInventoryPayload(data) {
+      const list = data && (Array.isArray(data.offers) ? data.offers : (Array.isArray(data.items) ? data.items : []));
+      inventoryOffers = (list || []).map(normalizeClientOffer).filter(Boolean);
+      inventoryMeta.pulledAt = (data && data.pulledAt) || "";
+      inventoryMeta.source = (data && data.source) || "";
+      inventoryActive = inventoryOffers.length > 0;
+      inventoryLoaded = true;
+      if (inventoryActive) {
+        populateSelectsFromOffers();
+        const err = data && data.refreshError ? (" · " + data.refreshError) : "";
+        setInventoryStatus(
+          inventoryOffers.length + " posted xChange offer" + (inventoryOffers.length === 1 ? "" : "s") +
+          " · " + pulledLabel() + err + ". Wholesale fills from the cheapest matching box in that city. Leave blank if none match."
+        );
+      } else {
+        restoreDefaultSelects();
+        setInventoryStatus((data && data.error) || "xChange posted no matching inventory. Do not invent a wholesale.");
+      }
+    }
+
+    async function pullXchange() {
+      const btn = document.getElementById("pullXchangeBtn");
+      const zip = document.getElementById("zip").value.trim();
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Pulling xChange...";
+      }
+      setInventoryStatus("Pulling posted Container Exchange pickup prices. This can take about 20 seconds. That number is theirs, not a CBSS quote.");
+      try {
+        const res = await fetch("/inventory/refresh", { method: "POST", credentials: "include" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok && !(data && data.offers && data.offers.length)) {
+          setInventoryStatus((data && data.error) || "xChange pull failed. Do not invent a wholesale.");
+          return;
+        }
+        applyInventoryPayload(data);
+        if (/^\d{5}$/.test(zip)) {
+          await findDepots();
+        } else {
+          applyWholesaleFromOffer();
+          recalcIfReady();
+        }
+      } catch (_) {
+        setInventoryStatus("xChange pull failed. Do not invent a wholesale.");
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = "Pull xChange";
+        }
+      }
+    }
+
+    function matchCityDepot(name) {
+      return findCityHub(name);
+    }
+
+    function asDisplayDepot(d) {
+      if (!d) return null;
+      const loc = displayCityState(d) || cleanPlace(d.name);
+      const parts = loc.split(",");
+      return {
+        ...d,
+        name: loc,
+        displayLocation: loc,
+        city: d.city || (parts[0] || "").trim(),
+        state: d.state || (parts[1] || "").trim(),
+        cityKey: d.cityKey || cityKey(d.city || parts[0] || "", d.state || parts[1] || ""),
+        yards: d.yards || [],
+        purchasingDepot: d.purchasingDepot || ""
+      };
+    }
+
+    function depotsFromInventory(lat, lon) {
+      const byCity = new Map();
+      inventoryOffers.forEach((o) => {
+        if (offerQty(o) === 0) return;
+        const resolved = resolveOfferCity(o);
+        if (!resolved) return;
+        const key = cityKey(resolved.city, resolved.state);
+        const dlat = o.lat != null ? o.lat : resolved.lat;
+        const dlon = o.lon != null ? o.lon : resolved.lon;
+        const miles = (dlat != null && dlon != null && lat != null && lon != null)
+          ? Math.round(haversine(lat, lon, dlat, dlon))
+          : null;
+        const yard = cleanPlace(o.depot);
+        const existing = byCity.get(key);
+        if (!existing) {
+          byCity.set(key, {
+            name: resolved.city + ", " + resolved.state,
+            displayLocation: resolved.city + ", " + resolved.state,
+            city: resolved.city,
+            state: resolved.state,
+            cityKey: key,
+            lat: dlat,
+            lon: dlon,
+            region: resolved.region || (dlat != null && dlon != null ? (function () {
+              let best = null, bestM = Infinity;
+              DEPOTS.forEach((h) => {
+                const m = haversine(dlat, dlon, h.lat, h.lon);
+                if (m < bestM) { bestM = m; best = h; }
+              });
+              return best ? best.region : "";
+            })() : ""),
+            miles,
+            yards: yard ? [yard] : [],
+            fromInventory: true
+          });
+        } else {
+          if (yard && existing.yards.indexOf(yard) < 0) existing.yards.push(yard);
+          if (miles != null && (existing.miles == null || miles < existing.miles)) {
+            existing.miles = miles;
+            existing.lat = dlat;
+            existing.lon = dlon;
+          }
+        }
+      });
+      const list = Array.from(byCity.values());
+      list.sort((a, b) => {
+        if (a.miles == null && b.miles == null) return a.name.localeCompare(b.name);
+        if (a.miles == null) return 1;
+        if (b.miles == null) return -1;
+        return a.miles - b.miles;
+      });
+      const want = currentBox();
+      const qty = currentQty();
+      skippedNearestCity = null;
+      for (let i = 0; i < list.length; i++) {
+        const city = list[i];
+        if (city.miles != null && city.miles > 800) continue;
+        const key = city.cityKey || cityKey(city.city, city.state);
+        const hit = inventoryOffers.some((o) => {
+          if (offerQty(o) === 0) return false;
+          const q = offerQty(o);
+          if (q != null && q < qty) return false;
+          if (!offerWholesale(o)) return false;
+          const resolved = resolveOfferCity(o);
+          const oKey = resolved ? cityKey(resolved.city, resolved.state) : "";
+          if (oKey !== key) return false;
+          const spec = parseOfferSpec(o.size || "");
+          if (!specsCompatible(want, spec)) return false;
+          const grade = mapOfferCondition(o.condition);
+          if (want.grade && (!grade || grade !== want.grade)) return false;
+          return true;
+        });
+        if (hit) {
+          if (i > 0) skippedNearestCity = list[0];
+          return [city];
+        }
+      }
+      return list.slice(0, 1);
+    }
+
+    function applyWholesaleFromOffer() {
+      if (!inventoryActive) return;
+      const wholesaleBox = document.getElementById("wholesale");
+      if (!wholesaleBox) return;
+      const box = currentBox();
+      const qty = currentQty();
+      const key = selectedDepot ? (selectedDepot.cityKey || cityKey(selectedDepot.city, selectedDepot.state)) : "";
+      const matches = inventoryOffers.filter((o) => {
+        if (offerQty(o) === 0) return false;
+        const q = offerQty(o);
+        if (q != null && q < qty) return false;
+        if (!offerWholesale(o)) return false;
+        if (key) {
+          const resolved = resolveOfferCity(o);
+          const oKey = resolved ? cityKey(resolved.city, resolved.state) : "";
+          if (oKey !== key) return false;
+        } else {
+          return false;
+        }
+        const spec = parseOfferSpec(o.size || "");
+        if (!specsCompatible(box, spec)) return false;
+        const grade = mapOfferCondition(o.condition);
+        if (box.grade && (!grade || grade !== box.grade)) return false;
+        return true;
+      }).sort((a, b) => offerWholesale(a) - offerWholesale(b));
+      const withCost = matches[0] || null;
+      wholesaleBox.value = withCost ? withCost.wholesaleCost : "";
+      selectedPurchasingDepot = withCost
+        ? cleanPlace(withCost.depot)
+        : ((selectedDepot && selectedDepot.yards) || []).join(" | ");
+      const cityLabel = selectedDepot ? displayCityState(selectedDepot) : "";
+      if (withCost) {
+        const skip = skippedNearestCity ? displayCityState(skippedNearestCity) : "";
+        const skipNote = skip && skip !== cityLabel
+          ? (" " + skip + " did not post this box.")
+          : "";
+        setInventoryStatus(
+          "Using lowest posted " + cityLabel + " xChange wholesale for this box and qty (" + matches.length +
+          " match" + (matches.length === 1 ? "" : "es") + ")." + skipNote + " " + pulledLabel() + ". Not a CBSS quote."
+        );
+      } else if (cityLabel) {
+        setInventoryStatus(
+          "No matching posted xChange box in " + cityLabel + " for this size/grade/qty within 800 miles. Pull xChange again or type a number you actually have. Do not invent one. " + pulledLabel() + "."
+        );
+      }
+    }
+
+    function renderDepotCards() {
+      const list = document.getElementById('depotList');
+      if (!list) return;
+      list.innerHTML = "";
+      rankedDepots.forEach((d) => {
+        const milesLabel = d.miles != null ? (d.miles + " miles") : "distance unknown";
+        const displayName = displayCityState(d) || d.name;
+        const card = document.createElement('div');
+        card.className = "depot-card selected";
+        card.innerHTML = `
+            <div class="depot-name">This is your depot: ${escapeHtml(displayName)}</div>
+            <div class="depot-meta">This is how far: ${milesLabel}</div>
+          `;
+        list.appendChild(card);
+      });
+    }
+
+    function reselectDepotFromZip() {
+      if (!lastZipGeo) return;
+      const cityRanked = DEPOTS.map(d => {
+        const miles = Math.round(haversine(lastZipGeo.lat, lastZipGeo.lon, d.lat, d.lon));
+        return { ...d, miles };
+      }).sort((a,b) => a.miles - b.miles);
+      if (inventoryActive) {
+        rankedDepots = depotsFromInventory(lastZipGeo.lat, lastZipGeo.lon);
+        if (!rankedDepots.length) rankedDepots = cityRanked.slice(0, 1);
+      } else {
+        rankedDepots = cityRanked.slice(0, 1);
+      }
+      rankedDepots = rankedDepots.map(asDisplayDepot).filter(Boolean);
+      selectedDepot = rankedDepots[0] || null;
+      selectedPurchasingDepot = selectedDepot && selectedDepot.yards ? selectedDepot.yards.join(" | ") : "";
+      document.getElementById('depotSection').classList.remove('hidden');
+      renderDepotCards();
+    }
+
+    function onSizeOrConditionChange() {
+      if (lastZipGeo) reselectDepotFromZip();
+      applyWholesaleFromOffer();
+      recalcIfReady();
+      updateFlexMode();
+    }
+
+    function haversine(lat1, lon1, lat2, lon2) {
+      const R = 3958.8;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+
+    function calcDelivery(region, miles, size) {
+      const rates = RATE_SHEET[region];
+      if (!rates) return 0;
+      let fee = rates.base;
+      if (miles > 100) fee += (miles - 100) * rates.perMile;
+      fee += SIZE_SURCHARGE[size] || 0;
+      return Math.round(fee);
+    }
+
+    // Standard PMT formula
+    function pmt(rate, nper, pv) {
+      if (rate === 0) return pv / nper;
+      const r = rate;
+      return pv * r * Math.pow(1 + r, nper) / (Math.pow(1 + r, nper) - 1);
+    }
+
+    function formatMoney(n) {
+      return '$' + Math.round(n).toLocaleString();
+    }
+
+    function formatMoneyDec(n) {
+      return '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+
+    async function findDepots() {
+      const zip = document.getElementById('zip').value.trim();
+      const status = document.getElementById('zipStatus');
+      const btn = document.getElementById('findBtn');
+
+      if (!/^\d{5}$/.test(zip)) {
+        status.textContent = "Enter a valid 5-digit ZIP code.";
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = "Looking up...";
+      status.textContent = "Finding location...";
+
+      try {
+        const res = await fetch(`https://api.zippopotam.us/us/${zip}`);
+        if (!res.ok) throw new Error("ZIP not found");
+        const data = await res.json();
+        const lat = parseFloat(data.places[0].latitude);
+        const lon = parseFloat(data.places[0].longitude);
+        const place = data.places[0]["place name"] + ", " + data.places[0]["state abbreviation"];
+        status.textContent = "Location: " + place;
+        lastZipGeo = { lat, lon, place };
+
+        await loadInventory();
+        reselectDepotFromZip();
+        applyWholesaleFromOffer();
+        recalcIfReady();
+
+      } catch (err) {
+        status.textContent = "Could not find that ZIP. Please check and try again.";
+        console.error(err);
+      }
+
+      btn.disabled = false;
+      btn.textContent = "Find depot";
+    }
+
+    function recalcIfReady() {
+      if (!selectedDepot) return;
+      const wholesale = parseFloat(document.getElementById('wholesale').value);
+      if (!wholesale || wholesale <= 0) {
+        document.getElementById('priceBox').classList.add('hidden');
+        document.getElementById('flexSection').classList.add('hidden');
+        return;
+      }
+
+      syncLegacySize();
+      const size = document.getElementById('size').value;
+      const milesOverride = document.getElementById('milesOverride').value;
+      const miles = milesOverride ? parseFloat(milesOverride) : (selectedDepot.miles != null ? selectedDepot.miles : 0);
+      const fulfillment = currentFulfillment();
+      const delivery = fulfillment === "pickup" ? 0 : (selectedDepot.region ? calcDelivery(selectedDepot.region, miles, size) : 0);
+
+      const targetMargin = currentNetMargin();
+      let recommended = wholesale + delivery + targetMargin;
+      if (recommended - wholesale - delivery < MIN_MARGIN) {
+        recommended = wholesale + delivery + MIN_MARGIN;
+      }
+      recommended = Math.ceil(recommended / 25) * 25;
+      if (isApprovedPricingUnlocked()) {
+        const typed = parseFloat(document.getElementById("approvedUnitPrice").value);
+        if (!typed || typed <= 0) {
+          document.getElementById("unitPrice").value = "";
+          document.getElementById("priceBox").classList.add("hidden");
+          document.getElementById("flexSection").classList.add("hidden");
+          return;
+        }
+        recommended = Math.round(typed * 100) / 100;
+      }
+      const margin = recommended - wholesale - delivery;
+
+      // Set hidden fields
+      document.getElementById('region').value = selectedDepot.region;
+      document.getElementById('miles').value = miles;
+      document.getElementById('unitPrice').value = recommended;
+      document.getElementById('deliveryCost').value = delivery;
+      document.getElementById('wholesaleCost').value = wholesale;
+      document.getElementById('containerSize').value = size;
+      const qty = currentQty();
+      document.getElementById('quantity').value = String(qty);
+      document.getElementById('boxQty').value = String(qty);
+
+      const desc = document.getElementById('containerDesc');
+      const box = currentBox();
+      desc.value = describeContainer(box.size, box.height, box.config, box.grade);
+
+      const depotCity = displayCityState(selectedDepot) || selectedDepot.name;
+      fillFulfillmentLocation();
+
+      const marginClass = margin >= 600 ? 'margin-good' : 'margin-warn';
+      const cashEach = fulfillment === "pickup" ? "Pickup cash each" : "Delivered cash each";
+      const cashTotal = fulfillment === "pickup" ? "Total pickup cash" : "Total delivered cash";
+      const cashNote = isApprovedPricingUnlocked()
+        ? (fulfillment === "pickup"
+          ? "Christopher approved this pickup cash number. Delivery is not included. Do not add a pickup fee."
+          : "Christopher approved this cash number. Delivery is already inside it if this is a delivered deal.")
+        : (fulfillment === "pickup"
+        ? "This is depot pickup. Delivery is not included. Do not add a pickup fee."
+        : "Delivery is already inside that cash price. Do not add it again.");
+      const howFar = fulfillment === "pickup"
+        ? `<div class="price-row"><span>Fulfillment</span><span>Customer pickup</span></div>`
+        : `<div class="price-row"><span>How far</span><span>${miles} miles</span></div>`;
+      document.getElementById('priceBox').innerHTML = `
+        <div class="price-row"><span>Your depot</span><span>${escapeHtml(depotCity)}</span></div>
+        ${howFar}
+        <div class="price-row"><span>Wholesale</span><span>$${wholesale.toLocaleString()}</span></div>
+        <div class="price-row"><span>${isApprovedPricingUnlocked() ? "Approved cash" : "Net Margin"}</span><span class="${marginClass}">${isApprovedPricingUnlocked() ? "Christopher approved pricing" : "$" + margin.toLocaleString()}</span></div>
+        ${isApprovedPricingUnlocked() ? `<div class="price-row"><span>Derived net</span><span class="${marginClass}">$${margin.toLocaleString()}</span></div>` : ""}
+        <div class="price-row"><span>Quantity</span><span>${qty}</span></div>
+        <div class="price-row total"><span>${cashEach}</span><span>$${recommended.toLocaleString()}</span></div>
+        <div class="price-row total"><span>${cashTotal}</span><span>$${(recommended * qty).toLocaleString()}</span></div>
+        <div class="price-row"><span style="font-size:0.82rem;font-weight:400;color:#555;">${cashNote}</span><span></span></div>
+      `;
+      document.getElementById('priceBox').classList.remove('hidden');
+
+      // Show Flex Buy section and recalc
+      document.getElementById('flexSection').classList.remove('hidden');
+      updateFlexMode();
+      recalcFlex();
+      toggleFlexUI();
+    }
+
+    function updateFlexMode() {
+      const size = document.getElementById('size').value;
+      const modPrice = parseFloat(document.getElementById('modPrice').value) || 0;
+      const isMod = size === 'Specialized' || modPrice > 0;
+      document.getElementById('modDownWrap').classList.toggle('hidden', !isMod);
+      document.getElementById('flexModeLabel').textContent = isMod
+        ? 'Mode: Modified / Custom Container'
+        : 'Mode: Standard Container';
+    }
+
+    function toggleFlexUI() {
+      const mode = document.querySelector('input[name="payMode"]:checked').value;
+      const flexUI = document.getElementById('flexUI');
+      const cashSummary = document.getElementById('cashSummary');
+
+      if (mode === 'flex') {
+        flexUI.classList.remove('hidden');
+        cashSummary.classList.add('hidden');
+        document.getElementById('flexSelected').value = 'true';
+        if (selectedFlexIdx < 0 && currentFlexOptions.length) {
+          selectFlexRow(0); // default to first term
+        }
+      } else {
+        flexUI.classList.add('hidden');
+        cashSummary.classList.remove('hidden');
+        document.getElementById('flexSelected').value = 'false';
+        selectedFlexIdx = -1;
+        // clear flex hidden fields
+        ['flexTerm','flexApr','flexMonthly','flexUpfront','flexFinanced','flexTotalInterest'].forEach(id => {
+          document.getElementById(id).value = '';
+        });
+        // clear row selection
+        document.querySelectorAll('#flexBody tr').forEach(r => r.classList.remove('selected-row'));
+      }
+    }
+
+    function recalcFlex() {
+      const unitPrice = parseFloat(document.getElementById('unitPrice').value) || 0;
+      const delivery = parseFloat(document.getElementById('deliveryCost').value) || 0;
+      const downPct = (parseFloat(document.getElementById('downPct').value) || 10) / 100;
+      const modPrice = parseFloat(document.getElementById('modPrice').value) || 0;
+      const modDownPct = (parseFloat(document.getElementById('modDownPct').value) || 35) / 100;
+
+      // Container portion is sell price minus delivery (delivery always upfront)
+      // For simplicity: financed amount = (unitPrice - delivery) after down payments
+      // Actually unitPrice already includes delivery in the recommended price.
+      // Better approach matching Excel:
+      // Cash price of container = unitPrice - delivery
+      // Then down on container + down on mods + delivery = upfront
+
+      const qty = currentQty();
+      const containerCash = (unitPrice - delivery) * qty;
+      const containerDown = containerCash * downPct;
+      const modDown = modPrice * modDownPct;
+      const totalDown = containerDown + modDown;
+      const amountFinanced = (containerCash + modPrice) - totalDown;
+      const totalUpfront = totalDown + (delivery * qty);
+      const haulBit = delivery > 0 ? ` + Delivery ${formatMoney(delivery)}` : "";
+
+      document.getElementById('upfrontBox').innerHTML = `
+        <strong>Upfront due:</strong> ${formatMoney(totalUpfront)}
+        &nbsp;·&nbsp; <strong>Amount financed:</strong> ${formatMoney(amountFinanced)}
+        <br><span style="font-size:0.85rem;color:#555;">
+          (Container down ${formatMoney(containerDown)} + Mod down ${formatMoney(modDown)}${haulBit})
+        </span>
+      `;
+
+      // Build table
+      const tbody = document.getElementById('flexBody');
+      tbody.innerHTML = '';
+      currentFlexOptions = [];
+
+      FLEX_TERMS.forEach((t, idx) => {
+        const monthly = pmt(t.apr / 12, t.months, amountFinanced);
+        const totalPaid = (monthly * t.months) + totalDown; // excl delivery
+        const interest = totalPaid - (containerCash + modPrice);
+
+        currentFlexOptions.push({
+          months: t.months,
+          apr: t.apr,
+          monthly,
+          totalPaid,
+          interest,
+          upfront: totalUpfront,
+          financed: amountFinanced,
+          downPct,
+          modPrice
+        });
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${t.months} mo</strong></td>
+          <td>${(t.apr * 100).toFixed(0)}%</td>
+          <td>${formatMoneyDec(monthly)}</td>
+          <td>${formatMoney(totalPaid)}</td>
+          <td>${formatMoney(interest)}</td>
+        `;
+        tr.onclick = () => selectFlexRow(idx);
+        if (idx === selectedFlexIdx) tr.classList.add('selected-row');
+        tbody.appendChild(tr);
+      });
+
+      // Re-apply selection if still valid
+      if (selectedFlexIdx >= 0) {
+        selectFlexRow(selectedFlexIdx);
+      }
+    }
+
+    function selectFlexRow(idx) {
+      selectedFlexIdx = idx;
+      document.querySelectorAll('#flexBody tr').forEach((r, i) => {
+        r.classList.toggle('selected-row', i === idx);
+      });
+      const opt = currentFlexOptions[idx];
+      if (!opt) return;
+
+      document.getElementById('flexSelected').value = 'true';
+      document.getElementById('flexTerm').value = opt.months;
+      document.getElementById('flexApr').value = opt.apr;
+      document.getElementById('flexMonthly').value = opt.monthly.toFixed(2);
+      document.getElementById('flexUpfront').value = opt.upfront.toFixed(2);
+      document.getElementById('flexFinanced').value = opt.financed.toFixed(2);
+      document.getElementById('flexTotalInterest').value = opt.interest.toFixed(2);
+      document.getElementById('flexDownPct').value = opt.downPct;
+      document.getElementById('flexModPrice').value = opt.modPrice;
+    }
+
+    async function submitProposal(e) {
+      e.preventDefault();
+      const btn = document.getElementById('submitBtn');
+      const original = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Submitting...';
+
+      const user = currentUser;
+      if (!user || !isCompanyEmail(user.email)) {
+        alert('Sign in with your @cbshippingsolutions.com email before submitting.');
+        btn.disabled = false;
+        btn.textContent = original;
+        applyUser(user);
+        return;
+      }
+
+      if (!selectedDepot || !document.getElementById('unitPrice').value) {
+        alert(isApprovedPricingUnlocked()
+          ? 'Enter the cash number Christopher approved after wholesale is filled.'
+          : 'Please find depots and enter wholesale cost first.');
+        btn.disabled = false;
+        btn.textContent = original;
+        return;
+      }
+      if (document.getElementById("approvedPricing").value === "true" && !verifiedApprovalCode) {
+        alert("Enter the manager approval code to use Christopher approved pricing.");
+        btn.disabled = false;
+        btn.textContent = original;
+        return;
+      }
+
+      const payMode = document.querySelector('input[name="payMode"]:checked').value;
+      if (payMode === 'flex' && selectedFlexIdx < 0) {
+        alert('Please select a Flex Buy term from the table (click a row).');
+        btn.disabled = false;
+        btn.textContent = original;
+        return;
+      }
+
+      const data = {
+        clientType: document.querySelector('input[name="clientType"]:checked').value,
+        repName: document.getElementById('repName').value.trim(),
+        repEmail: document.getElementById('repEmail').value.trim(),
+        customerName: document.getElementById('customerName').value.trim(),
+        company: document.getElementById('company').value.trim(),
+        phone: document.getElementById('phone').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        delivery: document.getElementById('delivery').value.trim(),
+        containerDesc: document.getElementById('containerDesc').value.trim() || describeContainer(currentBox().size, currentBox().height, currentBox().config, currentBox().grade),
+        quantity: String(currentQty()),
+        wholesaleCost: document.getElementById('wholesaleCost').value,
+        unitPrice: document.getElementById('unitPrice').value,
+        netMargin: String(currentNetMargin()),
+        containerNotes: document.getElementById('containerNotes').value.trim(),
+        region: document.getElementById('region').value,
+        miles: document.getElementById('miles').value,
+        containerSize: document.getElementById('containerSize').value,
+        weekendRush: false,
+        depositPercent: 50,
+        notes: document.getElementById('notes').value.trim(),
+        deliveryCost: document.getElementById('deliveryCost').value,
+        fulfillment: currentFulfillment(),
+        approvedPricing: isApprovedPricingUnlocked(),
+        pricingMode: isApprovedPricingUnlocked() ? "christopher-approved" : "formula",
+        managerApprovalCode: isApprovedPricingUnlocked() ? verifiedApprovalCode : "",
+        zip: document.getElementById('zip').value.trim(),
+        depot: selectedPurchasingDepot || (selectedDepot && selectedDepot.yards ? selectedDepot.yards.join(" | ") : "") || (selectedDepot ? displayCityState(selectedDepot) : ''),
+        depotCity: selectedDepot ? displayCityState(selectedDepot) : '',
+        condition: document.getElementById('condition').value,
+
+        // New Flex Buy fields
+        paymentMode: payMode,
+        flexSelected: document.getElementById('flexSelected').value === 'true',
+        flexTermMonths: document.getElementById('flexTerm').value,
+        flexApr: document.getElementById('flexApr').value,
+        flexMonthlyPayment: document.getElementById('flexMonthly').value,
+        flexUpfront: document.getElementById('flexUpfront').value,
+        flexAmountFinanced: document.getElementById('flexFinanced').value,
+        flexTotalInterest: document.getElementById('flexTotalInterest').value,
+        flexDownPaymentPct: document.getElementById('flexDownPct').value,
+        flexModificationPrice: document.getElementById('flexModPrice').value
+      };
+
+      try {
+        const headers = { 'Content-Type': 'application/json' };
+        const res = await fetch('/submit-proposal', {
+          method: 'POST',
+          headers,
+          credentials: 'include',
+          body: JSON.stringify(data)
+        });
+        const result = await res.json();
+
+        if (res.ok) {
+          if (result.status === 'flagged') {
+            alert('⚠️ Low margin deal submitted for manager review.\\nNo proposal was sent to the sales rep.\\nChristopher & Bryan have been notified.');
+          } else {
+            alert('✅ Proposal generated and emailed.\\n\\n• Client version → Sales Rep\\n• Internal version → Christopher & Bryan');
+          }
+        } else {
+          alert('Error: ' + (result.error || result.message || 'Something went wrong'));
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Network or server error. Please try again.');
+      }
+
+      btn.disabled = false;
+      btn.textContent = original;
+    }
+  </script>
+  </div>
+</body>
+</html>

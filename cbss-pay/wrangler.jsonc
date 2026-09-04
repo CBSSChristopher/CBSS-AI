@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cbsspay",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-21",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "services": [
+    { "binding": "CRM", "service": "cbsscrm" }
+  ],
+  "vars": {
+    "PUBLIC_TITLE": "CBSS Pay",
+    "VEEM_API_BASE": "https://api.veem.com"
+  }
+}
