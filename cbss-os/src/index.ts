@@ -31,6 +31,7 @@ import {
 } from "./desk-contact.ts";
 import { buildModifiedSpec, readModifiedDraft } from "./modified-catalog.ts";
 import { buildProposalSubmit, readProposalLine } from "./proposal-lines.ts";
+import { scopeCrmGetPayload, shouldScopeCrmGet } from "./crm-scope.ts";
 
 const SECURITY = {
   "X-Content-Type-Options": "nosniff",
@@ -186,6 +187,15 @@ async function proxyTool(request: Request, env: Env, key: ToolKey, rest: string)
       "Content-Security-Policy",
       SECURITY["Content-Security-Policy"].replace("frame-ancestors 'none'", "frame-ancestors 'self'"),
     );
+  }
+  if (key === "crm" && res.ok && shouldScopeCrmGet(rest, new URL(request.url).search, request.method)) {
+    const text = await res.text();
+    try {
+      const data = JSON.parse(text) as Record<string, unknown>;
+      return new Response(JSON.stringify(scopeCrmGetPayload(data, user)), { status: res.status, headers: out });
+    } catch {
+      return new Response(text, { status: res.status, headers: out });
+    }
   }
   return new Response(res.body, { status: res.status, headers: out });
 }
