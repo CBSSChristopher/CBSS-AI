@@ -200,12 +200,13 @@ async function sendBrevoEmail({ to, subject, htmlContent, textContent, attachmen
 export async function generateClientPDF(data, aiContent) {
   const copy = buildClientProposalCopy(data);
   const pdfDoc = await PDFDocument.create();
-  const page = pdfDoc.addPage([612, 792]);
-  const { width, height } = page.getSize();
+  const pageSize = [612, 792];
+  let page = pdfDoc.addPage(pageSize);
+  let { width, height } = page.getSize();
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const margin = 48;
-  let y = height - 36;
+  const footerH = 42;
   const navy = rgb(0.08, 0.12, 0.18);
   const accent = rgb(0.12, 0.31, 0.47);
   const green = rgb(0.05, 0.42, 0.22);
@@ -226,16 +227,38 @@ export async function generateClientPDF(data, aiContent) {
     if (line) lines.push(line);
     return lines;
   };
-  page.drawRectangle({ x: 0, y: height - 88, width, height: 88, color: navy });
-  draw("CB SHIPPING SOLUTIONS", margin, height - 36, 18, true, rgb(1, 1, 1));
-  draw("Shipping Containers  |  Since 2023", margin, height - 54, 10, false, rgb(0.75, 0.8, 0.85));
-  const rightTag = (text, yPos) => {
-    const tw = font.widthOfTextAtSize(text, 10);
-    draw(text, width - margin - tw, yPos, 10, false, rgb(0.92, 0.94, 0.96));
+  const paintHeader = () => {
+    page.drawRectangle({ x: 0, y: height - 88, width, height: 88, color: navy });
+    draw("CB SHIPPING SOLUTIONS", margin, height - 36, 18, true, rgb(1, 1, 1));
+    draw("Shipping Containers  |  Since 2023", margin, height - 54, 10, false, rgb(0.75, 0.8, 0.85));
+    const rightTag = (text, yPos) => {
+      const tw = font.widthOfTextAtSize(text, 10);
+      draw(text, width - margin - tw, yPos, 10, false, rgb(0.92, 0.94, 0.96));
+    };
+    rightTag("Transparent Pricing", height - 36);
+    rightTag("Reliable Delivery", height - 54);
   };
-  rightTag("Transparent Pricing", height - 36);
-  rightTag("Reliable Delivery", height - 54);
-  y = height - 115;
+  const paintFooter = (target) => {
+    target.drawRectangle({ x: 0, y: 0, width, height: footerH, color: navy });
+    target.drawText("CBShippingSolutions  |  Transparent Pricing  |  Reliable Delivery", {
+      x: margin, y: 24, size: 9, font, color: rgb(0.85, 0.88, 0.92),
+    });
+    target.drawText("US Roots. Global Reach. Unbreakable Solutions.", {
+      x: margin, y: 10, size: 8, font, color: rgb(0.65, 0.7, 0.75),
+    });
+  };
+  const newPage = () => {
+    paintFooter(page);
+    page = pdfDoc.addPage(pageSize);
+    ({ width, height } = page.getSize());
+    paintHeader();
+    return height - 115;
+  };
+  const ensureSpace = (need) => {
+    if (y - need < footerH + 16) y = newPage();
+  };
+  paintHeader();
+  let y = height - 115;
   draw("CONTAINER PROPOSAL", margin, y, 15, true, accent);
   y -= 24;
   draw("PREPARED FOR", margin, y, 9, true, accent);
@@ -245,55 +268,62 @@ export async function generateClientPDF(data, aiContent) {
   draw(`Phone: ${data.phone || "-"}   |   Email: ${data.email || "-"}`, margin, y, 10);
   y -= 22;
   if (aiContent && aiContent.intro) {
+    ensureSpace(40);
     draw("PROJECT OVERVIEW", margin, y, 11, true, accent);
     y -= 16;
     for (const line of wrap(sanitizeClientFacingText(aiContent.intro), 92)) {
-      if (y < 120) break;
+      ensureSpace(16);
       draw(line, margin, y, 10);
       y -= 13;
     }
     y -= 10;
   }
+  ensureSpace(28);
   draw(copy.heading, margin, y, 11, true, accent);
   y -= 16;
   if (copy.chooseOne) {
-    const cards = copy.optionCards.slice(0, 2);
+    const cards = copy.optionCards;
     const gap = 14;
-    const cardW = (width - margin * 2 - gap) / 2;
-    const cardH = 168;
+    const perRow = cards.length === 1 ? 1 : 2;
+    const cardW = (width - margin * 2 - (perRow - 1) * gap) / perRow;
+    const cardH = cards.length > 2 ? 156 : 168;
     const headerH = 22;
-    cards.forEach((card, index) => {
-      const x = margin + index * (cardW + gap);
-      const top = y;
-      page.drawRectangle({
-        x,
-        y: top - cardH + 16,
-        width: cardW,
-        height: cardH,
-        color: rgb(0.93, 0.96, 0.99),
-        borderColor: accent,
-        borderWidth: 1,
+    for (let i = 0; i < cards.length; i += perRow) {
+      const row = cards.slice(i, i + perRow);
+      ensureSpace(cardH + 12);
+      row.forEach((card, index) => {
+        const x = margin + index * (cardW + gap);
+        const top = y;
+        page.drawRectangle({
+          x,
+          y: top - cardH + 16,
+          width: cardW,
+          height: cardH,
+          color: rgb(0.93, 0.96, 0.99),
+          borderColor: accent,
+          borderWidth: 1,
+        });
+        page.drawRectangle({
+          x,
+          y: top - headerH + 16,
+          width: cardW,
+          height: headerH,
+          color: navy,
+        });
+        draw(card.header, x + 8, top, 9, true, rgb(1, 1, 1));
+        const badgeW = font.widthOfTextAtSize(card.badge, 8);
+        draw(card.badge, x + cardW - badgeW - 8, top, 8, false, rgb(0.85, 0.9, 0.95));
+        let by = top - 26;
+        for (const bullet of card.bullets) {
+          draw("-  " + bullet, x + 8, by, 8);
+          by -= 12;
+        }
+        draw(card.cashLabel, x + 8, by - 2, 15, true, green);
+        draw(card.cashSub, x + 8, by - 16, 8, false, rgb(0.35, 0.38, 0.42));
+        draw(card.warranty, x + 8, by - 28, 8, false, rgb(0.35, 0.38, 0.42));
       });
-      page.drawRectangle({
-        x,
-        y: top - headerH + 16,
-        width: cardW,
-        height: headerH,
-        color: navy,
-      });
-      draw(card.header, x + 8, top, 9, true, rgb(1, 1, 1));
-      const badgeW = font.widthOfTextAtSize(card.badge, 8);
-      draw(card.badge, x + cardW - badgeW - 8, top, 8, false, rgb(0.85, 0.9, 0.95));
-      let by = top - 28;
-      for (const bullet of card.bullets) {
-        draw("-  " + bullet, x + 8, by, 9);
-        by -= 13;
-      }
-      draw(card.cashLabel, x + 8, by - 4, 16, true, green);
-      draw(card.cashSub, x + 8, by - 18, 8, false, rgb(0.35, 0.38, 0.42));
-      draw(card.warranty, x + 8, by - 30, 8, false, rgb(0.35, 0.38, 0.42));
-    });
-    y -= cardH + 10;
+      y -= cardH + 10;
+    }
   } else {
     draw(sanitizeClientFacingText(data.containerDesc) || "Shipping Container", margin, y, 12, true);
     y -= 14;
@@ -310,6 +340,7 @@ export async function generateClientPDF(data, aiContent) {
     y -= 10;
   }
   if (!copy.chooseOne) {
+    ensureSpace(40);
     draw("WHAT TO EXPECT", margin, y, 11, true, accent);
     y -= 15;
     const expect = aiContent && aiContent.whatToExpect
@@ -320,14 +351,16 @@ export async function generateClientPDF(data, aiContent) {
       );
     for (const bullet of expect) {
       for (const line of wrap("-  " + sanitizeClientFacingText(bullet), 90)) {
-        if (y < 120) break;
+        ensureSpace(16);
         draw(line, margin, y, 10);
         y -= 13;
       }
     }
     y -= 10;
   }
-  const priceBoxH = copy.chooseOne ? 78 : 86;
+  const priceLines = copy.pricing;
+  const priceBoxH = copy.chooseOne ? 36 + priceLines.length * 14 + 26 : 86;
+  ensureSpace(priceBoxH + 12);
   page.drawRectangle({
     x: margin - 4,
     y: y - priceBoxH + 8,
@@ -339,7 +372,7 @@ export async function generateClientPDF(data, aiContent) {
   });
   draw("PRICING TERMS", margin, y, 11, true, accent);
   y -= 18;
-  for (const line of copy.pricing.slice(0, copy.chooseOne ? 2 : copy.pricing.length)) {
+  for (const line of priceLines) {
     draw(line, margin, y, 11);
     y -= 14;
   }
@@ -361,6 +394,7 @@ export async function generateClientPDF(data, aiContent) {
   } else {
     y -= 8;
   }
+  ensureSpace(40);
   draw("PAYMENT TERMS", margin, y, 11, true, accent);
   y -= 15;
   const isFlex = data.flexSelected === true || data.flexSelected === "true";
@@ -392,12 +426,15 @@ export async function generateClientPDF(data, aiContent) {
       : "Remaining balance due prior to or upon delivery.", margin, y, 10);
   }
   y -= 18;
+  ensureSpace(40);
   draw("WARRANTY & ASSURANCE", margin, y, 11, true, accent);
   y -= 15;
   for (const line of copy.warranties) {
+    ensureSpace(16);
     draw(line, margin, y, 10);
     y -= 13;
   }
+  ensureSpace(40);
   draw(isPickupFulfillment(data.fulfillment)
     ? "Every container is air/water leak tested and inspected before pickup."
     : "Every container is air/water leak tested and inspected before delivery.", margin, y, 10);
@@ -406,6 +443,7 @@ export async function generateClientPDF(data, aiContent) {
   y -= 12;
   draw("instead of a simple fiberglass patch.", margin, y, 10);
   y -= 18;
+  ensureSpace(40);
   draw(isPickupFulfillment(data.fulfillment) ? "PICKUP INFORMATION" : "DELIVERY INFORMATION", margin, y, 11, true, accent);
   y -= 15;
   const dest = String(data.delivery || data.depotCity || "").trim();
@@ -437,29 +475,26 @@ export async function generateClientPDF(data, aiContent) {
   );
   for (const note of delNotes) {
     for (const line of wrap("-  " + note, 90)) {
-      if (y < 100) break;
+      ensureSpace(16);
       draw(line, margin, y, 10);
       y -= 13;
     }
   }
   y -= 12;
-  if (y > 95) {
-    draw("NEXT STEPS", margin, y, 11, true, accent);
-    y -= 15;
-    const closingText = aiContent && aiContent.closing
-      ? aiContent.closing
-      : (isPickupFulfillment(data.fulfillment)
-        ? "When you are ready, reply to confirm and we will lock in your container and pickup."
-        : "When you are ready, reply to confirm and we will lock in your container and delivery schedule.");
-    for (const line of wrap(closingText, 90)) {
-      if (y < 70) break;
-      draw(line, margin, y, 10);
-      y -= 13;
-    }
+  ensureSpace(40);
+  draw("NEXT STEPS", margin, y, 11, true, accent);
+  y -= 15;
+  const closingText = aiContent && aiContent.closing
+    ? aiContent.closing
+    : (isPickupFulfillment(data.fulfillment)
+      ? "When you are ready, reply to confirm and we will lock in your container and pickup."
+      : "When you are ready, reply to confirm and we will lock in your container and delivery schedule.");
+  for (const line of wrap(closingText, 90)) {
+    ensureSpace(16);
+    draw(line, margin, y, 10);
+    y -= 13;
   }
-  page.drawRectangle({ x: 0, y: 0, width, height: 42, color: navy });
-  draw("CBShippingSolutions  |  Transparent Pricing  |  Reliable Delivery", margin, 24, 9, false, rgb(0.85, 0.88, 0.92));
-  draw("US Roots. Global Reach. Unbreakable Solutions.", margin, 10, 8, false, rgb(0.65, 0.7, 0.75));
+  paintFooter(page);
   return pdfDoc.save();
 }
 

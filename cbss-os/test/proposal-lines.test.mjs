@@ -34,6 +34,48 @@ function line(over = {}) {
 }
 
 describe("proposal lines", () => {
+  it("keeps 40 HC WWT, 40 standard WWT, and One-Trip as Option A / B / C", () => {
+    const hc = line({ size: "40", height: "HC", grade: "WWT", wholesale: 1850, cash: 3250, city: "Jacksonville, FL" });
+    const std = line({ size: "40", height: "DC", grade: "WWT", wholesale: 1800, cash: 3200, city: "Jacksonville, FL" });
+    const one = line({ size: "40", height: "HC", grade: "OneTrip", wholesale: 2400, cash: 4100, city: "Jacksonville, FL" });
+    const three = combineProposalLines([hc, std, one]);
+    assert.equal(three.ok, true);
+    assert.equal(three.chooseOne, true);
+    assert.equal(three.options.length, 3);
+    assert.equal(three.options[0].letter, "A");
+    assert.equal(three.options[0].label, "Wind & Water Tight");
+    assert.equal(three.options[0].height, "HC");
+    assert.equal(three.options[0].cash, 3250);
+    assert.equal(three.options[1].letter, "B");
+    assert.equal(three.options[1].label, "Wind & Water Tight");
+    assert.equal(three.options[1].height, "DC");
+    assert.equal(three.options[1].cash, 3200);
+    assert.equal(three.options[2].letter, "C");
+    assert.equal(three.options[2].label, "One-Trip");
+    assert.equal(three.options[2].cash, 4100);
+    assert.match(three.containerDesc, /Option A/);
+    assert.match(three.containerDesc, /Option B/);
+    assert.match(three.containerDesc, /Option C/);
+    assert.match(three.containerNotes, /40 ft high cube/);
+    assert.match(three.containerNotes, /40 ft standard/);
+    assert.match(three.containerNotes, /OneTrip/);
+    assert.doesNotMatch(three.containerNotes, /\bposted\b/i);
+    assert.doesNotMatch(three.containerNotes, /\bdelivery\s+\$?\d/i);
+    const built = buildProposalSubmit({
+      customerName: "Frank Payberg",
+      email: "fpayberg@gmail.com",
+      repName: "Christopher Banks",
+      repEmail: "kyle@cbshippingsolutions.com",
+      lines: [hc, std, one],
+    });
+    assert.equal(built.ok, true);
+    assert.equal(built.body.options.length, 3);
+    assert.equal(built.body.options[2].letter, "C");
+    assert.match(String(built.body.containerDesc), /Option C/);
+    assert.match(String(built.body.notes), /OneTrip/);
+    assert.doesNotMatch(String(built.body.notes), /\bposted\b/i);
+  });
+
   it("keeps a 20 ft WWT next to a 20 ft one-trip as Option A / Option B", () => {
     const wwt = line();
     const one = line({ grade: "OneTrip", configLabel: "Standard", wholesale: 1625, cash: 2800, city: "Charleston, SC" });
@@ -141,8 +183,8 @@ describe("Proposal on The Yard can take a second option", () => {
     assert.match(page, /id="p-lines"/);
     assert.match(page, /Add this option/);
     assert.match(page, /Add another option/);
-    assert.match(page, /second grade for the client to choose/);
-    assert.match(page, /Option A \/ Option B/);
+    assert.match(page, /second or third grade for the client to choose/);
+    assert.match(page, /Option A \/ Option B \/ Option C/);
     assert.match(page, /id="p-form"/);
     assert.match(page, /Enter proposal/);
     assert.match(page, /writeProposal/);
