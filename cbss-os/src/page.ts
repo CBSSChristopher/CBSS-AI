@@ -555,7 +555,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
               <div class="ai-mark">Q</div>
               <div>
                 <h2>Write the proposal</h2>
-                <p class="muted">Proposal Builder · posted xChange wholesale only. Add a second box when they want two grades. Do not invent a price.</p>
+                <p class="muted">Proposal Builder · posted xChange wholesale only. Add another box to compare a second grade — the client PDF shows Option A / Option B and they pick one. Do not invent a price.</p>
               </div>
             </div>
             <div class="warn">Side door OS 2D ≠ Side door OS 4D ≠ Full open side. OS 2D, OS 4D, and Full open side are different boxes — do not mix them. Pick the exact config the yard posted.</div>
@@ -566,7 +566,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
               <div class="step-num">1</div>
               <div>
                 <h2>Pick the box</h2>
-                <p class="muted">Size, height, door type, and grade. Get a posted price, add this box, then add another if they want a second grade — 20 ft WWT next to 20 ft one-trip.</p>
+                <p class="muted">Size, height, door type, and grade. Get a posted price, add this box, then Add another box for a second grade — 20 ft cargo worthy next to 20 ft one-trip. That builds alternate options, not a buy-both total.</p>
               </div>
             </div>
             <label>Size</label>
@@ -628,7 +628,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
             </div>
             <div class="row">
               <button type="button" class="gold" id="p-add">Add this box</button>
-              <button type="button" class="secondary" id="p-another">Add another box</button>
+              <button type="button" class="secondary" id="p-another" title="Add a second grade as Option B on the client proposal">Add another box</button>
             </div>
             <div id="p-lines"></div>
           </div>
@@ -659,7 +659,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
               <div class="step-num">5</div>
               <div>
                 <h2>Send it</h2>
-                <p class="muted">Needs a posted wholesale on every box. Enter writes the proposal and emails it. It does not invent a number.</p>
+                <p class="muted">Needs a posted wholesale on every box. Two grades become Option A / Option B on the client PDF. Enter writes the proposal and emails it. It does not invent a number.</p>
               </div>
             </div>
             <div class="row"><button type="submit" class="gold" id="p-send">Enter proposal</button></div>
@@ -2344,9 +2344,10 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     }
     function paintProposalLines(){
       const box = $("p-lines");
-      if (!proposalLines.length){ box.innerHTML = '<p class="muted">No second box yet. Get a posted price, Add this box, then Add another box for a different grade.</p>'; return; }
+      if (!proposalLines.length){ box.innerHTML = '<p class="muted">No second option yet. Get a posted price, Add this box, then Add another box for a different grade (cargo worthy next to one-trip). The client picks one option.</p>'; return; }
       box.innerHTML = proposalLines.map(function(line, i){
-        return '<div class="picked" data-pline="'+i+'"><strong>'+esc(proposalLineText(line))+'</strong>'
+        const letter = String.fromCharCode(65+i);
+        return '<div class="picked" data-pline="'+i+'"><strong>Option '+letter+' · '+esc(proposalLineText(line))+'</strong>'
           +" · proposal "+money(line.cash)+(line.city?" · depot "+esc(line.city):"")
           +' <button type="button" class="secondary" data-pline-x="'+i+'" style="margin-left:8px">Remove</button></div>';
       }).join("");
@@ -2360,7 +2361,9 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       if (!same) proposalLines.push(line);
       paintProposalLines();
       $("p-err").className="ok";
-      $("p-err").textContent = proposalLines.length===1 ? "Box 1 is on the proposal." : proposalLines.length+" boxes are on the proposal.";
+      $("p-err").textContent = proposalLines.length===1
+        ? "Option A is on the proposal. Add another box to compare a second grade."
+        : proposalLines.length+" options are on the proposal. The client picks one.";
       return true;
     }
     $("p-add").addEventListener("click", function(){ addCurrentBox(); });
@@ -2370,7 +2373,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       $("p-wholesale").value = "";
       $("p-cash").value = "";
       $("p-ticket").classList.add("hide");
-      $("p-status").textContent = "Pick the next box — a different size or grade — then Get CBSS Price. Do not invent a wholesale.";
+      $("p-status").textContent = "Pick the next grade for Option B, then Get CBSS Price. Do not invent a wholesale.";
     });
     $("p-lines").addEventListener("click", function(e){
       const b = e.target.closest("[data-pline-x]");
@@ -2438,7 +2441,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         }
         $("p-err").className = "ok";
         $("p-err").textContent = "Proposal written and emailed: "+(res.j.desc||"the boxes on this ticket")+".";
-        showProposalSaved("Proposal written", (res.j.desc||"The boxes are on the proposal")+". It was emailed to you. Forward it to the customer.");
+        showProposalSaved("Proposal written", (res.j.desc||"The options are on the proposal")+". It was emailed to you. Forward it to the customer. If there are two grades, they pick one option.");
       } catch (err) {
         $("p-err").textContent = "Could not reach the proposal tool. Sign out and sign in again.";
       } finally {

@@ -18,6 +18,25 @@ export type ProposalLine = {
   fulfillment: string;
 };
 
+export type ClientProposalOption = {
+  letter: string;
+  label: string;
+  size: string;
+  height: string;
+  config: string;
+  configLabel: string;
+  grade: string;
+  qty: number;
+  cash: number;
+  depotCity: string;
+  warranty: string;
+  fulfillment: string;
+  notes: string;
+  wholesale: number;
+  delivery: number;
+  margin: number;
+};
+
 export type ProposalSubmitDraft = {
   customerName?: string;
   email?: string;
@@ -34,6 +53,14 @@ export type ProposalSubmitDraft = {
   lines?: ProposalLine[];
 };
 
+const GRADE_LABELS: Record<string, string> = {
+  cw: "Cargo Worthy",
+  wwt: "Wind & Water Tight",
+  onetrip: "One-Trip",
+  iicl: "IICL / Multi-Trip",
+  asis: "As-Is",
+};
+
 function str(value: unknown): string {
   return String(value == null ? "" : value).trim();
 }
@@ -41,6 +68,63 @@ function str(value: unknown): string {
 function moneyNum(value: unknown): number {
   const n = typeof value === "number" ? value : parseFloat(String(value ?? "").replace(/[$,]/g, ""));
   return Number.isFinite(n) ? n : 0;
+}
+
+function gradeKey(grade: string): string {
+  return str(grade).toLowerCase().replace(/[\s_\-/().]/g, "");
+}
+
+export function normalizeGrade(grade: string): string {
+  const n = gradeKey(grade);
+  if (n === "cw" || n.includes("cargo")) return "CW";
+  if (n === "wwt" || n.includes("wind") || n.includes("water")) return "WWT";
+  if (n.includes("onetrip") || n === "new") return "OneTrip";
+  if (n.includes("iicl") || n.includes("multi")) return "IICL";
+  if (n.includes("asis")) return "AsIs";
+  return str(grade) || "CW";
+}
+
+export function gradeLabel(grade: string): string {
+  const key = gradeKey(normalizeGrade(grade));
+  return GRADE_LABELS[key] || str(grade) || "Container";
+}
+
+export function warrantyForGrade(grade: string): string {
+  return normalizeGrade(grade) === "OneTrip"
+    ? "10-year structural + 10-year no-leak warranty"
+    : "5-year structural + 5-year no-leak warranty";
+}
+
+export function optionLetter(index: number): string {
+  return String.fromCharCode(65 + Math.max(0, index));
+}
+
+/** City/state only. Never a yard name with a posted number. */
+export function depotCityOnly(raw: unknown): string {
+  const s = str(raw);
+  if (!s) return "";
+  const tail = s.match(/([A-Za-z .'-]+,\s*[A-Z]{2})\s*$/);
+  if (tail) return tail[1].replace(/\s+/g, " ").trim();
+  return s.replace(/\s+/g, " ");
+}
+
+/** Strip posted / wholesale / delivery / margin dollars from any client-facing string. */
+export function sanitizeClientNotes(text: unknown): string {
+  let s = str(text);
+  if (!s) return "";
+  s = s.replace(/\bposted\b[^.\n]*/gi, "");
+  s = s.replace(/\bwholesale\b[^.\n]*/gi, "");
+  s = s.replace(/\bdelivery\s+\$?[\d,]+(?:\.\d+)?/gi, "");
+  s = s.replace(/\bmargin\s+\$?[\d,]+(?:\.\d+)?/gi, "");
+  s = s.replace(/\s*·\s*·+/g, " · ");
+  s = s.replace(/[ \t]{2,}/g, " ");
+  s = s.replace(/\n{3,}/g, "\n\n");
+  return s.replace(/^[ ·]+|[ ·]+$/g, "").trim();
+}
+
+export function notesHaveCostLeak(text: unknown): boolean {
+  const s = String(text == null ? "" : text);
+  return /\bposted\b/i.test(s) || /\bdelivery\s+\$?\d/i.test(s) || /\bwholesale\b/i.test(s);
 }
 
 /** Delivery rate-sheet bucket only. A 10' uses 20ft haul rates; a 45' uses 40ft haul rates.
@@ -57,6 +141,59 @@ export function describeLine(line: ProposalLine): string {
   const height = line.height === "HC" ? "high cube" : line.height === "DC" ? "standard" : str(line.height);
   const bits = [line.size ? line.size + " ft" : "", height, line.configLabel || line.config, line.grade].filter(Boolean);
   return bits.join(" ") + (qty > 1 ? " × " + qty : "");
+}
+
+export function clientLineNote(line: ProposalLine): string {
+  const depot = depotCityOnly(line.city || line.depot);
+  return [describeLine(line), depot ? "depot " + depot : ""].filter(Boolean).join(" · ");
+}
+
+export function optionKey(line: ProposalLine): string {
+  return [str(line.size), str(line.height), str(line.config), normalizeGrade(line.grade)].join("|");
+}
+
+export function groupProposalOptions(lines: ProposalLine[]): {
+  options: ClientProposalOption[];
+  chooseOne: boolean;
+} {
+  const clean = (Array.isArray(lines) ? lines : []).filter((line) => line && line.wholesale > 0 && line.cash > 0);
+  const groups = new Map<string, ProposalLine[]>();
+  for (const line of clean) {
+    const key = optionKey(line);
+    const bucket = groups.get(key) || [];
+    bucket.push(line);
+    groups.set(key, bucket);
+  }
+  const options = [...groups.values()].map((bucket, index) => {
+    const first = bucket[0];
+    const qty = bucket.reduce((sum, row) => sum + Math.max(1, Number(row.qty) || 1), 0);
+    const wholesale = first.wholesale;
+    const delivery = first.fulfillment === "pickup" ? 0 : first.delivery;
+    const cash = first.cash;
+    const grade = normalizeGrade(first.grade);
+    return {
+      letter: optionLetter(index),
+      label: gradeLabel(grade),
+      size: first.size,
+      height: first.height,
+      config: first.config,
+      configLabel: first.configLabel || "Standard",
+      grade,
+      qty,
+      cash,
+      depotCity: depotCityOnly(first.city || first.depot),
+      warranty: warrantyForGrade(grade),
+      fulfillment: first.fulfillment === "pickup" ? "pickup" : "deliver",
+      notes: clientLineNote({ ...first, qty }),
+      wholesale,
+      delivery,
+      margin: first.margin,
+    } satisfies ClientProposalOption;
+  });
+  return {
+    options,
+    chooseOne: options.length >= 2,
+  };
 }
 
 export function readProposalLine(raw: Record<string, unknown>, configLabel = ""): ProposalLine | null {
@@ -98,65 +235,75 @@ export function combineProposalLines(lines: ProposalLine[]): {
   depot: string;
   depotCity: string;
   miles: number | "";
+  options: ClientProposalOption[];
+  chooseOne: boolean;
 } {
+  const empty = {
+    containerDesc: "",
+    containerNotes: "",
+    quantity: 0,
+    wholesaleCost: 0,
+    unitPrice: 0,
+    deliveryCost: 0,
+    netMargin: 0,
+    containerSize: "40ft",
+    condition: "",
+    depot: "",
+    depotCity: "",
+    miles: "" as const,
+    options: [] as ClientProposalOption[],
+    chooseOne: false,
+  };
   const clean = (Array.isArray(lines) ? lines : []).filter((line) => line && line.wholesale > 0 && line.cash > 0);
   if (!clean.length) {
     return {
       ok: false,
       error: "Get a posted CBSS price on at least one box first. Do not invent a wholesale.",
-      containerDesc: "",
-      containerNotes: "",
-      quantity: 0,
-      wholesaleCost: 0,
-      unitPrice: 0,
-      deliveryCost: 0,
-      netMargin: 0,
-      containerSize: "40ft",
-      condition: "",
-      depot: "",
-      depotCity: "",
-      miles: "",
+      ...empty,
     };
   }
+  const grouped = groupProposalOptions(clean);
   let wholesaleCost = 0;
-  let unitPrice = 0;
   let deliveryCost = 0;
+  let quotedCash = 0;
   let quantity = 0;
-  const desc: string[] = [];
-  const notes: string[] = [];
   const depots = new Set<string>();
   for (const line of clean) {
     const qty = Math.max(1, Number(line.qty) || 1);
     quantity += qty;
     wholesaleCost += line.wholesale * qty;
-    unitPrice += line.cash * qty;
+    quotedCash += line.cash * qty;
     deliveryCost += (line.fulfillment === "pickup" ? 0 : line.delivery) * qty;
-    desc.push(describeLine(line));
-    const depot = line.city || line.depot || "";
+    const depot = depotCityOnly(line.city || line.depot);
     if (depot) depots.add(depot);
-    notes.push(
-      describeLine(line)
-        + " · posted " + line.wholesale
-        + (line.fulfillment === "pickup" ? " · pickup" : " · delivery " + line.delivery)
-        + (depot ? " · depot " + depot : ""),
-    );
   }
   const first = clean[0];
   const sameSize = clean.every((line) => rateSheetSize(line.size, line.config) === rateSheetSize(first.size, first.config));
+  const clientNotes = grouped.options.map((option) => option.notes).join("\n");
+  const desc = grouped.chooseOne
+    ? grouped.options.map((option) => "Option " + option.letter + " " + option.qty + " × " + option.size + " ft " + option.label).join("; ")
+    : clean.map(describeLine).join("; ");
+  const primary = grouped.options[0];
   return {
     ok: true,
-    containerDesc: desc.join("; "),
-    containerNotes: notes.join("\n"),
-    quantity,
+    containerDesc: desc,
+    containerNotes: sanitizeClientNotes(clientNotes),
+    quantity: grouped.chooseOne ? primary.qty : quantity,
     wholesaleCost,
-    unitPrice,
+    unitPrice: primary.cash,
     deliveryCost,
-    netMargin: unitPrice - wholesaleCost - deliveryCost,
+    netMargin: quotedCash - wholesaleCost - deliveryCost,
     containerSize: sameSize ? rateSheetSize(first.size, first.config) : "Specialized",
-    condition: clean.length === 1 ? first.grade : clean.map((line) => line.grade).join(" + "),
+    condition: grouped.chooseOne
+      ? grouped.options.map((option) => option.grade).join(" or ")
+      : grouped.options.length === 1
+        ? primary.grade
+        : grouped.options.map((option) => option.grade).join(" + "),
     depot: [...depots].join(" | "),
-    depotCity: first.city || first.depot || "",
+    depotCity: primary.depotCity || depotCityOnly(first.city || first.depot),
     miles: first.miles == null ? "" : first.miles,
+    options: grouped.options,
+    chooseOne: grouped.chooseOne,
   };
 }
 
@@ -168,7 +315,11 @@ export function buildProposalSubmit(draft: ProposalSubmitDraft): { ok: boolean; 
   if (!repName || !repEmail) return { ok: false, error: "Sign in again so the proposal can go to your company email." };
   const combined = combineProposalLines(draft.lines || []);
   if (!combined.ok) return { ok: false, error: combined.error };
-  const extra = str(draft.notes);
+  const extra = sanitizeClientNotes(draft.notes);
+  const notes = [combined.containerNotes, extra].filter(Boolean).join("\n");
+  if (notesHaveCostLeak(notes) || notesHaveCostLeak(combined.containerNotes)) {
+    return { ok: false, error: "Client notes cannot include posted or delivery dollars." };
+  }
   return {
     ok: true,
     body: {
@@ -185,7 +336,7 @@ export function buildProposalSubmit(draft: ProposalSubmitDraft): { ok: boolean; 
       fulfillment: str(draft.fulfillment) === "pickup" ? "pickup" : "deliver",
       containerSize: combined.containerSize,
       condition: combined.condition,
-      notes: [combined.containerNotes, extra].filter(Boolean).join("\n"),
+      notes,
       containerNotes: combined.containerNotes,
       containerDesc: combined.containerDesc,
       clientType: str(draft.clientType) || "Residential",
@@ -196,6 +347,8 @@ export function buildProposalSubmit(draft: ProposalSubmitDraft): { ok: boolean; 
       depotCity: combined.depotCity,
       miles: combined.miles,
       deliveryCost: combined.deliveryCost,
+      options: combined.options,
+      chooseOne: combined.chooseOne,
     },
   };
 }

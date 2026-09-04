@@ -1,6 +1,12 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { isApprovedPricingRequest, isValidManagerApprovalCode, parseApprovedCash } from "./approval.js";
 import { jsonResponse, optionsResponse, readSession } from "./auth.js";
+import {
+  buildClientProposalCopy,
+  notesHaveCostLeak,
+  readClientOptions,
+  sanitizeClientFacingText,
+} from "./client-options.js";
 import { clampNetMargin, customerCashTotal, isPickupFulfillment, MIN_NET_MARGIN } from "./container.js";
 
 const MIN_MARGIN = MIN_NET_MARGIN;
@@ -130,20 +136,24 @@ Amount Financed: $${parseFloat(data.flexAmountFinanced || 0).toFixed(2)}`;
   } else {
     flexLine = "\nPayment Option: Cash / Full Payment";
   }
+  const copy = buildClientProposalCopy(data);
+  const optionBlock = copy.chooseOne
+    ? `This is ONE proposal with alternate options. The customer picks ONE option. Do not add the cash prices together.
+${copy.optionCards.map((card) => `Option ${card.letter}: ${card.title} · qty ${card.qty}${card.depotCity ? " · depot " + card.depotCity : ""} · ${card.cashLabel} · ${copy.options.find((o) => o.letter === card.letter)?.warranty || ""}`).join("\n")}`
+    : `Container: ${sanitizeClientFacingText(data.containerDesc)}
+Quantity: ${data.quantity}
+${isPickupFulfillment(data.fulfillment)
+    ? `Pickup cash price (each): $${data.unitPrice}
+This is depot pickup. The customer collects the container at the depot city. Do not add weekday delivery. Do not add a pickup fee.`
+    : `Delivered cash price (each): $${data.unitPrice}
+This price already includes standard weekday delivery. Do not add a delivery charge.`}`;
   const userPrompt = `Create proposal content for:
 Client Type: ${data.clientType}
 Customer: ${data.customerName}${data.company ? " / " + data.company : ""}
-Container: ${data.containerDesc}
-Quantity: ${data.quantity}
-Condition/Notes: ${data.containerNotes || "None"}
-${isPickupFulfillment(data.fulfillment)
-    ? `Pickup cash price (each): $${data.unitPrice}
-This is depot pickup. The customer collects the container at the depot city. Do not add weekday delivery. Do not add a pickup fee.
-Pickup location: ${data.delivery}`
-    : `Delivered cash price (each): $${data.unitPrice}
-This price already includes standard weekday delivery. Do not add a delivery charge.
-Delivery Location: ${data.delivery}`}
-Additional Notes: ${data.notes || "None"}
+${optionBlock}
+${isPickupFulfillment(data.fulfillment) ? `Pickup location: ${data.delivery}` : `Delivery Location: ${data.delivery}`}
+Client-safe notes: ${copy.notes || "None"}
+Do not mention wholesale, posted price, delivery fee, margin, or a buy-both total.
 ${flexLine}`;
   const res = await fetch("https://api.x.ai/v1/chat/completions", {
     method: "POST",
@@ -187,7 +197,8 @@ async function sendBrevoEmail({ to, subject, htmlContent, textContent, attachmen
   return res.json();
 }
 
-async function generateClientPDF(data, aiContent) {
+export async function generateClientPDF(data, aiContent) {
+  const copy = buildClientProposalCopy(data);
   const pdfDoc = await PDFDocument.create();
   const page = pdfDoc.addPage([612, 792]);
   const { width, height } = page.getSize();
@@ -231,59 +242,99 @@ async function generateClientPDF(data, aiContent) {
   if (aiContent && aiContent.intro) {
     draw("PROJECT OVERVIEW", margin, y, 11, true, accent);
     y -= 16;
-    for (const line of wrap(aiContent.intro, 92)) {
+    for (const line of wrap(sanitizeClientFacingText(aiContent.intro), 92)) {
       if (y < 120) break;
       draw(line, margin, y, 10);
       y -= 13;
     }
     y -= 10;
   }
-  draw("CONTAINER DETAILS", margin, y, 11, true, accent);
+  draw(copy.heading, margin, y, 11, true, accent);
   y -= 16;
-  draw(data.containerDesc || "Shipping Container", margin, y, 12, true);
-  y -= 14;
-  draw(`Quantity: ${data.quantity}`, margin, y, 10);
-  y -= 13;
-  if (data.containerNotes) {
-    draw(`Notes: ${data.containerNotes}`, margin, y, 10);
+  if (copy.chooseOne) {
+    draw("One proposal. Pick Option A or Option B — not both unless you ask for two boxes.", margin, y, 9);
+    y -= 16;
+    const cards = copy.optionCards.slice(0, 3);
+    const gap = 12;
+    const cardW = cards.length <= 2 ? (width - margin * 2 - gap) / 2 : width - margin * 2;
+    const cardH = 118;
+    cards.forEach((card, index) => {
+      const col = cards.length <= 2 ? index : 0;
+      const row = cards.length <= 2 ? 0 : index;
+      const x = margin + col * (cardW + gap);
+      const top = y - row * (cardH + 10);
+      page.drawRectangle({
+        x,
+        y: top - cardH + 14,
+        width: cardW,
+        height: cardH,
+        color: rgb(0.96, 0.97, 0.99),
+        borderColor: accent,
+        borderWidth: 1,
+      });
+      draw("OPTION " + card.letter, x + 10, top, 10, true, accent);
+      draw(card.title, x + 10, top - 16, 11, true);
+      draw("Qty " + card.qty, x + 10, top - 32, 10);
+      if (card.depotCity) draw("Depot " + card.depotCity, x + 10, top - 46, 10);
+      draw(card.warranty, x + 10, top - 62, 8);
+      draw(card.cashLabel, x + 10, top - 80, 12, true, green);
+    });
+    y -= cards.length <= 2 ? cardH + 8 : cards.length * (cardH + 10);
+  } else {
+    draw(sanitizeClientFacingText(data.containerDesc) || "Shipping Container", margin, y, 12, true);
+    y -= 14;
+    draw(`Quantity: ${copy.options[0].qty}`, margin, y, 10);
     y -= 13;
+    if (copy.options[0].depotCity) {
+      draw("Depot " + copy.options[0].depotCity, margin, y, 10);
+      y -= 13;
+    }
+    if (copy.notes && !notesHaveCostLeak(copy.notes)) {
+      draw(`Notes: ${copy.notes}`, margin, y, 10);
+      y -= 13;
+    }
+    y -= 10;
   }
-  y -= 10;
   draw("WHAT TO EXPECT", margin, y, 11, true, accent);
   y -= 15;
-  const expect = aiContent && aiContent.whatToExpect ? aiContent.whatToExpect : getConditionExpectations(data.containerDesc, data.containerNotes);
+  const expect = aiContent && aiContent.whatToExpect
+    ? aiContent.whatToExpect
+    : getConditionExpectations(
+      copy.optionCards.map((card) => card.title).join(" "),
+      copy.notes,
+    );
   for (const bullet of expect) {
-    for (const line of wrap("-  " + bullet, 90)) {
+    for (const line of wrap("-  " + sanitizeClientFacingText(bullet), 90)) {
       if (y < 120) break;
       draw(line, margin, y, 10);
       y -= 13;
     }
   }
   y -= 10;
-  const grandTotal = customerCashTotal(data.unitPrice, data.quantity);
+  const priceBoxH = copy.chooseOne ? 28 + copy.pricing.length * 14 : 86;
   page.drawRectangle({
     x: margin - 4,
-    y: y - 78,
+    y: y - priceBoxH + 8,
     width: width - margin * 2 + 8,
-    height: 86,
+    height: priceBoxH,
     color: rgb(0.94, 0.97, 1),
     borderColor: accent,
     borderWidth: 1.2,
   });
   draw("PRICING TERMS", margin, y, 11, true, accent);
   y -= 18;
-  if (isPickupFulfillment(data.fulfillment)) {
-    draw(`Pickup cash price (each)        $${Number(data.unitPrice).toFixed(2)}`, margin, y, 11);
+  for (const line of copy.pricing) {
+    draw(line, margin, y, line.startsWith("Choose one") ? 9 : 11, line.startsWith("Choose one"), line.startsWith("Choose one") ? accent : rgb(0.12, 0.12, 0.12));
     y -= 14;
-    draw("This is depot pickup. Delivery is not included. Do not add a pickup fee.", margin, y, 9);
-  } else {
-    draw(`Delivered cash price (each)     $${Number(data.unitPrice).toFixed(2)}`, margin, y, 11);
-    y -= 14;
-    draw("Standard weekday delivery is already included.", margin, y, 9);
   }
-  y -= 16;
-  draw(`TOTAL INVESTMENT                 $${grandTotal.toFixed(2)}`, margin, y, 12, true, green);
-  y -= 36;
+  if (!copy.chooseOne) {
+    const grandTotal = customerCashTotal(copy.options[0].cash, copy.options[0].qty);
+    y -= 2;
+    draw(`TOTAL INVESTMENT                 $${grandTotal.toFixed(2)}`, margin, y, 12, true, green);
+    y -= 20;
+  } else {
+    y -= 8;
+  }
   draw("PAYMENT TERMS", margin, y, 11, true, accent);
   y -= 15;
   const isFlex = data.flexSelected === true || data.flexSelected === "true";
@@ -317,12 +368,10 @@ async function generateClientPDF(data, aiContent) {
   y -= 18;
   draw("WARRANTY & ASSURANCE", margin, y, 11, true, accent);
   y -= 15;
-  const isOneTrip = (`${data.containerDesc} ${data.containerNotes || ""}`).toLowerCase().includes("one-trip") ||
-    (`${data.containerDesc} ${data.containerNotes || ""}`).toLowerCase().includes("one trip");
-  draw(isOneTrip
-    ? "This One-Trip unit carries a 10-year structural and 10-year no-leak warranty."
-    : "This unit carries a 5-year structural and 5-year no-leak warranty.", margin, y, 10);
-  y -= 13;
+  for (const line of copy.warranties) {
+    draw(line, margin, y, 10);
+    y -= 13;
+  }
   draw(isPickupFulfillment(data.fulfillment)
     ? "Every container is air/water leak tested and inspected before pickup."
     : "Every container is air/water leak tested and inspected before delivery.", margin, y, 10);
@@ -436,6 +485,15 @@ async function generateInternalPDF(data, deliveryPer, marginPer) {
   y -= 14;
   draw(`Qty: ${data.quantity}  |  Wholesale: $${Number(data.wholesaleCost).toFixed(2)}  |  ${isPickupFulfillment(data.fulfillment) ? "Pickup" : "Delivered"} cash: $${Number(data.unitPrice).toFixed(2)}`, margin, y);
   y -= 13;
+  const internalOptions = readClientOptions(data);
+  if (internalOptions.chooseOne) {
+    draw("OPTIONS (client picks one)", margin, y, 11, true, rgb(0.12, 0.31, 0.47));
+    y -= 14;
+    for (const option of internalOptions.options) {
+      draw(`Option ${option.letter} ${option.label}  cash $${Number(option.cash).toFixed(2)}  posted $${Number(option.wholesale).toFixed(2)}  delivery $${Number(option.delivery).toFixed(2)}`, margin, y, 10);
+      y -= 13;
+    }
+  }
   if (data.approvedPricing) {
     draw("Christopher approved pricing", margin, y, 11, true, rgb(0.12, 0.31, 0.47));
     y -= 13;
@@ -529,10 +587,11 @@ function sanitizeFilename(name) {
 }
 
 export function resolveProposalPricing(data, env) {
-  const wholesale = parseFloat(data && data.wholesaleCost) || 0;
+  const { options, chooseOne } = readClientOptions(data);
+  const wholesale = parseFloat(data && data.wholesaleCost) || (options[0] && options[0].wholesale) || 0;
   const deliveryPer = isPickupFulfillment(data && data.fulfillment)
     ? 0
-    : (parseFloat(data && data.deliveryCost) || calculateDeliveryFromData(data));
+    : (parseFloat(data && data.deliveryCost) || (options[0] && options[0].delivery) || calculateDeliveryFromData(data));
   const approved = isApprovedPricingRequest(data);
   if (approved) {
     if (!isValidManagerApprovalCode(data && data.managerApprovalCode, env)) {
@@ -551,19 +610,25 @@ export function resolveProposalPricing(data, env) {
       wholesale,
       deliveryPer,
       marginPer: sell - wholesale - deliveryPer,
+      chooseOne,
     };
   }
-  const sell = parseFloat(data && data.unitPrice) || 0;
+  const sell = parseFloat(data && data.unitPrice) || (options[0] && options[0].cash) || 0;
   const marginPer = sell - wholesale - deliveryPer;
+  const optionLow = options.some((option) => {
+    const haul = option.fulfillment === "pickup" ? 0 : (option.delivery || 0);
+    return option.wholesale > 0 && (option.cash - option.wholesale - haul) < MIN_MARGIN;
+  });
   return {
     ok: true,
     approved: false,
     skipLowMargin: false,
-    isLowMargin: marginPer < MIN_MARGIN,
+    isLowMargin: chooseOne ? optionLow : marginPer < MIN_MARGIN,
     sell,
     wholesale,
     deliveryPer,
     marginPer,
+    chooseOne,
   };
 }
 
@@ -583,6 +648,10 @@ async function handleSubmit(event, env) {
           .replace(/[^\x00-\x7F]/g, "");
       }
     });
+    data.containerNotes = sanitizeClientFacingText(data.containerNotes);
+    data.notes = sanitizeClientFacingText(data.notes);
+    if (notesHaveCostLeak(data.containerNotes)) data.containerNotes = "";
+    if (notesHaveCostLeak(data.notes)) data.notes = "";
     if (!data.repEmail || !data.repName || !data.customerName || !data.unitPrice) {
       return { statusCode: 400, body: JSON.stringify({ error: "Missing required fields" }) };
     }

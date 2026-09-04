@@ -45,7 +45,13 @@ import {
   isValidManagerApprovalCode,
   parseApprovedCash,
 } from "../src/approval.js";
-import { resolveProposalPricing } from "../src/submit-proposal.js";
+import {
+  buildClientProposalCopy,
+  notesHaveCostLeak,
+  readClientOptions,
+  sanitizeClientFacingText,
+} from "../src/client-options.js";
+import { generateClientPDF, resolveProposalPricing } from "../src/submit-proposal.js";
 
 const page = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const submit = readFileSync(new URL("../src/submit-proposal.js", import.meta.url), "utf8");
@@ -528,5 +534,152 @@ describe("xChange posted-price pull", () => {
     });
     assert.equal(pulled.length, 3);
     assert.ok(pulled.some((o) => o.location === "Los Angeles, CA" && o.wholesaleCost === 1225 && o.lat === 33.9425));
+  });
+});
+
+describe("Client proposal options PDF", () => {
+  const twoOptions = {
+    customerName: "Ronnie Gamble",
+    company: "",
+    phone: "555-0100",
+    email: "ronnie@example.com",
+    fulfillment: "deliver",
+    delivery: "North Charleston, SC",
+    containerDesc: "Option A 1 × 20 ft Cargo Worthy; Option B 1 × 20 ft One-Trip",
+    containerNotes: "20 ft standard Standard CW · depot Charleston, SC\n20 ft standard Standard OneTrip · depot Charleston, SC",
+    quantity: "1",
+    unitPrice: 1950,
+    wholesaleCost: 4900,
+    deliveryCost: 950,
+    chooseOne: true,
+    options: [
+      {
+        letter: "A",
+        label: "Cargo Worthy",
+        size: "20",
+        height: "DC",
+        grade: "CW",
+        qty: 1,
+        cash: 1950,
+        depotCity: "Charleston, SC",
+        warranty: "5-year structural + 5-year no-leak warranty",
+        fulfillment: "deliver",
+        notes: "20 ft standard Standard CW · depot Charleston, SC",
+        wholesale: 725,
+        delivery: 475,
+        margin: 750,
+      },
+      {
+        letter: "B",
+        label: "One-Trip",
+        size: "20",
+        height: "DC",
+        grade: "OneTrip",
+        qty: 1,
+        cash: 2950,
+        depotCity: "Charleston, SC",
+        warranty: "10-year structural + 10-year no-leak warranty",
+        fulfillment: "deliver",
+        notes: "20 ft standard Standard OneTrip · depot Charleston, SC",
+        wholesale: 1625,
+        delivery: 475,
+        margin: 850,
+      },
+    ],
+  };
+
+  it("builds Option A / Option B copy without posted or delivery dollars", () => {
+    const copy = buildClientProposalCopy(twoOptions);
+    assert.equal(copy.chooseOne, true);
+    assert.equal(copy.options.length, 2);
+    assert.equal(copy.heading, "CHOOSE ONE OPTION");
+    assert.match(copy.optionCards[0].title, /Cargo Worthy/);
+    assert.match(copy.optionCards[1].title, /One-Trip/);
+    assert.match(copy.pricing.join("\n"), /Option A/);
+    assert.match(copy.pricing.join("\n"), /\$1950\.00/);
+    assert.match(copy.pricing.join("\n"), /Option B/);
+    assert.match(copy.pricing.join("\n"), /\$2950\.00/);
+    assert.match(copy.pricing.join("\n"), /Choose one option/);
+    assert.doesNotMatch(copy.pricing.join("\n"), /4900|9800/);
+    assert.equal(notesHaveCostLeak(copy.notes), false);
+    const leaked = sanitizeClientFacingText("20 ft CW · posted 725 · delivery 475 · depot Charleston, SC");
+    assert.doesNotMatch(leaked, /\bposted\b/i);
+    assert.doesNotMatch(leaked, /\bdelivery\s+\$?\d/i);
+  });
+
+  it("keeps a single-line proposal as one cash price", () => {
+    const copy = buildClientProposalCopy({
+      customerName: "Pat Lee",
+      fulfillment: "deliver",
+      containerDesc: "20 ft standard Standard WWT",
+      containerNotes: "20 ft standard Standard WWT · depot Memphis, TN",
+      quantity: 1,
+      unitPrice: 1900,
+      depotCity: "Memphis, TN",
+      condition: "WWT",
+    });
+    assert.equal(copy.chooseOne, false);
+    assert.equal(copy.options.length, 1);
+    assert.equal(copy.heading, "CONTAINER DETAILS");
+    assert.match(copy.pricing.join("\n"), /Delivered cash price \(each\)/);
+    assert.match(copy.pricing.join("\n"), /1900/);
+  });
+
+  it("renders two-option PDF bytes with A/B cards and no cost leak", async () => {
+    const bytes = await generateClientPDF(twoOptions, {
+      intro: "Here are two delivered options for the same drop.",
+      whatToExpect: ["Air and water leak tested before it leaves the depot."],
+      closing: "Reply with Option A or Option B.",
+    });
+    const text = Buffer.from(bytes).toString("latin1");
+    assert.match(text, /CONTAINER PROPOSAL/);
+    assert.match(text, /OPTION A/);
+    assert.match(text, /OPTION B/);
+    assert.match(text, /Cargo Worthy/);
+    assert.match(text, /One-Trip/);
+    assert.match(text, /Charleston, SC/);
+    assert.match(text, /Choose one option/);
+    assert.doesNotMatch(text, /posted 725|posted \$725/i);
+    assert.doesNotMatch(text, /delivery 475|delivery \$475/i);
+    assert.doesNotMatch(text, /wholesale/i);
+    const leakIn = {
+      ...twoOptions,
+      containerNotes: "20 ft CW · posted 725 · delivery 475 · depot Charleston, SC",
+      notes: "posted 900 · delivery 400",
+    };
+    const cleaned = await generateClientPDF(leakIn, null);
+    const cleanedText = Buffer.from(cleaned).toString("latin1");
+    assert.doesNotMatch(cleanedText, /\bposted\b/i);
+    assert.doesNotMatch(cleanedText, /delivery 475|delivery \$475/i);
+    const one = await generateClientPDF({
+      customerName: "Pat Lee",
+      fulfillment: "deliver",
+      containerDesc: "20 ft standard Standard WWT",
+      containerNotes: "20 ft standard Standard WWT · depot Memphis, TN",
+      quantity: 1,
+      unitPrice: 1900,
+      depotCity: "Memphis, TN",
+      condition: "WWT",
+    }, null);
+    const oneText = Buffer.from(one).toString("latin1");
+    assert.match(oneText, /CONTAINER DETAILS/);
+    assert.match(oneText, /TOTAL INVESTMENT/);
+    assert.doesNotMatch(oneText, /OPTION B/);
+  });
+
+  it("flags low margin on any option, not a summed buy-both number", () => {
+    const priced = resolveProposalPricing(twoOptions, {});
+    assert.equal(priced.ok, true);
+    assert.equal(priced.chooseOne, true);
+    assert.equal(priced.isLowMargin, false);
+    const low = resolveProposalPricing({
+      ...twoOptions,
+      options: [
+        { ...twoOptions.options[0], cash: 800, wholesale: 725, delivery: 475, margin: -400 },
+        twoOptions.options[1],
+      ],
+    }, {});
+    assert.equal(low.isLowMargin, true);
+    assert.equal(readClientOptions(twoOptions).options[0].letter, "A");
   });
 });
