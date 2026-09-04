@@ -10,6 +10,7 @@ export function yardAliasAction(hostname: string, method: string): "redirect" | 
   const host = String(hostname || "").toLowerCase();
   if (host === "crm.cbshippingsolutions.app" && method.toUpperCase() === "GET") return "redirect";
   if (host.endsWith(".workers.dev") && method.toUpperCase() === "GET") return "redirect";
+  // house. is a clean hostname for Windows PCs that still fail theyard SNI. Serve The Yard. Do not 302 back.
   return "proxy";
 }
 

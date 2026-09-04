@@ -16,6 +16,7 @@ describe("The Yard public name", () => {
     assert.match(alias, /env\.HOUSE\.fetch/);
     assert.match(wrangler, /"service": "cbssos"/);
     assert.match(wrangler, /theyard\.cbshippingsolutions\.app\/\*/);
+    assert.match(wrangler, /house\.cbshippingsolutions\.app\/\*/);
     assert.match(wrangler, /crm\.cbshippingsolutions\.app\/\*/);
     assert.match(wrangler, /zone_name": "cbshippingsolutions\.app"/);
     assert.doesNotMatch(wrangler, /custom_domain/);
@@ -42,6 +43,8 @@ describe("The Yard sign-in on the company hostname", () => {
     assert.equal(yardAliasAction("theyard.cbss.workers.dev", "POST"), "proxy");
     assert.equal(yardAliasAction("theyard.cbshippingsolutions.app", "GET"), "proxy");
     assert.equal(yardAliasAction("theyard.cbshippingsolutions.app", "POST"), "proxy");
+    assert.equal(yardAliasAction("house.cbshippingsolutions.app", "GET"), "proxy");
+    assert.equal(yardAliasAction("house.cbshippingsolutions.app", "POST"), "proxy");
     assert.equal(yardAliasAction("crm.cbshippingsolutions.app", "GET"), "redirect");
     assert.equal(yardAliasAction("crm.cbshippingsolutions.app", "POST"), "proxy");
   });
