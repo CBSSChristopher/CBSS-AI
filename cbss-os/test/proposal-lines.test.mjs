@@ -134,14 +134,14 @@ describe("proposal lines", () => {
   });
 });
 
-describe("Proposal on The Yard can take a second box", () => {
-  it("has Add this box / Add another box and submits through /proposal/submit", () => {
+describe("Proposal on The Yard can take a second option", () => {
+  it("has Add this option / Add another option and submits through /proposal/submit", () => {
     assert.match(page, /id="p-add"/);
     assert.match(page, /id="p-another"/);
     assert.match(page, /id="p-lines"/);
-    assert.match(page, /Add this box/);
-    assert.match(page, /Add another box/);
-    assert.match(page, /alternate options/);
+    assert.match(page, /Add this option/);
+    assert.match(page, /Add another option/);
+    assert.match(page, /second grade for the client to choose/);
     assert.match(page, /Option A \/ Option B/);
     assert.match(page, /id="p-form"/);
     assert.match(page, /Enter proposal/);

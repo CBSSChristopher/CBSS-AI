@@ -613,15 +613,19 @@ describe("Client proposal options PDF", () => {
     const copy = buildClientProposalCopy(twoOptions);
     assert.equal(copy.chooseOne, true);
     assert.equal(copy.options.length, 2);
-    assert.equal(copy.heading, "CHOOSE ONE OPTION");
+    assert.equal(copy.heading, "TWO OPTIONS");
+    assert.equal(copy.optionCards[0].header, "Option A - Cargo Worthy");
+    assert.equal(copy.optionCards[0].badge, "Used CW");
+    assert.equal(copy.optionCards[1].header, "Option B - One-Trip");
+    assert.equal(copy.optionCards[1].badge, "One-Trip");
     assert.match(copy.optionCards[0].title, /Cargo Worthy/);
     assert.match(copy.optionCards[1].title, /One-Trip/);
-    assert.match(copy.pricing.join("\n"), /Option A/);
-    assert.match(copy.pricing.join("\n"), /\$1950\.00/);
-    assert.match(copy.pricing.join("\n"), /Option B/);
-    assert.match(copy.pricing.join("\n"), /\$2950\.00/);
-    assert.match(copy.pricing.join("\n"), /Choose one option/);
-    assert.doesNotMatch(copy.pricing.join("\n"), /4900|9800/);
+    assert.match(copy.pricing.join("\n"), /Option A - 20 ft Cargo Worthy \(each\)/);
+    assert.match(copy.pricing.join("\n"), /\$1,950\.00/);
+    assert.match(copy.pricing.join("\n"), /Option B - 20 ft One-Trip \(each\)/);
+    assert.match(copy.pricing.join("\n"), /\$2,950\.00/);
+    assert.match(copy.chooseOneBar, /Choose one option - total is the delivered cash price for that unit/);
+    assert.doesNotMatch(copy.pricing.join("\n") + copy.chooseOneBar, /4900|9800/);
     assert.equal(notesHaveCostLeak(copy.notes), false);
     const leaked = sanitizeClientFacingText("20 ft CW · posted 725 · delivery 475 · depot Charleston, SC");
     assert.doesNotMatch(leaked, /\bposted\b/i);
@@ -643,7 +647,7 @@ describe("Client proposal options PDF", () => {
     assert.equal(copy.options.length, 1);
     assert.equal(copy.heading, "CONTAINER DETAILS");
     assert.match(copy.pricing.join("\n"), /Delivered cash price \(each\)/);
-    assert.match(copy.pricing.join("\n"), /1900/);
+    assert.match(copy.pricing.join("\n"), /\$1,900\.00/);
   });
 
   it("renders two-option PDF bytes with A/B cards and no cost leak", async () => {
@@ -654,12 +658,15 @@ describe("Client proposal options PDF", () => {
     });
     const text = pdfPlainText(bytes);
     assert.match(text, /CONTAINER PROPOSAL/);
-    assert.match(text, /OPTION A/);
-    assert.match(text, /OPTION B/);
-    assert.match(text, /Cargo Worthy/);
-    assert.match(text, /One-Trip/);
+    assert.match(text, /Transparent Pricing/);
+    assert.match(text, /TWO OPTIONS/);
+    assert.match(text, /Option A - Cargo Worthy/);
+    assert.match(text, /Option B - One-Trip/);
+    assert.match(text, /Used CW/);
+    assert.match(text, /\$1,950\.00/);
+    assert.match(text, /\$2,950\.00/);
     assert.match(text, /Charleston, SC/);
-    assert.match(text, /Choose one option/);
+    assert.match(text, /Choose one option - total is the delivered cash price for that unit/);
     assert.doesNotMatch(text, /posted 725|posted \$725/i);
     assert.doesNotMatch(text, /delivery 475|delivery \$475/i);
     assert.doesNotMatch(text, /wholesale/i);

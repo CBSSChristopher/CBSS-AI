@@ -229,7 +229,12 @@ export async function generateClientPDF(data, aiContent) {
   page.drawRectangle({ x: 0, y: height - 88, width, height: 88, color: navy });
   draw("CB SHIPPING SOLUTIONS", margin, height - 36, 18, true, rgb(1, 1, 1));
   draw("Shipping Containers  |  Since 2023", margin, height - 54, 10, false, rgb(0.75, 0.8, 0.85));
-  draw("PRICING TERMS  |  Reliable Delivery", margin, height - 70, 10, false, rgb(0.7, 0.75, 0.8));
+  const rightTag = (text, yPos) => {
+    const tw = font.widthOfTextAtSize(text, 10);
+    draw(text, width - margin - tw, yPos, 10, false, rgb(0.92, 0.94, 0.96));
+  };
+  rightTag("Transparent Pricing", height - 36);
+  rightTag("Reliable Delivery", height - 54);
   y = height - 115;
   draw("CONTAINER PROPOSAL", margin, y, 15, true, accent);
   y -= 24;
@@ -252,34 +257,43 @@ export async function generateClientPDF(data, aiContent) {
   draw(copy.heading, margin, y, 11, true, accent);
   y -= 16;
   if (copy.chooseOne) {
-    draw("One proposal. Pick Option A or Option B — not both unless you ask for two boxes.", margin, y, 9);
-    y -= 16;
-    const cards = copy.optionCards.slice(0, 3);
-    const gap = 12;
-    const cardW = cards.length <= 2 ? (width - margin * 2 - gap) / 2 : width - margin * 2;
-    const cardH = 118;
+    const cards = copy.optionCards.slice(0, 2);
+    const gap = 14;
+    const cardW = (width - margin * 2 - gap) / 2;
+    const cardH = 168;
+    const headerH = 22;
     cards.forEach((card, index) => {
-      const col = cards.length <= 2 ? index : 0;
-      const row = cards.length <= 2 ? 0 : index;
-      const x = margin + col * (cardW + gap);
-      const top = y - row * (cardH + 10);
+      const x = margin + index * (cardW + gap);
+      const top = y;
       page.drawRectangle({
         x,
-        y: top - cardH + 14,
+        y: top - cardH + 16,
         width: cardW,
         height: cardH,
-        color: rgb(0.96, 0.97, 0.99),
+        color: rgb(0.93, 0.96, 0.99),
         borderColor: accent,
         borderWidth: 1,
       });
-      draw("OPTION " + card.letter, x + 10, top, 10, true, accent);
-      draw(card.title, x + 10, top - 16, 11, true);
-      draw("Qty " + card.qty, x + 10, top - 32, 10);
-      if (card.depotCity) draw("Depot " + card.depotCity, x + 10, top - 46, 10);
-      draw(card.warranty, x + 10, top - 62, 8);
-      draw(card.cashLabel, x + 10, top - 80, 12, true, green);
+      page.drawRectangle({
+        x,
+        y: top - headerH + 16,
+        width: cardW,
+        height: headerH,
+        color: navy,
+      });
+      draw(card.header, x + 8, top, 9, true, rgb(1, 1, 1));
+      const badgeW = font.widthOfTextAtSize(card.badge, 8);
+      draw(card.badge, x + cardW - badgeW - 8, top, 8, false, rgb(0.85, 0.9, 0.95));
+      let by = top - 28;
+      for (const bullet of card.bullets) {
+        draw("-  " + bullet, x + 8, by, 9);
+        by -= 13;
+      }
+      draw(card.cashLabel, x + 8, by - 4, 16, true, green);
+      draw(card.cashSub, x + 8, by - 18, 8, false, rgb(0.35, 0.38, 0.42));
+      draw(card.warranty, x + 8, by - 30, 8, false, rgb(0.35, 0.38, 0.42));
     });
-    y -= cards.length <= 2 ? cardH + 8 : cards.length * (cardH + 10);
+    y -= cardH + 10;
   } else {
     draw(sanitizeClientFacingText(data.containerDesc) || "Shipping Container", margin, y, 12, true);
     y -= 14;
@@ -295,42 +309,54 @@ export async function generateClientPDF(data, aiContent) {
     }
     y -= 10;
   }
-  draw("WHAT TO EXPECT", margin, y, 11, true, accent);
-  y -= 15;
-  const expect = aiContent && aiContent.whatToExpect
-    ? aiContent.whatToExpect
-    : getConditionExpectations(
-      copy.optionCards.map((card) => card.title).join(" "),
-      copy.notes,
-    );
-  for (const bullet of expect) {
-    for (const line of wrap("-  " + sanitizeClientFacingText(bullet), 90)) {
-      if (y < 120) break;
-      draw(line, margin, y, 10);
-      y -= 13;
+  if (!copy.chooseOne) {
+    draw("WHAT TO EXPECT", margin, y, 11, true, accent);
+    y -= 15;
+    const expect = aiContent && aiContent.whatToExpect
+      ? aiContent.whatToExpect
+      : getConditionExpectations(
+        copy.optionCards.map((card) => card.title).join(" "),
+        copy.notes,
+      );
+    for (const bullet of expect) {
+      for (const line of wrap("-  " + sanitizeClientFacingText(bullet), 90)) {
+        if (y < 120) break;
+        draw(line, margin, y, 10);
+        y -= 13;
+      }
     }
+    y -= 10;
   }
-  y -= 10;
-  const priceBoxH = copy.chooseOne ? 28 + copy.pricing.length * 14 : 86;
+  const priceBoxH = copy.chooseOne ? 78 : 86;
   page.drawRectangle({
     x: margin - 4,
     y: y - priceBoxH + 8,
     width: width - margin * 2 + 8,
     height: priceBoxH,
-    color: rgb(0.94, 0.97, 1),
+    color: rgb(1, 1, 1),
     borderColor: accent,
     borderWidth: 1.2,
   });
   draw("PRICING TERMS", margin, y, 11, true, accent);
   y -= 18;
-  for (const line of copy.pricing) {
-    draw(line, margin, y, line.startsWith("Choose one") ? 9 : 11, line.startsWith("Choose one"), line.startsWith("Choose one") ? accent : rgb(0.12, 0.12, 0.12));
+  for (const line of copy.pricing.slice(0, copy.chooseOne ? 2 : copy.pricing.length)) {
+    draw(line, margin, y, 11);
     y -= 14;
   }
-  if (!copy.chooseOne) {
+  if (copy.chooseOne && copy.chooseOneBar) {
+    page.drawRectangle({
+      x: margin - 4,
+      y: y - 16,
+      width: width - margin * 2 + 8,
+      height: 22,
+      color: rgb(0.93, 0.96, 0.99),
+    });
+    draw(copy.chooseOneBar, margin, y - 6, 9, true, green);
+    y -= 28;
+  } else if (!copy.chooseOne) {
     const grandTotal = customerCashTotal(copy.options[0].cash, copy.options[0].qty);
     y -= 2;
-    draw(`TOTAL INVESTMENT                 $${grandTotal.toFixed(2)}`, margin, y, 12, true, green);
+    draw("TOTAL INVESTMENT                 " + (copy.optionCards[0] && copy.optionCards[0].cashLabel ? copy.optionCards[0].cashLabel : "$" + grandTotal.toFixed(2)), margin, y, 12, true, green);
     y -= 20;
   } else {
     y -= 8;
@@ -382,20 +408,32 @@ export async function generateClientPDF(data, aiContent) {
   y -= 18;
   draw(isPickupFulfillment(data.fulfillment) ? "PICKUP INFORMATION" : "DELIVERY INFORMATION", margin, y, 11, true, accent);
   y -= 15;
+  const dest = String(data.delivery || data.depotCity || "").trim();
   const delNotes = aiContent && aiContent.deliveryNotes ? aiContent.deliveryNotes : (
-    isPickupFulfillment(data.fulfillment)
+    copy.chooseOne
       ? [
-          "This is a depot pickup. The customer collects the container at the depot city.",
-          "Standard weekday delivery is not included.",
-          "Bring a truck and trailer that can take this container.",
-          "Confirm pickup hours with the office before you go.",
+          dest
+            ? (isPickupFulfillment(data.fulfillment)
+              ? "Pickup at " + dest + "."
+              : "Delivery to " + dest + ".")
+            : (isPickupFulfillment(data.fulfillment) ? "Depot pickup." : "Delivered to the site on this proposal."),
+          isPickupFulfillment(data.fulfillment)
+            ? "This is depot pickup. Weekday delivery is not included."
+            : "Weekday delivery is included in the cash price.",
         ]
-      : [
-          "Site must be accessible by standard delivery truck and trailer.",
-          "A clear, level area is required for safe off-loading.",
-          "Customer is responsible for any required permits or site preparation.",
-          "Delivery windows are scheduled in advance - please ensure someone is on site.",
-        ]
+      : (isPickupFulfillment(data.fulfillment)
+        ? [
+            "This is a depot pickup. The customer collects the container at the depot city.",
+            "Standard weekday delivery is not included.",
+            "Bring a truck and trailer that can take this container.",
+            "Confirm pickup hours with the office before you go.",
+          ]
+        : [
+            "Site must be accessible by standard delivery truck and trailer.",
+            "A clear, level area is required for safe off-loading.",
+            "Customer is responsible for any required permits or site preparation.",
+            "Delivery windows are scheduled in advance - please ensure someone is on site.",
+          ])
   );
   for (const note of delNotes) {
     for (const line of wrap("-  " + note, 90)) {

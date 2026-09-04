@@ -44,8 +44,38 @@ export function gradeLabel(grade) {
 
 export function warrantyForGrade(grade) {
   return normalizeGrade(grade) === "OneTrip"
-    ? "10-year structural + 10-year no-leak warranty"
-    : "5-year structural + 5-year no-leak warranty";
+    ? "10-year structural + 10-year no-leak"
+    : "5-year structural + 5-year no-leak";
+}
+
+export function gradeBadge(grade) {
+  const key = normalizeGrade(grade);
+  if (key === "CW") return "Used CW";
+  if (key === "WWT") return "Used WWT";
+  if (key === "OneTrip") return "One-Trip";
+  if (key === "IICL") return "IICL";
+  if (key === "AsIs") return "As-Is";
+  return key;
+}
+
+export function formatCash(value) {
+  const n = Number(value) || 0;
+  return "$" + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+export function optionBullets(option, pickup) {
+  const grade = normalizeGrade(option.grade);
+  const inspect = grade === "OneTrip"
+    ? "Wind- and water-tight, residential ready"
+    : grade === "WWT"
+      ? "Wind- and water-tight storage"
+      : "Fully inspected & leak-tested";
+  return [
+    optionTitle(option),
+    "Qty " + option.qty + (option.depotCity ? " · depot " + option.depotCity : ""),
+    inspect,
+    "Welder repair (within reason), not a patch",
+  ];
 }
 
 export function depotCityOnly(raw) {
@@ -143,37 +173,40 @@ export function buildClientProposalCopy(data) {
   const pickup = String((data && data.fulfillment) || "") === "pickup"
     || options.every((option) => option.fulfillment === "pickup");
   const cashWord = pickup ? "Pickup cash" : "Delivered cash";
+  const includeWord = pickup ? "depot pickup · no delivery fee" : "weekday delivery included";
   const pricing = chooseOne
     ? options.map((option) => (
-      "Option " + option.letter + " " + option.label + "  " + cashWord + "  $" + Number(option.cash).toFixed(2)
-    )).concat([
-      "Choose one option. These are alternatives, not a combined total.",
-      pickup
-        ? "This is depot pickup. Delivery is not included. Do not add a pickup fee."
-        : "Standard weekday delivery is already included in each option's cash price.",
-    ])
+      "Option " + option.letter + " - " + (option.size ? option.size + " ft " : "") + option.label + " (each) ... " + formatCash(option.cash)
+    ))
     : [
-      cashWord + " price (each)     $" + Number(options[0].cash).toFixed(2),
+      cashWord + " price (each)     " + formatCash(options[0].cash),
       pickup
         ? "This is depot pickup. Delivery is not included. Do not add a pickup fee."
         : "Standard weekday delivery is already included.",
     ];
   const warranties = chooseOne
-    ? options.map((option) => "Option " + option.letter + " " + option.label + ": " + option.warranty)
-    : [options[0].warranty.startsWith("This") ? options[0].warranty : "This unit carries a " + options[0].warranty.replace(/^This unit carries a /i, "")];
+    ? options.map((option) => option.label + " carries a " + option.warranty + " warranty.")
+    : ["This unit carries a " + options[0].warranty + " warranty."];
 
   return {
     options,
     chooseOne,
-    heading: chooseOne ? "CHOOSE ONE OPTION" : "CONTAINER DETAILS",
+    heading: chooseOne ? "TWO OPTIONS" : "CONTAINER DETAILS",
+    chooseOneBar: chooseOne
+      ? "Choose one option - total is the delivered cash price for that unit."
+      : "",
     optionCards: options.map((option) => ({
       letter: option.letter,
+      header: "Option " + option.letter + " - " + option.label,
+      badge: gradeBadge(option.grade),
       title: optionTitle(option),
       qty: option.qty,
       depotCity: option.depotCity,
-      warranty: option.warranty,
+      bullets: optionBullets(option, pickup),
+      warranty: "Warranty: " + option.warranty,
       cash: option.cash,
-      cashLabel: cashWord + " $" + Number(option.cash).toFixed(2),
+      cashLabel: formatCash(option.cash),
+      cashSub: cashWord + " · " + includeWord,
     })),
     notes: sanitizeClientFacingText(data && data.containerNotes),
     extraNotes: sanitizeClientFacingText(data && data.notes),
