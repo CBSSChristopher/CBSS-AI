@@ -26,9 +26,9 @@ describe("The Yard public name", () => {
     assert.doesNotMatch(wrangler, /"name": "cbss(crm|brain|completetool|pay|invoice)"/);
     assert.match(page, /Open The Yard/);
     assert.match(page, /This is The Yard/);
-    assert.match(page, /yard\.cbshippingsolutions\.app/);
+    assert.match(page, /cbss-yard\.cbss\.workers\.dev/);
     assert.doesNotMatch(page, /theyard\.cbshippingsolutions\.app/);
-    assert.match(page, /not a workers\.dev link/);
+    assert.doesNotMatch(page, /not a workers\.dev link/);
     assert.match(pageHtml({ loginError: "Type your CRM password." }), /Type your CRM password\./);
     assert.match(index, /loginWantsRedirect/);
     assert.match(index, /pageHtml\(\{ loginError/);
@@ -39,9 +39,11 @@ describe("The Yard public name", () => {
 });
 
 describe("The Yard sign-in on the company hostname", () => {
-  it("does not 302 a login POST off workers.dev", () => {
-    assert.equal(yardAliasAction("theyard.cbss.workers.dev", "GET"), "redirect");
+  it("does not 302 workers.dev onto the poisoned .app zone", () => {
+    assert.equal(yardAliasAction("theyard.cbss.workers.dev", "GET"), "proxy");
     assert.equal(yardAliasAction("theyard.cbss.workers.dev", "POST"), "proxy");
+    assert.equal(yardAliasAction("cbss-yard.cbss.workers.dev", "GET"), "proxy");
+    assert.equal(yardAliasAction("cbss-yard.cbss.workers.dev", "POST"), "proxy");
     assert.equal(yardAliasAction("yard.cbshippingsolutions.app", "GET"), "proxy");
     assert.equal(yardAliasAction("yard.cbshippingsolutions.app", "POST"), "proxy");
     assert.equal(yardAliasAction("theyard.cbshippingsolutions.app", "GET"), "proxy");

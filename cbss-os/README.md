@@ -2,7 +2,7 @@
 
 The house tool for CB Shipping Solutions. One login for CRM, Desk, Proposal, Modified, and Money.
 
-Bookmark: `https://yard.cbshippingsolutions.app`
+Bookmark: `https://cbss-yard.cbss.workers.dev`
 
 Company email only. Same password as the CRM.
 

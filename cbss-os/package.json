@@ -6,6 +6,7 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "deploy:yard": "wrangler deploy --config wrangler.harbor.jsonc",
+    "deploy:yard-floor": "wrangler deploy --config wrangler.cbss-yard.jsonc",
     "test": "node --experimental-strip-types --test test/*.test.mjs"
   },
   "devDependencies": {

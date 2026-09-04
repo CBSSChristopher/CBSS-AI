@@ -308,7 +308,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     <section class="card login-card">
       <div class="seal">CB</div>
       <h1>The Yard</h1>
-      <p class="muted">The CB Shipping Solutions house tool. One login for CRM, Desk, Proposal, Modified, and Money. Company email only. Same password as the CRM book — not Gmail. Bookmark ${YARD_PUBLIC} — not a workers.dev link.</p>
+      <p class="muted">The CB Shipping Solutions house tool. One login for CRM, Desk, Proposal, Modified, and Money. Company email only. Same password as the CRM book — not Gmail. Bookmark ${YARD_PUBLIC}.</p>
       <form id="login-form" method="post" action="/auth/login">
         <label for="email">Company email</label>
         <input id="email" name="email" type="text" inputmode="email" autocomplete="username" placeholder="you@cbshippingsolutions.com" required />
