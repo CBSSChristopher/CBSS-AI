@@ -112,8 +112,8 @@ export function depotCityOnly(raw: unknown): string {
 export function sanitizeClientNotes(text: unknown): string {
   let s = str(text);
   if (!s) return "";
-  s = s.replace(/\bposted\b[^.\n]*/gi, "");
-  s = s.replace(/\bwholesale\b[^.\n]*/gi, "");
+  s = s.replace(/\bposted\s+\$?[\d,]+(?:\.\d+)?/gi, "");
+  s = s.replace(/\bwholesale\s+\$?[\d,]+(?:\.\d+)?/gi, "");
   s = s.replace(/\bdelivery\s+\$?[\d,]+(?:\.\d+)?/gi, "");
   s = s.replace(/\bmargin\s+\$?[\d,]+(?:\.\d+)?/gi, "");
   s = s.replace(/\s*·\s*·+/g, " · ");

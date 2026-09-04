@@ -3,6 +3,27 @@ import { describe, it } from "node:test";
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
+import { inflateSync } from "node:zlib";
+
+function pdfPlainText(bytes) {
+  const src = Buffer.from(bytes).toString("latin1");
+  const chunks = [];
+  const re = /stream\r?\n([\s\S]*?)endstream/g;
+  let match;
+  while ((match = re.exec(src))) {
+    try {
+      chunks.push(inflateSync(Buffer.from(match[1], "latin1")).toString("latin1"));
+    } catch {
+      chunks.push(match[1]);
+    }
+  }
+  const raw = chunks.join("\n");
+  const decoded = [];
+  for (const hex of raw.matchAll(/<([0-9A-Fa-f]+)>/g)) {
+    decoded.push(Buffer.from(hex[1], "hex").toString("latin1"));
+  }
+  return decoded.join("\n");
+}
 import {
   cityKey,
   clampNetMargin,
@@ -631,7 +652,7 @@ describe("Client proposal options PDF", () => {
       whatToExpect: ["Air and water leak tested before it leaves the depot."],
       closing: "Reply with Option A or Option B.",
     });
-    const text = Buffer.from(bytes).toString("latin1");
+    const text = pdfPlainText(bytes);
     assert.match(text, /CONTAINER PROPOSAL/);
     assert.match(text, /OPTION A/);
     assert.match(text, /OPTION B/);
@@ -648,7 +669,7 @@ describe("Client proposal options PDF", () => {
       notes: "posted 900 · delivery 400",
     };
     const cleaned = await generateClientPDF(leakIn, null);
-    const cleanedText = Buffer.from(cleaned).toString("latin1");
+    const cleanedText = pdfPlainText(cleaned);
     assert.doesNotMatch(cleanedText, /\bposted\b/i);
     assert.doesNotMatch(cleanedText, /delivery 475|delivery \$475/i);
     const one = await generateClientPDF({
@@ -661,7 +682,7 @@ describe("Client proposal options PDF", () => {
       depotCity: "Memphis, TN",
       condition: "WWT",
     }, null);
-    const oneText = Buffer.from(one).toString("latin1");
+    const oneText = pdfPlainText(one);
     assert.match(oneText, /CONTAINER DETAILS/);
     assert.match(oneText, /TOTAL INVESTMENT/);
     assert.doesNotMatch(oneText, /OPTION B/);
