@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { readFileSync } from "node:fs";
 import { BRAND, LIVE_TOOLS, MODULES, SALES_SPARKS, TEAM_OWNERS } from "../src/brand.ts";
-import { emptyTools, isCompanyEmail, makeSession, origins, readSession, toolsReady } from "../src/auth.ts";
+import { emptyTools, isCompanyEmail, makeSession, origins, readSession, sessionCookieDomain, toolsReady } from "../src/auth.ts";
 import { pageHtml } from "../src/page.ts";
 
 const page = pageHtml();
@@ -125,8 +125,11 @@ describe("hard rules stay on the platform", () => {
     assert.match(page, />The Yard</);
     assert.match(page, /Open The Yard/);
     assert.match(page, /This is The Yard/);
-    assert.match(page, /cbss-yard\.cbss\.workers\.dev/);
+    assert.match(page, /floor\.cbshippingsolutions\.app/);
+    assert.doesNotMatch(page, /cbss-yard\.cbss\.workers\.dev/);
     assert.doesNotMatch(page, /theyard\.cbshippingsolutions\.app/);
+    assert.doesNotMatch(page, /house tool/i);
+    assert.doesNotMatch(page, /the house/i);
     assert.doesNotMatch(page, /not a workers\.dev link/);
     assert.doesNotMatch(page, /CBSS Platform/);
     assert.doesNotMatch(page, /side platform/);
@@ -173,6 +176,15 @@ describe("session stays small", () => {
     const request = new Request("https://cbssos.cbss.workers.dev/");
     const cookies = await makeSession(request, env, user);
     assert.ok(cookies[0].length < 800, cookies[0].length);
+    assert.doesNotMatch(cookies[0], /Domain=/);
+    const appReq = new Request("https://floor.cbshippingsolutions.app/");
+    const appCookies = await makeSession(appReq, env, user);
+    assert.match(appCookies[0], /Domain=\.cbshippingsolutions\.app/);
+    assert.match(appCookies[0], /Secure/);
+    assert.match(appCookies[0], /HttpOnly/);
+    assert.match(appCookies[0], /SameSite=Lax/);
+    assert.equal(sessionCookieDomain("floor.cbshippingsolutions.app"), ".cbshippingsolutions.app");
+    assert.equal(sessionCookieDomain("theyard.cbss.workers.dev"), null);
     const inbound = new Request("https://cbssos.cbss.workers.dev/", {
       headers: { Cookie: cookies[0].split(";")[0] },
     });

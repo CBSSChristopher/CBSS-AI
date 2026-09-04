@@ -49,7 +49,7 @@ export const MODIFIED_CATEGORIES: ModifiedCategory[] = [
     id: "foundation",
     title: "Foundation",
     kicker: "Apex",
-    help: "CB Apex helical pylons are the house foundation. Pile count comes from the land walk. Do not guess a number.",
+    help: "CB Apex helical pylons are the standard foundation. Pile count comes from the land walk. Do not guess a number.",
   },
   {
     id: "doors",

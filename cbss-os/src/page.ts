@@ -308,7 +308,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     <section class="card login-card">
       <div class="seal">CB</div>
       <h1>The Yard</h1>
-      <p class="muted">The CB Shipping Solutions house tool. One login for CRM, Desk, Proposal, Modified, and Money. Company email only. Same password as the CRM book — not Gmail. Bookmark ${YARD_PUBLIC}.</p>
+      <p class="muted">CB Shipping Solutions floor CRM. One sign-in for CRM, Desk, Proposal, Modified, and Money. Company email only. Same password as the CRM book — not Gmail. Bookmark ${YARD_PUBLIC}.</p>
       <form id="login-form" method="post" action="/auth/login">
         <label for="email">Company email</label>
         <input id="email" name="email" type="text" inputmode="email" autocomplete="username" placeholder="you@cbshippingsolutions.com" required />
@@ -771,7 +771,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         <section id="mod-money" class="hide">
           <div class="card">
             <h2>Send invoice</h2>
-            <p class="muted">Builds the navy/gold invoice PDF, downloads it, and opens Gmail to you. Attach that PDF and send it to the customer. The amount is the number they agreed to. Do not invent a price. ACH / wire only is the house path.</p>
+            <p class="muted">Builds the navy/gold invoice PDF, downloads it, and opens Gmail to you. Attach that PDF and send it to the customer. The amount is the number they agreed to. Do not invent a price. ACH / wire only is the standard path.</p>
             <div class="split">
               <div><label>Customer name</label><input id="i-name" required /></div>
               <div><label>Customer email</label><input id="i-email" type="email" /></div>

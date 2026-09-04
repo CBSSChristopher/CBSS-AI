@@ -8,7 +8,7 @@ const wrangler = readFileSync(new URL("../wrangler.cbss-yard.jsonc", import.meta
 
 describe("Safari floor on workers.dev", () => {
   it("serves The Yard on cbss-yard.cbss.workers.dev with no .app redirect", () => {
-    assert.equal(YARD_PUBLIC, "https://cbss-yard.cbss.workers.dev");
+    assert.equal(YARD_PUBLIC, "https://floor.cbshippingsolutions.app");
     assert.match(wrangler, /"name": "cbss-yard"/);
     assert.match(wrangler, /src\/yard-floor\.ts/);
     assert.match(wrangler, /"service": "cbssos"/);

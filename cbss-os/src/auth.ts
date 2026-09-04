@@ -120,6 +120,15 @@ export function parseCookies(request: Request): Record<string, string> {
   return out;
 }
 
+const APP_ZONE = "cbshippingsolutions.app";
+
+/** Share the session across floor. / go. / yard. / theyard. Never set Domain on workers.dev. */
+export function sessionCookieDomain(hostname: string): string | null {
+  const host = String(hostname || "").toLowerCase();
+  if (host === APP_ZONE || host.endsWith("." + APP_ZONE)) return "." + APP_ZONE;
+  return null;
+}
+
 function cookieHeader(request: Request, token: string, maxAge: number): string[] {
   const url = new URL(request.url);
   const parts = [
@@ -130,6 +139,8 @@ function cookieHeader(request: Request, token: string, maxAge: number): string[]
     `Max-Age=${maxAge}`,
   ];
   if (url.protocol === "https:") parts.push("Secure");
+  const domain = sessionCookieDomain(url.hostname);
+  if (domain && url.protocol === "https:") parts.push("Domain=" + domain);
   return [parts.join("; ")];
 }
 

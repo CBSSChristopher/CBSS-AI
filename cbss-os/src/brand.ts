@@ -4,7 +4,7 @@ export const BRAND = {
   paper: "#F7F4EC",
   company: "CBGC LLC DBA CB Shipping Solutions",
   title: "The Yard",
-  stamp: "build 18 · The Yard",
+  stamp: "build 19 · The Yard",
 } as const;
 
 export const SALES_SPARKS = [
@@ -58,8 +58,8 @@ export function titleOwner(value: string): string {
   return OWNER_ALIASES[first] || raw;
 }
 
-/** Tonight's floor URL. Safari TLS cache on *.cbshippingsolutions.app is poisoned. */
-export const YARD_PUBLIC = "https://cbss-yard.cbss.workers.dev";
+/** Bookmark for the floor. Alias workers must not 302 onto this host. */
+export const YARD_PUBLIC = "https://floor.cbshippingsolutions.app";
 
 export const LIVE_TOOLS = {
   crm: "https://cbsscrm.cbss.workers.dev",

@@ -6,8 +6,11 @@
   "workers_dev": true,
   "preview_urls": false,
   "routes": [
+    { "pattern": "floor.cbshippingsolutions.app/*", "zone_name": "cbshippingsolutions.app" },
+    { "pattern": "go.cbshippingsolutions.app/*", "zone_name": "cbshippingsolutions.app" },
     { "pattern": "yard.cbshippingsolutions.app/*", "zone_name": "cbshippingsolutions.app" },
     { "pattern": "theyard.cbshippingsolutions.app/*", "zone_name": "cbshippingsolutions.app" },
+    { "pattern": "house.cbshippingsolutions.app/*", "zone_name": "cbshippingsolutions.app" },
     { "pattern": "crm.cbshippingsolutions.app/*", "zone_name": "cbshippingsolutions.app" }
   ],
   "services": [
