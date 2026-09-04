@@ -5,6 +5,7 @@ import {
   buildProposalSubmit,
   combineProposalLines,
   describeLine,
+  marginPerUnit,
   notesHaveCostLeak,
   rateSheetSize,
   readProposalLine,
@@ -93,8 +94,12 @@ describe("proposal lines", () => {
     assert.match(both.options[1].warranty, /10-year/);
     assert.match(both.containerDesc, /Option A/);
     assert.match(both.containerDesc, /Option B/);
-    assert.equal(both.wholesaleCost, 725 + 1625);
+    assert.equal(both.wholesaleCost, 725);
+    assert.equal(both.deliveryCost, 475);
     assert.equal(both.unitPrice, 1900);
+    assert.equal(both.netMargin, 1900 - 725 - 475);
+    assert.equal(both.options[0].wholesale, 725);
+    assert.equal(both.options[1].wholesale, 1625);
     assert.doesNotMatch(both.containerNotes, /\bposted\b/i);
     assert.doesNotMatch(both.containerNotes, /\bdelivery\s+\$?\d/i);
     assert.doesNotMatch(both.containerDesc, /invent/i);
@@ -108,6 +113,63 @@ describe("proposal lines", () => {
     assert.equal(two.options[0].qty, 2);
     assert.equal(two.quantity, 2);
     assert.equal(two.unitPrice, 1900);
+    assert.equal(two.wholesaleCost, 725);
+    assert.equal(two.deliveryCost, 475);
+    assert.equal(two.netMargin, 1900 - 725 - 475);
+  });
+
+  it("keeps $600 per unit on qty 2 instead of mixing totals into margin", () => {
+    const tony = line({
+      qty: 2,
+      wholesale: 1500,
+      delivery: 600,
+      margin: 600,
+      cash: 2700,
+      grade: "CW",
+      size: "40",
+      height: "HC",
+    });
+    const combined = combineProposalLines([tony]);
+    assert.equal(combined.ok, true);
+    assert.equal(combined.chooseOne, false);
+    assert.equal(combined.quantity, 2);
+    assert.equal(combined.wholesaleCost, 1500);
+    assert.equal(combined.deliveryCost, 600);
+    assert.equal(combined.unitPrice, 2700);
+    assert.equal(combined.netMargin, 600);
+    assert.equal(marginPerUnit(2700, 1500, 600, "deliver"), 600);
+    assert.ok(combined.netMargin >= 300);
+    const built = buildProposalSubmit({
+      customerName: "Tony Rosales",
+      repName: "James",
+      repEmail: "james@cbshippingsolutions.com",
+      lines: [tony],
+    });
+    assert.equal(built.ok, true);
+    assert.equal(built.body.wholesaleCost, 1500);
+    assert.equal(built.body.deliveryCost, 600);
+    assert.equal(built.body.unitPrice, 2700);
+    assert.equal(built.body.netMargin, 600);
+    assert.equal(built.body.quantity, "2");
+    assert.equal(built.body.options[0].wholesale, 1500);
+    assert.equal(built.body.options[0].qty, 2);
+  });
+
+  it("does not sum choose-one wholesale against one cash price", () => {
+    const hc = line({ size: "40", height: "HC", grade: "WWT", wholesale: 1850, delivery: 600, margin: 800, cash: 3250, city: "Jacksonville, FL" });
+    const std = line({ size: "40", height: "DC", grade: "WWT", wholesale: 1800, delivery: 600, margin: 800, cash: 3200, city: "Jacksonville, FL" });
+    const one = line({ size: "40", height: "HC", grade: "OneTrip", wholesale: 2400, delivery: 600, margin: 1100, cash: 4100, city: "Jacksonville, FL" });
+    const three = combineProposalLines([hc, std, one]);
+    assert.equal(three.chooseOne, true);
+    assert.equal(three.wholesaleCost, 1850);
+    assert.equal(three.deliveryCost, 600);
+    assert.equal(three.unitPrice, 3250);
+    assert.equal(three.netMargin, 800);
+    assert.notEqual(three.wholesaleCost, 1850 + 1800 + 2400);
+    for (const option of three.options) {
+      const per = marginPerUnit(option.cash, option.wholesale, option.delivery, option.fulfillment);
+      assert.ok(per >= 300, "Option " + option.letter + " per-unit margin " + per);
+    }
   });
 
   it("never puts posted or delivery dollars on client notes", () => {
@@ -185,6 +247,7 @@ describe("Proposal on The Yard can take a second option", () => {
     assert.match(page, /Add another option/);
     assert.match(page, /second or third grade for the client to choose/);
     assert.match(page, /Option A \/ Option B \/ Option C/);
+    assert.match(page, /Net margin \(per unit\)/);
     assert.match(page, /id="p-form"/);
     assert.match(page, /Enter proposal/);
     assert.match(page, /writeProposal/);

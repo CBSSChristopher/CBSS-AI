@@ -237,6 +237,14 @@ export function fulfillmentHaul(fulfillment, delivery) {
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
+/** Cash, wholesale, and delivery must all be PER UNIT. Never mix in qty totals. */
+export function marginPerUnit(cash, wholesale, delivery, fulfillment) {
+  const sell = Number(cash) || 0;
+  const cost = Number(wholesale) || 0;
+  const haul = fulfillmentHaul(fulfillment, delivery);
+  return sell - cost - haul;
+}
+
 export function deliveredCashFromPosted(wholesale, delivery, netMargin) {
   const cost = Number(wholesale);
   const haul = Number(delivery) || 0;

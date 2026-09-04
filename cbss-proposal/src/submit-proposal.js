@@ -7,7 +7,7 @@ import {
   readClientOptions,
   sanitizeClientFacingText,
 } from "./client-options.js";
-import { clampNetMargin, customerCashTotal, isPickupFulfillment, MIN_NET_MARGIN } from "./container.js";
+import { clampNetMargin, customerCashTotal, fulfillmentHaul, isPickupFulfillment, marginPerUnit, MIN_NET_MARGIN } from "./container.js";
 
 const MIN_MARGIN = MIN_NET_MARGIN;
 const FROM_NAME = "CBShippingSolutions";
@@ -597,7 +597,7 @@ async function generateInternalPDF(data, deliveryPer, marginPer) {
   });
   draw("MARGIN SUMMARY", margin, y, 11, true);
   y -= 16;
-  draw(`Total Selling: $${totalSell}   |   Net Margin/unit: $${marginPer.toFixed(2)}`, margin, y);
+  draw(`Total Selling: $${totalSell}   |   Margin per unit: $${marginPer.toFixed(2)}`, margin, y);
   y -= 14;
   draw(`Total Net Margin: $${totalMargin}`, margin, y, 12, true, rgb(0.05, 0.45, 0.2));
   page.drawText("INTERNAL USE ONLY - Do not forward to customer", {
@@ -634,7 +634,7 @@ function buildInternalHtml(data, marginPer, deliveryPer) {
       <p><strong>Container:</strong> ${data.containerDesc} x ${data.quantity}</p>
       <p><strong>Depot city:</strong> ${data.depotCity || ""}</p>
       <p><strong>Purchasing yard:</strong> ${data.depot || ""}</p>
-      <p><strong>${isPickupFulfillment(data.fulfillment) ? "Pickup cash" : "Delivered cash"}:</strong> $${Number(data.unitPrice).toFixed(2)} &nbsp;|&nbsp; <strong>Margin/unit:</strong> $${marginPer.toFixed(2)}</p>
+      <p><strong>${isPickupFulfillment(data.fulfillment) ? "Pickup cash" : "Delivered cash"}:</strong> $${Number(data.unitPrice).toFixed(2)} &nbsp;|&nbsp; <strong>Margin per unit:</strong> $${marginPer.toFixed(2)}</p>
       ${data.approvedPricing ? "<p><strong>Christopher approved pricing</strong></p>" : ""}
       <p><strong>${isPickupFulfillment(data.fulfillment) ? "Pickup — delivery is $0.00. Do not add a pickup fee." : `Delivery already inside that cash price: $${Number(deliveryPer).toFixed(2)}`}</strong></p>
     </div>
@@ -649,7 +649,7 @@ function buildLowMarginHtml(data, marginPer) {
     <div style="border:1px solid #e0e6ed;border-top:none;padding:20px;border-radius:0 0 8px 8px;">
       <p><strong>Rep:</strong> ${data.repName}</p>
       <p><strong>Customer:</strong> ${data.customerName}</p>
-      <p style="color:#b42318;font-weight:700;">Margin/unit: $${marginPer.toFixed(2)} (below $300)</p>
+      <p style="color:#b42318;font-weight:700;">Margin per unit: $${marginPer.toFixed(2)} (below $300)</p>
       <p>No proposal was sent to the sales rep.</p>
     </div>
   </div>`;
@@ -659,12 +659,32 @@ function sanitizeFilename(name) {
   return String(name || "Customer").replace(/[^a-z0-9]/gi, "_").substring(0, 40);
 }
 
+function optionMargin(option, fallbackFulfillment) {
+  const fulfillment = (option && option.fulfillment) || fallbackFulfillment;
+  return marginPerUnit(option && option.cash, option && option.wholesale, option && option.delivery, fulfillment);
+}
+
 export function resolveProposalPricing(data, env) {
   const { options, chooseOne } = readClientOptions(data);
-  const wholesale = parseFloat(data && data.wholesaleCost) || (options[0] && options[0].wholesale) || 0;
-  const deliveryPer = isPickupFulfillment(data && data.fulfillment)
+  const primary = options[0];
+  const pickup = isPickupFulfillment(data && data.fulfillment);
+  const optionWholesale = primary && primary.wholesale > 0 ? primary.wholesale : 0;
+  const optionDelivery = primary
+    ? fulfillmentHaul(primary.fulfillment || (data && data.fulfillment), primary.delivery)
+    : 0;
+  const wholesale = optionWholesale || parseFloat(data && data.wholesaleCost) || 0;
+  const deliveryPer = pickup
     ? 0
-    : (parseFloat(data && data.deliveryCost) || (options[0] && options[0].delivery) || calculateDeliveryFromData(data));
+    : (optionWholesale ? optionDelivery : (parseFloat(data && data.deliveryCost) || calculateDeliveryFromData(data)));
+  const optionRows = options.map((option) => {
+    const per = optionMargin(option, data && data.fulfillment);
+    return {
+      letter: option.letter,
+      marginPer: per,
+      low: option.wholesale > 0 && per < MIN_MARGIN,
+    };
+  });
+  const lowOptions = optionRows.filter((row) => row.low);
   const approved = isApprovedPricingRequest(data);
   if (approved) {
     if (!isValidManagerApprovalCode(data && data.managerApprovalCode, env)) {
@@ -682,26 +702,30 @@ export function resolveProposalPricing(data, env) {
       sell,
       wholesale,
       deliveryPer,
-      marginPer: sell - wholesale - deliveryPer,
+      marginPer: marginPerUnit(sell, wholesale, deliveryPer, data && data.fulfillment),
       chooseOne,
+      lowOptions: [],
     };
   }
-  const sell = parseFloat(data && data.unitPrice) || (options[0] && options[0].cash) || 0;
-  const marginPer = sell - wholesale - deliveryPer;
-  const optionLow = options.some((option) => {
-    const haul = option.fulfillment === "pickup" ? 0 : (option.delivery || 0);
-    return option.wholesale > 0 && (option.cash - option.wholesale - haul) < MIN_MARGIN;
-  });
+  const sell = parseFloat(data && data.unitPrice) || (primary && primary.cash) || 0;
+  const primaryMargin = primary && primary.wholesale > 0
+    ? optionMargin(primary, data && data.fulfillment)
+    : marginPerUnit(sell, wholesale, deliveryPer, data && data.fulfillment);
+  const flaggedMargin = lowOptions.length
+    ? Math.min(...lowOptions.map((row) => row.marginPer))
+    : primaryMargin;
+  const isLowMargin = chooseOne ? lowOptions.length > 0 : primaryMargin < MIN_MARGIN;
   return {
     ok: true,
     approved: false,
     skipLowMargin: false,
-    isLowMargin: chooseOne ? optionLow : marginPer < MIN_MARGIN,
+    isLowMargin,
     sell,
     wholesale,
     deliveryPer,
-    marginPer,
+    marginPer: isLowMargin ? flaggedMargin : primaryMargin,
     chooseOne,
+    lowOptions: lowOptions.map((row) => row.letter),
   };
 }
 
@@ -745,7 +769,7 @@ async function handleSubmit(event, env) {
         to: internalRecipients(),
         subject: `LOW MARGIN FLAG - ${data.customerName} (Rep: ${data.repName})`,
         htmlContent: buildLowMarginHtml(data, marginPer),
-        textContent: `Low margin flag for ${data.customerName}. Margin: $${marginPer.toFixed(2)}`,
+        textContent: `Low margin flag for ${data.customerName}. Margin per unit: $${marginPer.toFixed(2)} (below $300)`,
       });
       await ingestProposal(env, data, "flagged");
       return { statusCode: 200, body: JSON.stringify({ status: "flagged" }) };

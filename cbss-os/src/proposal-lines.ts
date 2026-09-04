@@ -236,6 +236,12 @@ export function readProposalLine(raw: Record<string, unknown>, configLabel = "")
   };
 }
 
+/** Cash, wholesale, and delivery must all be PER UNIT. Never mix in qty totals. */
+export function marginPerUnit(cash: number, wholesale: number, delivery: number, fulfillment?: string): number {
+  const haul = fulfillment === "pickup" ? 0 : Math.max(0, Number(delivery) || 0);
+  return (Number(cash) || 0) - (Number(wholesale) || 0) - haul;
+}
+
 export function combineProposalLines(lines: ProposalLine[]): {
   ok: boolean;
   error?: string;
@@ -279,17 +285,11 @@ export function combineProposalLines(lines: ProposalLine[]): {
     };
   }
   const grouped = groupProposalOptions(clean);
-  let wholesaleCost = 0;
-  let deliveryCost = 0;
-  let quotedCash = 0;
   let quantity = 0;
   const depots = new Set<string>();
   for (const line of clean) {
     const qty = Math.max(1, Number(line.qty) || 1);
     quantity += qty;
-    wholesaleCost += line.wholesale * qty;
-    quotedCash += line.cash * qty;
-    deliveryCost += (line.fulfillment === "pickup" ? 0 : line.delivery) * qty;
     const depot = depotCityOnly(line.city || line.depot);
     if (depot) depots.add(depot);
   }
@@ -300,15 +300,17 @@ export function combineProposalLines(lines: ProposalLine[]): {
     ? grouped.options.map((option) => "Option " + option.letter + " " + option.qty + " × " + option.size + " ft " + option.label).join("; ")
     : clean.map(describeLine).join("; ");
   const primary = grouped.options[0];
+  const wholesalePerUnit = primary.wholesale;
+  const deliveryPerUnit = primary.fulfillment === "pickup" ? 0 : primary.delivery;
   return {
     ok: true,
     containerDesc: desc,
     containerNotes: sanitizeClientNotes(clientNotes),
     quantity: grouped.chooseOne ? primary.qty : quantity,
-    wholesaleCost,
+    wholesaleCost: wholesalePerUnit,
     unitPrice: primary.cash,
-    deliveryCost,
-    netMargin: quotedCash - wholesaleCost - deliveryCost,
+    deliveryCost: deliveryPerUnit,
+    netMargin: marginPerUnit(primary.cash, wholesalePerUnit, deliveryPerUnit, primary.fulfillment),
     containerSize: sameSize ? rateSheetSize(first.size, first.config) : "Specialized",
     condition: grouped.chooseOne
       ? grouped.options.map((option) => option.grade).join(" or ")
