@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cbssinvoice",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-25",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "services": [
+    { "binding": "CRM", "service": "cbsscrm" }
+  ],
+  "kv_namespaces": [
+    { "binding": "INVOICE_STORE", "id": "072af35ca99b4af8bfc49aef28818fdb" }
+  ],
+  "vars": {
+    "PUBLIC_TITLE": "CBSS Invoicing",
+    "WAAVE_API_BASE": "https://pg.getwaave.co"
+  }
+}
