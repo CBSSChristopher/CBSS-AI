@@ -69,10 +69,12 @@ import {
 } from "../src/approval.js";
 import {
   buildClientProposalCopy,
+  cashTimesQty,
   notesHaveCostLeak,
   optionsHeading,
   readClientOptions,
   sanitizeClientFacingText,
+  stripGluedQty,
 } from "../src/client-options.js";
 import { generateClientPDF, resolveProposalPricing } from "../src/submit-proposal.js";
 
@@ -653,6 +655,9 @@ describe("Client proposal options PDF", () => {
     assert.equal(copy.heading, "CONTAINER DETAILS");
     assert.match(copy.pricing.join("\n"), /Delivered cash price \(each\)/);
     assert.match(copy.pricing.join("\n"), /\$1,900\.00/);
+    assert.match(copy.pricing.join("\n"), /Quantity 1/);
+    assert.equal(copy.totalLabel, "$1,900.00");
+    assert.equal(copy.detailsTitle, "20 ft standard Standard WWT");
   });
 
   it("renders two-option PDF bytes with A/B cards and no cost leak", async () => {
@@ -696,8 +701,77 @@ describe("Client proposal options PDF", () => {
     }, null);
     const oneText = pdfPlainText(one);
     assert.match(oneText, /CONTAINER DETAILS/);
+    assert.match(oneText, /20 ft standard Standard WWT/);
+    assert.doesNotMatch(oneText, /WWT 2|WWT 1/);
+    assert.match(oneText, /Quantity: 1/);
     assert.match(oneText, /TOTAL INVESTMENT/);
+    assert.match(oneText, /\$1,900\.00/);
+    assert.doesNotMatch(oneText, /\$3,800/);
     assert.doesNotMatch(oneText, /OPTION B/);
+  });
+
+  it("qty 2 single SKU title has no trailing bare 2 and TOTAL is 2 x each", async () => {
+    assert.equal(cashTimesQty(3750, 2), 7500);
+    assert.equal(stripGluedQty("40 ft high cube Standard OneTrip × 2", 2), "40 ft high cube Standard OneTrip");
+    assert.equal(stripGluedQty("40 ft high cube Standard OneTrip 2", 2), "40 ft high cube Standard OneTrip");
+    assert.equal(stripGluedQty("40 ft high cube Standard OneTrip 2 · depot New York, NY", 2), "40 ft high cube Standard OneTrip · depot New York, NY");
+    assert.equal(stripGluedQty("40 ft high cube Standard OneTrip 2 depot New York, NY", 2), "40 ft high cube Standard OneTrip depot New York, NY");
+    assert.equal(stripGluedQty("20 ft standard Standard WWT", 1), "20 ft standard Standard WWT");
+    const tony = {
+      customerName: "Tony Rosales",
+      phone: "2035921767",
+      email: "tonyandyeya@gmail.com",
+      fulfillment: "deliver",
+      delivery: "Waterbury, CT",
+      containerDesc: "40 ft high cube Standard OneTrip 2",
+      containerNotes: "40 ft high cube Standard OneTrip 2 depot New York, NY",
+      quantity: 2,
+      unitPrice: 3750,
+      depotCity: "New York, NY",
+      condition: "OneTrip",
+      options: [
+        {
+          letter: "A",
+          label: "One-Trip",
+          size: "40",
+          height: "HC",
+          configLabel: "Standard",
+          grade: "OneTrip",
+          qty: 2,
+          cash: 3750,
+          depotCity: "New York, NY",
+          warranty: "10-year structural + 10-year no-leak warranty",
+          fulfillment: "deliver",
+          notes: "40 ft high cube Standard OneTrip 2 depot New York, NY",
+          wholesale: 2400,
+          delivery: 600,
+          margin: 750,
+        },
+      ],
+    };
+    const copy = buildClientProposalCopy(tony);
+    assert.equal(copy.chooseOne, false);
+    assert.equal(copy.detailsTitle, "40 ft high cube Standard OneTrip");
+    assert.doesNotMatch(copy.detailsTitle, /OneTrip 2|× 2/);
+    assert.doesNotMatch(copy.notes, /OneTrip 2/);
+    assert.match(copy.pricing.join("\n"), /Delivered cash price \(each\)/);
+    assert.match(copy.pricing.join("\n"), /\$3,750\.00/);
+    assert.match(copy.pricing.join("\n"), /Quantity 2/);
+    assert.equal(copy.totalCash, 7500);
+    assert.equal(copy.totalLabel, "$7,500.00");
+    const bytes = await generateClientPDF(tony, {
+      intro: "Tony, we have availability on two 40 ft high cube Standard One-Trip containers at a delivered cash price of $3750 each.",
+    });
+    const text = pdfPlainText(bytes);
+    assert.match(text, /40 ft high cube Standard OneTrip/);
+    assert.doesNotMatch(text, /OneTrip 2/);
+    assert.match(text, /Quantity: 2/);
+    assert.match(text, /Quantity 2/);
+    assert.match(text, /\$3,750\.00/);
+    assert.match(text, /TOTAL INVESTMENT/);
+    assert.match(text, /\$7,500\.00/);
+    assert.doesNotMatch(text, /posted|wholesale/i);
+    assert.doesNotMatch(text, /delivery \$600|delivery 600/i);
   });
 
   it("flags low margin on any option, not a summed buy-both number", () => {

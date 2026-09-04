@@ -116,6 +116,10 @@ describe("proposal lines", () => {
     assert.equal(two.wholesaleCost, 725);
     assert.equal(two.deliveryCost, 475);
     assert.equal(two.netMargin, 1900 - 725 - 475);
+    assert.equal(two.containerDesc, "20 ft standard Standard WWT");
+    assert.doesNotMatch(two.containerDesc, /×|x\s*2|\bWWT 2\b/i);
+    assert.doesNotMatch(two.containerNotes, /WWT 2|× 2|x 2/i);
+    assert.match(two.containerNotes, /depot Memphis, TN/);
   });
 
   it("keeps $600 per unit on qty 2 instead of mixing totals into margin", () => {
@@ -228,8 +232,46 @@ describe("proposal lines", () => {
     assert.equal(one.body.unitPrice, 1900);
   });
 
-  it("labels one line in plain box language", () => {
-    assert.equal(describeLine(line({ qty: 2 })), "20 ft standard Standard WWT × 2");
+  it("labels one line in plain box language without gluing qty onto the name", () => {
+    assert.equal(describeLine(line({ qty: 2 })), "20 ft standard Standard WWT");
+    assert.equal(describeLine(line({ qty: 1 })), "20 ft standard Standard WWT");
+  });
+
+  it("Tony-style 2 x 40HC One-Trip keeps a clean title and qty 2", () => {
+    const tony = line({
+      qty: 2,
+      size: "40",
+      height: "HC",
+      grade: "OneTrip",
+      wholesale: 2400,
+      delivery: 600,
+      margin: 750,
+      cash: 3750,
+      city: "New York, NY",
+    });
+    const combined = combineProposalLines([tony]);
+    assert.equal(combined.ok, true);
+    assert.equal(combined.chooseOne, false);
+    assert.equal(combined.quantity, 2);
+    assert.equal(combined.unitPrice, 3750);
+    assert.equal(combined.containerDesc, "40 ft high cube Standard OneTrip");
+    assert.doesNotMatch(combined.containerDesc, /OneTrip 2|× 2|x 2/i);
+    assert.doesNotMatch(combined.containerNotes, /OneTrip 2|× 2|x 2/i);
+    assert.match(combined.containerNotes, /depot New York, NY/);
+    const built = buildProposalSubmit({
+      customerName: "Tony Rosales",
+      email: "tonyandyeya@gmail.com",
+      phone: "2035921767",
+      delivery: "Waterbury, CT",
+      repName: "Christopher Banks",
+      repEmail: "kyle@cbshippingsolutions.com",
+      lines: [tony],
+    });
+    assert.equal(built.ok, true);
+    assert.equal(built.body.quantity, "2");
+    assert.equal(built.body.unitPrice, 3750);
+    assert.equal(built.body.containerDesc, "40 ft high cube Standard OneTrip");
+    assert.doesNotMatch(String(built.body.notes), /OneTrip 2/);
   });
 
   it("buckets 10 and 45 onto the delivery rate sheet only", () => {
