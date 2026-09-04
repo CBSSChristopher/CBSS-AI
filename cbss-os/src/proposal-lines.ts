@@ -148,8 +148,24 @@ export function clientLineNote(line: ProposalLine): string {
   return [describeLine(line), depot ? "depot " + depot : ""].filter(Boolean).join(" · ");
 }
 
+export function normalizeHeight(height: string): string {
+  const n = str(height).toLowerCase().replace(/[\s_\-/().]/g, "");
+  if (n === "hc" || n.includes("highcube") || n === "high") return "HC";
+  if (n === "dc" || n === "std" || n === "standard" || n.includes("standard")) return "DC";
+  return str(height) || "HC";
+}
+
+/** Distinct boxes stay distinct. Same size+height+config+grade+city+cash only. */
 export function optionKey(line: ProposalLine): string {
-  return [str(line.size), str(line.height), str(line.config), normalizeGrade(line.grade)].join("|");
+  return [
+    str(line.size),
+    normalizeHeight(line.height),
+    str(line.config) || "standard",
+    normalizeGrade(line.grade),
+    depotCityOnly(line.city || line.depot),
+    String(line.cash),
+    line.fulfillment === "pickup" ? "pickup" : "deliver",
+  ].join("|");
 }
 
 export function groupProposalOptions(lines: ProposalLine[]): {
@@ -203,7 +219,7 @@ export function readProposalLine(raw: Record<string, unknown>, configLabel = "")
   const qty = Math.max(1, Number(raw.qty ?? raw.quantity) || 1);
   return {
     size: str(raw.size) || "40",
-    height: str(raw.height) || "HC",
+    height: normalizeHeight(str(raw.height) || "HC"),
     config: str(raw.config) || "standard",
     configLabel: str(raw.configLabel) || configLabel || "Standard",
     grade: str(raw.grade) || str(raw.condition) || "CW",

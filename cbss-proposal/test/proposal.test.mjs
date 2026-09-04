@@ -69,6 +69,7 @@ import {
 import {
   buildClientProposalCopy,
   notesHaveCostLeak,
+  optionsHeading,
   readClientOptions,
   sanitizeClientFacingText,
 } from "../src/client-options.js";
@@ -709,5 +710,130 @@ describe("Client proposal options PDF", () => {
     }, {});
     assert.equal(low.isLowMargin, true);
     assert.equal(readClientOptions(twoOptions).options[0].letter, "A");
+  });
+
+  const threeOptions = {
+    customerName: "Frank Payberg",
+    company: "N/A",
+    phone: "",
+    email: "fpayberg@gmail.com",
+    fulfillment: "deliver",
+    delivery: "Jacksonville, FL",
+    containerDesc: "Option A 1 × 40 ft Wind & Water Tight; Option B 1 × 40 ft Wind & Water Tight; Option C 1 × 40 ft One-Trip",
+    containerNotes: "40 ft high cube Standard WWT · depot Jacksonville, FL\n40 ft standard Standard WWT · depot Jacksonville, FL\n40 ft high cube Standard OneTrip · depot Jacksonville, FL",
+    quantity: "1",
+    unitPrice: 3250,
+    wholesaleCost: 6050,
+    deliveryCost: 1800,
+    chooseOne: true,
+    options: [
+      {
+        letter: "A",
+        label: "Wind & Water Tight",
+        size: "40",
+        height: "HC",
+        grade: "WWT",
+        qty: 1,
+        cash: 3250,
+        depotCity: "Jacksonville, FL",
+        warranty: "5-year structural + 5-year no-leak warranty",
+        fulfillment: "deliver",
+        notes: "40 ft high cube Standard WWT · depot Jacksonville, FL",
+        wholesale: 1850,
+        delivery: 600,
+        margin: 800,
+      },
+      {
+        letter: "B",
+        label: "Wind & Water Tight",
+        size: "40",
+        height: "DC",
+        grade: "WWT",
+        qty: 1,
+        cash: 3200,
+        depotCity: "Jacksonville, FL",
+        warranty: "5-year structural + 5-year no-leak warranty",
+        fulfillment: "deliver",
+        notes: "40 ft standard Standard WWT · depot Jacksonville, FL",
+        wholesale: 1800,
+        delivery: 600,
+        margin: 800,
+      },
+      {
+        letter: "C",
+        label: "One-Trip",
+        size: "40",
+        height: "HC",
+        grade: "OneTrip",
+        qty: 1,
+        cash: 4100,
+        depotCity: "Jacksonville, FL",
+        warranty: "10-year structural + 10-year no-leak warranty",
+        fulfillment: "deliver",
+        notes: "40 ft high cube Standard OneTrip · depot Jacksonville, FL",
+        wholesale: 2400,
+        delivery: 600,
+        margin: 1100,
+      },
+    ],
+  };
+
+  it("names ONE / TWO / THREE OPTIONS and YOUR OPTIONS from the count", () => {
+    assert.equal(optionsHeading(1), "ONE OPTION");
+    assert.equal(optionsHeading(2), "TWO OPTIONS");
+    assert.equal(optionsHeading(3), "THREE OPTIONS");
+    assert.equal(optionsHeading(4), "YOUR OPTIONS");
+  });
+
+  it("builds Option A / B / C copy and lists every delivered cash price", () => {
+    const copy = buildClientProposalCopy(threeOptions);
+    assert.equal(copy.chooseOne, true);
+    assert.equal(copy.options.length, 3);
+    assert.equal(copy.heading, "THREE OPTIONS");
+    assert.equal(copy.optionCards.length, 3);
+    assert.equal(copy.optionCards[0].header, "Option A - Wind & Water Tight");
+    assert.equal(copy.optionCards[1].header, "Option B - Wind & Water Tight");
+    assert.equal(copy.optionCards[2].header, "Option C - One-Trip");
+    assert.match(copy.optionCards[0].title, /high cube/);
+    assert.match(copy.optionCards[1].title, /standard/);
+    assert.match(copy.optionCards[2].title, /One-Trip/);
+    assert.match(copy.pricing.join("\n"), /Option A - 40 ft Wind & Water Tight \(each\)/);
+    assert.match(copy.pricing.join("\n"), /\$3,250\.00/);
+    assert.match(copy.pricing.join("\n"), /Option B - 40 ft Wind & Water Tight \(each\)/);
+    assert.match(copy.pricing.join("\n"), /\$3,200\.00/);
+    assert.match(copy.pricing.join("\n"), /Option C - 40 ft One-Trip \(each\)/);
+    assert.match(copy.pricing.join("\n"), /\$4,100\.00/);
+    assert.equal(copy.pricing.length, 3);
+    assert.match(copy.chooseOneBar, /Choose one option - total is the delivered cash price for that unit/);
+    assert.match(copy.warranties.join("\n"), /One-Trip carries a 10-year/);
+    assert.doesNotMatch(copy.warranties.join("\n"), /warranty warranty/i);
+    assert.doesNotMatch(copy.pricing.join("\n") + copy.notes, /\bposted\b/i);
+    assert.doesNotMatch(copy.pricing.join("\n") + copy.notes, /\bdelivery\s+\$?\d/i);
+    assert.doesNotMatch(copy.pricing.join("\n") + copy.chooseOneBar, /1850|1800|2400|6050/);
+  });
+
+  it("renders three-option PDF bytes with A/B/C cards and no cost leak", async () => {
+    const bytes = await generateClientPDF(threeOptions, {
+      intro: "We've put together three clear options so you can pick the single unit that best fits your needs.",
+      whatToExpect: ["Air and water leak tested before it leaves the depot."],
+      closing: "Reply with Option A, Option B, or Option C.",
+    });
+    const text = pdfPlainText(bytes);
+    assert.match(text, /CONTAINER PROPOSAL/);
+    assert.match(text, /THREE OPTIONS/);
+    assert.doesNotMatch(text, /TWO OPTIONS/);
+    assert.match(text, /Option A - Wind & Water Tight/);
+    assert.match(text, /Option B - Wind & Water Tight/);
+    assert.match(text, /Option C - One-Trip/);
+    assert.match(text, /\$3,250\.00/);
+    assert.match(text, /\$3,200\.00/);
+    assert.match(text, /\$4,100\.00/);
+    assert.match(text, /Option C - 40 ft One-Trip \(each\)/);
+    assert.match(text, /Choose one option - total is the delivered cash price for that unit/);
+    assert.match(text, /three clear options/);
+    assert.doesNotMatch(text, /posted 1850|posted \$1,850/i);
+    assert.doesNotMatch(text, /delivery 600|delivery \$600/i);
+    assert.doesNotMatch(text, /wholesale/i);
+    assert.doesNotMatch(text, /warranty warranty/i);
   });
 });

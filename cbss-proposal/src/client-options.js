@@ -48,6 +48,19 @@ export function warrantyForGrade(grade) {
     : "5-year structural + 5-year no-leak";
 }
 
+export function warrantyBody(warranty, grade) {
+  const raw = String(warranty || warrantyForGrade(grade) || "").trim();
+  return raw.replace(/\s+warranty\.?$/i, "").trim() || warrantyForGrade(grade);
+}
+
+export function optionsHeading(count) {
+  const n = Math.max(0, Number(count) || 0);
+  if (n <= 1) return "ONE OPTION";
+  if (n === 2) return "TWO OPTIONS";
+  if (n === 3) return "THREE OPTIONS";
+  return "YOUR OPTIONS";
+}
+
 export function gradeBadge(grade) {
   const key = normalizeGrade(grade);
   if (key === "CW") return "Used CW";
@@ -185,13 +198,13 @@ export function buildClientProposalCopy(data) {
         : "Standard weekday delivery is already included.",
     ];
   const warranties = chooseOne
-    ? options.map((option) => option.label + " carries a " + option.warranty + " warranty.")
-    : ["This unit carries a " + options[0].warranty + " warranty."];
+    ? options.map((option) => option.label + " carries a " + warrantyBody(option.warranty, option.grade) + " warranty.")
+    : ["This unit carries a " + warrantyBody(options[0].warranty, options[0].grade) + " warranty."];
 
   return {
     options,
     chooseOne,
-    heading: chooseOne ? "TWO OPTIONS" : "CONTAINER DETAILS",
+    heading: chooseOne ? optionsHeading(options.length) : "CONTAINER DETAILS",
     chooseOneBar: chooseOne
       ? "Choose one option - total is the delivered cash price for that unit."
       : "",
