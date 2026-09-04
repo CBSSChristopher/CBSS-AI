@@ -325,7 +325,7 @@ export async function generateClientPDF(data, aiContent) {
       y -= cardH + 10;
     }
   } else {
-    draw(sanitizeClientFacingText(data.containerDesc) || "Shipping Container", margin, y, 12, true);
+    draw(sanitizeClientFacingText(copy.detailsTitle || data.containerDesc) || "Shipping Container", margin, y, 12, true);
     y -= 14;
     draw(`Quantity: ${copy.options[0].qty}`, margin, y, 10);
     y -= 13;
@@ -359,7 +359,7 @@ export async function generateClientPDF(data, aiContent) {
     y -= 10;
   }
   const priceLines = copy.pricing;
-  const priceBoxH = copy.chooseOne ? 36 + priceLines.length * 14 + 26 : 86;
+  const priceBoxH = copy.chooseOne ? 36 + priceLines.length * 14 + 26 : 58 + priceLines.length * 14;
   ensureSpace(priceBoxH + 12);
   page.drawRectangle({
     x: margin - 4,
@@ -389,7 +389,7 @@ export async function generateClientPDF(data, aiContent) {
   } else if (!copy.chooseOne) {
     const grandTotal = customerCashTotal(copy.options[0].cash, copy.options[0].qty);
     y -= 2;
-    draw("TOTAL INVESTMENT                 " + (copy.optionCards[0] && copy.optionCards[0].cashLabel ? copy.optionCards[0].cashLabel : "$" + grandTotal.toFixed(2)), margin, y, 12, true, green);
+    draw("TOTAL INVESTMENT                 " + (copy.totalLabel || ("$" + grandTotal.toFixed(2))), margin, y, 12, true, green);
     y -= 20;
   } else {
     y -= 8;

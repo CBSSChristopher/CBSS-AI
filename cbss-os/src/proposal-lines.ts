@@ -136,11 +136,11 @@ export function rateSheetSize(size: string, config: string): string {
   return "Specialized";
 }
 
+/** Size / height / config / grade only. Never glue qty onto the name (`OneTrip 2`). */
 export function describeLine(line: ProposalLine): string {
-  const qty = Math.max(1, Number(line.qty) || 1);
   const height = line.height === "HC" ? "high cube" : line.height === "DC" ? "standard" : str(line.height);
   const bits = [line.size ? line.size + " ft" : "", height, line.configLabel || line.config, line.grade].filter(Boolean);
-  return bits.join(" ") + (qty > 1 ? " × " + qty : "");
+  return bits.join(" ");
 }
 
 export function clientLineNote(line: ProposalLine): string {

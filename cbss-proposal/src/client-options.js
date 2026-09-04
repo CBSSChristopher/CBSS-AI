@@ -76,6 +76,43 @@ export function formatCash(value) {
   return "$" + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
+export function cashTimesQty(unitPrice, quantity = 1) {
+  const sell = Number(unitPrice) || 0;
+  const qty = Math.max(1, Number(quantity) || 1);
+  return Math.round(sell * qty * 100) / 100;
+}
+
+/** Drop a trailing / glued qty so `OneTrip × 2` or `OneTrip 2` never becomes the title. */
+export function stripGluedQty(text, qty) {
+  const n = Math.max(1, Number(qty) || 1);
+  const raw = String(text == null ? "" : text);
+  if (!raw || n <= 1) return raw;
+  return raw
+    .split("\n")
+    .map((line) => {
+      let s = line;
+      s = s.replace(new RegExp("\\s*[×xX]\\s*" + n + "(?=\\s*(?:·|$|depot\\b))", "gi"), "");
+      s = s.replace(new RegExp("(?<=\\w)\\s+" + n + "(?=\\s*(?:·|$|depot\\b))", "g"), "");
+      return s.replace(/[ \t]{2,}/g, " ").replace(/\s+·/g, " ·").trim();
+    })
+    .join("\n")
+    .trim();
+}
+
+export function clientDetailsTitle(option, fallbackDesc) {
+  const cleaned = stripGluedQty(fallbackDesc, option && option.qty);
+  if (cleaned) return cleaned;
+  const height = option && option.height === "HC"
+    ? "high cube"
+    : option && option.height === "DC"
+      ? "standard"
+      : String((option && option.height) || "").trim();
+  return [option && option.size ? option.size + " ft" : "", height, (option && (option.configLabel || option.config)) || "", (option && option.grade) || ""]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+}
+
 export function optionBullets(option, pickup) {
   const grade = normalizeGrade(option.grade);
   const inspect = grade === "OneTrip"
@@ -187,12 +224,15 @@ export function buildClientProposalCopy(data) {
     || options.every((option) => option.fulfillment === "pickup");
   const cashWord = pickup ? "Pickup cash" : "Delivered cash";
   const includeWord = pickup ? "depot pickup · no delivery fee" : "weekday delivery included";
+  const buyAllQty = Math.max(1, Number(options[0].qty) || 1);
+  const buyAllTotal = cashTimesQty(options[0].cash, buyAllQty);
   const pricing = chooseOne
     ? options.map((option) => (
       "Option " + option.letter + " - " + (option.size ? option.size + " ft " : "") + option.label + " (each) ... " + formatCash(option.cash)
     ))
     : [
       cashWord + " price (each)     " + formatCash(options[0].cash),
+      "Quantity " + buyAllQty,
       pickup
         ? "This is depot pickup. Delivery is not included. Do not add a pickup fee."
         : "Standard weekday delivery is already included.",
@@ -221,9 +261,12 @@ export function buildClientProposalCopy(data) {
       cashLabel: formatCash(option.cash),
       cashSub: cashWord + " · " + includeWord,
     })),
-    notes: sanitizeClientFacingText(data && data.containerNotes),
+    detailsTitle: clientDetailsTitle(options[0], data && data.containerDesc),
+    notes: sanitizeClientFacingText(chooseOne ? (data && data.containerNotes) : stripGluedQty(data && data.containerNotes, buyAllQty)),
     extraNotes: sanitizeClientFacingText(data && data.notes),
     pricing,
+    totalCash: chooseOne ? options[0].cash : buyAllTotal,
+    totalLabel: formatCash(chooseOne ? options[0].cash : buyAllTotal),
     warranties,
     chooseOneHint: chooseOne ? "The customer picks one option." : "",
   };
