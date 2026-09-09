@@ -42,10 +42,21 @@ Workers own the ladder. Grok Bot / Master Chief / AgentMail MCP are not used at 
 - CTE1 = human call/text day. **No answer** sends the intro and schedules CTE2 +1, CTE3 +3, CTE4 +5 business days from the CTE1 date (weekends + U.S. federal holidays for any year; optional `US_HOLIDAY_EXTRA=YYYY-MM-DD,YYYY-MM-DD`).
 - **Replied** (button) or inbound AgentMail reply (webhook `POST /cycle/hooks/agentmail` with `AGENTMAIL_WEBHOOK_SECRET`, plus hourly poll) cancels remaining sends and writes `Client replied · Ladder stopped`. System-detected replies alert the **current** assigned rep only (in-Yard + AgentMail).
 - Override CTE sets the next unsent step; later steps keep the original gaps. Reply-stop always wins.
-- Assigned rep comes from the contact owner matched to an active Yard login (`cycle:users`). Missing / inactive rep or missing client email pauses and flags — never guesses `firstname@`.
+- Assigned rep for **CTE** emails comes from the contact owner matched to an active Yard login (`cycle:users`). Missing / inactive rep or missing client email pauses CTE and flags — never invents an email for an unknown name.
+- **Paid / Next Steps** still sends when the assigned rep has no Yard login. Require a real client email. Always CC Christopher and Aliyah. CC/reply-to the rep only when resolved: first an active Yard login, else a known CBSS roster address (James → `james@cbshippingsolutions.com`, Kyle → `kyle@…`, and the other `TEAM_OWNERS` first-name company emails). Unknown owners are not guessed — office CC still goes out. Missing client email writes a clear note, does not send, and does not report success. Send is once-only (`sends.paid.status === "sent"`).
 - Reassignment keeps history; future touches and alerts go to the new rep.
 - Lost / Not interested / Bought elsewhere write trigger hooks and named templates. Sending stays off until `REENGAGE_EMAILS_ENABLED=true`.
-- Paid Next Steps: invoice Worker sends once after Mark paid (To client; CC Christopher, Aliyah, current rep). Yard Money then records Paid on the cycle with `skipEmail` so the client is not mailed twice. Lifecycle **Mark paid** on the contact still sends if no invoice send happened.
+- Paid Next Steps: invoice Worker sends once after Money **Mark paid** (To client; CC Christopher, Aliyah, current rep). Yard Money then records Paid on the cycle with `skipEmail` so the client is not mailed twice. Lifecycle **Mark paid** / **Retry Next Steps** on the contact still sends if no successful send has been recorded. Already-sent paid mail is skipped (no double send).
+
+### Retry Next Steps (example: Brent Snyder)
+
+After deploy, Christopher can retry a Paid contact that never got the email (AgentMail inbox stayed empty; notes said “Assigned rep has no active Yard login”):
+
+1. Open The Yard → CRM → that contact (Brent Snyder). Confirm the contact has a real client email.
+2. On the Lifecycle card, if status is already **Paid** and Next Steps is not marked sent, click **Retry Next Steps**. That calls `POST /cycle/paid` without `skipEmail`. If `sends.paid.status` is already `sent`, the Worker skips and does not mail again.
+3. If the Lifecycle **Mark paid** button is still visible (status not Paid yet), click it once. Same once-only send.
+4. Use Money **Retry Next Steps** / **Mark paid** only when the invoice card itself shows “Paid but Next Steps notify failed — retry”. Do not also click Lifecycle retry on the same contact after a successful invoice send — invoice owns that mail (`skipEmail` on the cycle).
+5. Confirm in AgentMail inbox `cbss@agentmail.to` and on the contact timeline: `Sent paid via AgentMail (…)` plus office CC. Do not blast Harbor / staff chat.
 - Expected Next Steps PDF: `cbss-invoice/assets/CBSS-Next-Steps-After-Your-Order.pdf` or secret `NEXT_STEPS_PDF_URL`.
 - Staff cycle actions also `appendNote` to CRM (tag Book). Cron events live on the contact cycle timeline in Yard KV.
 

@@ -75,7 +75,9 @@ export async function handleCycleAuthed(
     if (!hint.id) hint.id = `email:${hint.email}`;
     const skipEmail = body.skipEmail === true || body.skip_email === true;
     const { rec, send } = await markContactPaid(env, hint, actor, fetch, { skipEmail });
-    return { status: 200, body: { ok: Boolean((send as { ok?: boolean })?.ok !== false), cycle: publicCycle(rec), send } };
+    const sendRec = send && typeof send === "object" ? send as { ok?: boolean; error?: string } : {};
+    const ok = sendRec.ok !== false;
+    return { status: 200, body: { ok, cycle: publicCycle(rec), send, ...(ok ? {} : { error: sendRec.error || "Next Steps email did not send." }) } };
   }
   if (method === "POST" && path === "/cycle/reassign") {
     const rec = await reassignOwner(env, hint, actor);
