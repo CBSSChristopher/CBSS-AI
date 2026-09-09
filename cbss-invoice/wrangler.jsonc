@@ -19,5 +19,6 @@
   "vars": {
     "PUBLIC_TITLE": "CBSS Invoicing",
     "WAAVE_API_BASE": "https://pg.getwaave.co"
+    // NEXT_STEPS_WEBHOOK_URL and NEXT_STEPS_WEBHOOK_SECRET are secrets — see README
   }
 }

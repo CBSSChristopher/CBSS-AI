@@ -23,6 +23,7 @@ import {
   saveDocument,
 } from "./document";
 import { invoicePdfName, renderInvoicePdf } from "./invoice-pdf";
+import { markPaidAndNotify } from "./mark-paid";
 
 const SECURITY = {
   "X-Content-Type-Options": "nosniff",
@@ -299,6 +300,24 @@ export default {
       const result = await cancelInvoice(env, str(body.id));
       if (!result.ok) return json(200, { ok: false, error: result.error });
       return json(200, { ok: true, card: result.card });
+    }
+
+    if (request.method === "POST" && path === "/invoice/mark-paid") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      const body = await readJson(request);
+      const id = str(body.id) || str(body.invoiceId) || str(body.number) || str(body.invoiceNumber);
+      const result = await markPaidAndNotify(env, id, user.email);
+      return json(200, result);
+    }
+
+    if (request.method === "GET" && (path === "/assets/next-steps.pdf" || path === "/assets/CBSS-Next-Steps-After-Your-Order.pdf")) {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      return json(404, {
+        error:
+          "Next Steps PDF is not hosted on this Worker. Master Chief attaches CBSS-Next-Steps-After-Your-Order.pdf from the house box.",
+      });
     }
 
     return json(404, { error: "Not found." });

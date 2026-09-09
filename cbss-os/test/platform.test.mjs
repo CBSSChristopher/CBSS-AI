@@ -307,6 +307,10 @@ describe("The Yard CRM edit and Money invoice send", () => {
     assert.match(page, /id="i-download-pdf"/);
     assert.match(page, /lastDoc\+"\.pdf"/);
     assert.match(page, /function downloadInvoicePdf/);
+    assert.match(page, /function markInvoicePaid/);
+    assert.match(page, /Mark paid/);
+    assert.match(page, /Paid \/ Next Steps queued/);
+    assert.match(page, /\/x\/invoice\/invoice\/mark-paid/);
     assert.match(page, /officeMail\("christopher"\)/);
     assert.match(page, /officeMail\("aliyah"\)/);
     assert.match(index, /invoice\/document\//);

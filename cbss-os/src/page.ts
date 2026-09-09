@@ -820,6 +820,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
           </div>
           <div class="card" style="margin-top:12px">
             <h2>Recent invoices</h2>
+            <p class="muted">Mark paid when ACH / wire or card payment clears. That records paid and notifies Master Chief to email Next Steps. This tool does not send that email.</p>
             <div class="row"><button type="button" class="secondary" id="i-list">Refresh</button></div>
             <div class="hits" id="i-hits"></div>
           </div>
@@ -2543,19 +2544,39 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         $("i-err").textContent = (err && err.message) || "No agreed proposal amount on that contact.";
       }
     });
+    async function markInvoicePaid(id){
+      $("i-err").textContent = "";
+      const res = await api("/x/invoice/invoice/mark-paid", { method:"POST", body: JSON.stringify({ id:id }), allowError: true });
+      if (!res.r.ok || !res.j.ok){ $("i-err").textContent = res.j.error || "Paid but Next Steps notify failed — retry"; }
+      else $("i-err").textContent = "";
+      await loadInvoices();
+    }
     async function loadInvoices(){
       try {
       const res = await api("/x/invoice/invoice/list", { allowError: true });
       if (!res.r.ok){ $("i-err").textContent = res.j.error || res.j.message || "Could not load invoices."; return; }
       const cards = res.j.cards||[];
       $("i-hits").innerHTML = cards.slice(0,12).map(function(c){
-        return '<div class="hit"><strong>'+esc(c.name||"")+" · "+esc(c.documentNumber||c.id||"")+" · "+(c.amount?money(c.amount):"")+"</strong><div>"+esc(c.status||"")+(c.payMethod?" · "+c.payMethod:"")+"</div></div>";
+        const paid = String(c.status||"").toLowerCase() === "paid";
+        const markId = c.documentNumber || c.id || "";
+        const mark = !markId ? "" : paid && c.nextStepsWebhookSentAt
+          ? '<div class="ok">Paid / Next Steps queued</div>'
+          : paid
+            ? '<div>Paid but Next Steps notify failed — retry</div><div class="row"><button type="button" class="gold" data-mark-paid="'+esc(markId)+'">Retry Next Steps</button></div>'
+            : '<div class="row"><button type="button" class="gold" data-mark-paid="'+esc(markId)+'">Mark paid</button></div>';
+        return '<div class="hit"><strong>'+esc(c.name||"")+" · "+esc(c.documentNumber||c.id||"")+" · "+(c.amount?money(c.amount):"")+"</strong><div>"+esc(c.status||"")+(c.payMethod?" · "+c.payMethod:"")+"</div>"+mark+"</div>";
       }).join("") || '<p class="muted">No invoices in this list yet.</p>';
       } catch (err) {
         $("i-err").textContent = (err && err.message) || "Could not load invoices.";
       }
     }
     $("i-list").addEventListener("click", loadInvoices);
+    $("i-hits").addEventListener("click", function(e){
+      const btn = e.target.closest("[data-mark-paid]");
+      if (!btn) return;
+      btn.disabled = true;
+      markInvoicePaid(btn.getAttribute("data-mark-paid"));
+    });
 
     (async function boot(){
       try {

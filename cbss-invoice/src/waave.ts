@@ -60,6 +60,9 @@ export type InvoiceCard = {
   documentUrl?: string;
   documentPdfUrl?: string;
   payMethod?: "card" | "ach";
+  paidAt?: string;
+  paidBy?: string;
+  nextStepsWebhookSentAt?: string;
 };
 
 export function isAchPayMethod(raw: unknown): boolean {
@@ -532,7 +535,7 @@ export async function listInvoices(
   if (!waaveReady(env) || !stored.length) return { ok: true, cards: stored };
   const refreshed: InvoiceCard[] = [];
   for (const row of stored.slice(0, 20)) {
-    if (!row.id || row.payMethod === "ach" || row.status === "ach" || String(row.id).startsWith("CBS-")) {
+    if (!row.id || row.payMethod === "ach" || row.status === "ach" || String(row.id).startsWith("CBS-") || String(row.status || "").toLowerCase() === "paid") {
       refreshed.push(row);
       continue;
     }
@@ -555,6 +558,10 @@ export async function listInvoices(
         ccEmails: row.ccEmails?.length ? row.ccEmails : next.ccEmails,
         billing: row.billing || next.billing,
         delivery: row.delivery || next.delivery,
+        status: String(row.status || "").toLowerCase() === "paid" ? "paid" : next.status,
+        paidAt: row.paidAt,
+        paidBy: row.paidBy,
+        nextStepsWebhookSentAt: row.nextStepsWebhookSentAt,
       };
       refreshed.push(withInvoiceCopies(merged, merged.sentBy));
     } catch {

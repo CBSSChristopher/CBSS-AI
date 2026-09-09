@@ -36,6 +36,46 @@ npx wrangler secret put WAAVE_VENUE_ID
 
 Also set `AUTH_SECRET` once so company-email sessions work.
 
+## Mark paid → Next Steps webhook
+
+When a signed-in rep clicks **Mark paid**, this Worker writes `status: "paid"`, `paidAt`, and `paidBy` on the invoice KV card, then POSTs a signed webhook so Master Chief can email the client from AgentMail inbox `cbss@agentmail.to` with the Next Steps PDF. This Worker does **not** send that email (no Resend).
+
+Set these from the Master Chief routine panel **Yard paid → Next Steps email**:
+
+```
+npx wrangler secret put NEXT_STEPS_WEBHOOK_URL
+npx wrangler secret put NEXT_STEPS_WEBHOOK_SECRET
+```
+
+`NEXT_STEPS_WEBHOOK_URL` is required for the notify step. Mark paid still records paid if the URL is missing, and the UI shows a config error so the rep can retry after Christopher adds it.
+
+`NEXT_STEPS_WEBHOOK_SECRET` is optional. When set, the POST includes:
+
+```
+X-Webhook-Signature: sha256=<hex>
+```
+
+That hex is HMAC-SHA256 of the raw JSON body.
+
+Webhook JSON (no dollar amounts, no ACH / wire details):
+
+```
+{
+  "invoiceId": "CBS-2026-120",
+  "number": "CBS-2026-120",
+  "clientEmail": "client@example.com",
+  "clientName": "Gary Smith",
+  "firstName": "Gary",
+  "repEmail": "james@cbshippingsolutions.com",
+  "paidAt": "2026-09-09T15:00:00.000Z",
+  "nextStepsAlreadySent": false
+}
+```
+
+First successful 2xx sets `nextStepsWebhookSentAt` on the card. A second Mark paid does not re-fire. If the webhook fails, paid stays on the card and the UI shows `Paid but Next Steps notify failed — retry`.
+
+The Next Steps PDF is attached by Master Chief from the house box (`CBSS-Next-Steps-After-Your-Order.pdf`). `GET /assets/next-steps.pdf` is a signed-in note until that file is added under `cbss-invoice/assets/`.
+
 Production API base is `https://pg.getwaave.co`. Sandbox is `https://staging-pg.getwaave.co`. Requests sign with SHA-256 of `secret + full URL + JSON body` in `X-Api-Signature`, plus `X-Api-Key`.
 
 Official docs:

@@ -82,7 +82,7 @@ export function pageHtml(): string {
   <header>
     <div>
       <div class="brand">CBSS Invoicing</div>
-      <div class="sub" id="stamp">build 6 · branded invoice · ACH or card</div>
+      <div class="sub" id="stamp">build 7 · mark paid → next steps</div>
     </div>
     <div class="right">
       <div class="who hide" id="who"></div>
@@ -161,7 +161,7 @@ export function pageHtml(): string {
       </div>
       <div class="card" style="margin-top:12px">
         <h2>Recent invoices</h2>
-        <p class="muted">Refresh to see ACH / wire invoices and WAAVE card invoices. Cancel only a WAAVE invoice they have not paid.</p>
+        <p class="muted">Refresh to see ACH / wire invoices and WAAVE card invoices. Mark paid when ACH / wire or card payment clears — that records paid and notifies Master Chief to email Next Steps. Cancel only a WAAVE invoice they have not paid.</p>
         <div class="row"><button type="button" class="secondary" id="refresh">Refresh</button></div>
         <div class="hits" id="list"></div>
         <p class="err" id="list-err"></p>
@@ -395,19 +395,43 @@ export function pageHtml(): string {
       if (!rows.length) { list.innerHTML = "<div class=\\"hit\\">No invoices yet.</div>"; return; }
       list.innerHTML = rows.map((c) => {
         const ach = c.payMethod === "ach" || c.status === "ach";
+        const paid = String(c.status || "").toLowerCase() === "paid";
+        const markId = c.documentNumber || c.id || "";
         const link = !ach && c.payLink ? "<div><a href=\\"" + c.payLink + "\\" target=\\"_blank\\" rel=\\"noopener\\">Open pay link</a></div>" : (ach ? "<div>ACH / wire only — no card link</div>" : "");
         const gmail = c.gmailLink ? "<div><a href=\\"" + c.gmailLink + "\\" target=\\"_blank\\" rel=\\"noopener\\">Open Gmail</a></div>" : "";
-        const cancel = !ach && /sent|pending|created|open/i.test(c.status || "") && c.id
+        const cancel = !paid && !ach && /sent|pending|created|open/i.test(c.status || "") && c.id
           ? "<div class=\\"row\\"><button type=\\"button\\" class=\\"secondary\\" data-cancel=\\"" + c.id + "\\">Cancel</button></div>"
           : "";
+        const mark = !markId ? "" : paid && c.nextStepsWebhookSentAt
+          ? "<div>Paid / Next Steps queued</div>"
+          : paid
+            ? "<div>Paid but Next Steps notify failed — retry</div><div class=\\"row\\"><button type=\\"button\\" class=\\"gold\\" data-mark-paid=\\"" + markId + "\\">Retry Next Steps</button></div>"
+            : "<div class=\\"row\\"><button type=\\"button\\" class=\\"gold\\" data-mark-paid=\\"" + markId + "\\">Mark paid</button></div>";
         const cc = Array.isArray(c.ccEmails) && c.ccEmails.length ? "<div>CC " + c.ccEmails.join(", ") + "</div>" : "";
         const bill = c.billing && (c.billing.street || c.billing.city) ? "<div>Billing: " + [c.billing.street, c.billing.city, [c.billing.state, c.billing.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ") + "</div>" : "";
         const del = c.delivery && (c.delivery.street || c.delivery.city) ? "<div>Delivery: " + [c.delivery.street, c.delivery.city, [c.delivery.state, c.delivery.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ") + "</div>" : "";
-        return "<div class=\\"hit\\"><strong>" + (c.name || "Customer") + " · $" + Number(c.amount).toLocaleString("en-US", { minimumFractionDigits: 2 }) + " · " + (c.status || "") + "</strong><div>" + (c.notes || "") + "</div>" + bill + del + link + gmail + cc + cancel + "</div>";
+        return "<div class=\\"hit\\"><strong>" + (c.name || "Customer") + " · $" + Number(c.amount).toLocaleString("en-US", { minimumFractionDigits: 2 }) + " · " + (c.status || "") + "</strong><div>" + (c.notes || "") + "</div>" + bill + del + link + gmail + cc + mark + cancel + "</div>";
       }).join("");
     }
     document.getElementById("refresh").addEventListener("click", refresh);
     document.getElementById("list").addEventListener("click", async (e) => {
+      const markBtn = e.target.closest("[data-mark-paid]");
+      if (markBtn) {
+        const id = markBtn.getAttribute("data-mark-paid");
+        markBtn.disabled = true;
+        const r = await fetch("/invoice/mark-paid", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (r.status === 401) { show("login"); return; }
+        if (!r.ok || !j.ok) { document.getElementById("list-err").textContent = j.error || "Could not mark paid."; refresh(); return; }
+        document.getElementById("list-err").textContent = "";
+        refresh();
+        return;
+      }
       const btn = e.target.closest("[data-cancel]");
       if (!btn) return;
       const id = btn.getAttribute("data-cancel");

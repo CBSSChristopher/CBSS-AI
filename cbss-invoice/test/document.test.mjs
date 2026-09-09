@@ -84,7 +84,7 @@ describe("CBSS branded invoice document", () => {
   });
 
   it("is what the invoice tool generates going forward", () => {
-    assert.match(page, /build 6 · branded invoice · ACH or card/);
+    assert.match(page, /build 7 · mark paid → next steps/);
     assert.match(page, /Invoice — ACH \/ wire only/);
     assert.match(page, /Invoice \+ card pay link/);
     assert.match(page, /navy\/gold CBSS invoice/);

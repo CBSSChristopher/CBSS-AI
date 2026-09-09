@@ -22,7 +22,7 @@ Navy `#0B1F3A` / gold `#C9A227` / cream `#F7F4EC`.
 - **Desk** — Harbor (CBSS AI) first, Container One / USA Containers price match, then call scraps and email
 - **Proposal** — stepped quote: pick the box, Get CBSS Price, proposal amount, submit
 - **Modified** — build-out spec: Apex helical pylons, doors, roll-up, windows, framing, insulation, electrical. No invented prices
-- **Money** — branded invoice (ACH/wire or card). No Veem.
+- **Money** — branded invoice (ACH/wire or card). Mark paid records the KV card and fires the Next Steps webhook. No Veem. This shell does not send the Next Steps email.
 
 ## Hard rules
 

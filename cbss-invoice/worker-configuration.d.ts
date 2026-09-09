@@ -4,6 +4,8 @@ interface Env {
   WAAVE_API_SECRET?: string;
   WAAVE_VENUE_ID?: string;
   WAAVE_API_BASE?: string;
+  NEXT_STEPS_WEBHOOK_URL?: string;
+  NEXT_STEPS_WEBHOOK_SECRET?: string;
   CRM?: Fetcher;
   INVOICE_STORE?: KVNamespace;
   PUBLIC_TITLE?: string;
