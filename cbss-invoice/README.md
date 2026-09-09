@@ -44,15 +44,13 @@ When a signed-in rep clicks **Mark paid**, the Worker writes `status: "paid"`, `
 
 ```
 npx wrangler secret put AGENTMAIL_API_KEY
-# optional public PDF URL AgentMail can fetch without cookies
-npx wrangler secret put NEXT_STEPS_PDF_URL
 ```
 
 `AGENTMAIL_INBOX` defaults to `cbss@agentmail.to`.
 
 To = invoice client. CC = Christopher, Aliyah, and the current assigned / sending rep (`sentBy`, plus `paidBy` if different). Reply-To = that rep. Subject and body are the approved Next Steps copy (no dollar amounts, no ACH / routing, no collections language).
 
-Attachment: `CBSS-Next-Steps-After-Your-Order.pdf`. Preferred runtime path is `NEXT_STEPS_PDF_URL` (AgentMail `attachments[].url`). Expected repo path if the file is added later: `cbss-invoice/assets/CBSS-Next-Steps-After-Your-Order.pdf`. Missing PDF does not block the email.
+Attachment: the real `cbss-invoice/assets/CBSS-Next-Steps-After-Your-Order.pdf` (~1.36MB) as AgentMail `content` (base64). `NEXT_STEPS_PDF_URL` is not used. Missing file notes clearly and still sends the body — it does not invent a PDF.
 
 First successful send sets `nextStepsEmailSentAt` (and `nextStepsWebhookSentAt` for older UI). A second Mark paid does not re-send. If AgentMail is missing or fails, paid stays on the card and the UI shows a retry / config error.
 

@@ -1,21 +1,16 @@
 # Next Steps PDF
 
-Expected file: `CBSS-Next-Steps-After-Your-Order.pdf`
+Canonical file (required): `CBSS-Next-Steps-After-Your-Order.pdf` (~1.36MB real binary).
 
-This Worker attaches that guide on **Mark paid** from AgentMail inbox `cbss@agentmail.to`. It does **not** go through Master Chief, Grok Bot, Gmail, or a webhook.
+Master Chief: drop that exact file here. Do not invent a substitute. Do not attach by URL.
 
-## Runtime attachment
+This Worker attaches that guide on **Mark paid** from AgentMail inbox `cbss@agentmail.to` as:
 
-1. Preferred: set a public URL the AgentMail API can fetch (no auth cookies):
+- `filename`: `CBSS-Next-Steps-After-Your-Order.pdf`
+- `content_type`: `application/pdf`
+- `content`: base64 of the PDF bytes
+- `content_disposition`: `attachment`
 
-   ```
-   npx wrangler secret put NEXT_STEPS_PDF_URL
-   ```
+`NEXT_STEPS_PDF_URL` is ignored. If the file is missing, the email body still sends and a clear note is logged. The body does not depend on a link to the PDF.
 
-   The send uses AgentMail's `attachments[].url` field (see https://www.agentmail.to/docs/api-reference/inboxes/messages/send).
-
-2. Until the file is supplied, Mark paid still emails the approved body and records that the PDF was not attached.
-
-3. Drop the canonical PDF here as `cbss-invoice/assets/CBSS-Next-Steps-After-Your-Order.pdf` when Christopher provides it. `GET /assets/next-steps.pdf` (signed in) proxies `NEXT_STEPS_PDF_URL` or returns 404 with this path.
-
-Do not commit secrets. Do not host the PDF behind cookie auth if AgentMail must download it.
+`cbss-os` uses the same file via its `ASSETS` binding (`../cbss-invoice/assets`).

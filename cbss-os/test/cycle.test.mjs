@@ -18,6 +18,7 @@ import { paidBody } from "../src/cycle/templates.ts";
 const page = readFileSync(new URL("../src/page.ts", import.meta.url), "utf8");
 const index = readFileSync(new URL("../src/index.ts", import.meta.url), "utf8");
 const http = readFileSync(new URL("../src/cycle/http.ts", import.meta.url), "utf8");
+const engineSrc = readFileSync(new URL("../src/cycle/engine.ts", import.meta.url), "utf8");
 
 function memoryKv(initial = {}) {
   const data = new Map(Object.entries(initial));
@@ -41,6 +42,16 @@ function envUsers(users, extra = {}) {
     SESSIONS: memoryKv({ "cycle:users": JSON.stringify(users) }),
     AGENTMAIL_API_KEY: "am_test",
     ...extra,
+  };
+}
+
+function pdfAssets(bytes = new TextEncoder().encode("%PDF-1.4 test-fixture\n%%EOF\n")) {
+  return {
+    ASSETS: {
+      async fetch() {
+        return new Response(bytes, { status: 200, headers: { "Content-Type": "application/pdf" } });
+      },
+    },
   };
 }
 
@@ -187,9 +198,31 @@ describe("CTE override, stop, reassignment, cron idempotency", () => {
     assert.doesNotMatch(paidBody("Gary"), /\$|\bACH\b|routing/i);
   });
 
+  it("attaches Next Steps as base64 content on Lifecycle Paid and ignores NEXT_STEPS_PDF_URL", async () => {
+    const calls = [];
+    const env = envUsers([james], { NEXT_STEPS_PDF_URL: "https://example.invalid/do-not-fetch.pdf", ...pdfAssets() });
+    const hint = { id: "c-brent-pdf", name: "Brent Snyder", email: "brent@test.com", owner: "James" };
+    const result = await markContactPaid(env, hint, "Christopher Banks", async (url, init) => {
+      calls.push({ url, init });
+      return new Response(JSON.stringify({ message_id: "paid-pdf", thread_id: "tp-pdf" }), { status: 200 });
+    });
+    assert.equal(result.send.ok, true);
+    assert.equal(calls.length, 1);
+    assert.doesNotMatch(calls[0].url, /example\.invalid/);
+    const payload = JSON.parse(calls[0].init.body);
+    const att = payload.attachments[0];
+    assert.equal(att.filename, "CBSS-Next-Steps-After-Your-Order.pdf");
+    assert.equal(att.content_type, "application/pdf");
+    assert.equal(att.content_disposition, "attachment");
+    assert.ok(att.content);
+    assert.equal(att.url, undefined);
+    assert.equal(Buffer.from(att.content, "base64").subarray(0, 5).toString(), "%PDF-");
+    assert.doesNotMatch(JSON.stringify(payload.attachments), /"url"/);
+  });
+
   it("sends paid Next Steps when owner is James and the users list is empty", async () => {
     const calls = [];
-    const env = envUsers([]);
+    const env = envUsers([], pdfAssets());
     const hint = { id: "c-james-empty", name: "Brent Snyder", email: "brent@test.com", owner: "James" };
     const result = await markContactPaid(env, hint, "Christopher Banks", async (url, init) => {
       calls.push({ url, init });
@@ -207,6 +240,13 @@ describe("CTE override, stop, reassignment, cron idempotency", () => {
     assert.ok(payload.cc.includes("james@cbshippingsolutions.com"));
     assert.deepEqual(payload.reply_to, ["james@cbshippingsolutions.com"]);
     assert.ok(result.rec.events.some((e) => /roster email/.test(e.text)));
+    assert.ok(Array.isArray(payload.attachments));
+    assert.equal(payload.attachments[0].filename, "CBSS-Next-Steps-After-Your-Order.pdf");
+    assert.equal(payload.attachments[0].content_type, "application/pdf");
+    assert.equal(payload.attachments[0].content_disposition, "attachment");
+    assert.equal(typeof payload.attachments[0].content, "string");
+    assert.match(payload.attachments[0].content, /^JVBER/);
+    assert.equal("url" in payload.attachments[0], false);
     const again = await markContactPaid(env, hint, "Christopher Banks", async () => {
       calls.push({ url: "nope" });
       return new Response(JSON.stringify({ message_id: "paid-dup" }), { status: 200 });
@@ -298,5 +338,7 @@ describe("Yard cycle surfaces", () => {
     assert.match(page, /skipEmail: true/);
     assert.match(page, /Retry Next Steps/);
     assert.match(page, /cycle-paid-retry/);
+    assert.match(engineSrc, /loadNextStepsPdf/);
+    assert.doesNotMatch(engineSrc, /url:\s*pdfUrl|filename: "CBSS-Next-Steps-After-Your-Order\.pdf", content_type: "application\/pdf", url:/);
   });
 });
