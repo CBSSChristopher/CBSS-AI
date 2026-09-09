@@ -95,6 +95,8 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     .ok { color: #1f5b38; font-size: 13px; }
     .cycle-box { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 10px 0; background: #fbf8f0; }
     .cycle-box h3 { margin: 0 0 6px; }
+    .cycle-box .picks { margin: 8px 0 4px; }
+    .cycle-box .picks button { min-height: 40px; }
     .cycle-tl { font-size: 12px; color: #3d4d5c; margin: 6px 0 0; line-height: 1.35; }
     .cycle-flag { color: #8A1F1F; font-size: 13px; font-weight: 650; }
     #cycle-alerts { background: #10263f; color: #fff; padding: 10px 18px; font-size: 13px; }
@@ -875,8 +877,9 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
           <select id="m-owner"></select>
         </div>
         <div>
-          <label for="m-status">Stage</label>
-          <select id="m-status"></select>
+          <label for="m-status">Book stage (from Lifecycle)</label>
+          <select id="m-status" disabled></select>
+          <p class="muted">Use Lifecycle on the contact card to move the deal. This box is not a second Stage menu.</p>
         </div>
       </div>
       <div class="split">
@@ -1292,8 +1295,10 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       const textHref = tel.length>=7 ? "sms:+1"+tel : "";
       $("crm-detail").innerHTML = "<h2>"+esc(selected.name||"")+"</h2>"
         +'<p class="muted">'+esc([selected.company,selected.phone,selected.email,selected.city,selected.state,selected.zip].filter(Boolean).join(" · "))+"</p>"
-        +'<p>Owner '+esc(selected.owner||"—")+' · <span class="stage-chip">'+esc(contactStage(selected)||"No stage")+"</span>"+(selected.source?" · "+esc(selected.source):"")+(selected.amount?" · proposal "+money(selected.amount):"")+(invoicePaidYes(selected)?" · invoice paid":(selected.amount?" · invoice not paid":""))+(selected.dnc?" · DNC":"")+"</p>"
-        +'<label for="crm-stage">Stage</label><select id="crm-stage">'+stageOptions(contactStage(selected))+"</select>"
+        +'<p>Owner '+esc(selected.owner||"—")+' · <span class="stage-chip" id="crm-life-chip">'+esc(selected.lifecycle || "Lifecycle")+"</span>"
+        +'<span class="muted" id="crm-book-sync"> · book '+esc(contactStage(selected)||"—")+(invoicePaidYes(selected)?" · invoice paid":" · invoice not paid")+"</span>"
+        +(selected.source?" · "+esc(selected.source):"")+(selected.amount?" · proposal "+money(selected.amount):"")+(selected.dnc?" · DNC":"")+"</p>"
+        +'<p class="muted">Lifecycle is how you move this deal. CRM Stage and Invoice paid follow these buttons — there is no second Stage menu.</p>'
         +'<div class="cycle-box" id="cycle-box"><p class="muted">Loading lifecycle…</p></div>'
         +'<div class="acts">'
         +(callHref ? '<a class="gold" href="'+callHref+'">Call</a>' : '<button type="button" class="secondary" disabled title="No phone on this contact">Call</button>')
@@ -1317,8 +1322,6 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       if (campBtn) campBtn.onclick = addToCampaign;
       const editBtn = $("crm-edit");
       if (editBtn) editBtn.onclick = function(){ openContactEdit(selected); };
-      const stageSel = $("crm-stage");
-      if (stageSel) stageSel.onchange = function(){ saveContactStage(selected.id, stageSel.value); };
       paintCycle(selected);
       if (window.matchMedia("(max-width: 860px)").matches) $("crm-detail").scrollIntoView({ behavior:"smooth", block:"start" });
     }
@@ -1333,7 +1336,11 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         if (!res.r.ok || !res.j.ok){ box.innerHTML = '<p class="cycle-flag">'+esc(res.j.error||"Lifecycle did not load.")+"</p>"; return; }
         const cy = res.j.cycle || {};
         const lives = res.j.lifecycles || [];
-        const opts = lives.map(function(v){ return '<option value="'+esc(v)+'"'+(cy.lifecycle===v?" selected":"")+">"+esc(v)+"</option>"; }).join("");
+        if (c) c.lifecycle = cy.lifecycle || c.lifecycle || "";
+        if (selected && String(selected.id)===String(c.id)) selected.lifecycle = cy.lifecycle || selected.lifecycle || "";
+        const lifeBtns = lives.map(function(v){
+          return '<button type="button" class="'+(cy.lifecycle===v?"gold":"secondary")+'" data-life="'+esc(v)+'">'+esc(v)+"</button>";
+        }).join("");
         const paidSend = cy.sends && cy.sends.paid;
         const paidSent = paidSend && paidSend.status === "sent";
         const flags = []
@@ -1348,7 +1355,8 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         box.innerHTML = "<h3>Lifecycle</h3>"
           +"<p>Assigned "+esc(cy.owner||c.owner||"—")+(cy.ownerEmail?" · "+esc(cy.ownerEmail):"")+" · CTE "+esc(cy.cteStage||"—")+" · next "+esc(cy.nextDue||"—")+"</p>"
           +flags
-          +'<label for="cycle-life">Lifecycle</label><select id="cycle-life">'+opts+"</select>"
+          +'<p class="muted">Tap a Lifecycle button to advance. Paid sets invoice paid Yes and the CRM book to Won.</p>'
+          +'<div class="picks" id="cycle-lives">'+lifeBtns+"</div>"
           +'<div class="row">'
           +'<button type="button" class="secondary" id="cycle-logged">Logged attempt</button>'
           +'<button type="button" class="secondary" id="cycle-no">No answer</button>'
@@ -1360,12 +1368,19 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
           +'<div id="cycle-over-form" class="hide"><label>Next step</label><input id="cycle-when" type="datetime-local" /><label>Reason (optional)</label><input id="cycle-reason" /><div class="row"><button type="button" class="gold" id="cycle-over-save">Save override</button></div></div>'
           +'<p class="err" id="cycle-err"></p>'
           +'<div>'+tl+"</div>";
+        paintContactMeta(c);
         $("cycle-logged").onclick = function(){ cycleAct("/cycle/attempt", { outcome:"logged" }); };
         $("cycle-no").onclick = function(){ cycleAct("/cycle/attempt", { outcome:"no_answer" }); };
         $("cycle-replied").onclick = function(){ cycleAct("/cycle/replied", {}); };
         $("cycle-over").onclick = function(){ $("cycle-over-form").classList.toggle("hide"); };
         $("cycle-over-save").onclick = function(){ cycleAct("/cycle/override", { when:$("cycle-when").value, reason:$("cycle-reason").value }); };
-        $("cycle-life").onchange = function(){ cycleAct("/cycle/lifecycle", { lifecycle:$("cycle-life").value }); };
+        $("cycle-lives").onclick = function(e){
+          const btn = e.target.closest("[data-life]");
+          if (!btn) return;
+          const life = btn.getAttribute("data-life");
+          if (life === "Paid") cycleAct("/cycle/paid", {});
+          else cycleAct("/cycle/lifecycle", { lifecycle: life });
+        };
         const paidBtn = $("cycle-paid");
         if (paidBtn) paidBtn.onclick = function(){ cycleAct("/cycle/paid", {}); };
         const paidRetry = $("cycle-paid-retry");
@@ -1374,6 +1389,26 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         box.innerHTML = '<p class="cycle-flag">'+(err && err.message ? esc(err.message) : "Lifecycle did not load.")+"</p>";
       }
     }
+    function paintContactMeta(c){
+      if (!c) return;
+      const chip = $("crm-life-chip");
+      if (chip) chip.textContent = c.lifecycle || "Lifecycle";
+      const sync = $("crm-book-sync");
+      if (sync) sync.textContent = " · book "+(contactStage(c)||"—")+(invoicePaidYes(c)?" · invoice paid":" · invoice not paid");
+    }
+    async function applyCycleCrmPatch(id, res, extra){
+      const patch = res && res.j && res.j.crmPatch && res.j.crmPatch.status
+        ? res.j.crmPatch
+        : (res && res.j && res.j.legacyStatus ? { status: res.j.legacyStatus } : null);
+      const paid = extra && String(extra.lifecycle||"").toLowerCase()==="paid";
+      const next = patch ? Object.assign({}, patch) : {};
+      if (paid || (res && res.j && res.j.cycle && res.j.cycle.lifecycle==="Paid")) {
+        next.status = next.status || "Won";
+        next.invoicePaid = "yes";
+      }
+      if (!next.status && !next.invoicePaid) return;
+      await persistContactPatch(id, next);
+    }
     async function cycleAct(path, extra){
       if (!selected) return;
       $("cycle-err").textContent = "";
@@ -1381,12 +1416,13 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         const body = Object.assign(cycleHint(selected), extra||{});
         const res = await api(path, { method:"POST", body: JSON.stringify(body), allowError: true });
         if (!res.r.ok || res.j.ok === false){ $("cycle-err").textContent = res.j.error || (res.j.send && res.j.send.error) || "Could not save that."; }
-        if (res.j.legacyStatus && selected) {
-          try { await persistContactPatch(selected.id, { status: res.j.legacyStatus }); } catch (_) {}
+        if (res.j.cycle && res.j.cycle.lifecycle) selected.lifecycle = res.j.cycle.lifecycle;
+        try {
+          await applyCycleCrmPatch(selected.id, res, extra);
+        } catch (syncErr) {
+          if (!$("cycle-err").textContent) $("cycle-err").textContent = (syncErr && syncErr.message) || "Lifecycle saved. CRM book did not sync.";
         }
-        if (path === "/cycle/lifecycle" && String(extra && extra.lifecycle||"").toLowerCase()==="paid") {
-          try { await persistContactPatch(selected.id, { invoicePaid: "yes" }); } catch (_) {}
-        }
+        paintContactMeta(selected);
         await paintCycle(selected);
         renderStats(); renderContacts();
       } catch (err) {
@@ -1556,7 +1592,6 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         zip: $("m-zip").value.trim(),
         company: $("m-company").value.trim(),
         owner: titleOwner($("m-owner").value),
-        status: $("m-status").value,
         source: $("m-source").value,
         clientType: $("m-client").value,
         containerSize: $("m-size").value,
@@ -2646,13 +2681,22 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       else $("i-err").textContent = "";
       const card = res.j.card || {};
       try {
-        await api("/cycle/paid", { method:"POST", body: JSON.stringify({
+        const cycleRes = await api("/cycle/paid", { method:"POST", body: JSON.stringify({
           id: selected ? String(selected.id) : "",
           email: card.email || (selected && selected.email) || "",
           name: card.name || (selected && selected.name) || "",
           owner: selected ? selected.owner : (user && user.name) || "",
           skipEmail: true
         }), allowError: true });
+        const patch = cycleRes.j.crmPatch && cycleRes.j.crmPatch.status
+          ? cycleRes.j.crmPatch
+          : { status: "Won", invoicePaid: "yes" };
+        if (selected && selected.id) {
+          selected.lifecycle = "Paid";
+          try { await persistContactPatch(selected.id, patch); } catch (_) {}
+          paintContactMeta(selected);
+          renderStats(); renderContacts();
+        }
       } catch (_) {}
       await loadInvoices();
     }

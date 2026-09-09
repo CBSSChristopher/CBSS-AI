@@ -47,6 +47,18 @@ export function legacyStatusFor(life: Lifecycle): string {
   return LIFECYCLE_TO_LEGACY[life] || "New Lead";
 }
 
+export type CrmLifecyclePatch = {
+  status: string;
+  invoicePaid?: "yes";
+};
+
+/** CRM list / card fields that must follow Lifecycle so Paid cannot sit on Proposal Sent + invoice paid No. */
+export function crmPatchForLifecycle(life: Lifecycle): CrmLifecyclePatch {
+  const status = legacyStatusFor(life);
+  if (life === "Paid" || life === "Delivered") return { status, invoicePaid: "yes" };
+  return { status };
+}
+
 export function isExit(life: string): boolean {
   return (EXITS as readonly string[]).includes(life);
 }
