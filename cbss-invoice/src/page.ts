@@ -161,7 +161,7 @@ export function pageHtml(): string {
       </div>
       <div class="card" style="margin-top:12px">
         <h2>Recent invoices</h2>
-        <p class="muted">Refresh to see ACH / wire invoices and WAAVE card invoices. Mark paid when ACH / wire or card payment clears — that records paid and notifies Master Chief to email Next Steps. Cancel only a WAAVE invoice they have not paid.</p>
+        <p class="muted">Refresh to see ACH / wire invoices and WAAVE card invoices. Mark paid when ACH / wire or card payment clears — that records paid and this Worker emails Next Steps from AgentMail. Cancel only a WAAVE invoice they have not paid.</p>
         <div class="row"><button type="button" class="secondary" id="refresh">Refresh</button></div>
         <div class="hits" id="list"></div>
         <p class="err" id="list-err"></p>
@@ -402,7 +402,7 @@ export function pageHtml(): string {
         const cancel = !paid && !ach && /sent|pending|created|open/i.test(c.status || "") && c.id
           ? "<div class=\\"row\\"><button type=\\"button\\" class=\\"secondary\\" data-cancel=\\"" + c.id + "\\">Cancel</button></div>"
           : "";
-        const mark = !markId ? "" : paid && c.nextStepsWebhookSentAt
+        const mark = !markId ? "" : paid && (c.nextStepsEmailSentAt || c.nextStepsWebhookSentAt)
           ? "<div>Paid / Next Steps queued</div>"
           : paid
             ? "<div>Paid but Next Steps notify failed — retry</div><div class=\\"row\\"><button type=\\"button\\" class=\\"gold\\" data-mark-paid=\\"" + markId + "\\">Retry Next Steps</button></div>"

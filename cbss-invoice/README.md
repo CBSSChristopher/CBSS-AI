@@ -36,45 +36,27 @@ npx wrangler secret put WAAVE_VENUE_ID
 
 Also set `AUTH_SECRET` once so company-email sessions work.
 
-## Mark paid → Next Steps webhook
+## Mark paid → Next Steps (Worker-owned AgentMail)
 
-When a signed-in rep clicks **Mark paid**, this Worker writes `status: "paid"`, `paidAt`, and `paidBy` on the invoice KV card, then POSTs a signed webhook so Master Chief can email the client from AgentMail inbox `cbss@agentmail.to` with the Next Steps PDF. This Worker does **not** send that email (no Resend).
+Christopher approved live autonomy: this Worker sends the Next Steps email itself. It does **not** POST to Master Chief, wake Grok Bot, open Gmail, or depend on chat usage.
 
-Set these from the Master Chief routine panel **Yard paid → Next Steps email**:
-
-```
-npx wrangler secret put NEXT_STEPS_WEBHOOK_URL
-npx wrangler secret put NEXT_STEPS_WEBHOOK_SECRET
-```
-
-`NEXT_STEPS_WEBHOOK_URL` is required for the notify step. Mark paid still records paid if the URL is missing, and the UI shows a config error so the rep can retry after Christopher adds it.
-
-`NEXT_STEPS_WEBHOOK_SECRET` is optional. When set, the POST includes:
+When a signed-in rep clicks **Mark paid**, the Worker writes `status: "paid"`, `paidAt`, and `paidBy` on the invoice KV card, then `POST https://api.agentmail.to/v0/inboxes/cbss@agentmail.to/messages/send` with `Authorization: Bearer $AGENTMAIL_API_KEY`.
 
 ```
-X-Webhook-Signature: sha256=<hex>
+npx wrangler secret put AGENTMAIL_API_KEY
+# optional public PDF URL AgentMail can fetch without cookies
+npx wrangler secret put NEXT_STEPS_PDF_URL
 ```
 
-That hex is HMAC-SHA256 of the raw JSON body.
+`AGENTMAIL_INBOX` defaults to `cbss@agentmail.to`.
 
-Webhook JSON (no dollar amounts, no ACH / wire details):
+To = invoice client. CC = Christopher, Aliyah, and the current assigned / sending rep (`sentBy`, plus `paidBy` if different). Reply-To = that rep. Subject and body are the approved Next Steps copy (no dollar amounts, no ACH / routing, no collections language).
 
-```
-{
-  "invoiceId": "CBS-2026-120",
-  "number": "CBS-2026-120",
-  "clientEmail": "client@example.com",
-  "clientName": "Gary Smith",
-  "firstName": "Gary",
-  "repEmail": "james@cbshippingsolutions.com",
-  "paidAt": "2026-09-09T15:00:00.000Z",
-  "nextStepsAlreadySent": false
-}
-```
+Attachment: `CBSS-Next-Steps-After-Your-Order.pdf`. Preferred runtime path is `NEXT_STEPS_PDF_URL` (AgentMail `attachments[].url`). Expected repo path if the file is added later: `cbss-invoice/assets/CBSS-Next-Steps-After-Your-Order.pdf`. Missing PDF does not block the email.
 
-First successful 2xx sets `nextStepsWebhookSentAt` on the card. A second Mark paid does not re-fire. If the webhook fails, paid stays on the card and the UI shows `Paid but Next Steps notify failed — retry`.
+First successful send sets `nextStepsEmailSentAt` (and `nextStepsWebhookSentAt` for older UI). A second Mark paid does not re-send. If AgentMail is missing or fails, paid stays on the card and the UI shows a retry / config error.
 
-The Next Steps PDF is attached by Master Chief from the house box (`CBSS-Next-Steps-After-Your-Order.pdf`). `GET /assets/next-steps.pdf` is a signed-in note until that file is added under `cbss-invoice/assets/`.
+Transient AgentMail errors retry up to 3 times with bounded backoff. Idempotency is the paid-sent flag on the card.
 
 Production API base is `https://pg.getwaave.co`. Sandbox is `https://staging-pg.getwaave.co`. Requests sign with SHA-256 of `secret + full URL + JSON body` in `X-Api-Signature`, plus `X-Api-Key`.
 

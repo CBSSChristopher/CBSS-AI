@@ -63,6 +63,7 @@ export type InvoiceCard = {
   paidAt?: string;
   paidBy?: string;
   nextStepsWebhookSentAt?: string;
+  nextStepsEmailSentAt?: string;
 };
 
 export function isAchPayMethod(raw: unknown): boolean {

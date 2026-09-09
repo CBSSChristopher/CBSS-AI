@@ -314,9 +314,18 @@ export default {
     if (request.method === "GET" && (path === "/assets/next-steps.pdf" || path === "/assets/CBSS-Next-Steps-After-Your-Order.pdf")) {
       const user = await readSession(request, env);
       if (!user) return json(401, { error: "Sign in first." });
+      const url = String(env.NEXT_STEPS_PDF_URL || "").trim();
+      if (url) {
+        const file = await fetch(url);
+        if (file.ok) {
+          return new Response(file.body, {
+            headers: { "Content-Type": "application/pdf", "Cache-Control": "no-store", ...SECURITY },
+          });
+        }
+      }
       return json(404, {
         error:
-          "Next Steps PDF is not hosted on this Worker. Master Chief attaches CBSS-Next-Steps-After-Your-Order.pdf from the house box.",
+          "Next Steps PDF is not on this Worker yet. Add cbss-invoice/assets/CBSS-Next-Steps-After-Your-Order.pdf or set NEXT_STEPS_PDF_URL.",
       });
     }
 

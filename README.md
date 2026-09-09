@@ -14,4 +14,12 @@ Backend workers (do not bookmark these for day-to-day work):
 - Pay: `cbss-pay/` → https://cbsspay.cbss.workers.dev
 - Invoice: `cbss-invoice/` → https://cbssinvoice.cbss.workers.dev
 
-**Mark paid → Next Steps:** on the invoice tool and Yard Money list, a company-authenticated rep can Mark paid. The invoice Worker writes paid on the KV card and POSTs `NEXT_STEPS_WEBHOOK_URL` (optional HMAC `NEXT_STEPS_WEBHOOK_SECRET`) so Master Chief can email Next Steps from AgentMail. See `cbss-invoice/README.md`. Set those from the Master Chief routine panel **Yard paid → Next Steps email**.
+**Yard sales cycle (autonomous):** Cloudflare Workers own scheduling and sends. The Yard cron (`0 * * * *`, America/Chicago business hours) plus AgentMail REST (`AGENTMAIL_API_KEY`, inbox `cbss@agentmail.to`) run CTE follow-ups and Paid Next Steps even if Grok Bot / Master Chief usage is maxed. No runtime Gmail, AgentMail MCP, or Master Chief webhook. See `cbss-os/README.md` and `cbss-invoice/README.md`.
+
+```
+# both workers
+npx wrangler secret put AGENTMAIL_API_KEY
+# optional
+npx wrangler secret put AGENTMAIL_WEBHOOK_SECRET   # cbssos only, inbound reply hook
+npx wrangler secret put NEXT_STEPS_PDF_URL
+```

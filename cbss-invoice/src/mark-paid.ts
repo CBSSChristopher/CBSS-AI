@@ -1,21 +1,30 @@
 import { splitName, type InvoiceCard } from "./waave.ts";
 
 export const LIST_KEY = "invoices";
-export const NEXT_STEPS_SIGNATURE_HEADER = "X-Webhook-Signature";
+export const NEXT_STEPS_PDF_NAME = "CBSS-Next-Steps-After-Your-Order.pdf";
 export const NEXT_STEPS_RETRY_ERROR = "Paid but Next Steps notify failed — retry";
 export const NEXT_STEPS_UNCONFIGURED_ERROR =
-  'Paid. Next Steps notify is not configured. Set NEXT_STEPS_WEBHOOK_URL from the Master Chief routine panel "Yard paid → Next Steps email".';
+  "Paid. Next Steps email is not configured. Set AGENTMAIL_API_KEY on this Worker (inbox cbss@agentmail.to).";
+export const NEXT_STEPS_SUBJECT = "Next steps for your CB Shipping Solutions order";
+export const AGENTMAIL_API = "https://api.agentmail.to/v0";
+export const DEFAULT_INBOX = "cbss@agentmail.to";
 
-export type NextStepsPayload = {
-  invoiceId: string;
-  number: string;
-  clientEmail: string;
-  clientName: string;
-  firstName: string;
-  repEmail: string;
-  paidAt: string;
-  nextStepsAlreadySent: boolean;
-};
+export function paidNextStepsBody(firstName: string): string {
+  const first = String(firstName || "").trim() || "there";
+  return [
+    `Hi ${first},`,
+    "",
+    "Thank you — we've received your payment and your order is moving forward.",
+    "",
+    "Attached is a short guide on what happens next (quality check and release, driver scheduling, and how we confirm your delivery window with you). Please read it before planning anyone on-site.",
+    "",
+    "Your sales representative remains your first point of contact. We'll be in touch with delivery timing once the depot confirms release.",
+    "",
+    "Thank you for your business,",
+    "CB Shipping Solutions",
+    "https://cbshippingsolutions.app/",
+  ].join("\n");
+}
 
 export type MarkPaidResult = {
   ok: boolean;
@@ -69,44 +78,93 @@ export function firstNameFromCard(card: InvoiceCard): string {
   return fromName || String(card.name || "").trim().split(/\s+/)[0] || "";
 }
 
-export function buildNextStepsPayload(card: InvoiceCard, alreadySent: boolean): NextStepsPayload {
-  return {
-    invoiceId: String(card.id || "").trim(),
-    number: cardRef(card),
-    clientEmail: String(card.email || "").trim().toLowerCase(),
-    clientName: String(card.name || "").trim(),
-    firstName: firstNameFromCard(card),
-    repEmail: String(card.paidBy || "").trim().toLowerCase(),
-    paidAt: String(card.paidAt || "").trim(),
-    nextStepsAlreadySent: Boolean(alreadySent),
-  };
+export function paidAlreadySent(card: InvoiceCard): boolean {
+  return Boolean(card.nextStepsEmailSentAt || card.nextStepsWebhookSentAt);
 }
 
-export async function hmacSha256Hex(secret: string, body: string): Promise<string> {
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(body));
-  return Array.from(new Uint8Array(sig))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+export async function loadNextStepsPdf(
+  env: Env,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ filename: string; contentType: string; content: string } | null> {
+  const url = String(env.NEXT_STEPS_PDF_URL || "").trim();
+  if (!url) return null;
+  const res = await fetchImpl(url);
+  if (!res.ok) return null;
+  const buf = new Uint8Array(await res.arrayBuffer());
+  let bin = "";
+  for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
+  return { filename: NEXT_STEPS_PDF_NAME, contentType: "application/pdf", content: btoa(bin) };
 }
 
-export async function nextStepsHeaders(env: Env, body: string): Promise<Record<string, string>> {
-  const headers: Record<string, string> = {
-    Accept: "application/json",
-    "Content-Type": "application/json",
-    "User-Agent": "cbssinvoice/mark-paid",
-  };
-  const secret = String(env.NEXT_STEPS_WEBHOOK_SECRET || "").trim();
-  if (secret) {
-    headers[NEXT_STEPS_SIGNATURE_HEADER] = `sha256=${await hmacSha256Hex(secret, body)}`;
+function officeCc(...emails: string[]): string[] {
+  const host = "cbshippingsolutions.com";
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const mail of [`christopher@${host}`, `aliyah@${host}`, ...emails.map((v) => String(v || "").trim().toLowerCase())]) {
+    if (!mail || !mail.includes("@") || seen.has(mail)) continue;
+    seen.add(mail);
+    out.push(mail);
   }
-  return headers;
+  return out;
+}
+
+export async function sendPaidNextSteps(
+  env: Env,
+  card: InvoiceCard,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ ok: true; messageId: string; attached: boolean } | { ok: false; error: string }> {
+  const key = String(env.AGENTMAIL_API_KEY || "").trim();
+  if (!key) return { ok: false, error: NEXT_STEPS_UNCONFIGURED_ERROR };
+  const to = String(card.email || "").trim().toLowerCase();
+  if (!to) return { ok: false, error: "Paid. No client email — pause, do not send." };
+  const inbox = String(env.AGENTMAIL_INBOX || DEFAULT_INBOX).trim() || DEFAULT_INBOX;
+  const first = firstNameFromCard(card);
+  const pdfUrl = String(env.NEXT_STEPS_PDF_URL || "").trim();
+  const pdf = pdfUrl ? null : await loadNextStepsPdf(env, fetchImpl);
+  const currentRep = String(card.sentBy || card.paidBy || "").trim().toLowerCase();
+  const payload: Record<string, unknown> = {
+    to: [to],
+    cc: officeCc(card.sentBy || "", card.paidBy || ""),
+    reply_to: currentRep ? [currentRep] : undefined,
+    subject: NEXT_STEPS_SUBJECT,
+    text: paidNextStepsBody(first),
+    labels: ["yard-cycle", "paid"],
+  };
+  if (pdfUrl) {
+    payload.attachments = [{ filename: NEXT_STEPS_PDF_NAME, content_type: "application/pdf", url: pdfUrl, content_disposition: "attachment" }];
+  } else if (pdf) {
+    payload.attachments = [{ filename: pdf.filename, content_type: pdf.contentType, content: pdf.content, content_disposition: "attachment" }];
+  }
+  let lastError = "AgentMail send did not run.";
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetchImpl(`${AGENTMAIL_API}/inboxes/${encodeURIComponent(inbox)}/messages/send`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${key}`,
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+      const text = await res.text();
+      let body: Record<string, unknown> = {};
+      try {
+        body = text ? JSON.parse(text) as Record<string, unknown> : {};
+      } catch {
+        body = {};
+      }
+      const messageId = String(body.message_id || body.messageId || "").trim();
+      if (res.ok && messageId) return { ok: true, messageId, attached: Boolean(pdfUrl || pdf) };
+      lastError = String(body.error || body.message || text || `AgentMail ${res.status}`).slice(0, 240);
+      const transient = res.status === 408 || res.status === 409 || res.status === 429 || res.status >= 500;
+      if (!transient) return { ok: false, error: lastError };
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : "Could not reach AgentMail.";
+    }
+    if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 250 * 2 ** attempt));
+  }
+  return { ok: false, error: lastError };
 }
 
 function persistPaid(card: InvoiceCard, repEmail: string, paidAt: string): InvoiceCard {
@@ -136,7 +194,7 @@ export async function markPaidAndNotify(
     return { ok: false, paid: false, nextStepsQueued: false, webhookFired: false, alreadyPaid: false, error: "Invoice not found." };
   }
 
-  if (isPaidCard(found) && found.nextStepsWebhookSentAt) {
+  if (isPaidCard(found) && paidAlreadySent(found)) {
     return {
       ok: true,
       paid: true,
@@ -151,8 +209,7 @@ export async function markPaidAndNotify(
   const next = cards.map((row) => (cardMatchesId(row, id) ? paid : row));
   await writeInvoiceCards(env, next);
 
-  const webhookUrl = String(env.NEXT_STEPS_WEBHOOK_URL || "").trim();
-  if (!webhookUrl) {
+  if (!String(env.AGENTMAIL_API_KEY || "").trim()) {
     return {
       ok: false,
       paid: true,
@@ -164,16 +221,14 @@ export async function markPaidAndNotify(
     };
   }
 
-  const payload = buildNextStepsPayload(paid, false);
-  const body = JSON.stringify(payload);
   try {
-    const res = await fetchImpl(webhookUrl, {
-      method: "POST",
-      headers: await nextStepsHeaders(env, body),
-      body,
-    });
-    if (res.ok) {
-      const queued: InvoiceCard = { ...paid, nextStepsWebhookSentAt: new Date().toISOString() };
+    const mailed = await sendPaidNextSteps(env, paid, fetchImpl);
+    if (mailed.ok) {
+      const queued: InvoiceCard = {
+        ...paid,
+        nextStepsEmailSentAt: new Date().toISOString(),
+        nextStepsWebhookSentAt: new Date().toISOString(),
+      };
       await writeInvoiceCards(
         env,
         (await readInvoiceCards(env)).map((row) => (cardMatchesId(row, id) ? queued : row)),
@@ -187,8 +242,9 @@ export async function markPaidAndNotify(
         card: queued,
       };
     }
+    console.error("next_steps_agentmail_error", mailed.error);
   } catch (err) {
-    console.error("next_steps_webhook_error", err instanceof Error ? err.message : "unknown");
+    console.error("next_steps_agentmail_error", err instanceof Error ? err.message : "unknown");
   }
 
   return {
