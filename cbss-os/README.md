@@ -57,7 +57,7 @@ After deploy, Christopher can retry a Paid contact that never got the email (Age
 3. If the Lifecycle **Mark paid** button is still visible (status not Paid yet), click it once. Same once-only send.
 4. Use Money **Retry Next Steps** / **Mark paid** only when the invoice card itself shows “Paid but Next Steps notify failed — retry”. Do not also click Lifecycle retry on the same contact after a successful invoice send — invoice owns that mail (`skipEmail` on the cycle).
 5. Confirm in AgentMail inbox `cbss@agentmail.to` and on the contact timeline: `Sent paid via AgentMail (…)` plus office CC. Do not blast Harbor / staff chat.
-- Next Steps PDF: bundled `cbss-invoice/assets/CBSS-Next-Steps-After-Your-Order.pdf`, attached as AgentMail `content` (base64). `NEXT_STEPS_PDF_URL` is not used for attach. Brent **Retry Next Steps** / Lifecycle **Mark paid** use the same payload.
+- Next Steps PDF: real binary `cbss-invoice/assets/CBSS-Next-Steps-After-Your-Order.pdf` (~1.36MB), attached as AgentMail `content` (base64). `NEXT_STEPS_PDF_URL` is not used. Missing file does not invent a PDF. Brent **Retry Next Steps** / Lifecycle **Mark paid** use the same payload.
 - Staff cycle actions also `appendNote` to CRM (tag Book). Cron events live on the contact cycle timeline in Yard KV.
 
 Register the inbound webhook (after the secret exists):

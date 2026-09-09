@@ -1,5 +1,3 @@
-import { renderNextStepsPdf } from "./next-steps-guide-pdf.ts";
-
 export const NEXT_STEPS_PDF_NAME = "CBSS-Next-Steps-After-Your-Order.pdf";
 export const NEXT_STEPS_PDF_ASSET = "CBSS-Next-Steps-After-Your-Order.pdf";
 
@@ -80,22 +78,14 @@ async function readFromDisk(): Promise<Uint8Array | null> {
 
 /**
  * Load Next Steps PDF bytes for AgentMail `content` attach.
- * Never uses NEXT_STEPS_PDF_URL. Prefer the bundled asset file, then the branded renderer.
+ * Never uses NEXT_STEPS_PDF_URL. Never invents a PDF. File must be the real binary at
+ * cbss-invoice/assets/CBSS-Next-Steps-After-Your-Order.pdf (~1.36MB).
  */
 export async function loadNextStepsPdfBytes(env?: NextStepsPdfEnv): Promise<Uint8Array | null> {
   const fromAssets = await readFromAssets(env);
   if (fromAssets) return fromAssets;
   const fromDisk = await readFromDisk();
   if (fromDisk) return fromDisk;
-  try {
-    const generated = renderNextStepsPdf();
-    if (looksLikePdf(generated)) return generated;
-  } catch (err) {
-    console.error(
-      "next_steps_pdf_render_error",
-      err instanceof Error ? err.message : "Could not render Next Steps PDF.",
-    );
-  }
   return null;
 }
 

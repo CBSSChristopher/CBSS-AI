@@ -59,6 +59,16 @@ function envWithCards(cards, extra = {}) {
   };
 }
 
+function pdfAssets(bytes = new TextEncoder().encode("%PDF-1.4 test-fixture\n%%EOF\n")) {
+  return {
+    ASSETS: {
+      async fetch() {
+        return new Response(bytes, { status: 200, headers: { "Content-Type": "application/pdf" } });
+      },
+    },
+  };
+}
+
 describe("Mark paid → AgentMail Next Steps", () => {
   it("exposes the signed-in route and does not call Master Chief / Resend / Gmail send", () => {
     assert.match(index, /\/invoice\/mark-paid/);
@@ -85,7 +95,7 @@ describe("Mark paid → AgentMail Next Steps", () => {
 
   it("records paid and sends AgentMail once", async () => {
     const calls = [];
-    const env = envWithCards([sampleCard()], { AGENTMAIL_API_KEY: "am_test" });
+    const env = envWithCards([sampleCard()], { AGENTMAIL_API_KEY: "am_test", ...pdfAssets() });
     const first = await markPaidAndNotify(env, "CBS-2026-120", "James@cbshippingsolutions.com", async (url, init) => {
       calls.push({ url, init });
       return new Response(JSON.stringify({ message_id: "msg_1", thread_id: "thd_1" }), { status: 200 });
@@ -149,6 +159,7 @@ describe("Mark paid → AgentMail Next Steps", () => {
     const env = envWithCards([sampleCard()], {
       AGENTMAIL_API_KEY: "am_test",
       NEXT_STEPS_PDF_URL: "https://example.invalid/do-not-fetch.pdf",
+      ...pdfAssets(),
     });
     const result = await markPaidAndNotify(env, "CBS-2026-120", "james@cbshippingsolutions.com", async (url, init) => {
       calls.push({ url, init });
@@ -167,5 +178,22 @@ describe("Mark paid → AgentMail Next Steps", () => {
     const decoded = Buffer.from(att.content, "base64");
     assert.equal(decoded.subarray(0, 5).toString(), "%PDF-");
     assert.doesNotMatch(JSON.stringify(payload), /example\.invalid|attachments":\[\{[^]]*url/);
+  });
+
+  it("sends the body without inventing a PDF or using a URL when the asset is missing", async () => {
+    const calls = [];
+    const env = envWithCards([sampleCard()], {
+      AGENTMAIL_API_KEY: "am_test",
+      NEXT_STEPS_PDF_URL: "https://example.invalid/do-not-fetch.pdf",
+    });
+    const result = await markPaidAndNotify(env, "CBS-2026-120", "james@cbshippingsolutions.com", async (url, init) => {
+      calls.push({ url, init });
+      return new Response(JSON.stringify({ message_id: "msg_no_pdf" }), { status: 200 });
+    });
+    assert.equal(result.ok, true);
+    const payload = JSON.parse(calls[0].init.body);
+    assert.match(payload.text, /we've received your payment/);
+    assert.equal(payload.attachments, undefined);
+    assert.doesNotMatch(JSON.stringify(payload), /example\.invalid|"url"/);
   });
 });

@@ -45,6 +45,16 @@ function envUsers(users, extra = {}) {
   };
 }
 
+function pdfAssets(bytes = new TextEncoder().encode("%PDF-1.4 test-fixture\n%%EOF\n")) {
+  return {
+    ASSETS: {
+      async fetch() {
+        return new Response(bytes, { status: 200, headers: { "Content-Type": "application/pdf" } });
+      },
+    },
+  };
+}
+
 const james = { email: "james@cbshippingsolutions.com", name: "James", title: "James", lastLogin: "2026-09-09T12:00:00Z" };
 const kyle = { email: "kyle@cbshippingsolutions.com", name: "Kyle Hodgkiss", title: "Kyle Hodgkiss", lastLogin: "2026-09-09T12:00:00Z" };
 
@@ -190,7 +200,7 @@ describe("CTE override, stop, reassignment, cron idempotency", () => {
 
   it("attaches Next Steps as base64 content on Lifecycle Paid and ignores NEXT_STEPS_PDF_URL", async () => {
     const calls = [];
-    const env = envUsers([james], { NEXT_STEPS_PDF_URL: "https://example.invalid/do-not-fetch.pdf" });
+    const env = envUsers([james], { NEXT_STEPS_PDF_URL: "https://example.invalid/do-not-fetch.pdf", ...pdfAssets() });
     const hint = { id: "c-brent-pdf", name: "Brent Snyder", email: "brent@test.com", owner: "James" };
     const result = await markContactPaid(env, hint, "Christopher Banks", async (url, init) => {
       calls.push({ url, init });
@@ -212,7 +222,7 @@ describe("CTE override, stop, reassignment, cron idempotency", () => {
 
   it("sends paid Next Steps when owner is James and the users list is empty", async () => {
     const calls = [];
-    const env = envUsers([]);
+    const env = envUsers([], pdfAssets());
     const hint = { id: "c-james-empty", name: "Brent Snyder", email: "brent@test.com", owner: "James" };
     const result = await markContactPaid(env, hint, "Christopher Banks", async (url, init) => {
       calls.push({ url, init });
