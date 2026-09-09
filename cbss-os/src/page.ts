@@ -1334,9 +1334,13 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         const cy = res.j.cycle || {};
         const lives = res.j.lifecycles || [];
         const opts = lives.map(function(v){ return '<option value="'+esc(v)+'"'+(cy.lifecycle===v?" selected":"")+">"+esc(v)+"</option>"; }).join("");
+        const paidSend = cy.sends && cy.sends.paid;
+        const paidSent = paidSend && paidSend.status === "sent";
         const flags = []
           .concat(cy.paused ? ['<p class="cycle-flag">Paused · '+esc(cy.pauseReason||"")+"</p>"] : [])
           .concat(cy.stopped ? ['<p class="ok">'+esc(cy.stoppedReason||"Ladder stopped")+"</p>"] : [])
+          .concat(cy.lifecycle==="Paid" && paidSent ? ['<p class="ok">Next Steps email sent.</p>'] : [])
+          .concat(cy.lifecycle==="Paid" && !paidSent ? ['<p class="cycle-flag">Next Steps not sent'+(paidSend && paidSend.error ? " · "+esc(paidSend.error) : " · use Retry Next Steps")+"</p>"] : [])
           .join("");
         const tl = (cy.events||[]).slice(0,8).map(function(e){
           return '<div class="cycle-tl"><strong>'+esc((e.at||"").replace("T"," ").slice(0,16))+"</strong> "+esc(e.text||"")+"</div>";
@@ -1351,6 +1355,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
           +'<button type="button" class="gold" id="cycle-replied">Replied</button>'
           +'<button type="button" class="secondary" id="cycle-over">Override CTE</button>'
           +(cy.lifecycle==="Paid"||cy.lifecycle==="Delivered"||cy.lifecycle==="Lost"||cy.lifecycle==="Not interested"||cy.lifecycle==="Bought elsewhere" ? "" : '<button type="button" class="gold" id="cycle-paid">Mark paid</button>')
+          +(cy.lifecycle==="Paid" && !paidSent ? '<button type="button" class="gold" id="cycle-paid-retry">Retry Next Steps</button>' : "")
           +"</div>"
           +'<div id="cycle-over-form" class="hide"><label>Next step</label><input id="cycle-when" type="datetime-local" /><label>Reason (optional)</label><input id="cycle-reason" /><div class="row"><button type="button" class="gold" id="cycle-over-save">Save override</button></div></div>'
           +'<p class="err" id="cycle-err"></p>'
@@ -1363,6 +1368,8 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         $("cycle-life").onchange = function(){ cycleAct("/cycle/lifecycle", { lifecycle:$("cycle-life").value }); };
         const paidBtn = $("cycle-paid");
         if (paidBtn) paidBtn.onclick = function(){ cycleAct("/cycle/paid", {}); };
+        const paidRetry = $("cycle-paid-retry");
+        if (paidRetry) paidRetry.onclick = function(){ cycleAct("/cycle/paid", {}); };
       } catch (err) {
         box.innerHTML = '<p class="cycle-flag">'+(err && err.message ? esc(err.message) : "Lifecycle did not load.")+"</p>";
       }
@@ -1373,7 +1380,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       try {
         const body = Object.assign(cycleHint(selected), extra||{});
         const res = await api(path, { method:"POST", body: JSON.stringify(body), allowError: true });
-        if (!res.r.ok || res.j.ok === false){ $("cycle-err").textContent = res.j.error || "Could not save that."; }
+        if (!res.r.ok || res.j.ok === false){ $("cycle-err").textContent = res.j.error || (res.j.send && res.j.send.error) || "Could not save that."; }
         if (res.j.legacyStatus && selected) {
           try { await persistContactPatch(selected.id, { status: res.j.legacyStatus }); } catch (_) {}
         }

@@ -10,7 +10,7 @@ import {
 } from "../src/cycle/business-days.ts";
 import { applyOverride, applyNoAnswerSchedule, dueTemplates, scheduleFromCte1 } from "../src/cycle/ladder.ts";
 import { emptyRecord } from "../src/cycle/store.ts";
-import { resolveAssignedRep } from "../src/cycle/rep.ts";
+import { resolveAssignedRep, rosterCompanyEmail } from "../src/cycle/rep.ts";
 import { normalizeLifecycle, legacyStatusFor } from "../src/cycle/lifecycle.ts";
 import { fireTemplate, logAttempt, markContactPaid, reassignOwner, runDueSends, stopForReply } from "../src/cycle/engine.ts";
 import { paidBody } from "../src/cycle/templates.ts";
@@ -92,9 +92,25 @@ describe("assigned rep resolution", () => {
     assert.equal(miss.ok, false);
     const hit = resolveAssignedRep("James", [james, kyle]);
     assert.equal(hit.ok, true);
+    assert.equal(hit.source, "active");
     assert.equal(hit.user.email, "james@cbshippingsolutions.com");
     const unassigned = resolveAssignedRep("New/Unassigned", [james]);
     assert.equal(unassigned.ok, false);
+    assert.equal(rosterCompanyEmail("Pat Nobody"), "");
+  });
+
+  it("resolves known roster emails when the Yard login list is empty", () => {
+    const jamesRoster = resolveAssignedRep("James", [], { allowRoster: true });
+    assert.equal(jamesRoster.ok, true);
+    assert.equal(jamesRoster.source, "roster");
+    assert.equal(jamesRoster.user.email, "james@cbshippingsolutions.com");
+    const kyleRoster = resolveAssignedRep("Kyle Hodgkiss", [], { allowRoster: true });
+    assert.equal(kyleRoster.ok, true);
+    assert.equal(kyleRoster.user.email, "kyle@cbshippingsolutions.com");
+    const cteStillPaused = resolveAssignedRep("James", []);
+    assert.equal(cteStillPaused.ok, false);
+    assert.match(cteStillPaused.reason, /no active Yard login/);
+    assert.equal(rosterCompanyEmail("James Rodda"), "james@cbshippingsolutions.com");
   });
 });
 
@@ -171,6 +187,70 @@ describe("CTE override, stop, reassignment, cron idempotency", () => {
     assert.doesNotMatch(paidBody("Gary"), /\$|\bACH\b|routing/i);
   });
 
+  it("sends paid Next Steps when owner is James and the users list is empty", async () => {
+    const calls = [];
+    const env = envUsers([]);
+    const hint = { id: "c-james-empty", name: "Brent Snyder", email: "brent@test.com", owner: "James" };
+    const result = await markContactPaid(env, hint, "Christopher Banks", async (url, init) => {
+      calls.push({ url, init });
+      return new Response(JSON.stringify({ message_id: "paid-roster", thread_id: "tp-roster" }), { status: 200 });
+    });
+    assert.equal(result.send.ok, true);
+    assert.equal(result.rec.lifecycle, "Paid");
+    assert.equal(result.rec.sends.paid.status, "sent");
+    assert.equal(result.rec.ownerEmail, "james@cbshippingsolutions.com");
+    assert.equal(calls.length, 1);
+    const payload = JSON.parse(calls[0].init.body);
+    assert.deepEqual(payload.to, ["brent@test.com"]);
+    assert.ok(payload.cc.some((addr) => addr.startsWith("christopher@")));
+    assert.ok(payload.cc.some((addr) => addr.startsWith("aliyah@")));
+    assert.ok(payload.cc.includes("james@cbshippingsolutions.com"));
+    assert.deepEqual(payload.reply_to, ["james@cbshippingsolutions.com"]);
+    assert.ok(result.rec.events.some((e) => /roster email/.test(e.text)));
+    const again = await markContactPaid(env, hint, "Christopher Banks", async () => {
+      calls.push({ url: "nope" });
+      return new Response(JSON.stringify({ message_id: "paid-dup" }), { status: 200 });
+    });
+    assert.equal(again.send.duplicate, true);
+    assert.equal(calls.length, 1);
+  });
+
+  it("fails paid cleanly when the client email is missing", async () => {
+    let sends = 0;
+    const env = envUsers([]);
+    const hint = { id: "c-no-email", name: "Brent Snyder", email: "", owner: "James" };
+    const result = await markContactPaid(env, hint, "Christopher Banks", async () => {
+      sends += 1;
+      return new Response(JSON.stringify({ message_id: "should-not" }), { status: 200 });
+    });
+    assert.equal(result.send.ok, false);
+    assert.match(result.send.error, /No client email/);
+    assert.equal(result.rec.lifecycle, "Paid");
+    assert.equal(result.rec.sends.paid.status, "failed");
+    assert.equal(sends, 0);
+    assert.ok(result.rec.events.some((e) => /No client email/.test(e.text)));
+  });
+
+  it("still pauses CTE mail when the assigned rep is not an active Yard login", async () => {
+    let sends = 0;
+    const env = envUsers([]);
+    const hint = { id: "c-cte-pause", name: "Gary Smith", email: "gary@test.com", owner: "James" };
+    const { rec, send } = await logAttempt(env, hint, "no_answer", "James", async () => {
+      sends += 1;
+      return new Response(JSON.stringify({ message_id: "cte-should-not" }), { status: 200 });
+    });
+    assert.equal(sends, 0);
+    assert.equal(send.ok, false);
+    assert.equal(rec.paused, true);
+    assert.match(rec.pauseReason, /no active Yard login/);
+    const again = await fireTemplate(env, rec, "cte1", "cron", async () => {
+      sends += 1;
+      return new Response(JSON.stringify({ message_id: "cte-still-no" }), { status: 200 });
+    });
+    assert.equal(again.ok, false);
+    assert.equal(sends, 0);
+  });
+
   it("skips a second paid email when the invoice Worker already sent it", async () => {
     let sends = 0;
     const env = envUsers([james]);
@@ -216,5 +296,7 @@ describe("Yard cycle surfaces", () => {
     assert.match(page, /function paintCycle/);
     assert.match(page, /\/cycle\/paid/);
     assert.match(page, /skipEmail: true/);
+    assert.match(page, /Retry Next Steps/);
+    assert.match(page, /cycle-paid-retry/);
   });
 });

@@ -73,8 +73,12 @@ async function loadOrCreate(env: CycleEnv, hint: ContactHint): Promise<CycleReco
   return rec;
 }
 
-export function applyRepGate(rec: CycleRecord, users: ActiveUser[]): CycleRecord {
-  const resolved = resolveAssignedRep(rec.owner, users);
+export function applyRepGate(
+  rec: CycleRecord,
+  users: ActiveUser[],
+  opts: { allowRoster?: boolean } = {},
+): CycleRecord {
+  const resolved = resolveAssignedRep(rec.owner, users, opts);
   if (!resolved.ok) {
     rec.paused = true;
     rec.pauseReason = resolved.reason;
@@ -83,6 +87,11 @@ export function applyRepGate(rec: CycleRecord, users: ActiveUser[]): CycleRecord
   }
   rec.ownerEmail = resolved.user.email;
   rec.owner = resolved.user.name || rec.owner;
+  if (resolved.source === "roster") {
+    rec.paused = true;
+    rec.pauseReason = "Assigned rep has no active Yard login. CTE emails paused — Paid Next Steps still send.";
+    return rec;
+  }
   if (rec.pauseReason.startsWith("Assigned") || rec.pauseReason.startsWith("No assigned")) {
     rec.paused = false;
     rec.pauseReason = "";
@@ -246,7 +255,7 @@ export async function markContactPaid(
 ): Promise<{ rec: CycleRecord; send?: unknown }> {
   const rec = await loadOrCreate(env, hint);
   const users = await readUsers(env);
-  applyRepGate(rec, users);
+  applyRepGate(rec, users, { allowRoster: true });
   rec.lifecycle = "Paid";
   rec.stopped = true;
   rec.cteStage = "parked";
@@ -303,16 +312,33 @@ export async function fireTemplate(
     await writeRecord(env, rec);
     return { ok: true, duplicate: true, messageId: existing.messageId };
   }
-  if (!rec.clientEmail && id !== "paid") {
+  if (!rec.clientEmail) {
     rec.paused = true;
-    rec.pauseReason = "No client email. Pause — do not send.";
+    rec.pauseReason = id === "paid"
+      ? "No client email. Pause — do not send Next Steps."
+      : "No client email. Pause — do not send.";
+    if (id === "paid") {
+      rec.sends.paid = {
+        template: "paid",
+        status: "failed",
+        dueAt: existing?.dueAt,
+        failedAt: new Date().toISOString(),
+        error: rec.pauseReason,
+        attempts: (existing?.attempts || 0) + 1,
+      };
+    }
     pushEvent(rec, rec.pauseReason, actor);
     await writeRecord(env, rec);
     return { ok: false, error: rec.pauseReason };
   }
   const users = await readUsers(env);
-  applyRepGate(rec, users);
-  if (rec.paused && !rec.ownerEmail) {
+  applyRepGate(rec, users, id === "paid" ? { allowRoster: true } : {});
+  if (id === "paid" && rec.ownerEmail && rec.pauseReason.startsWith("Assigned rep has no active Yard login")) {
+    pushEvent(rec, "Paid Next Steps CC/reply-to uses roster email — assigned rep has no active Yard login.", actor);
+  } else if (id === "paid" && !rec.ownerEmail) {
+    pushEvent(rec, "Paid Next Steps sending without assigned-rep CC/reply-to (no active login or known roster email).", actor);
+  }
+  if (id !== "paid" && rec.paused && !rec.ownerEmail) {
     pushEvent(rec, rec.pauseReason || "Paused — missing assigned rep email.", actor);
     await writeRecord(env, rec);
     return { ok: false, error: rec.pauseReason || "Paused." };
