@@ -32,6 +32,9 @@ import {
 import { buildModifiedSpec, readModifiedDraft } from "./modified-catalog.ts";
 import { buildProposalSubmit, readProposalLine } from "./proposal-lines.ts";
 import { scopeCrmGetPayload, shouldScopeCrmGet } from "./crm-scope.ts";
+import { rememberUser } from "./cycle/store.ts";
+import { handleAgentMailHook, handleCycleAuthed, runCycleCron } from "./cycle/http.ts";
+import { startWorking } from "./cycle/engine.ts";
 
 const SECURITY = {
   "X-Content-Type-Options": "nosniff",
@@ -148,6 +151,28 @@ async function stampCrmFollowupBody(request: Request): Promise<ArrayBuffer> {
   }
 }
 
+async function appendCycleCrmNote(request: Request, env: Env, contactId: string, text: string): Promise<void> {
+  const noteReq = new Request(new URL("/x/crm/crm-data", request.url), {
+    method: "POST",
+    headers: {
+      Cookie: request.headers.get("Cookie") || "",
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      action: "appendNote",
+      contactId,
+      text,
+      tag: "Book",
+    }),
+  });
+  try {
+    await proxyTool(noteReq, env, "crm", "/crm-data");
+  } catch {
+    // Cycle KV already has the event. CRM note is best-effort so a CRM blip does not roll back the ladder.
+  }
+}
+
 async function proxyTool(request: Request, env: Env, key: ToolKey, rest: string): Promise<Response> {
   const user = await readSession(request, env);
   if (!user) return json(401, { error: "Sign in first." });
@@ -216,6 +241,7 @@ export default {
 
     if (request.method === "GET" && path === "/session") {
       const user = await readSession(request, env);
+      if (user) await rememberUser(env, user);
       return json(200, user ? { ok: true, user: publicUser(user) } : { ok: false });
     }
 
@@ -234,6 +260,7 @@ export default {
       const result = await loginAllTools(env, email, password);
       if (!result.ok) return fail(result.status, result.error || "Could not sign in.");
       const cookies = await makeSession(request, env, result.user);
+      await rememberUser(env, result.user);
       if (asPage) {
         const headers = new Headers({ Location: "/", ...SECURITY });
         for (const c of cookies) headers.append("Set-Cookie", c);
@@ -495,6 +522,15 @@ export default {
       contact.status = plan.stage;
       contact.nextAction = plan.nextAction;
       contact.followUpDate = plan.followUpDate;
+      if (plan.track === "cte") {
+        await startWorking(env, {
+          id,
+          name: String(contact.name || name),
+          email: String(contact.email || draft.email || ""),
+          owner,
+          status: plan.stage,
+        }, user.name || user.email);
+      }
       return json(200, {
         ok: true,
         created,
@@ -632,9 +668,32 @@ export default {
       });
     }
 
+    if (path === "/cycle/hooks/agentmail" && request.method === "POST") {
+      const result = await handleAgentMailHook(env, request);
+      return json(result.status, result.body);
+    }
+
+    if (path.startsWith("/cycle/")) {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      await rememberUser(env, user);
+      const body = request.method === "GET" || request.method === "HEAD" ? {} : await readJson(request);
+      const result = await handleCycleAuthed(path, request.method, env, user, body, url.searchParams);
+      if (request.method === "POST" && path !== "/cycle/contact" && result.status < 300) {
+        const cycle = result.body.cycle as { contactId?: string; events?: Array<{ text?: string }> } | undefined;
+        const latest = cycle?.events?.[0]?.text;
+        const contactId = String(cycle?.contactId || body.id || "").trim();
+        if (contactId && latest) await appendCycleCrmNote(request, env, contactId, latest);
+      }
+      return json(result.status, result.body);
+    }
+
     const tool = matchTool(path);
     if (tool) return proxyTool(request, env, tool.key, tool.rest);
 
     return json(404, { error: "Not found." });
+  },
+  async scheduled(_event, env, ctx): Promise<void> {
+    ctx.waitUntil(runCycleCron(env));
   },
 } satisfies ExportedHandler<Env>;

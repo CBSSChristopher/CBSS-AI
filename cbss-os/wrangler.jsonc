@@ -20,8 +20,13 @@
     { "binding": "PAY", "service": "cbsspay" },
     { "binding": "INVOICE", "service": "cbssinvoice" }
   ],
+  "triggers": {
+    "crons": ["0 * * * *"]
+  },
   "vars": {
     "PUBLIC_TITLE": "The Yard",
+    "AGENTMAIL_INBOX": "cbss@agentmail.to",
+    "REENGAGE_EMAILS_ENABLED": "false",
     "CRM_ORIGIN": "https://cbsscrm.cbss.workers.dev",
     "DESK_ORIGIN": "https://cbssbrain.cbss.workers.dev",
     "PROPOSAL_ORIGIN": "https://cbsscompletetool.cbss.workers.dev",

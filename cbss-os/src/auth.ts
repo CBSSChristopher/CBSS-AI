@@ -25,6 +25,12 @@ export type Env = {
   PROPOSAL_ORIGIN?: string;
   PAY_ORIGIN?: string;
   INVOICE_ORIGIN?: string;
+  AGENTMAIL_API_KEY?: string;
+  AGENTMAIL_INBOX?: string;
+  AGENTMAIL_WEBHOOK_SECRET?: string;
+  US_HOLIDAY_EXTRA?: string;
+  REENGAGE_EMAILS_ENABLED?: string;
+  NEXT_STEPS_PDF_URL?: string;
   SESSIONS?: KVNamespace;
   CRM?: Fetcher;
   DESK?: Fetcher;

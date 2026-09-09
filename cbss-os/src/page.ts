@@ -93,6 +93,12 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; align-items: center; }
     .err { color: #8A1F1F; font-size: 13px; min-height: 1.1em; margin: 8px 0 0; }
     .ok { color: #1f5b38; font-size: 13px; }
+    .cycle-box { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 10px 0; background: #fbf8f0; }
+    .cycle-box h3 { margin: 0 0 6px; }
+    .cycle-tl { font-size: 12px; color: #3d4d5c; margin: 6px 0 0; line-height: 1.35; }
+    .cycle-flag { color: #8A1F1F; font-size: 13px; font-weight: 650; }
+    #cycle-alerts { background: #10263f; color: #fff; padding: 10px 18px; font-size: 13px; }
+    #cycle-alerts div { margin: 4px 0; }
     .hide { display: none !important; }
     .save-flash {
       background: #0b3d24; color: #fff; border: 3px solid var(--gold); border-radius: 12px;
@@ -352,6 +358,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         </div>
       </header>
       <main>
+        <div id="cycle-alerts" class="hide"></div>
         <section id="mod-home">
           <h1>One book. The whole desk.</h1>
           <p class="muted">This is The Yard. Sign in once. Work CRM, Desk, Proposal, Modified, and Money from here.</p>
@@ -820,7 +827,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
           </div>
           <div class="card" style="margin-top:12px">
             <h2>Recent invoices</h2>
-            <p class="muted">Mark paid when ACH / wire or card payment clears. That records paid and notifies Master Chief to email Next Steps. This tool does not send that email.</p>
+            <p class="muted">Mark paid when ACH / wire or card payment clears. The invoice Worker emails Next Steps from AgentMail. This screen does not send that email a second time.</p>
             <div class="row"><button type="button" class="secondary" id="i-list">Refresh</button></div>
             <div class="hits" id="i-hits"></div>
           </div>
@@ -1287,6 +1294,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         +'<p class="muted">'+esc([selected.company,selected.phone,selected.email,selected.city,selected.state,selected.zip].filter(Boolean).join(" · "))+"</p>"
         +'<p>Owner '+esc(selected.owner||"—")+' · <span class="stage-chip">'+esc(contactStage(selected)||"No stage")+"</span>"+(selected.source?" · "+esc(selected.source):"")+(selected.amount?" · proposal "+money(selected.amount):"")+(invoicePaidYes(selected)?" · invoice paid":(selected.amount?" · invoice not paid":""))+(selected.dnc?" · DNC":"")+"</p>"
         +'<label for="crm-stage">Stage</label><select id="crm-stage">'+stageOptions(contactStage(selected))+"</select>"
+        +'<div class="cycle-box" id="cycle-box"><p class="muted">Loading lifecycle…</p></div>'
         +'<div class="acts">'
         +(callHref ? '<a class="gold" href="'+callHref+'">Call</a>' : '<button type="button" class="secondary" disabled title="No phone on this contact">Call</button>')
         +(gmail ? '<a class="secondary" href="'+esc(gmail)+'" target="_blank" rel="noopener">Email</a>' : '<button type="button" class="secondary" disabled title="No email on this contact">Email</button>')
@@ -1311,7 +1319,82 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       if (editBtn) editBtn.onclick = function(){ openContactEdit(selected); };
       const stageSel = $("crm-stage");
       if (stageSel) stageSel.onchange = function(){ saveContactStage(selected.id, stageSel.value); };
+      paintCycle(selected);
       if (window.matchMedia("(max-width: 860px)").matches) $("crm-detail").scrollIntoView({ behavior:"smooth", block:"start" });
+    }
+    function cycleHint(c){
+      return { id:String(c.id), name:c.name||"", email:c.email||"", owner:c.owner||"", status:contactStage(c)||"" };
+    }
+    async function paintCycle(c){
+      const box = $("cycle-box");
+      if (!box || !c) return;
+      try {
+        const res = await api("/cycle/contact", { method:"POST", body: JSON.stringify(cycleHint(c)), allowError: true });
+        if (!res.r.ok || !res.j.ok){ box.innerHTML = '<p class="cycle-flag">'+esc(res.j.error||"Lifecycle did not load.")+"</p>"; return; }
+        const cy = res.j.cycle || {};
+        const lives = res.j.lifecycles || [];
+        const opts = lives.map(function(v){ return '<option value="'+esc(v)+'"'+(cy.lifecycle===v?" selected":"")+">"+esc(v)+"</option>"; }).join("");
+        const flags = []
+          .concat(cy.paused ? ['<p class="cycle-flag">Paused · '+esc(cy.pauseReason||"")+"</p>"] : [])
+          .concat(cy.stopped ? ['<p class="ok">'+esc(cy.stoppedReason||"Ladder stopped")+"</p>"] : [])
+          .join("");
+        const tl = (cy.events||[]).slice(0,8).map(function(e){
+          return '<div class="cycle-tl"><strong>'+esc((e.at||"").replace("T"," ").slice(0,16))+"</strong> "+esc(e.text||"")+"</div>";
+        }).join("") || '<p class="muted">No cycle events yet.</p>';
+        box.innerHTML = "<h3>Lifecycle</h3>"
+          +"<p>Assigned "+esc(cy.owner||c.owner||"—")+(cy.ownerEmail?" · "+esc(cy.ownerEmail):"")+" · CTE "+esc(cy.cteStage||"—")+" · next "+esc(cy.nextDue||"—")+"</p>"
+          +flags
+          +'<label for="cycle-life">Lifecycle</label><select id="cycle-life">'+opts+"</select>"
+          +'<div class="row">'
+          +'<button type="button" class="secondary" id="cycle-logged">Logged attempt</button>'
+          +'<button type="button" class="secondary" id="cycle-no">No answer</button>'
+          +'<button type="button" class="gold" id="cycle-replied">Replied</button>'
+          +'<button type="button" class="secondary" id="cycle-over">Override CTE</button>'
+          +(cy.lifecycle==="Paid"||cy.lifecycle==="Delivered"||cy.lifecycle==="Lost"||cy.lifecycle==="Not interested"||cy.lifecycle==="Bought elsewhere" ? "" : '<button type="button" class="gold" id="cycle-paid">Mark paid</button>')
+          +"</div>"
+          +'<div id="cycle-over-form" class="hide"><label>Next step</label><input id="cycle-when" type="datetime-local" /><label>Reason (optional)</label><input id="cycle-reason" /><div class="row"><button type="button" class="gold" id="cycle-over-save">Save override</button></div></div>'
+          +'<p class="err" id="cycle-err"></p>'
+          +'<div>'+tl+"</div>";
+        $("cycle-logged").onclick = function(){ cycleAct("/cycle/attempt", { outcome:"logged" }); };
+        $("cycle-no").onclick = function(){ cycleAct("/cycle/attempt", { outcome:"no_answer" }); };
+        $("cycle-replied").onclick = function(){ cycleAct("/cycle/replied", {}); };
+        $("cycle-over").onclick = function(){ $("cycle-over-form").classList.toggle("hide"); };
+        $("cycle-over-save").onclick = function(){ cycleAct("/cycle/override", { when:$("cycle-when").value, reason:$("cycle-reason").value }); };
+        $("cycle-life").onchange = function(){ cycleAct("/cycle/lifecycle", { lifecycle:$("cycle-life").value }); };
+        const paidBtn = $("cycle-paid");
+        if (paidBtn) paidBtn.onclick = function(){ cycleAct("/cycle/paid", {}); };
+      } catch (err) {
+        box.innerHTML = '<p class="cycle-flag">'+(err && err.message ? esc(err.message) : "Lifecycle did not load.")+"</p>";
+      }
+    }
+    async function cycleAct(path, extra){
+      if (!selected) return;
+      $("cycle-err").textContent = "";
+      try {
+        const body = Object.assign(cycleHint(selected), extra||{});
+        const res = await api(path, { method:"POST", body: JSON.stringify(body), allowError: true });
+        if (!res.r.ok || res.j.ok === false){ $("cycle-err").textContent = res.j.error || "Could not save that."; }
+        if (res.j.legacyStatus && selected) {
+          try { await persistContactPatch(selected.id, { status: res.j.legacyStatus }); } catch (_) {}
+        }
+        if (path === "/cycle/lifecycle" && String(extra && extra.lifecycle||"").toLowerCase()==="paid") {
+          try { await persistContactPatch(selected.id, { invoicePaid: "yes" }); } catch (_) {}
+        }
+        await paintCycle(selected);
+        renderStats(); renderContacts();
+      } catch (err) {
+        $("cycle-err").textContent = (err && err.message) || "Could not save that.";
+      }
+    }
+    async function loadCycleAlerts(){
+      try {
+        const res = await api("/cycle/alerts", { allowError: true });
+        const items = res.j.alerts || [];
+        const box = $("cycle-alerts");
+        if (!items.length){ box.classList.add("hide"); box.innerHTML=""; return; }
+        box.classList.remove("hide");
+        box.innerHTML = items.slice(0,5).map(function(a){ return "<div>"+esc(a.text||"")+"</div>"; }).join("");
+      } catch (_) {}
     }
     function followupStamp(){
       return new Date(Date.now() + 120000).toISOString();
@@ -1517,6 +1600,11 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       edits[String(id)] = patch;
       await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"saveContactEdits", contactEdits: edits }) });
       await recordContactChange(id, before, patch);
+      if (patch.owner && String(patch.owner) !== String(before.owner||"")) {
+        try {
+          await api("/cycle/reassign", { method:"POST", body: JSON.stringify({ id:String(id), owner:patch.owner, name:row.name, email:row.email }), allowError: true });
+        } catch (_) {}
+      }
       if (row && row.id) Object.assign(row, patch);
       if (selected && String(selected.id)===String(id)) Object.assign(selected, patch);
       if (patch.status){
@@ -2549,6 +2637,16 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       const res = await api("/x/invoice/invoice/mark-paid", { method:"POST", body: JSON.stringify({ id:id }), allowError: true });
       if (!res.r.ok || !res.j.ok){ $("i-err").textContent = res.j.error || "Paid but Next Steps notify failed — retry"; }
       else $("i-err").textContent = "";
+      const card = res.j.card || {};
+      try {
+        await api("/cycle/paid", { method:"POST", body: JSON.stringify({
+          id: selected ? String(selected.id) : "",
+          email: card.email || (selected && selected.email) || "",
+          name: card.name || (selected && selected.name) || "",
+          owner: selected ? selected.owner : (user && user.name) || "",
+          skipEmail: true
+        }), allowError: true });
+      } catch (_) {}
       await loadInvoices();
     }
     async function loadInvoices(){
@@ -2559,7 +2657,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       $("i-hits").innerHTML = cards.slice(0,12).map(function(c){
         const paid = String(c.status||"").toLowerCase() === "paid";
         const markId = c.documentNumber || c.id || "";
-        const mark = !markId ? "" : paid && c.nextStepsWebhookSentAt
+        const mark = !markId ? "" : paid && (c.nextStepsEmailSentAt || c.nextStepsWebhookSentAt)
           ? '<div class="ok">Paid / Next Steps queued</div>'
           : paid
             ? '<div>Paid but Next Steps notify failed — retry</div><div class="row"><button type="button" class="gold" data-mark-paid="'+esc(markId)+'">Retry Next Steps</button></div>'
@@ -2582,7 +2680,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       try {
         const res = await api("/session");
         if (user) return;
-        if (res.j.ok && res.j.user){ user=res.j.user; greet(user.name); paintTools(user.tools); show("app"); openMod("home"); loadCrm(); }
+        if (res.j.ok && res.j.user){ user=res.j.user; greet(user.name); paintTools(user.tools); show("app"); openMod("home"); loadCrm(); loadCycleAlerts(); }
         else show("login");
       } catch (err) {
         show("login");

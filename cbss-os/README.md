@@ -22,7 +22,8 @@ Navy `#0B1F3A` / gold `#C9A227` / cream `#F7F4EC`.
 - **Desk** — Harbor (CBSS AI) first, Container One / USA Containers price match, then call scraps and email
 - **Proposal** — stepped quote: pick the box, Get CBSS Price, proposal amount, submit
 - **Modified** — build-out spec: Apex helical pylons, doors, roll-up, windows, framing, insulation, electrical. No invented prices
-- **Money** — branded invoice (ACH/wire or card). Mark paid records the KV card and fires the Next Steps webhook. No Veem. This shell does not send the Next Steps email.
+- **Money** — branded invoice (ACH/wire or card). Mark paid records the KV card; the invoice Worker emails Next Steps from AgentMail. No Veem. No Master Chief webhook.
+- **Lifecycle / CTE** — New → Working → Quoted → Invoiced → Paid → Delivered (exits: Lost, Not interested, Bought elsewhere). Contact card shows assigned rep, CTE stage, next due, compact timeline, Logged attempt / No answer / Replied / Override CTE / Mark paid.
 
 ## Hard rules
 
@@ -31,3 +32,28 @@ Navy `#0B1F3A` / gold `#C9A227` / cream `#F7F4EC`.
 - Do not mix Side door OS 2D / OS 4D / Full open
 - Do not send Gmail from this tool
 - Do not change the five live backend workers from this folder
+
+## Autonomous CTE + AgentMail
+
+Workers own the ladder. Grok Bot / Master Chief / AgentMail MCP are not used at runtime.
+
+- Secret: `AGENTMAIL_API_KEY`. Inbox var: `AGENTMAIL_INBOX=cbss@agentmail.to`.
+- Cron: `0 * * * *`. Sends only 08:00–19:00 America/Chicago. Each `contactId:template` send is idempotent.
+- CTE1 = human call/text day. **No answer** sends the intro and schedules CTE2 +1, CTE3 +3, CTE4 +5 business days from the CTE1 date (weekends + U.S. federal holidays for any year; optional `US_HOLIDAY_EXTRA=YYYY-MM-DD,YYYY-MM-DD`).
+- **Replied** (button) or inbound AgentMail reply (webhook `POST /cycle/hooks/agentmail` with `AGENTMAIL_WEBHOOK_SECRET`, plus hourly poll) cancels remaining sends and writes `Client replied · Ladder stopped`. System-detected replies alert the **current** assigned rep only (in-Yard + AgentMail).
+- Override CTE sets the next unsent step; later steps keep the original gaps. Reply-stop always wins.
+- Assigned rep comes from the contact owner matched to an active Yard login (`cycle:users`). Missing / inactive rep or missing client email pauses and flags — never guesses `firstname@`.
+- Reassignment keeps history; future touches and alerts go to the new rep.
+- Lost / Not interested / Bought elsewhere write trigger hooks and named templates. Sending stays off until `REENGAGE_EMAILS_ENABLED=true`.
+- Paid Next Steps: invoice Worker sends once after Mark paid (To client; CC Christopher, Aliyah, current rep). Yard Money then records Paid on the cycle with `skipEmail` so the client is not mailed twice. Lifecycle **Mark paid** on the contact still sends if no invoice send happened.
+- Expected Next Steps PDF: `cbss-invoice/assets/CBSS-Next-Steps-After-Your-Order.pdf` or secret `NEXT_STEPS_PDF_URL`.
+- Staff cycle actions also `appendNote` to CRM (tag Book). Cron events live on the contact cycle timeline in Yard KV.
+
+Register the inbound webhook (after the secret exists):
+
+```
+POST https://api.agentmail.to/v0/webhooks
+{ "url": "https://floor.cbshippingsolutions.app/cycle/hooks/agentmail", "event_types": ["message.received"], "inbox_ids": ["cbss@agentmail.to"] }
+```
+
+Store the returned `whsec_…` as `AGENTMAIL_WEBHOOK_SECRET` on `cbssos`. Hourly poll still runs if the hook is missing.
