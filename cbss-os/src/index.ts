@@ -35,6 +35,7 @@ import { scopeCrmGetPayload, shouldScopeCrmGet } from "./crm-scope.ts";
 import { rememberUser } from "./cycle/store.ts";
 import { handleAgentMailHook, handleCycleAuthed, runCycleCron } from "./cycle/http.ts";
 import { startWorking } from "./cycle/engine.ts";
+import { applyLifecycleToCrmBook, type CrmLifecyclePatch } from "./cycle/crm-sync.ts";
 
 const SECURITY = {
   "X-Content-Type-Options": "nosniff",
@@ -148,6 +149,51 @@ async function stampCrmFollowupBody(request: Request): Promise<ArrayBuffer> {
     return new TextEncoder().encode(JSON.stringify(next)).buffer as ArrayBuffer;
   } catch {
     return buf;
+  }
+}
+
+async function crmWorkerFetch(request: Request, env: Env, rest: string, init: RequestInit): Promise<Response | null> {
+  const user = await readSession(request, env);
+  if (!user) return null;
+  const cookie = user.tools.crm;
+  if (!cookie) return null;
+  const o = origins(env);
+  const target = o.crm + rest;
+  const headers = new Headers();
+  headers.set("User-Agent", UA);
+  headers.set("Origin", o.crm);
+  headers.set("Accept", "application/json");
+  headers.set("Cookie", cookie);
+  if (init.body) headers.set("Content-Type", "application/json");
+  const req = new Request(target, { ...init, headers, redirect: "manual" });
+  return env.CRM ? env.CRM.fetch(req) : fetch(req);
+}
+
+async function syncLifecycleCrmFields(request: Request, env: Env, contactId: string, patch: CrmLifecyclePatch): Promise<void> {
+  const id = String(contactId || "").trim();
+  if (!id || !patch?.status) return;
+  const edits: Record<string, Record<string, unknown>> = {};
+  edits[id] = { ...patch };
+  edits[String(contactId)] = { ...patch };
+  try {
+    await crmWorkerFetch(request, env, "/crm-data", {
+      method: "POST",
+      body: JSON.stringify({ action: "saveContactEdits", contactEdits: edits }),
+    });
+  } catch {
+    // Cycle KV already has Lifecycle. Contact edit is best-effort.
+  }
+  try {
+    const getRes = await crmWorkerFetch(request, env, "/crm-data?action=get&omitNotes=1", { method: "GET" });
+    if (!getRes || !getRes.ok) return;
+    const book = await getRes.json().catch(() => ({})) as Parameters<typeof applyLifecycleToCrmBook>[0];
+    const next = applyLifecycleToCrmBook(book, id, patch);
+    await crmWorkerFetch(request, env, "/crm-data", {
+      method: "POST",
+      body: JSON.stringify({ action: "saveDeals", deals: next.deals || [] }),
+    });
+  } catch {
+    // Deal stage follows on the next client persistContactPatch if this write misses.
   }
 }
 
@@ -684,6 +730,10 @@ export default {
         const latest = cycle?.events?.[0]?.text;
         const contactId = String(cycle?.contactId || body.id || "").trim();
         if (contactId && latest) await appendCycleCrmNote(request, env, contactId, latest);
+        const crmPatch = result.body.crmPatch as CrmLifecyclePatch | undefined;
+        if (contactId && crmPatch && crmPatch.status) {
+          await syncLifecycleCrmFields(request, env, contactId, crmPatch);
+        }
       }
       return json(result.status, result.body);
     }

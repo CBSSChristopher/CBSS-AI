@@ -13,7 +13,7 @@ import {
   type CycleRecord,
 } from "./store.ts";
 import { firstNameOf, officeCopy, resolveAssignedRep, type ActiveUser } from "./rep.ts";
-import { isExit, legacyStatusFor, normalizeLifecycle, type Lifecycle } from "./lifecycle.ts";
+import { crmPatchForLifecycle, isExit, legacyStatusFor, normalizeLifecycle, type Lifecycle } from "./lifecycle.ts";
 import { REENGAGE_TEMPLATE_IDS, renderTemplate, type TemplateId } from "./templates.ts";
 import { loadNextStepsPdf } from "../../../cbss-invoice/src/next-steps-pdf.ts";
 
@@ -220,7 +220,7 @@ export async function setLifecycle(
   life: Lifecycle,
   actor: string,
   fetchImpl: typeof fetch = fetch,
-): Promise<{ rec: CycleRecord; legacyStatus: string; sent?: boolean; error?: string }> {
+): Promise<{ rec: CycleRecord; legacyStatus: string; crmPatch: ReturnType<typeof crmPatchForLifecycle>; sent?: boolean; error?: string }> {
   const rec = await loadOrCreate(env, hint);
   const users = await readUsers(env);
   applyRepGate(rec, users);
@@ -246,7 +246,7 @@ export async function setLifecycle(
     rec.nextDue = "";
   }
   await writeRecord(env, rec);
-  return { rec, legacyStatus: legacyStatusFor(life) };
+  return { rec, legacyStatus: legacyStatusFor(life), crmPatch: crmPatchForLifecycle(life) };
 }
 
 export async function markContactPaid(
@@ -255,7 +255,7 @@ export async function markContactPaid(
   actor: string,
   fetchImpl: typeof fetch = fetch,
   opts: { skipEmail?: boolean } = {},
-): Promise<{ rec: CycleRecord; send?: unknown }> {
+): Promise<{ rec: CycleRecord; send?: unknown; legacyStatus: string; crmPatch: ReturnType<typeof crmPatchForLifecycle> }> {
   const rec = await loadOrCreate(env, hint);
   const users = await readUsers(env);
   applyRepGate(rec, users, { allowRoster: true });
@@ -264,19 +264,20 @@ export async function markContactPaid(
   rec.cteStage = "parked";
   rec.nextDue = "";
   pushEvent(rec, "Marked paid. Next Steps email once-only.", actor);
+  const crmPatch = crmPatchForLifecycle("Paid");
   if (opts.skipEmail) {
     pushEvent(rec, "Paid recorded. Next Steps email owned by the invoice Worker (no second send).", actor);
     await writeRecord(env, rec);
-    return { rec, send: { ok: true, skipped: true } };
+    return { rec, send: { ok: true, skipped: true }, legacyStatus: crmPatch.status, crmPatch };
   }
   if (rec.sends.paid?.status === "sent") {
     pushEvent(rec, "Skipped duplicate paid / Next Steps email.", actor);
     await writeRecord(env, rec);
-    return { rec, send: { ok: true, duplicate: true } };
+    return { rec, send: { ok: true, duplicate: true }, legacyStatus: crmPatch.status, crmPatch };
   }
   rec.sends.paid = { template: "paid", status: "pending", dueAt: new Date().toISOString(), attempts: 0 };
   const send = await fireTemplate(env, rec, "paid", actor, fetchImpl);
-  return { rec, send };
+  return { rec, send, legacyStatus: crmPatch.status, crmPatch };
 }
 
 export async function reassignOwner(

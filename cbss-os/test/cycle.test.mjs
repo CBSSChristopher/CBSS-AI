@@ -11,8 +11,9 @@ import {
 import { applyOverride, applyNoAnswerSchedule, dueTemplates, scheduleFromCte1 } from "../src/cycle/ladder.ts";
 import { emptyRecord } from "../src/cycle/store.ts";
 import { resolveAssignedRep, rosterCompanyEmail } from "../src/cycle/rep.ts";
-import { normalizeLifecycle, legacyStatusFor } from "../src/cycle/lifecycle.ts";
-import { fireTemplate, logAttempt, markContactPaid, reassignOwner, runDueSends, stopForReply } from "../src/cycle/engine.ts";
+import { crmPatchForLifecycle, normalizeLifecycle, legacyStatusFor } from "../src/cycle/lifecycle.ts";
+import { applyLifecycleToCrmBook } from "../src/cycle/crm-sync.ts";
+import { fireTemplate, logAttempt, markContactPaid, reassignOwner, runDueSends, setLifecycle, stopForReply } from "../src/cycle/engine.ts";
 import { paidBody } from "../src/cycle/templates.ts";
 
 const page = readFileSync(new URL("../src/page.ts", import.meta.url), "utf8");
@@ -94,6 +95,42 @@ describe("lifecycle compatibility", () => {
     assert.equal(normalizeLifecycle("Won"), "Paid");
     assert.equal(legacyStatusFor("Working"), "CTE in progress");
     assert.equal(legacyStatusFor("Not interested"), "Lost");
+  });
+
+  it("syncs Lifecycle onto CRM stage and invoice-paid, especially Paid", () => {
+    assert.deepEqual(crmPatchForLifecycle("New"), { status: "New Lead" });
+    assert.deepEqual(crmPatchForLifecycle("Working"), { status: "CTE in progress" });
+    assert.deepEqual(crmPatchForLifecycle("Quoted"), { status: "Quote" });
+    assert.deepEqual(crmPatchForLifecycle("Invoiced"), { status: "Proposal Sent" });
+    assert.deepEqual(crmPatchForLifecycle("Paid"), { status: "Won", invoicePaid: "yes" });
+    assert.deepEqual(crmPatchForLifecycle("Delivered"), { status: "Won", invoicePaid: "yes" });
+    assert.deepEqual(crmPatchForLifecycle("Lost"), { status: "Lost" });
+    assert.deepEqual(crmPatchForLifecycle("Not interested"), { status: "Lost" });
+    assert.deepEqual(crmPatchForLifecycle("Bought elsewhere"), { status: "Lost" });
+
+    const book = applyLifecycleToCrmBook({
+      contacts: [{ id: "brent", name: "Brent Snyder", status: "Proposal Sent", invoicePaid: "no" }],
+      deals: [{ id: "d1", contactId: "brent", stage: "Proposal Sent", contactName: "Brent Snyder" }],
+    }, "brent", crmPatchForLifecycle("Paid"));
+    assert.equal(book.contacts[0].status, "Won");
+    assert.equal(book.contacts[0].invoicePaid, "yes");
+    assert.equal(book.deals[0].stage, "Won");
+    assert.notEqual(book.deals[0].stage, "Proposal Sent");
+    assert.equal(book.contactEdits.brent.status, "Won");
+    assert.equal(book.contactEdits.brent.invoicePaid, "yes");
+  });
+
+  it("setLifecycle and markContactPaid return the CRM patch for Paid", async () => {
+    const env = envUsers([james]);
+    const quoted = await setLifecycle(env, { id: "c-life", name: "Gary Smith", email: "gary@test.com", owner: "James" }, "Quoted", "James");
+    assert.equal(quoted.legacyStatus, "Quote");
+    assert.deepEqual(quoted.crmPatch, { status: "Quote" });
+    const paid = await markContactPaid(env, { id: "c-life", name: "Gary Smith", email: "gary@test.com", owner: "James" }, "James", async () => {
+      return new Response(JSON.stringify({ message_id: "paid-sync", thread_id: "t-sync" }), { status: 200 });
+    });
+    assert.equal(paid.rec.lifecycle, "Paid");
+    assert.equal(paid.legacyStatus, "Won");
+    assert.deepEqual(paid.crmPatch, { status: "Won", invoicePaid: "yes" });
   });
 });
 
@@ -338,6 +375,18 @@ describe("Yard cycle surfaces", () => {
     assert.match(page, /skipEmail: true/);
     assert.match(page, /Retry Next Steps/);
     assert.match(page, /cycle-paid-retry/);
+    assert.doesNotMatch(page, /id="crm-stage"/);
+    assert.doesNotMatch(page, /label for="crm-stage">Stage/);
+    assert.match(page, /id="cycle-lives"/);
+    assert.match(page, /data-life/);
+    assert.match(page, /function applyCycleCrmPatch/);
+    assert.match(page, /crmPatch/);
+    assert.match(page, /invoicePaid: "yes"/);
+    assert.match(http, /crmPatch/);
+    assert.match(http, /life === "Paid"/);
+    assert.match(index, /syncLifecycleCrmFields/);
+    assert.match(index, /saveContactEdits/);
+    assert.match(index, /saveDeals/);
     assert.match(engineSrc, /loadNextStepsPdf/);
     assert.doesNotMatch(engineSrc, /url:\s*pdfUrl|filename: "CBSS-Next-Steps-After-Your-Order\.pdf", content_type: "application\/pdf", url:/);
   });

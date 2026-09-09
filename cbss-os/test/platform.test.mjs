@@ -225,7 +225,8 @@ describe("The Yard CRM edit and Money invoice send", () => {
     assert.match(page, /<th>Stage<\/th>/);
     assert.match(page, /id="crm-edit"/);
     assert.match(page, /id="contact-edit"/);
-    assert.match(page, /id="crm-stage"/);
+    assert.doesNotMatch(page, /id="crm-stage"/);
+    assert.match(page, /Lifecycle is how you move this deal/);
     assert.match(page, /function contactStage/);
     assert.match(page, /function openContactEdit/);
     assert.match(page, /function persistContactPatch/);
@@ -278,6 +279,7 @@ describe("The Yard CRM edit and Money invoice send", () => {
       assert.match(page, new RegExp('id="' + id + '"'));
     }
     assert.match(page, />Proposal amount</);
+    assert.match(page, /<select id="m-status" disabled>/);
     assert.match(page, />Invoice paid</);
     assert.match(page, /they paid the invoice/);
     assert.match(page, /they have not paid the invoice/);

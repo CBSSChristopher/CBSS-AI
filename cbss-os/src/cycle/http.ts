@@ -15,7 +15,7 @@ import {
   type ContactHint,
   type CycleEnv,
 } from "./engine.ts";
-import { EXITS, LIFECYCLES, normalizeLifecycle, type Lifecycle } from "./lifecycle.ts";
+import { crmPatchForLifecycle, EXITS, LIFECYCLES, normalizeLifecycle, type Lifecycle } from "./lifecycle.ts";
 import { readAlerts } from "./store.ts";
 
 function hintFrom(body: Record<string, unknown>, fallbackId = ""): ContactHint {
@@ -67,17 +67,44 @@ export async function handleCycleAuthed(
   if (method === "POST" && path === "/cycle/lifecycle") {
     const life = normalizeLifecycle(body.lifecycle || body.status);
     if (!life) return { status: 400, body: { error: "Pick a lifecycle status." } };
+    if (life === "Paid") {
+      const { rec, send, crmPatch } = await markContactPaid(env, hint, actor);
+      const sendRec = send && typeof send === "object" ? send as { ok?: boolean; error?: string } : {};
+      const ok = sendRec.ok !== false;
+      return {
+        status: 200,
+        body: {
+          ok,
+          cycle: publicCycle(rec),
+          send,
+          crmPatch,
+          legacyStatus: crmPatch.status,
+          ...(ok ? {} : { error: sendRec.error || "Next Steps email did not send." }),
+        },
+      };
+    }
     const result = await setLifecycle(env, hint, life as Lifecycle, actor);
-    return { status: 200, body: { ok: true, cycle: publicCycle(result.rec), legacyStatus: result.legacyStatus } };
+    const crmPatch = result.crmPatch || crmPatchForLifecycle(life as Lifecycle);
+    return { status: 200, body: { ok: true, cycle: publicCycle(result.rec), legacyStatus: crmPatch.status, crmPatch } };
   }
   if (method === "POST" && path === "/cycle/paid") {
     if (!hint.id && !hint.email) return { status: 400, body: { error: "Missing contact id or email." } };
     if (!hint.id) hint.id = `email:${hint.email}`;
     const skipEmail = body.skipEmail === true || body.skip_email === true;
-    const { rec, send } = await markContactPaid(env, hint, actor, fetch, { skipEmail });
+    const { rec, send, crmPatch } = await markContactPaid(env, hint, actor, fetch, { skipEmail });
     const sendRec = send && typeof send === "object" ? send as { ok?: boolean; error?: string } : {};
     const ok = sendRec.ok !== false;
-    return { status: 200, body: { ok, cycle: publicCycle(rec), send, ...(ok ? {} : { error: sendRec.error || "Next Steps email did not send." }) } };
+    return {
+      status: 200,
+      body: {
+        ok,
+        cycle: publicCycle(rec),
+        send,
+        crmPatch,
+        legacyStatus: crmPatch.status,
+        ...(ok ? {} : { error: sendRec.error || "Next Steps email did not send." }),
+      },
+    };
   }
   if (method === "POST" && path === "/cycle/reassign") {
     const rec = await reassignOwner(env, hint, actor);
