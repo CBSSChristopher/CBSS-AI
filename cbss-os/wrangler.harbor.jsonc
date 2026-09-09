@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "theyard",
+  "main": "src/harbor-alias.ts",
+  "compatibility_date": "2026-08-29",
+  "workers_dev": true,
+  "preview_urls": false,
+  "routes": [
+    { "pattern": "floor.cbshippingsolutions.app/*", "zone_name": "cbshippingsolutions.app" },
+    { "pattern": "go.cbshippingsolutions.app/*", "zone_name": "cbshippingsolutions.app" },
+    { "pattern": "yard.cbshippingsolutions.app/*", "zone_name": "cbshippingsolutions.app" },
+    { "pattern": "theyard.cbshippingsolutions.app/*", "zone_name": "cbshippingsolutions.app" },
+    { "pattern": "house.cbshippingsolutions.app/*", "zone_name": "cbshippingsolutions.app" },
+    { "pattern": "crm.cbshippingsolutions.app/*", "zone_name": "cbshippingsolutions.app" }
+  ],
+  "services": [
+    { "binding": "HOUSE", "service": "cbssos" }
+  ]
+}
