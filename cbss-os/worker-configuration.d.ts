@@ -11,5 +11,6 @@ interface Env {
   PROPOSAL?: Fetcher;
   PAY?: Fetcher;
   INVOICE?: Fetcher;
+  ASSETS?: Fetcher;
   PUBLIC_TITLE?: string;
 }

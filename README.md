@@ -21,5 +21,6 @@ Backend workers (do not bookmark these for day-to-day work):
 npx wrangler secret put AGENTMAIL_API_KEY
 # optional
 npx wrangler secret put AGENTMAIL_WEBHOOK_SECRET   # cbssos only, inbound reply hook
-npx wrangler secret put NEXT_STEPS_PDF_URL
 ```
+
+Paid Next Steps attaches `cbss-invoice/assets/CBSS-Next-Steps-After-Your-Order.pdf` as AgentMail `content` (base64). Do not set or use `NEXT_STEPS_PDF_URL` for attach.

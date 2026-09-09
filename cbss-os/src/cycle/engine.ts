@@ -15,6 +15,7 @@ import {
 import { firstNameOf, officeCopy, resolveAssignedRep, type ActiveUser } from "./rep.ts";
 import { isExit, legacyStatusFor, normalizeLifecycle, type Lifecycle } from "./lifecycle.ts";
 import { REENGAGE_TEMPLATE_IDS, renderTemplate, type TemplateId } from "./templates.ts";
+import { loadNextStepsPdf } from "../../../cbss-invoice/src/next-steps-pdf.ts";
 
 export type CycleEnv = {
   SESSIONS?: KVNamespace;
@@ -22,7 +23,9 @@ export type CycleEnv = {
   AGENTMAIL_INBOX?: string;
   US_HOLIDAY_EXTRA?: string;
   REENGAGE_EMAILS_ENABLED?: string;
+  /** Deprecated. Paid Next Steps never attaches by URL. */
   NEXT_STEPS_PDF_URL?: string;
+  ASSETS?: Fetcher;
 };
 
 export type ContactHint = {
@@ -358,10 +361,8 @@ export async function fireTemplate(
     repEmail: rec.ownerEmail,
   });
   const cc = id === "paid" ? [...officeCopy(), rec.ownerEmail].filter(Boolean) : [];
-  const pdfUrl = String(env.NEXT_STEPS_PDF_URL || "").trim();
-  const attachments = id === "paid" && pdfUrl
-    ? [{ filename: "CBSS-Next-Steps-After-Your-Order.pdf", content_type: "application/pdf", url: pdfUrl }]
-    : undefined;
+  const pdf = id === "paid" ? await loadNextStepsPdf(env) : null;
+  const attachments = pdf ? [pdf] : undefined;
   const result = await sendAgentMail(
     env,
     {
@@ -394,7 +395,7 @@ export async function fireTemplate(
       rec.nextDue = "";
       if (id === "cte4") pushEvent(rec, "CTE4 sent. Ladder parked.", actor);
       if (id === "paid" && !attachments) {
-        pushEvent(rec, "Paid email sent without PDF. Set NEXT_STEPS_PDF_URL or add cbss-invoice/assets/CBSS-Next-Steps-After-Your-Order.pdf.", actor);
+        pushEvent(rec, "Paid email sent without PDF. Add cbss-invoice/assets/CBSS-Next-Steps-After-Your-Order.pdf (URL attach is not used).", actor);
       }
     } else {
       rec.nextDue = nextOpenDue(rec);

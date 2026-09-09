@@ -1,7 +1,8 @@
 import { splitName, type InvoiceCard } from "./waave.ts";
+import { NEXT_STEPS_PDF_NAME, loadNextStepsPdf } from "./next-steps-pdf.ts";
 
+export { NEXT_STEPS_PDF_NAME };
 export const LIST_KEY = "invoices";
-export const NEXT_STEPS_PDF_NAME = "CBSS-Next-Steps-After-Your-Order.pdf";
 export const NEXT_STEPS_RETRY_ERROR = "Paid but Next Steps notify failed — retry";
 export const NEXT_STEPS_UNCONFIGURED_ERROR =
   "Paid. Next Steps email is not configured. Set AGENTMAIL_API_KEY on this Worker (inbox cbss@agentmail.to).";
@@ -82,20 +83,6 @@ export function paidAlreadySent(card: InvoiceCard): boolean {
   return Boolean(card.nextStepsEmailSentAt || card.nextStepsWebhookSentAt);
 }
 
-export async function loadNextStepsPdf(
-  env: Env,
-  fetchImpl: typeof fetch = fetch,
-): Promise<{ filename: string; contentType: string; content: string } | null> {
-  const url = String(env.NEXT_STEPS_PDF_URL || "").trim();
-  if (!url) return null;
-  const res = await fetchImpl(url);
-  if (!res.ok) return null;
-  const buf = new Uint8Array(await res.arrayBuffer());
-  let bin = "";
-  for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
-  return { filename: NEXT_STEPS_PDF_NAME, contentType: "application/pdf", content: btoa(bin) };
-}
-
 function officeCc(...emails: string[]): string[] {
   const host = "cbshippingsolutions.com";
   const seen = new Set<string>();
@@ -119,8 +106,7 @@ export async function sendPaidNextSteps(
   if (!to) return { ok: false, error: "Paid. No client email — pause, do not send." };
   const inbox = String(env.AGENTMAIL_INBOX || DEFAULT_INBOX).trim() || DEFAULT_INBOX;
   const first = firstNameFromCard(card);
-  const pdfUrl = String(env.NEXT_STEPS_PDF_URL || "").trim();
-  const pdf = pdfUrl ? null : await loadNextStepsPdf(env, fetchImpl);
+  const pdf = await loadNextStepsPdf(env);
   const currentRep = String(card.sentBy || card.paidBy || "").trim().toLowerCase();
   const payload: Record<string, unknown> = {
     to: [to],
@@ -130,10 +116,8 @@ export async function sendPaidNextSteps(
     text: paidNextStepsBody(first),
     labels: ["yard-cycle", "paid"],
   };
-  if (pdfUrl) {
-    payload.attachments = [{ filename: NEXT_STEPS_PDF_NAME, content_type: "application/pdf", url: pdfUrl, content_disposition: "attachment" }];
-  } else if (pdf) {
-    payload.attachments = [{ filename: pdf.filename, content_type: pdf.contentType, content: pdf.content, content_disposition: "attachment" }];
+  if (pdf) {
+    payload.attachments = [pdf];
   }
   let lastError = "AgentMail send did not run.";
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -155,7 +139,7 @@ export async function sendPaidNextSteps(
         body = {};
       }
       const messageId = String(body.message_id || body.messageId || "").trim();
-      if (res.ok && messageId) return { ok: true, messageId, attached: Boolean(pdfUrl || pdf) };
+      if (res.ok && messageId) return { ok: true, messageId, attached: Boolean(pdf) };
       lastError = String(body.error || body.message || text || `AgentMail ${res.status}`).slice(0, 240);
       const transient = res.status === 408 || res.status === 409 || res.status === 429 || res.status >= 500;
       if (!transient) return { ok: false, error: lastError };

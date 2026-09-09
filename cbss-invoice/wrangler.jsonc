@@ -16,6 +16,13 @@
   "kv_namespaces": [
     { "binding": "INVOICE_STORE", "id": "072af35ca99b4af8bfc49aef28818fdb" }
   ],
+  "assets": {
+    "directory": "./assets",
+    "binding": "ASSETS",
+    "html_handling": "none",
+    "not_found_handling": "none",
+    "run_worker_first": true
+  },
   "vars": {
     "PUBLIC_TITLE": "CBSS Invoicing",
     "WAAVE_API_BASE": "https://pg.getwaave.co",

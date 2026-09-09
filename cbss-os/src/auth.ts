@@ -30,7 +30,9 @@ export type Env = {
   AGENTMAIL_WEBHOOK_SECRET?: string;
   US_HOLIDAY_EXTRA?: string;
   REENGAGE_EMAILS_ENABLED?: string;
+  /** Deprecated. Paid Next Steps never attaches by URL. */
   NEXT_STEPS_PDF_URL?: string;
+  ASSETS?: Fetcher;
   SESSIONS?: KVNamespace;
   CRM?: Fetcher;
   DESK?: Fetcher;
