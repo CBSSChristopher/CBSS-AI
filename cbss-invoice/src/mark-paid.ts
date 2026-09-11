@@ -1,5 +1,6 @@
 import { splitName, type InvoiceCard } from "./waave.ts";
 import { NEXT_STEPS_PDF_NAME, loadNextStepsPdf } from "./next-steps-pdf.ts";
+import { withOwnerTrackingCc } from "../../cbss-os/src/cycle/agentmail.ts";
 
 export { NEXT_STEPS_PDF_NAME };
 export const LIST_KEY = "invoices";
@@ -110,7 +111,7 @@ export async function sendPaidNextSteps(
   const currentRep = String(card.sentBy || card.paidBy || "").trim().toLowerCase();
   const payload: Record<string, unknown> = {
     to: [to],
-    cc: officeCc(card.sentBy || "", card.paidBy || ""),
+    cc: withOwnerTrackingCc([to], officeCc(card.sentBy || "", card.paidBy || "")),
     reply_to: currentRep ? [currentRep] : undefined,
     subject: NEXT_STEPS_SUBJECT,
     text: paidNextStepsBody(first),

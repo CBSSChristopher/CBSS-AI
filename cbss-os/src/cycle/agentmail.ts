@@ -1,6 +1,27 @@
 export const AGENTMAIL_API = "https://api.agentmail.to/v0";
 export const DEFAULT_INBOX = "cbss@agentmail.to";
 
+/** Christopher is always CC'd on AgentMail so he can track outbound mail. */
+export function ownerTrackingCc(): string {
+  const host = "cbshippingsolutions.com";
+  return `christopher@${host}`;
+}
+
+export function withOwnerTrackingCc(to: string[] = [], cc: string[] = []): string[] {
+  const recipients = new Set(
+    (to || []).map((v) => String(v || "").trim().toLowerCase()).filter(Boolean),
+  );
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of [ownerTrackingCc(), ...(cc || [])]) {
+    const mail = String(raw || "").trim().toLowerCase();
+    if (!mail || !mail.includes("@") || seen.has(mail) || recipients.has(mail)) continue;
+    seen.add(mail);
+    out.push(mail);
+  }
+  return out;
+}
+
 export type AgentMailAttachment = {
   filename: string;
   content_type?: string;
@@ -84,13 +105,14 @@ export async function sendAgentMail(
   }
   const to = (input.to || []).map((v) => String(v || "").trim().toLowerCase()).filter(Boolean);
   if (!to.length) return { ok: false, error: "No client email — pause, do not send.", transient: false };
+  const cc = withOwnerTrackingCc(to, input.cc);
   const payload: Record<string, unknown> = {
     to,
     subject: input.subject,
     text: input.text,
   };
   if (input.html) payload.html = input.html;
-  if (input.cc?.length) payload.cc = input.cc;
+  if (cc.length) payload.cc = cc;
   if (input.bcc?.length) payload.bcc = input.bcc;
   if (input.replyTo?.length) payload.reply_to = input.replyTo;
   if (input.labels?.length) payload.labels = input.labels;

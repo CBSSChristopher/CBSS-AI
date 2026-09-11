@@ -14,6 +14,11 @@ import { resolveAssignedRep, rosterCompanyEmail } from "../src/cycle/rep.ts";
 import { normalizeLifecycle, legacyStatusFor } from "../src/cycle/lifecycle.ts";
 import { fireTemplate, logAttempt, markContactPaid, reassignOwner, runDueSends, stopForReply } from "../src/cycle/engine.ts";
 import { paidBody } from "../src/cycle/templates.ts";
+import {
+  ownerTrackingCc,
+  sendAgentMail,
+  withOwnerTrackingCc,
+} from "../src/cycle/agentmail.ts";
 
 const page = readFileSync(new URL("../src/page.ts", import.meta.url), "utf8");
 const index = readFileSync(new URL("../src/index.ts", import.meta.url), "utf8");
@@ -340,5 +345,57 @@ describe("Yard cycle surfaces", () => {
     assert.match(page, /cycle-paid-retry/);
     assert.match(engineSrc, /loadNextStepsPdf/);
     assert.doesNotMatch(engineSrc, /url:\s*pdfUrl|filename: "CBSS-Next-Steps-After-Your-Order\.pdf", content_type: "application\/pdf", url:/);
+  });
+});
+
+describe("AgentMail always CCs Christopher", () => {
+  it("puts Christopher first and does not duplicate or self-cc", () => {
+    const tracking = ownerTrackingCc();
+    const mixed = withOwnerTrackingCc(["gary@test.com"], ["aliyah@cbshippingsolutions.com", tracking.replace("c", "C")]);
+    assert.equal(mixed[0], tracking);
+    assert.deepEqual(mixed, [tracking, "aliyah@cbshippingsolutions.com"]);
+    assert.deepEqual(withOwnerTrackingCc(["gary@test.com"], []), [tracking]);
+    assert.deepEqual(withOwnerTrackingCc([tracking], ["james@cbshippingsolutions.com"]), [
+      "james@cbshippingsolutions.com",
+    ]);
+  });
+
+  it("forces Christopher onto CC even when the caller omits cc", async () => {
+    const calls = [];
+    const result = await sendAgentMail(
+      { AGENTMAIL_API_KEY: "am_test" },
+      { to: ["gary@test.com"], subject: "Ping", text: "Hello" },
+      async (url, init) => {
+        calls.push({ url, init });
+        return new Response(JSON.stringify({ message_id: "m-cc", thread_id: "t-cc" }), { status: 200 });
+      },
+    );
+    assert.equal(result.ok, true);
+    const payload = JSON.parse(calls[0].init.body);
+    assert.deepEqual(payload.to, ["gary@test.com"]);
+    assert.ok(payload.cc[0].startsWith("christopher@"));
+    assert.deepEqual(payload.cc, [ownerTrackingCc()]);
+  });
+
+  it("CCs Christopher on CTE mail and on rep-reply alerts", async () => {
+    const cteCalls = [];
+    const env = envUsers([james]);
+    const hint = { id: "c-cc-cte", name: "Gary Smith", email: "gary@test.com", owner: "James" };
+    await logAttempt(env, hint, "no_answer", "James", async (_url, init) => {
+      cteCalls.push(JSON.parse(init.body));
+      return new Response(JSON.stringify({ message_id: "cte-cc", thread_id: "t-cte-cc" }), { status: 200 });
+    });
+    assert.equal(cteCalls.length, 1);
+    assert.ok(cteCalls[0].cc.some((addr) => addr.startsWith("christopher@")));
+    assert.deepEqual(cteCalls[0].to, ["gary@test.com"]);
+
+    const alertCalls = [];
+    await stopForReply(env, hint, "agentmail", "agentmail", async (_url, init) => {
+      alertCalls.push(JSON.parse(init.body));
+      return new Response(JSON.stringify({ message_id: "alert-cc", thread_id: "t-alert" }), { status: 200 });
+    });
+    assert.equal(alertCalls.length, 1);
+    assert.deepEqual(alertCalls[0].to, ["james@cbshippingsolutions.com"]);
+    assert.ok(alertCalls[0].cc.some((addr) => addr.startsWith("christopher@")));
   });
 });
