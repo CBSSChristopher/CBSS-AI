@@ -79,6 +79,7 @@ export function resolveAssignedRep(
   return { ok: false, reason: "Assigned rep has no active Yard login / company email. Pause — do not guess." };
 }
 
+/** Paid Next Steps office CC. sendAgentMail also forces Christopher on every send. */
 export function officeCopy(): string[] {
   const host = "cbshippingsolutions.com";
   return [`christopher@${host}`, `aliyah@${host}`];
