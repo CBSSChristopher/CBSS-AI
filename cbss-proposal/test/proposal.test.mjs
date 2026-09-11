@@ -69,6 +69,7 @@ import {
 import {
   buildClientProposalCopy,
   notesHaveCostLeak,
+  optionBullets,
   optionsHeading,
   readClientOptions,
   sanitizeClientFacingText,
@@ -560,6 +561,21 @@ describe("xChange posted-price pull", () => {
 });
 
 describe("Client proposal options PDF", () => {
+  it("states the welder line as a warranty benefit, not a completed repair", () => {
+    const bullets = optionBullets({
+      letter: "A",
+      label: "Cargo Worthy",
+      size: "20",
+      height: "DC",
+      grade: "CW",
+      qty: 1,
+      depotCity: "Charleston, SC",
+    }, false);
+    const welder = bullets.find((line) => /welder/i.test(line));
+    assert.match(welder, /Warranty benefit: if a repair is ever needed, we send a welder \(within reason\), not a patch/);
+    assert.doesNotMatch(welder, /^Welder repair/);
+  });
+
   const twoOptions = {
     customerName: "Ronnie Gamble",
     company: "",
@@ -628,6 +644,13 @@ describe("Client proposal options PDF", () => {
     assert.match(copy.chooseOneBar, /Choose one option - total is the delivered cash price for that unit/);
     assert.doesNotMatch(copy.pricing.join("\n") + copy.chooseOneBar, /4900|9800/);
     assert.equal(notesHaveCostLeak(copy.notes), false);
+    const welder = copy.optionCards.flatMap((card) => card.bullets).filter((line) => /welder/i.test(line));
+    assert.equal(welder.length, 2);
+    for (const line of welder) {
+      assert.match(line, /warranty benefit/i);
+      assert.match(line, /if a repair is ever needed/i);
+      assert.doesNotMatch(line, /^Welder repair/i);
+    }
     const leaked = sanitizeClientFacingText("20 ft CW · posted 725 · delivery 475 · depot Charleston, SC");
     assert.doesNotMatch(leaked, /\bposted\b/i);
     assert.doesNotMatch(leaked, /\bdelivery\s+\$?\d/i);
@@ -668,6 +691,8 @@ describe("Client proposal options PDF", () => {
     assert.match(text, /\$2,950\.00/);
     assert.match(text, /Charleston, SC/);
     assert.match(text, /Choose one option - total is the delivered cash price for that unit/);
+    assert.match(text, /Warranty benefit: if a repair is ever needed, we send a welder/);
+    assert.doesNotMatch(text, /Welder repair \(within reason\), not a patch/);
     assert.doesNotMatch(text, /posted 725|posted \$725/i);
     assert.doesNotMatch(text, /delivery 475|delivery \$475/i);
     assert.doesNotMatch(text, /wholesale/i);

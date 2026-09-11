@@ -87,7 +87,7 @@ export function optionBullets(option, pickup) {
     optionTitle(option),
     "Qty " + option.qty + (option.depotCity ? " · depot " + option.depotCity : ""),
     inspect,
-    "Welder repair (within reason), not a patch",
+    "Warranty benefit: if a repair is ever needed, we send a welder (within reason), not a patch",
   ];
 }
 

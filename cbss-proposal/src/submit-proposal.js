@@ -114,7 +114,7 @@ Key company facts you must respect:
 - Used units (As-Is, WWT, CW, Multi-trip): 5-year structural + 5-year no-leak warranty
 - One-Trip units: 10-year structural + 10-year no-leak warranty
 - Every unit is air/water leak tested and inspected before it leaves the depot
-- If a repair is needed, we send a welder for a proper repair (within reason) instead of just a fiberglass patch
+- Warranty benefit only: if a repair is ever needed, we send a welder for a proper repair (within reason) instead of a fiberglass patch. This is coverage, not a repair that has already happened.
 
 Return ONLY valid JSON with these keys:
 {
