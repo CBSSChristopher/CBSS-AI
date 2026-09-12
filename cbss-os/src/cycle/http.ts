@@ -3,6 +3,7 @@ import {
   getCycle,
   ingestInbound,
   logAttempt,
+  markBadNumber,
   markContactPaid,
   overrideCte,
   pollReplies,
@@ -17,6 +18,7 @@ import {
 } from "./engine.ts";
 import { EXITS, LIFECYCLES, normalizeLifecycle, type Lifecycle } from "./lifecycle.ts";
 import { readAlerts } from "./store.ts";
+import { addCampaign } from "../campaign.ts";
 
 function hintFrom(body: Record<string, unknown>, fallbackId = ""): ContactHint {
   return {
@@ -58,6 +60,36 @@ export async function handleCycleAuthed(
   if (method === "POST" && path === "/cycle/replied") {
     const rec = await stopForReply(env, hint, actor, "rep");
     return { status: 200, body: { ok: true, cycle: publicCycle(rec) } };
+  }
+  if (method === "POST" && path === "/cycle/bad-number") {
+    const { rec, send, legacyStatus } = await markBadNumber(env, hint, actor);
+    const sendRec = send && typeof send === "object" ? send as { ok?: boolean; error?: string } : {};
+    const closed = sendRec.error === "This contact is already closed.";
+    const items = closed
+      ? []
+      : await addCampaign(env, {
+        id: hint.id,
+        name: hint.name || rec.clientName,
+        email: hint.email || rec.clientEmail,
+        phone: String(body.phone || ""),
+        city: String(body.city || ""),
+        owner: hint.owner || rec.owner,
+        addedBy: actor,
+        addedAt: new Date().toISOString(),
+        reason: "bad_number",
+      });
+    const ok = sendRec.ok !== false;
+    return {
+      status: 200,
+      body: {
+        ok,
+        cycle: publicCycle(rec),
+        send,
+        items,
+        legacyStatus,
+        ...(ok ? {} : { error: sendRec.error || "Bad-number email did not send." }),
+      },
+    };
   }
   if (method === "POST" && path === "/cycle/override") {
     const result = await overrideCte(env, hint, String(body.when || body.followUpDate || ""), String(body.reason || ""), actor);

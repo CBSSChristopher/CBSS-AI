@@ -379,6 +379,7 @@ export default {
         owner: str(body.owner),
         addedBy: user.name || user.email,
         addedAt: new Date().toISOString(),
+        reason: str(body.reason) === "bad_number" ? "bad_number" : "hold",
       });
       return json(200, { ok: true, items });
     }

@@ -12,7 +12,7 @@ import { applyOverride, applyNoAnswerSchedule, CTE_OFFSETS, dueTemplates, schedu
 import { emptyRecord, writeRecord } from "../src/cycle/store.ts";
 import { OFFICE_PHONE, resolveAssignedRep, rosterCompanyEmail, rosterPhone, rosterTitle } from "../src/cycle/rep.ts";
 import { normalizeLifecycle, legacyStatusFor } from "../src/cycle/lifecycle.ts";
-import { fireTemplate, logAttempt, markContactPaid, reassignOwner, runDueSends, stopForReply } from "../src/cycle/engine.ts";
+import { fireTemplate, logAttempt, markBadNumber, markContactPaid, reassignOwner, runDueSends, stopForReply } from "../src/cycle/engine.ts";
 import { handleCycleAuthed } from "../src/cycle/http.ts";
 import { paidBody, renderTemplate } from "../src/cycle/templates.ts";
 import {
@@ -526,6 +526,88 @@ describe("CTE ladder schedules and the rep can finish", () => {
   });
 });
 
+describe("bad-number campaign", () => {
+  it("asks for a working number and does not invent a price or mix door types", () => {
+    const mail = renderTemplate("bad_number", {
+      clientFirstName: "Pat",
+      clientName: "Pat Lee",
+      repName: "James",
+      repEmail: "james@cbshippingsolutions.com",
+      repPhone: rosterPhone("James"),
+      repTitle: rosterTitle("James"),
+    });
+    assert.match(mail.subject, /we cannot reach you at the number we have/);
+    assert.match(mail.text, /not a working way to reach you/);
+    assert.match(mail.text, /do not know how to contact you/);
+    assert.match(mail.text, /good phone number/);
+    assert.match(mail.text, /james@cbshippingsolutions\.com/);
+    assert.match(mail.text, /\(870\) 260-7592/);
+    assert.doesNotMatch(mail.text, /I will not invent a price/);
+    assert.doesNotMatch(mail.text, /OS 2D|OS 4D|Full open/);
+  });
+
+  it("parks the CTE ladder, sends once, and puts the lead on the campaign list", async () => {
+    const sent = [];
+    const env = envUsers([james]);
+    const hint = { id: "c-bad", name: "Pat Lee", email: "pat@test.com", owner: "James", phone: "8705550199" };
+    const fetchOk = async (_url, init) => {
+      sent.push(JSON.parse(init.body));
+      return new Response(JSON.stringify({ message_id: "m-bad", thread_id: "t-bad" }), { status: 200 });
+    };
+    await logAttempt(env, hint, "no_answer", "James", fetchOk);
+    const first = await markBadNumber(env, hint, "James", fetchOk);
+    assert.equal(first.rec.stopped, true);
+    assert.equal(first.rec.stoppedReason, "Bad number");
+    assert.equal(first.rec.cteStage, "parked");
+    assert.equal(first.rec.sends.bad_number.status, "sent");
+    assert.equal(first.rec.sends.cte2.status, "skipped");
+    assert.equal(first.legacyStatus, "Email campaign");
+    assert.match(sent.at(-1).subject, /we cannot reach you/);
+    assert.equal(sent.at(-1).to[0], "pat@test.com");
+    assert.ok(sent.at(-1).cc.includes("james@cbshippingsolutions.com"));
+
+    const again = await markBadNumber(env, hint, "James", fetchOk);
+    assert.equal(again.send.duplicate, true);
+    assert.equal(sent.filter((row) => /cannot reach you/.test(row.subject)).length, 1);
+
+    const viaHttp = await handleCycleAuthed(
+      "/cycle/bad-number",
+      "POST",
+      env,
+      james,
+      { ...hint, city: "Corning" },
+      new URLSearchParams(),
+    );
+    assert.equal(viaHttp.status, 200);
+    assert.equal(viaHttp.body.ok, true);
+    assert.equal(viaHttp.body.legacyStatus, "Email campaign");
+    assert.equal(viaHttp.body.items[0].id, "c-bad");
+    assert.equal(viaHttp.body.items[0].reason, "bad_number");
+  });
+
+  it("still parks and lists the lead when there is no email to send", async () => {
+    const env = envUsers([james]);
+    const hint = { id: "c-no-mail", name: "Pat Lee", owner: "James" };
+    const viaHttp = await handleCycleAuthed("/cycle/bad-number", "POST", env, james, hint, new URLSearchParams());
+    assert.equal(viaHttp.status, 200);
+    assert.equal(viaHttp.body.ok, false);
+    assert.match(viaHttp.body.error, /No client email/);
+    assert.equal(viaHttp.body.cycle.stoppedReason, "Bad number");
+    assert.equal(viaHttp.body.items[0].reason, "bad_number");
+    assert.equal(viaHttp.body.legacyStatus, "Email campaign");
+  });
+
+  it("does not enroll a closed contact", async () => {
+    const env = envUsers([james]);
+    const hint = { id: "c-lost", name: "Pat Lee", email: "pat@test.com", owner: "James", lifecycle: "Lost" };
+    await handleCycleAuthed("/cycle/lifecycle", "POST", env, james, { ...hint, lifecycle: "Lost" }, new URLSearchParams());
+    const viaHttp = await handleCycleAuthed("/cycle/bad-number", "POST", env, james, hint, new URLSearchParams());
+    assert.equal(viaHttp.body.ok, false);
+    assert.match(viaHttp.body.error, /already closed/);
+    assert.deepEqual(viaHttp.body.items, []);
+  });
+});
+
 describe("Yard cycle surfaces", () => {
   it("wires Worker cron, AgentMail hook, and contact-card buttons", () => {
     assert.match(http, /\/cycle\/attempt/);
@@ -537,6 +619,11 @@ describe("Yard cycle surfaces", () => {
     assert.match(page, /Override CTE/);
     assert.match(page, /Mark paid/);
     assert.match(page, /function paintCycle/);
+    assert.match(page, /id="cycle-bad">Bad number</);
+    assert.match(page, /function markBadNumber/);
+    assert.match(page, /\/cycle\/bad-number/);
+    assert.match(page, /bad-number campaign/);
+    assert.match(http, /\/cycle\/bad-number/);
     assert.match(page, /\/cycle\/paid/);
     assert.match(page, /skipEmail: true/);
     assert.match(page, /Retry Next Steps/);

@@ -17,6 +17,9 @@ import { isExit, legacyStatusFor, normalizeLifecycle, type Lifecycle } from "./l
 import { REENGAGE_TEMPLATE_IDS, renderTemplate, type TemplateId } from "./templates.ts";
 import { loadNextStepsPdf } from "../../../cbss-invoice/src/next-steps-pdf.ts";
 
+const SEND_WHEN_STOPPED: TemplateId[] = ["paid", "bad_number", ...REENGAGE_TEMPLATE_IDS];
+const CTE_TEMPLATE_IDS: TemplateId[] = ["cte1", "cte2", "cte3", "cte4"];
+
 export type CycleEnv = {
   SESSIONS?: KVNamespace;
   AGENTMAIL_API_KEY?: string;
@@ -157,13 +160,7 @@ export async function stopForReply(
     rec.stopped = true;
     rec.stoppedReason = source === "rep" ? "Rep clicked Replied" : "Inbound AgentMail reply";
     rec.nextDue = "";
-    for (const id of ["cte1", "cte2", "cte3", "cte4"] as TemplateId[]) {
-      const send = rec.sends[id];
-      if (send && send.status !== "sent") {
-        rec.sends[id] = { ...send, status: "skipped" };
-        pushEvent(rec, `Skipped duplicate / remaining ${id} after reply-stop.`, actor);
-      }
-    }
+    skipRemainingCte(rec, actor, "after reply-stop");
     rec.cteStage = "parked";
     pushEvent(rec, "Client replied · Ladder stopped", actor);
     if (source === "agentmail" && rec.ownerEmail) {
@@ -212,6 +209,49 @@ export async function overrideCte(
   );
   await writeRecord(env, rec);
   return { ok: true, rec };
+}
+
+function skipRemainingCte(rec: CycleRecord, actor: string, why: string): void {
+  for (const id of CTE_TEMPLATE_IDS) {
+    const send = rec.sends[id];
+    if (send && send.status !== "sent") {
+      rec.sends[id] = { ...send, status: "skipped" };
+      pushEvent(rec, `Skipped duplicate / remaining ${id} ${why}.`, actor);
+    }
+  }
+}
+
+export async function markBadNumber(
+  env: CycleEnv,
+  hint: ContactHint,
+  actor: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ rec: CycleRecord; send?: unknown; legacyStatus: string }> {
+  const rec = await loadOrCreate(env, hint);
+  const users = await readUsers(env);
+  applyRepGate(rec, users, { allowRoster: true });
+  if (isExit(rec.lifecycle) || rec.lifecycle === "Paid" || rec.lifecycle === "Delivered") {
+    pushEvent(rec, "Bad number ignored — this contact is already closed.", actor);
+    await writeRecord(env, rec);
+    return { rec, send: { ok: false, error: "This contact is already closed." }, legacyStatus: legacyStatusFor(rec.lifecycle as Lifecycle) };
+  }
+  if (!rec.lifecycle || rec.lifecycle === "New") rec.lifecycle = "Working";
+  skipRemainingCte(rec, actor, "after bad number");
+  rec.stopped = true;
+  rec.stoppedReason = "Bad number";
+  rec.cteStage = "parked";
+  rec.nextDue = "";
+  pushEvent(rec, "Bad number. CTE calls parked. Email campaign asking for a working number.", actor);
+  if (rec.sends.bad_number?.status === "sent") {
+    pushEvent(rec, "Skipped duplicate bad-number email.", actor);
+    await writeRecord(env, rec);
+    return { rec, send: { ok: true, duplicate: true }, legacyStatus: "Email campaign" };
+  }
+  rec.sends.bad_number = rec.sends.bad_number && rec.sends.bad_number.status === "pending"
+    ? rec.sends.bad_number
+    : { template: "bad_number", status: "pending", dueAt: new Date().toISOString(), attempts: 0 };
+  const send = await fireTemplate(env, rec, "bad_number", actor, fetchImpl);
+  return { rec, send, legacyStatus: "Email campaign" };
 }
 
 export async function setLifecycle(
@@ -304,7 +344,7 @@ export async function fireTemplate(
   actor: string,
   fetchImpl: typeof fetch = fetch,
 ): Promise<SendMailResultLike> {
-  if (rec.stopped && id !== "paid" && !REENGAGE_TEMPLATE_IDS.includes(id)) {
+  if (rec.stopped && !SEND_WHEN_STOPPED.includes(id)) {
     pushEvent(rec, `Skipped ${id} — ladder stopped.`, actor);
     await writeRecord(env, rec);
     return { ok: false, skipped: true, error: "Ladder stopped." };
@@ -335,13 +375,13 @@ export async function fireTemplate(
     return { ok: false, error: rec.pauseReason };
   }
   const users = await readUsers(env);
-  applyRepGate(rec, users, id === "paid" ? { allowRoster: true } : {});
+  applyRepGate(rec, users, id === "paid" || id === "bad_number" ? { allowRoster: true } : {});
   if (id === "paid" && rec.ownerEmail && rec.pauseReason.startsWith("Assigned rep has no active Yard login")) {
     pushEvent(rec, "Paid Next Steps CC/reply-to uses roster email — assigned rep has no active Yard login.", actor);
   } else if (id === "paid" && !rec.ownerEmail) {
     pushEvent(rec, "Paid Next Steps sending without assigned-rep CC/reply-to (no active login or known roster email).", actor);
   }
-  if (id !== "paid" && rec.paused && !rec.ownerEmail) {
+  if (id !== "paid" && id !== "bad_number" && rec.paused && !rec.ownerEmail) {
     pushEvent(rec, rec.pauseReason || "Paused — missing assigned rep email.", actor);
     await writeRecord(env, rec);
     return { ok: false, error: rec.pauseReason || "Paused." };
@@ -362,7 +402,11 @@ export async function fireTemplate(
     repPhone: rosterPhone(rec.owner),
     repTitle: rosterTitle(rec.owner),
   });
-  const cc = id === "paid" ? [...officeCopy(), rec.ownerEmail].filter(Boolean) : [];
+  const cc = id === "paid"
+    ? [...officeCopy(), rec.ownerEmail].filter(Boolean)
+    : id === "bad_number"
+      ? [rec.ownerEmail].filter(Boolean)
+      : [];
   const pdf = id === "paid" ? await loadNextStepsPdf(env) : null;
   const attachments = pdf ? [pdf] : undefined;
   const result = await sendAgentMail(

@@ -1302,6 +1302,10 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       return named===want;
     }
     function onCampaign(id){ return Boolean(campaignIds[String(id)]); }
+    function campaignReason(id){
+      const row = campaignIds[String(id)];
+      return row && row.reason === "bad_number" ? "bad_number" : "hold";
+    }
     function working(){ return ((book&&book.contacts)||[]).filter(function(c){ return !c.archived && c.status!=="DNC"; }); }
     function scopedContacts(){ return working().filter(function(c){ return ownerScope(c.owner); }); }
     function renderStats(){
@@ -1383,7 +1387,11 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
           ? '<button type="button" class="secondary" id="return-campaign">Return from email campaign</button>'
           : '<button type="button" class="secondary" id="add-campaign">Add to email campaign</button>')
         +"</div>"
-        +(onCampaign(selected.id) ? '<p class="muted">On the email campaign list. You can still edit this contact here.</p>' : "")
+        +(onCampaign(selected.id)
+          ? (campaignReason(selected.id)==="bad_number"
+            ? '<p class="muted">On the bad-number campaign. We emailed asking for a working number. You can still edit this contact here.</p>'
+            : '<p class="muted">On the email campaign list. You can still edit this contact here.</p>')
+          : "")
         +(fu.pendingNext || fu.completed ? '<p class="muted">Just completed. Type the next follow-up and save it — it stays on the book.</p>' : "")
         +'<label>Follow-up</label><input id="fu-act" value="'+esc(fu.pendingNext || fu.completed ? "" : (fu.nextAction||""))+'" placeholder="e.g. Call about 40ft WWT pricing" />'
         +'<input id="fu-date" type="datetime-local" value="'+esc(fu.pendingNext || fu.completed ? "" : (fu.followUpDate||"").slice(0,16))+'" />'
@@ -1425,11 +1433,16 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         const opts = lives.map(function(v){ return '<option value="'+esc(v)+'"'+(cy.lifecycle===v?" selected":"")+">"+esc(v)+"</option>"; }).join("");
         const paidSend = cy.sends && cy.sends.paid;
         const paidSent = paidSend && paidSend.status === "sent";
+        const badSend = cy.sends && cy.sends.bad_number;
+        const badSent = badSend && badSend.status === "sent";
+        const cycleClosed = cy.lifecycle==="Paid"||cy.lifecycle==="Delivered"||cy.lifecycle==="Lost"||cy.lifecycle==="Not interested"||cy.lifecycle==="Bought elsewhere";
         const flags = []
           .concat(cy.paused ? ['<p class="cycle-flag">Paused · '+esc(cy.pauseReason||"")+"</p>"] : [])
           .concat(cy.stopped ? ['<p class="ok">'+esc(cy.stoppedReason||"Ladder stopped")+"</p>"] : [])
           .concat(cy.lifecycle==="Paid" && paidSent ? ['<p class="ok">Next Steps email sent.</p>'] : [])
           .concat(cy.lifecycle==="Paid" && !paidSent ? ['<p class="cycle-flag">Next Steps not sent'+(paidSend && paidSend.error ? " · "+esc(paidSend.error) : " · use Retry Next Steps")+"</p>"] : [])
+          .concat(badSent ? ['<p class="ok">Bad-number email sent. On the email campaign.</p>'] : [])
+          .concat(cy.stoppedReason==="Bad number" && !badSent ? ['<p class="cycle-flag">Bad number · campaign email not sent'+(badSend && badSend.error ? " · "+esc(badSend.error) : " · use Retry bad-number email")+"</p>"] : [])
           .join("");
         const tl = (cy.events||[]).slice(0,8).map(function(e){
           return '<div class="cycle-tl"><strong>'+esc((e.at||"").replace("T"," ").slice(0,16))+"</strong> "+esc(e.text||"")+"</div>";
@@ -1443,8 +1456,10 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
           +'<button type="button" class="secondary" id="cycle-no">No answer</button>'
           +'<button type="button" class="gold" id="cycle-replied">Replied</button>'
           +'<button type="button" class="secondary" id="cycle-over">Override CTE</button>'
-          +(cy.lifecycle==="Paid"||cy.lifecycle==="Delivered"||cy.lifecycle==="Lost"||cy.lifecycle==="Not interested"||cy.lifecycle==="Bought elsewhere" ? "" : '<button type="button" class="gold" id="cycle-paid">Mark paid</button>')
+          +(cycleClosed ? "" : '<button type="button" class="gold" id="cycle-paid">Mark paid</button>')
           +(cy.lifecycle==="Paid" && !paidSent ? '<button type="button" class="gold" id="cycle-paid-retry">Retry Next Steps</button>' : "")
+          +(cycleClosed || badSent ? "" : '<button type="button" class="secondary" id="cycle-bad">Bad number</button>')
+          +(cy.stoppedReason==="Bad number" && !badSent ? '<button type="button" class="gold" id="cycle-bad-retry">Retry bad-number email</button>' : "")
           +"</div>"
           +'<div id="cycle-over-form" class="hide"><label>Next step</label><input id="cycle-when" type="datetime-local" /><label>Reason (optional)</label><input id="cycle-reason" /><div class="row"><button type="button" class="gold" id="cycle-over-save">Save override</button></div></div>'
           +'<p class="err" id="cycle-err"></p>'
@@ -1459,6 +1474,10 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         if (paidBtn) paidBtn.onclick = function(){ cycleAct("/cycle/paid", {}); };
         const paidRetry = $("cycle-paid-retry");
         if (paidRetry) paidRetry.onclick = function(){ cycleAct("/cycle/paid", {}); };
+        const badBtn = $("cycle-bad");
+        if (badBtn) badBtn.onclick = function(){ markBadNumber(); };
+        const badRetry = $("cycle-bad-retry");
+        if (badRetry) badRetry.onclick = function(){ markBadNumber(); };
       } catch (err) {
         box.innerHTML = '<p class="cycle-flag">'+(err && err.message ? esc(err.message) : "Lifecycle did not load.")+"</p>";
       }
@@ -1472,6 +1491,10 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         if (!res.r.ok || res.j.ok === false){ $("cycle-err").textContent = res.j.error || (res.j.send && res.j.send.error) || "Could not save that."; }
         if (res.j.legacyStatus && selected) {
           try { await persistContactPatch(selected.id, { status: res.j.legacyStatus }); } catch (_) {}
+        }
+        if (Array.isArray(res.j.items) && res.j.items.length) {
+          campaignIds = {};
+          res.j.items.forEach(function(row){ campaignIds[String(row.id)] = row; });
         }
         if (path === "/cycle/lifecycle" && String(extra && extra.lifecycle||"").toLowerCase()==="paid") {
           try { await persistContactPatch(selected.id, { invoicePaid: "yes" }); } catch (_) {}
@@ -1590,6 +1613,27 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         openContact(selected.id);
       } catch (err) {
         $("crm-err").textContent = (err && err.message) || "Could not add that note.";
+      }
+    }
+    async function markBadNumber(){
+      if (!selected) return;
+      $("cycle-err").textContent = "";
+      try {
+        const body = Object.assign(cycleHint(selected), { phone:selected.phone||"", city:selected.city||"" });
+        const res = await api("/cycle/bad-number", { method:"POST", body: JSON.stringify(body), allowError: true });
+        if (!res.r.ok || res.j.ok === false){ $("cycle-err").textContent = res.j.error || (res.j.send && res.j.send.error) || "Could not start the bad-number campaign."; }
+        if (Array.isArray(res.j.items) && res.j.items.length) {
+          campaignIds = {};
+          res.j.items.forEach(function(row){ campaignIds[String(row.id)] = row; });
+        }
+        if (res.j.legacyStatus && selected) {
+          try { await persistContactPatch(selected.id, { status: res.j.legacyStatus }); } catch (_) {}
+        }
+        await paintCycle(selected);
+        renderStats(); renderContacts(); renderPipeline(); renderCampaign();
+        if (selected) await openContact(selected.id);
+      } catch (err) {
+        $("cycle-err").textContent = (err && err.message) || "Could not start the bad-number campaign.";
       }
     }
     async function addToCampaign(){
@@ -1810,10 +1854,11 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     $("contact-edit").addEventListener("click", function(e){ if (e.target===this) closeContactEdit(); });
     function renderCampaign(){
       const rows = Object.keys(campaignIds).map(function(id){ return campaignIds[id]; });
-      $("crm-campaign").innerHTML = "<h2>Email campaign</h2><p class=\\"muted\\">Hold list for a future campaign tool. These people stay on Contacts — open anyone here to edit them.</p>"
-        +(rows.length ? '<table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Owner</th><th></th></tr></thead><tbody>'
+      $("crm-campaign").innerHTML = "<h2>Email campaign</h2><p class=\\"muted\\">Hold list plus the bad-number campaign. Bad-number leads were emailed asking for a working number. These people stay on Contacts — open anyone here to edit them.</p>"
+        +(rows.length ? '<table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Why</th><th>Owner</th><th></th></tr></thead><tbody>'
           +rows.map(function(row){
-            return '<tr data-id="'+esc(String(row.id))+'"><td>'+esc(row.name||"")+"</td><td>"+esc(row.email||"")+"</td><td>"+esc(row.phone||"")+"</td><td>"+esc(row.owner||"")
+            const why = row.reason==="bad_number" ? "Bad number" : "Hold";
+            return '<tr data-id="'+esc(String(row.id))+'"><td>'+esc(row.name||"")+"</td><td>"+esc(row.email||"")+"</td><td>"+esc(row.phone||"")+"</td><td>"+esc(why)+"</td><td>"+esc(row.owner||"")
               +'</td><td><button type="button" class="secondary" data-return="'+esc(String(row.id))+'">Return to book</button></td></tr>';
           }).join("")+"</tbody></table>" : '<p class="muted">No campaign leads yet.</p>');
     }
