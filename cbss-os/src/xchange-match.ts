@@ -97,7 +97,13 @@ export function parseOfferConfig(raw: unknown): string {
   if (!n) return "standard";
   if (n.includes("tridoor") || n.includes("3door")) return "tri-door";
   if (n.includes("fullopen") || n.includes("opensidefull") || n.includes("fullopenside")) return "full-open-side";
-  if (n.includes("opentop") || n.includes("flatrack") || n.includes("duocon") || n.includes("reefer")) return "other";
+  if (n.includes("opentop") || n.includes("flatrack") || n.includes("duocon")) return "other";
+  if (n.includes("reefer") || n.includes("refrigerat")) {
+    if (n.includes("nonworking") || n.includes("notworking") || n.includes("inoperable") || n.includes("inop")) {
+      return "reefer-non-working";
+    }
+    return "reefer-working";
+  }
   const openSide =
     n.includes("openside") || n.includes("sidedoor") || n.includes("os2d") || n.includes("os4d") ||
     /(^|[^a-z])os([^a-z]|$)/.test(n);

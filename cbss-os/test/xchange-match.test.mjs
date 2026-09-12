@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   mapOfferCondition,
   matchPostedBox,
+  parseOfferConfig,
   parseOfferSpec,
   rateSheetSize,
   specsCompatible,
@@ -31,6 +32,11 @@ describe("xChange posted match", () => {
     assert.equal(parseOfferSpec("40HC").height, "HC");
     assert.equal(parseOfferSpec("40DC").height, "DC");
     assert.equal(parseOfferSpec("40HC Open Side 4 Doors").config, "side-os-4d");
+    assert.equal(parseOfferConfig("40HC Reefer Working"), "reefer-working");
+    assert.equal(parseOfferConfig("40HC Reefer non-working"), "reefer-non-working");
+    assert.equal(parseOfferConfig("reefer inoperable"), "reefer-non-working");
+    assert.equal(specsCompatible({ size: "40", height: "HC", config: "reefer-working", grade: "CW" }, parseOfferSpec("40HC Reefer Working")), true);
+    assert.equal(specsCompatible({ size: "40", height: "HC", config: "reefer-working", grade: "CW" }, parseOfferSpec("40HC Reefer non-working")), false);
     assert.equal(specsCompatible({ size: "40", height: "HC", config: "standard", grade: "OneTrip" }, parseOfferSpec("40DC")), false);
     assert.equal(specsCompatible({ size: "40", height: "HC", config: "standard", grade: "OneTrip" }, parseOfferSpec("40HC Open Side 4 Doors")), false);
   });

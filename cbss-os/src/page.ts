@@ -996,7 +996,8 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     const CONFIGS = [
       {v:"standard",l:"Standard"},{v:"double-door",l:"Double door"},
       {v:"side-os-2d",l:"Side door (OS 2D)"},{v:"side-os-4d",l:"Side door (OS 4D)"},
-      {v:"full-open-side",l:"Full open side"},{v:"tri-door",l:"Tri-door"}
+      {v:"full-open-side",l:"Full open side"},{v:"tri-door",l:"Tri-door"},
+      {v:"reefer-working",l:"Reefer working"},{v:"reefer-non-working",l:"Reefer non-working"}
     ];
     const GRADES = [{v:"WWT",l:"WWT"},{v:"CW",l:"CW"},{v:"IICL",l:"IICL / Multi-Trip"},{v:"OneTrip",l:"One-Trip"},{v:"AsIs",l:"As-Is"}];
     const TEAM = ${JSON.stringify(TEAM_OWNERS)};
@@ -2001,7 +2002,15 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       const prev = deal.stage;
       deal.stage = sel.value;
       try {
-        await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"saveDeals", deals: book.deals }) });
+        const c = contactForId(deal.contactId);
+        if (c && sel.value === "Proposal Sent") {
+          const amount = deal.amount || c.amount || "";
+          if (amount) deal.amount = amount;
+          await persistContactPatch(c.id, { status: "Proposal Sent", amount: amount });
+        } else {
+          await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"saveDeals", deals: book.deals }) });
+          if (c) await persistContactPatch(c.id, { status: sel.value });
+        }
         $("crm-err").textContent = "";
         renderStats(); renderPipeline();
       } catch (err) {
@@ -2626,6 +2635,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
           zip:$("p-zip").value, delivery:$("p-del").value, notes:$("p-notes").value,
           fulfillment:$("p-ful").value, clientType:"Residential", paymentMode:"cash",
           repName: user && (user.name || user.email), repEmail: user && user.email,
+          contactId: selected && selected.id,
           lines: lines
         }), allowError: true});
         if (!res.r.ok || !res.j.ok){
@@ -2639,7 +2649,13 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         }
         $("p-err").className = "ok";
         $("p-err").textContent = "Proposal written and emailed: "+(res.j.desc||"the boxes on this ticket")+".";
-        showProposalSaved("Proposal written", (res.j.desc||"The options are on the proposal")+". It was emailed to you. Forward it to the customer. If there are two or more options, they pick one.");
+        const attached = res.j.attached
+          ? " The proposal amount and Proposal Sent stage are on that CRM contact."
+          : " The proposal emailed. Open the contact and save the amount if it is not on the card yet.";
+        showProposalSaved("Proposal written", (res.j.desc||"The options are on the proposal")+". It was emailed to you. Forward it to the customer."+attached);
+        if (res.j.attached) {
+          try { await loadCrm(); } catch (_) {}
+        }
       } catch (err) {
         $("p-err").textContent = "Could not reach the proposal tool. Sign out and sign in again.";
       } finally {
