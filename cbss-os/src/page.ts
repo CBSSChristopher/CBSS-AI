@@ -996,7 +996,8 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     const CONFIGS = [
       {v:"standard",l:"Standard"},{v:"double-door",l:"Double door"},
       {v:"side-os-2d",l:"Side door (OS 2D)"},{v:"side-os-4d",l:"Side door (OS 4D)"},
-      {v:"full-open-side",l:"Full open side"},{v:"tri-door",l:"Tri-door"}
+      {v:"full-open-side",l:"Full open side"},{v:"tri-door",l:"Tri-door"},
+      {v:"reefer-working",l:"Reefer working"},{v:"reefer-non-working",l:"Reefer non-working"}
     ];
     const GRADES = [{v:"WWT",l:"WWT"},{v:"CW",l:"CW"},{v:"IICL",l:"IICL / Multi-Trip"},{v:"OneTrip",l:"One-Trip"},{v:"AsIs",l:"As-Is"}];
     const TEAM = ${JSON.stringify(TEAM_OWNERS)};
@@ -1094,6 +1095,44 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       const first = raw.split(/[\\s@]/)[0].toLowerCase();
       return OWNER_ALIASES[first] || raw;
     }
+    function isUnassignedPool(owner){
+      const named = titleOwner(owner);
+      return !named || named === "New/Unassigned";
+    }
+    function normEmail(value){ return String(value||"").trim().toLowerCase(); }
+    function normPhone(value){
+      const digits = String(value||"").replace(/\\D/g, "");
+      return digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
+    }
+    function normName(value){ return String(value||"").trim().toLowerCase().replace(/\\s+/g, " "); }
+    function claimAssignedOwner(row, assigned){
+      if (!row || !isUnassignedPool(row.owner)) return "";
+      const email = normEmail(row.email);
+      const phone = normPhone(row.phone);
+      const name = normName(row.name);
+      const pool = (assigned||[]).filter(function(other){ return other && String(other.id) !== String(row.id) && !isUnassignedPool(other.owner); });
+      if (email) {
+        const hit = pool.find(function(other){ return normEmail(other.email) === email; });
+        if (hit) return titleOwner(hit.owner);
+      }
+      if (phone.length >= 7) {
+        const hit = pool.find(function(other){ return normPhone(other.phone) === phone; });
+        if (hit) return titleOwner(hit.owner);
+      }
+      if (name && name.indexOf(" ") >= 0) {
+        const hits = pool.filter(function(other){ return normName(other.name) === name; });
+        if (hits.length === 1) return titleOwner(hits[0].owner);
+      }
+      return "";
+    }
+    function claimAssignedOnBook(contacts){
+      const assigned = (contacts||[]).filter(function(row){ return !isUnassignedPool(row.owner); });
+      (contacts||[]).forEach(function(row){
+        const taken = claimAssignedOwner(row, assigned);
+        if (taken) row.owner = taken;
+      });
+      return contacts;
+    }
     function mineName(){ return titleOwner((user && (user.name||user.email))||""); }
     function contactStage(c){
       if (!c) return "";
@@ -1180,7 +1219,9 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       });
     });
 
-    async function loadCrm(){
+    async function loadCrm(keepNotice){
+      const notice = keepNotice && typeof keepNotice === "object" ? keepNotice : null;
+      $("crm-err").className = "err";
       $("crm-err").textContent = "Loading book…";
       let res;
       try {
@@ -1193,6 +1234,8 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       const j = res.j;
       const contacts = (j.contacts||[]).slice();
       const added = j.contactsAdded||[];
+      const addedIds = {};
+      added.forEach(function(a){ if (a && a.id != null) addedIds[String(a.id)] = true; });
       const ids = new Set(contacts.map(function(c){ return String(c.id); }));
       added.forEach(function(a){ if(!ids.has(String(a.id))){ contacts.unshift(a); ids.add(String(a.id)); } });
       contacts.forEach(function(c){
@@ -1212,9 +1255,16 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         const done = (j.completedTasks||{})[c.id] || (j.completedTasks||{})[String(c.id)];
         c.completedTasks = Array.isArray(done) ? done.slice() : [];
       });
+      claimAssignedOnBook(contacts);
       const deals = (j.deals||[]).map(function(d){ d.owner = titleOwner(d.owner); if (d.stage==="Quoted") d.stage="Quote"; return d; });
-      book = { contacts:contacts, deals:deals, followups:j.followups||{}, completed:j.completedTasks||{} };
-      $("crm-err").textContent = "";
+      book = { contacts:contacts, deals:deals, followups:j.followups||{}, completed:j.completedTasks||{}, addedIds:addedIds, proposals:j.proposals||{} };
+      if (notice && notice.text) {
+        $("crm-err").className = notice.ok ? "ok" : "err";
+        $("crm-err").textContent = notice.text;
+      } else {
+        $("crm-err").className = "err";
+        $("crm-err").textContent = "";
+      }
       await loadCampaign();
       fillOwners(); renderStats(); renderContacts();
     }
@@ -1688,6 +1738,11 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       edits[id] = patch;
       edits[String(id)] = patch;
       await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"saveContactEdits", contactEdits: edits }) });
+      if (book && book.addedIds && book.addedIds[String(id)] && patch.owner) {
+        try {
+          await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"saveContactsAdded", contactsAdded: [Object.assign({}, row, patch)] }), allowError: true });
+        } catch (_) {}
+      }
       await recordContactChange(id, before, patch);
       if (patch.owner && String(patch.owner) !== String(before.owner||"")) {
         try {
@@ -1732,12 +1787,19 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     async function saveContactEdit(){
       $("m-err").textContent = "";
       const id = $("m-id").value;
+      const before = contactForId(id) || selected || {};
+      const fromPool = titleOwner(before.owner) === "New/Unassigned" || !titleOwner(before.owner);
       const patch = readContactEdit();
       if (!patch.name){ $("m-err").textContent = "Name the contact first."; return; }
       try {
         await persistContactPatch(id, patch);
         closeContactEdit();
-        renderStats(); renderContacts(); renderFollowups(); renderTasks(); renderPipeline();
+        const leftPool = fromPool && patch.owner && titleOwner(patch.owner) !== "New/Unassigned";
+        const leaveNote = leftPool
+          ? { ok: true, text: (patch.name || "That lead")+" left New/Unassigned · now on "+titleOwner(patch.owner)+"." }
+          : null;
+        await loadCrm(leaveNote);
+        renderFollowups(); renderTasks(); renderPipeline();
         openContact(id);
       } catch (err) {
         $("m-err").textContent = (err && err.message) || "Could not save that contact.";
@@ -1810,11 +1872,21 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         return ownerScope(d.owner) || (c && ownerScope(c.owner));
       });
     }
+    function storedProposalAmount(id){
+      const bag = (book && book.proposals) || {};
+      const raw = bag[id] || bag[String(id)];
+      const row = Array.isArray(raw) ? raw[0] : raw;
+      if (!row || typeof row !== "object") return "";
+      const n = row.amount != null && row.amount !== "" ? row.amount : row.unitPrice;
+      return displayAmount(n) ? n : "";
+    }
     function dealAmount(d){
       const raw = (d && d.amount!=null && d.amount!=="") ? d.amount : "";
       if (raw!=="") return displayAmount(raw);
       const c = contactForId(d && d.contactId);
-      return displayAmount(c && c.amount);
+      const fromContact = displayAmount(c && c.amount);
+      if (fromContact) return fromContact;
+      return displayAmount(storedProposalAmount(d && d.contactId));
     }
     function todayKey(){
       const d = new Date();
@@ -1974,7 +2046,8 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
             const company = (c&&c.company) || d.company || "";
             const owner = titleOwner(d.owner) || (c&&c.owner) || "";
             const amt = dealAmount(d);
-            return '<div class="pc" data-id="'+esc(String(d.contactId||""))+'"><div class="pc-name">'+esc(name)+'</div><div class="muted">'+esc(company||"—")+'</div><div class="pc-meta"><span class="pc-amt">'+(amt||"—")+'</span><span>'+esc(owner||"—")+"</span></div>"
+            const amtLabel = amt || ((d.stage||"")==="Proposal Sent" ? "No proposal $" : "—");
+            return '<div class="pc" data-id="'+esc(String(d.contactId||""))+'"><div class="pc-name">'+esc(name)+'</div><div class="muted">'+esc(company||"—")+'</div><div class="pc-meta"><span class="pc-amt">'+esc(amtLabel)+'</span><span>'+esc(owner||"—")+"</span></div>"
               +'<select data-deal="'+esc(String(d.id))+'">'+STAGES.map(function(s){ return '<option value="'+s+'"'+(s===d.stage?" selected":"")+">"+s+"</option>"; }).join("")+"</select></div>";
           }).join("")+"</div>";
       }).join("")+"</div>";
@@ -1991,8 +2064,31 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       const prev = deal.stage;
       deal.stage = sel.value;
       try {
-        await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"saveDeals", deals: book.deals }) });
-        $("crm-err").textContent = "";
+        const c = contactForId(deal.contactId);
+        if (c && sel.value === "Proposal Sent") {
+          const amount = deal.amount || c.amount || storedProposalAmount(c.id) || "";
+          const patch = { status: "Proposal Sent" };
+          if (amount) {
+            deal.amount = amount;
+            patch.amount = amount;
+          }
+          await persistContactPatch(c.id, patch);
+          if (!amount) {
+            $("crm-err").className = "err";
+            $("crm-err").textContent = (c.name || "That card")+" is on Proposal Sent with no proposal dollar. Submit from Proposal — do not invent a price.";
+            try {
+              await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"appendNote", contactId:String(c.id), text:"Stage set to Proposal Sent. No proposal amount on this card.", tag:"Book" }), allowError: true });
+            } catch (_) {}
+          } else {
+            $("crm-err").className = "ok";
+            $("crm-err").textContent = (c.name || "That card")+" is on Proposal Sent · "+displayAmount(amount)+".";
+          }
+        } else {
+          await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"saveDeals", deals: book.deals }) });
+          if (c) await persistContactPatch(c.id, { status: sel.value });
+          $("crm-err").className = "err";
+          $("crm-err").textContent = "";
+        }
         renderStats(); renderPipeline();
       } catch (err) {
         deal.stage = prev;
@@ -2616,6 +2712,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
           zip:$("p-zip").value, delivery:$("p-del").value, notes:$("p-notes").value,
           fulfillment:$("p-ful").value, clientType:"Residential", paymentMode:"cash",
           repName: user && (user.name || user.email), repEmail: user && user.email,
+          contactId: selected && selected.id,
           lines: lines
         }), allowError: true});
         if (!res.r.ok || !res.j.ok){
@@ -2629,7 +2726,13 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         }
         $("p-err").className = "ok";
         $("p-err").textContent = "Proposal written and emailed: "+(res.j.desc||"the boxes on this ticket")+".";
-        showProposalSaved("Proposal written", (res.j.desc||"The options are on the proposal")+". It was emailed to you. Forward it to the customer. If there are two or more options, they pick one.");
+        const attached = res.j.attached
+          ? " The proposal amount and Proposal Sent stage are on that CRM contact."
+          : " The proposal emailed. Open the contact and save the amount if it is not on the card yet.";
+        showProposalSaved("Proposal written", (res.j.desc||"The options are on the proposal")+". It was emailed to you. Forward it to the customer."+attached);
+        if (res.j.attached) {
+          try { await loadCrm(); } catch (_) {}
+        }
       } catch (err) {
         $("p-err").textContent = "Could not reach the proposal tool. Sign out and sign in again.";
       } finally {

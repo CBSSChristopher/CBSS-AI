@@ -31,6 +31,7 @@ import {
 } from "./desk-contact.ts";
 import { buildModifiedSpec, readModifiedDraft } from "./modified-catalog.ts";
 import { buildProposalSubmit, readProposalLine } from "./proposal-lines.ts";
+import { matchContactForProposal, proposalAttachPatch } from "./crm-proposal.ts";
 import { scopeCrmGetPayload, shouldScopeCrmGet } from "./crm-scope.ts";
 import { rememberUser } from "./cycle/store.ts";
 import { handleAgentMailHook, handleCycleAuthed, runCycleCron } from "./cycle/http.ts";
@@ -171,6 +172,90 @@ async function appendCycleCrmNote(request: Request, env: Env, contactId: string,
   } catch {
     // Cycle KV already has the event. CRM note is best-effort so a CRM blip does not roll back the ladder.
   }
+}
+
+async function crmJson(
+  request: Request,
+  env: Env,
+  rest: string,
+  init: { method?: string; body?: unknown } = {},
+): Promise<{ ok: boolean; data: Record<string, unknown> }> {
+  const req = new Request(new URL("/x/crm" + rest, request.url), {
+    method: init.method || "GET",
+    headers: {
+      Cookie: request.headers.get("Cookie") || "",
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: init.body == null ? undefined : JSON.stringify(init.body),
+  });
+  const res = await proxyTool(req, env, "crm", rest.startsWith("/crm-data") ? rest : "/crm-data");
+  const data = await res.json().catch(() => ({})) as Record<string, unknown>;
+  return { ok: res.ok, data };
+}
+
+async function attachProposalToCrm(
+  request: Request,
+  env: Env,
+  hint: {
+    id?: unknown;
+    email?: unknown;
+    phone?: unknown;
+    name?: unknown;
+    unitPrice?: unknown;
+    containerDesc?: unknown;
+    quantity?: unknown;
+    owner?: unknown;
+  },
+): Promise<boolean> {
+  const get = await crmJson(request, env, "/crm-data?action=get&omitNotes=1");
+  if (!get.ok) return false;
+  const contacts = [
+    ...(Array.isArray(get.data.contacts) ? get.data.contacts as Array<Record<string, unknown>> : []),
+    ...(Array.isArray(get.data.contactsAdded) ? get.data.contactsAdded as Array<Record<string, unknown>> : []),
+  ];
+  const edits = get.data.contactEdits && typeof get.data.contactEdits === "object"
+    ? get.data.contactEdits as Record<string, Record<string, unknown>>
+    : {};
+  for (const row of contacts) {
+    const ed = edits[String(row.id)] || {};
+    if (ed && typeof ed === "object") Object.assign(row, ed);
+  }
+  const hit = matchContactForProposal(contacts, hint);
+  if (!hit || hit.id == null) return false;
+  const id = String(hit.id);
+  const patch = proposalAttachPatch(hint);
+  const contactEdits: Record<string, Record<string, unknown>> = {};
+  contactEdits[id] = {
+    amount: patch.amount || hit.amount || "",
+    status: patch.status,
+    owner: patch.owner || hit.owner || "",
+  };
+  const saved = await crmJson(request, env, "/crm-data", {
+    method: "POST",
+    body: { action: "saveContactEdits", contactEdits },
+  });
+  if (!saved.ok) return false;
+  const deals = Array.isArray(get.data.deals) ? (get.data.deals as Array<Record<string, unknown>>).slice() : [];
+  let deal = deals.find((row) => String(row.contactId) === id);
+  if (!deal) {
+    deal = {
+      id: "c-" + id,
+      contactId: id,
+      contactName: String(hit.name || hint.name || ""),
+      owner: patch.owner || hit.owner || "",
+      stage: patch.status,
+      amount: patch.amount,
+    };
+    deals.push(deal);
+  } else {
+    deal.stage = patch.status;
+    if (patch.amount) deal.amount = patch.amount;
+    if (patch.owner) deal.owner = patch.owner;
+  }
+  await crmJson(request, env, "/crm-data", { method: "POST", body: { action: "saveDeals", deals } });
+  await appendCycleCrmNote(request, env, id, patch.note);
+  return true;
 }
 
 async function proxyTool(request: Request, env: Env, key: ToolKey, rest: string): Promise<Response> {
@@ -617,12 +702,27 @@ export default {
           message: sent.message,
         });
       }
+      const status = sent.status || "sent";
+      let attached = false;
+      if (status !== "flagged" && built.body) {
+        attached = await attachProposalToCrm(request, env, {
+          id: raw.contactId,
+          email: built.body.email,
+          phone: built.body.phone,
+          name: built.body.customerName,
+          unitPrice: built.body.unitPrice,
+          containerDesc: built.body.containerDesc,
+          quantity: built.body.quantity,
+          owner: raw.repName || user.name,
+        });
+      }
       return json(200, {
         ok: true,
-        status: sent.status || "sent",
+        status,
         desc: built.body.containerDesc,
         quantity: built.body.quantity,
         unitPrice: built.body.unitPrice,
+        attached,
       });
     }
 

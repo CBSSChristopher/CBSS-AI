@@ -125,6 +125,8 @@ describe("hard rules stay on the platform", () => {
     assert.match(page, /Side door \(OS 2D\)/);
     assert.match(page, /Side door \(OS 4D\)/);
     assert.match(page, /Full open side/);
+    assert.match(page, /Reefer working/);
+    assert.match(page, /Reefer non-working/);
     assert.match(page, /OS 2D, OS 4D, and Full open side are different boxes/);
     assert.match(page, /This tool does not send from Gmail|This tool does not send Gmail/);
   });

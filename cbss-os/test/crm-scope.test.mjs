@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { readFileSync } from "node:fs";
 import {
+  applyOwnerEdits,
   canSeeAllCrmOwners,
+  claimAssignedOwner,
+  effectiveOwner,
   isUnassignedPool,
   ownerMatchesViewer,
   ownerVisibleToViewer,
@@ -35,6 +38,7 @@ const book = {
   followups: { "1": { nextAction: "Call" }, "2": { nextAction: "Skip" } },
   contactEdits: { "1": { city: "Jonesboro" }, "2": { city: "Little Rock" } },
   completedTasks: { "1": [{ text: "Done" }], "2": [{ text: "Other" }] },
+  proposals: { "1": [{ amount: 4200, status: "sent" }], "2": [{ amount: 9900, status: "sent" }] },
 };
 
 describe("CRM GET owner scope", () => {
@@ -66,6 +70,8 @@ describe("CRM GET owner scope", () => {
     assert.equal(james.contactEdits["2"], undefined);
     assert.ok(james.completedTasks["1"]);
     assert.equal(james.completedTasks["2"], undefined);
+    assert.ok(james.proposals["1"]);
+    assert.equal(james.proposals["2"], undefined);
   });
 
   it("lets Julia see New/Unassigned without Christopher or James books", () => {
@@ -83,6 +89,8 @@ describe("CRM GET owner scope", () => {
     assert.deepEqual(julia.deals.map((d) => d.id), []);
     assert.equal(julia.followups["1"], undefined);
     assert.equal(julia.followups["2"], undefined);
+    assert.equal(julia.proposals["1"], undefined);
+    assert.equal(julia.proposals["2"], undefined);
   });
 
   it("does not filter Christopher's GET", () => {
@@ -98,5 +106,48 @@ describe("CRM GET owner scope", () => {
     assert.match(index, /scopeCrmGetPayload/);
     assert.match(index, /shouldScopeCrmGet/);
     assert.match(page, /No names in this book/);
+    assert.match(page, /left New\/Unassigned/);
+    assert.match(page, /claimAssignedOnBook/);
+    assert.match(page, /saveContactsAdded/);
+  });
+
+  it("takes contactEdits.owner over the raw New/Unassigned stamp", () => {
+    const assigned = {
+      ...book,
+      contactEdits: {
+        ...book.contactEdits,
+        "5": { owner: "James" },
+        "7": { owner: "Julia" },
+      },
+    };
+    assert.equal(effectiveOwner({ id: "5", owner: "New/Unassigned" }, assigned.contactEdits), "James");
+    const james = scopeCrmGetPayload(assigned, { email: jamesMail, name: "James" });
+    assert.equal(james.contacts.find((c) => c.id === "5").owner, "James");
+    assert.equal(james.contactsAdded.find((c) => c.id === "7"), undefined);
+    const juliaMail = ["julia", "cbshippingsolutions.com"].join("@");
+    const julia = scopeCrmGetPayload(assigned, { email: juliaMail, name: "Julia" });
+    assert.deepEqual(julia.contacts.map((c) => c.id), ["6"]);
+    assert.deepEqual(julia.contactsAdded.map((c) => c.id), ["7"]);
+    assert.equal(julia.contactsAdded[0].owner, "Julia");
+  });
+
+  it("pulls an unassigned Facebook twin onto the assigned owner", () => {
+    const raw = {
+      contacts: [{ id: "10", name: "Chuck Galavich", owner: "Christopher Banks", phone: "8705550100" }],
+      contactsAdded: [{ id: "11", name: "Chuck Galavich", owner: "New/Unassigned", phone: "(870) 555-0100", source: "Facebook" }],
+      contactEdits: {},
+    };
+    assert.equal(
+      claimAssignedOwner(raw.contactsAdded[0], raw.contacts),
+      "Christopher Banks",
+    );
+    const owned = applyOwnerEdits(raw);
+    assert.equal(owned.contactsAdded[0].owner, "Christopher Banks");
+    const juliaMail = ["julia", "cbshippingsolutions.com"].join("@");
+    const julia = scopeCrmGetPayload(raw, { email: juliaMail, name: "Julia" });
+    assert.equal(julia.contactsAdded.length, 0);
+    const chris = scopeCrmGetPayload(raw, { email: chrisMail, name: "Christopher Banks" });
+    assert.equal(chris.contactsAdded[0].owner, "Christopher Banks");
+    assert.equal(isUnassignedPool(chris.contactsAdded[0].owner), false);
   });
 });
