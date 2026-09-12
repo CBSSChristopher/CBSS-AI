@@ -15,7 +15,7 @@ function mockEnv() {
 }
 
 describe("email campaign hold", () => {
-  it("moves a lead off the working book and can return them", async () => {
+  it("holds a lead on the campaign list and can return them", async () => {
     const env = mockEnv();
     const added = await addCampaign(env, {
       id: "99",
