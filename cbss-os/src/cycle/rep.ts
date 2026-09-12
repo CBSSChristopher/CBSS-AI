@@ -28,12 +28,40 @@ function isRosterOwner(name: string): boolean {
   return (TEAM_OWNERS as readonly string[]).includes(name) && name !== "New/Unassigned";
 }
 
+/** Company floor line from the letterhead. Used when a rep has no posted direct line. */
+export const OFFICE_PHONE = "(870) 323-1747";
+
+const ROSTER_CONTACT: Record<string, { title: string; phone: string }> = {
+  "Christopher Banks": { title: "President / Owner", phone: "(870) 682-3867" },
+  James: { title: "Business Developer", phone: "(870) 260-7592" },
+  "Bryan Reese": { title: "Vice President of Business Development", phone: "(870) 323-1749" },
+  "Kyle Hodgkiss": { title: "Sales Representative", phone: OFFICE_PHONE },
+  "Matthew Brent": { title: "Sales Representative", phone: OFFICE_PHONE },
+  "Kawika Pangelinan": { title: "Sales Representative", phone: OFFICE_PHONE },
+  Aliyah: { title: "Operations", phone: OFFICE_PHONE },
+  "Brittni Keeling": { title: "Sales Representative", phone: OFFICE_PHONE },
+  "Derrek Clements": { title: "Sales Representative", phone: OFFICE_PHONE },
+  "Sean Thurman": { title: "Sales Representative", phone: OFFICE_PHONE },
+  Julia: { title: "Sales Representative", phone: OFFICE_PHONE },
+};
+
 /** Known CBSS sales roster → company email. Does not invent addresses for unknown names. */
 export function rosterCompanyEmail(owner: string): string {
   const titled = titleOwner(owner);
   if (!isRosterOwner(titled)) return "";
   const local = firstNameOf(titled).toLowerCase();
   return companyMail(local);
+}
+
+export function rosterTitle(owner: string): string {
+  const titled = titleOwner(owner);
+  return ROSTER_CONTACT[titled]?.title || "Sales Representative";
+}
+
+/** Direct line when we have one. Otherwise the company floor number — never a made-up cell. */
+export function rosterPhone(owner: string): string {
+  const titled = titleOwner(owner);
+  return ROSTER_CONTACT[titled]?.phone || OFFICE_PHONE;
 }
 
 function rosterUser(owner: string, email = ""): ActiveUser | null {

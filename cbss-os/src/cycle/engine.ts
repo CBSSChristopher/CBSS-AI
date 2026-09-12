@@ -12,7 +12,7 @@ import {
   writeRecord,
   type CycleRecord,
 } from "./store.ts";
-import { firstNameOf, officeCopy, resolveAssignedRep, type ActiveUser } from "./rep.ts";
+import { firstNameOf, officeCopy, resolveAssignedRep, rosterPhone, rosterTitle, type ActiveUser } from "./rep.ts";
 import { isExit, legacyStatusFor, normalizeLifecycle, type Lifecycle } from "./lifecycle.ts";
 import { REENGAGE_TEMPLATE_IDS, renderTemplate, type TemplateId } from "./templates.ts";
 import { loadNextStepsPdf } from "../../../cbss-invoice/src/next-steps-pdf.ts";
@@ -359,6 +359,8 @@ export async function fireTemplate(
     clientName: rec.clientName,
     repName: rec.owner,
     repEmail: rec.ownerEmail,
+    repPhone: rosterPhone(rec.owner),
+    repTitle: rosterTitle(rec.owner),
   });
   const cc = id === "paid" ? [...officeCopy(), rec.ownerEmail].filter(Boolean) : [];
   const pdf = id === "paid" ? await loadNextStepsPdf(env) : null;

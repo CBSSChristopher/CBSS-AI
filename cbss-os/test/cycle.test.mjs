@@ -10,17 +10,18 @@ import {
 } from "../src/cycle/business-days.ts";
 import { applyOverride, applyNoAnswerSchedule, CTE_OFFSETS, dueTemplates, scheduleFromCte1 } from "../src/cycle/ladder.ts";
 import { emptyRecord, writeRecord } from "../src/cycle/store.ts";
-import { resolveAssignedRep, rosterCompanyEmail } from "../src/cycle/rep.ts";
+import { OFFICE_PHONE, resolveAssignedRep, rosterCompanyEmail, rosterPhone, rosterTitle } from "../src/cycle/rep.ts";
 import { normalizeLifecycle, legacyStatusFor } from "../src/cycle/lifecycle.ts";
 import { fireTemplate, logAttempt, markContactPaid, reassignOwner, runDueSends, stopForReply } from "../src/cycle/engine.ts";
 import { handleCycleAuthed } from "../src/cycle/http.ts";
-import { paidBody } from "../src/cycle/templates.ts";
+import { paidBody, renderTemplate } from "../src/cycle/templates.ts";
 import {
   ownerTrackingCc,
   sendAgentMail,
   withOwnerTrackingCc,
 } from "../src/cycle/agentmail.ts";
 import { applyLiveCrmFollowupPatch, isCompletedFollowup, stampFollowupRow } from "../src/followups.ts";
+import { TEAM_OWNERS } from "../src/brand.ts";
 
 const page = readFileSync(new URL("../src/page.ts", import.meta.url), "utf8");
 const index = readFileSync(new URL("../src/index.ts", import.meta.url), "utf8");
@@ -129,6 +130,79 @@ describe("assigned rep resolution", () => {
     assert.equal(cteStillPaused.ok, false);
     assert.match(cteStillPaused.reason, /no active Yard login/);
     assert.equal(rosterCompanyEmail("James Rodda"), "james@cbshippingsolutions.com");
+  });
+});
+
+describe("CTE copy is an introduction with the rep on the footer", () => {
+  const vars = {
+    clientFirstName: "Kamil",
+    clientName: "Kamil Dziecina",
+    repName: "Christopher Banks",
+    repEmail: rosterCompanyEmail("Christopher Banks"),
+    repPhone: rosterPhone("Christopher Banks"),
+    repTitle: rosterTitle("Christopher Banks"),
+  };
+
+  it("keeps CTE1 as a hello, not a price disclaimer or a fake earlier call", () => {
+    const mail = renderTemplate("cte1", vars);
+    assert.match(mail.subject, /Kamil, Christopher Banks here/);
+    assert.match(mail.text, /This is Christopher Banks with CB Shipping Solutions/);
+    assert.match(mail.text, /wanted to introduce myself/);
+    assert.match(mail.text, /Reply to this email or call me/);
+    assert.doesNotMatch(mail.text, /tried you earlier/);
+    assert.doesNotMatch(mail.text, /put a real name on the follow-up/);
+    assert.doesNotMatch(mail.text, /I will not invent a price/);
+    assert.doesNotMatch(mail.text, /what is posted/);
+    assert.ok(mail.text.includes(rosterCompanyEmail("Christopher Banks")));
+    assert.match(mail.text, /\(870\) 682-3867/);
+    assert.match(mail.text, /President \/ Owner/);
+  });
+
+  it("puts each known rep's phone on CTE2/3/4 and uses the office line when we do not have a direct one", () => {
+    const james = renderTemplate("cte2", { ...vars, repName: "James", repEmail: "james@cbshippingsolutions.com", repPhone: rosterPhone("James"), repTitle: rosterTitle("James") });
+    const julia = renderTemplate("cte3", { ...vars, repName: "Julia", repEmail: "julia@cbshippingsolutions.com", repPhone: rosterPhone("Julia"), repTitle: rosterTitle("Julia") });
+    const last = renderTemplate("cte4", vars);
+    assert.match(james.text, /\(870\) 260-7592/);
+    assert.match(james.text, /james@cbshippingsolutions\.com/);
+    assert.match(julia.text, /\(870\) 323-1747/);
+    assert.match(julia.text, /julia@cbshippingsolutions\.com/);
+    assert.match(last.text, /\(870\) 682-3867/);
+    assert.doesNotMatch(james.text, /I will not invent a price/);
+    assert.doesNotMatch(last.text, /tried you earlier/);
+  });
+
+  it("signs every roster rep with their company email, title, and a real phone", () => {
+    for (const owner of TEAM_OWNERS) {
+      if (owner === "New/Unassigned") continue;
+      const mail = renderTemplate("cte1", {
+        clientFirstName: "Pat",
+        clientName: "Pat Lee",
+        repName: owner,
+        repEmail: rosterCompanyEmail(owner),
+        repPhone: rosterPhone(owner),
+        repTitle: rosterTitle(owner),
+      });
+      assert.ok(mail.text.includes(rosterCompanyEmail(owner)), owner);
+      assert.ok(mail.text.includes(rosterTitle(owner)), owner);
+      assert.match(mail.text, /\(\d{3}\) \d{3}-\d{4}/);
+      assert.ok(mail.text.includes("CB Shipping Solutions"));
+    }
+    assert.equal(rosterPhone("Unknown Rep"), OFFICE_PHONE);
+  });
+
+  it("sends that same CTE1 body through AgentMail for James", async () => {
+    let body = "";
+    const env = envUsers([james]);
+    const hint = { id: "c-intro", name: "Kamil Dziecina", email: "dkjbuilder@yahoo.com", owner: "James" };
+    await logAttempt(env, hint, "no_answer", "James", async (_url, init) => {
+      body = String(init && init.body || "");
+      return new Response(JSON.stringify({ message_id: "m-intro", thread_id: "t-intro" }), { status: 200 });
+    });
+    assert.match(body, /wanted to introduce myself/);
+    assert.match(body, /james@cbshippingsolutions\.com/);
+    assert.match(body, /870\) 260-7592/);
+    assert.doesNotMatch(body, /tried you earlier/);
+    assert.doesNotMatch(body, /I will not invent a price/);
   });
 });
 
