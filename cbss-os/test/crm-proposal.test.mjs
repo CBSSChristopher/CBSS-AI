@@ -38,5 +38,8 @@ describe("proposal attaches to the CRM contact", () => {
     assert.match(page, /contactId: selected && selected.id/);
     assert.match(index, /attachProposalToCrm/);
     assert.match(page, /proposal amount and Proposal Sent stage/);
+    assert.match(page, /No proposal \$/);
+    assert.match(page, /storedProposalAmount/);
+    assert.match(page, /do not invent a price/);
   });
 });

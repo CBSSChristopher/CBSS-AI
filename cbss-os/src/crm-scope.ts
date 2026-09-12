@@ -150,6 +150,7 @@ export function scopeCrmGetPayload(
     followups: pickBag(src.followups, ids),
     contactEdits: pickBag(src.contactEdits, ids),
     completedTasks: pickBag(src.completedTasks, ids),
+    proposals: pickBag(src.proposals, ids),
     scoped: true,
   };
 }

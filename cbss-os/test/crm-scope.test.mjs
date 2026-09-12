@@ -38,6 +38,7 @@ const book = {
   followups: { "1": { nextAction: "Call" }, "2": { nextAction: "Skip" } },
   contactEdits: { "1": { city: "Jonesboro" }, "2": { city: "Little Rock" } },
   completedTasks: { "1": [{ text: "Done" }], "2": [{ text: "Other" }] },
+  proposals: { "1": [{ amount: 4200, status: "sent" }], "2": [{ amount: 9900, status: "sent" }] },
 };
 
 describe("CRM GET owner scope", () => {
@@ -69,6 +70,8 @@ describe("CRM GET owner scope", () => {
     assert.equal(james.contactEdits["2"], undefined);
     assert.ok(james.completedTasks["1"]);
     assert.equal(james.completedTasks["2"], undefined);
+    assert.ok(james.proposals["1"]);
+    assert.equal(james.proposals["2"], undefined);
   });
 
   it("lets Julia see New/Unassigned without Christopher or James books", () => {
@@ -86,6 +89,8 @@ describe("CRM GET owner scope", () => {
     assert.deepEqual(julia.deals.map((d) => d.id), []);
     assert.equal(julia.followups["1"], undefined);
     assert.equal(julia.followups["2"], undefined);
+    assert.equal(julia.proposals["1"], undefined);
+    assert.equal(julia.proposals["2"], undefined);
   });
 
   it("does not filter Christopher's GET", () => {

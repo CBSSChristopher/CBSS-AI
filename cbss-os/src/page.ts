@@ -1257,7 +1257,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       });
       claimAssignedOnBook(contacts);
       const deals = (j.deals||[]).map(function(d){ d.owner = titleOwner(d.owner); if (d.stage==="Quoted") d.stage="Quote"; return d; });
-      book = { contacts:contacts, deals:deals, followups:j.followups||{}, completed:j.completedTasks||{}, addedIds:addedIds };
+      book = { contacts:contacts, deals:deals, followups:j.followups||{}, completed:j.completedTasks||{}, addedIds:addedIds, proposals:j.proposals||{} };
       if (notice && notice.text) {
         $("crm-err").className = notice.ok ? "ok" : "err";
         $("crm-err").textContent = notice.text;
@@ -1872,11 +1872,21 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         return ownerScope(d.owner) || (c && ownerScope(c.owner));
       });
     }
+    function storedProposalAmount(id){
+      const bag = (book && book.proposals) || {};
+      const raw = bag[id] || bag[String(id)];
+      const row = Array.isArray(raw) ? raw[0] : raw;
+      if (!row || typeof row !== "object") return "";
+      const n = row.amount != null && row.amount !== "" ? row.amount : row.unitPrice;
+      return displayAmount(n) ? n : "";
+    }
     function dealAmount(d){
       const raw = (d && d.amount!=null && d.amount!=="") ? d.amount : "";
       if (raw!=="") return displayAmount(raw);
       const c = contactForId(d && d.contactId);
-      return displayAmount(c && c.amount);
+      const fromContact = displayAmount(c && c.amount);
+      if (fromContact) return fromContact;
+      return displayAmount(storedProposalAmount(d && d.contactId));
     }
     function todayKey(){
       const d = new Date();
@@ -2036,7 +2046,8 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
             const company = (c&&c.company) || d.company || "";
             const owner = titleOwner(d.owner) || (c&&c.owner) || "";
             const amt = dealAmount(d);
-            return '<div class="pc" data-id="'+esc(String(d.contactId||""))+'"><div class="pc-name">'+esc(name)+'</div><div class="muted">'+esc(company||"—")+'</div><div class="pc-meta"><span class="pc-amt">'+(amt||"—")+'</span><span>'+esc(owner||"—")+"</span></div>"
+            const amtLabel = amt || ((d.stage||"")==="Proposal Sent" ? "No proposal $" : "—");
+            return '<div class="pc" data-id="'+esc(String(d.contactId||""))+'"><div class="pc-name">'+esc(name)+'</div><div class="muted">'+esc(company||"—")+'</div><div class="pc-meta"><span class="pc-amt">'+esc(amtLabel)+'</span><span>'+esc(owner||"—")+"</span></div>"
               +'<select data-deal="'+esc(String(d.id))+'">'+STAGES.map(function(s){ return '<option value="'+s+'"'+(s===d.stage?" selected":"")+">"+s+"</option>"; }).join("")+"</select></div>";
           }).join("")+"</div>";
       }).join("")+"</div>";
@@ -2055,14 +2066,29 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       try {
         const c = contactForId(deal.contactId);
         if (c && sel.value === "Proposal Sent") {
-          const amount = deal.amount || c.amount || "";
-          if (amount) deal.amount = amount;
-          await persistContactPatch(c.id, { status: "Proposal Sent", amount: amount });
+          const amount = deal.amount || c.amount || storedProposalAmount(c.id) || "";
+          const patch = { status: "Proposal Sent" };
+          if (amount) {
+            deal.amount = amount;
+            patch.amount = amount;
+          }
+          await persistContactPatch(c.id, patch);
+          if (!amount) {
+            $("crm-err").className = "err";
+            $("crm-err").textContent = (c.name || "That card")+" is on Proposal Sent with no proposal dollar. Submit from Proposal — do not invent a price.";
+            try {
+              await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"appendNote", contactId:String(c.id), text:"Stage set to Proposal Sent. No proposal amount on this card.", tag:"Book" }), allowError: true });
+            } catch (_) {}
+          } else {
+            $("crm-err").className = "ok";
+            $("crm-err").textContent = (c.name || "That card")+" is on Proposal Sent · "+displayAmount(amount)+".";
+          }
         } else {
           await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"saveDeals", deals: book.deals }) });
           if (c) await persistContactPatch(c.id, { status: sel.value });
+          $("crm-err").className = "err";
+          $("crm-err").textContent = "";
         }
-        $("crm-err").textContent = "";
         renderStats(); renderPipeline();
       } catch (err) {
         deal.stage = prev;
