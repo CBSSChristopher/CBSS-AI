@@ -80,9 +80,13 @@ describe("CBSS platform brand", () => {
     assert.ok(TEAM_OWNERS.includes("Derrek Clements"));
     assert.ok(TEAM_OWNERS.includes("Brittni Keeling"));
     assert.ok(TEAM_OWNERS.includes("Kyle Hodgkiss"));
+    assert.ok(TEAM_OWNERS.includes("Sean Thurman"));
+    assert.ok(TEAM_OWNERS.includes("Julia"));
     assert.ok(!TEAM_OWNERS.includes("Ivyanna"));
     assert.match(page, /Kyle Hodgkiss/);
     assert.match(page, /Derrek Clements/);
+    assert.match(page, /Sean Thurman/);
+    assert.match(page, /"Julia"/);
     assert.doesNotMatch(page, /"Ivyanna"/);
     assert.match(page, /Your CBSS AI/);
     assert.match(page, /Build the quote\. Send the proposal/);

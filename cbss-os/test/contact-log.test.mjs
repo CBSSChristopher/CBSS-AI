@@ -56,8 +56,12 @@ describe("contact change lines", () => {
     const list = ownerChoices(TEAM_OWNERS, "James");
     assert.ok(list.includes("James"));
     assert.ok(list.includes("Kyle Hodgkiss"));
+    assert.ok(list.includes("Sean Thurman"));
+    assert.ok(list.includes("Julia"));
     assert.ok(list.includes("New/Unassigned"));
     assert.ok(list.includes("Christopher Banks"));
+    assert.equal(titleOwner("julia@cbshippingsolutions.com"), "Julia");
+    assert.equal(titleOwner("sean@cbshippingsolutions.com"), "Sean Thurman");
     assert.equal(titleOwner("Kyle"), "Kyle Hodgkiss");
     assert.equal(titleOwner("kyle@cbshippingsolutions.com"), "Kyle Hodgkiss");
     assert.equal(titleOwner("Kyle Hodgkiss"), "Kyle Hodgkiss");
