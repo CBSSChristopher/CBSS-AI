@@ -28,8 +28,8 @@ function isRosterOwner(name: string): boolean {
   return (TEAM_OWNERS as readonly string[]).includes(name) && name !== "New/Unassigned";
 }
 
-/** Company floor line from the letterhead. Used when a rep has no posted direct line. */
-export const OFFICE_PHONE = "(870) 323-1747";
+/** Jonesboro office line. Used when a rep has no posted direct line. (870) 323-1747 is omit — out of service. */
+export const OFFICE_PHONE = "(870) 682-3867";
 
 const ROSTER_CONTACT: Record<string, { title: string; phone: string }> = {
   "Christopher Banks": { title: "President / Owner", phone: "(870) 682-3867" },
