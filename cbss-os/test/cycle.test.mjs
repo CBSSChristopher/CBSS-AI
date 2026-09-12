@@ -8,17 +8,19 @@ import {
   isBusinessDay,
   usFederalHolidays,
 } from "../src/cycle/business-days.ts";
-import { applyOverride, applyNoAnswerSchedule, dueTemplates, scheduleFromCte1 } from "../src/cycle/ladder.ts";
-import { emptyRecord } from "../src/cycle/store.ts";
+import { applyOverride, applyNoAnswerSchedule, CTE_OFFSETS, dueTemplates, scheduleFromCte1 } from "../src/cycle/ladder.ts";
+import { emptyRecord, writeRecord } from "../src/cycle/store.ts";
 import { resolveAssignedRep, rosterCompanyEmail } from "../src/cycle/rep.ts";
 import { normalizeLifecycle, legacyStatusFor } from "../src/cycle/lifecycle.ts";
 import { fireTemplate, logAttempt, markContactPaid, reassignOwner, runDueSends, stopForReply } from "../src/cycle/engine.ts";
+import { handleCycleAuthed } from "../src/cycle/http.ts";
 import { paidBody } from "../src/cycle/templates.ts";
 import {
   ownerTrackingCc,
   sendAgentMail,
   withOwnerTrackingCc,
 } from "../src/cycle/agentmail.ts";
+import { applyLiveCrmFollowupPatch, isCompletedFollowup, stampFollowupRow } from "../src/followups.ts";
 
 const page = readFileSync(new URL("../src/page.ts", import.meta.url), "utf8");
 const index = readFileSync(new URL("../src/index.ts", import.meta.url), "utf8");
@@ -325,6 +327,128 @@ describe("CTE override, stop, reassignment, cron idempotency", () => {
     });
     assert.equal(night.sent, 0);
     assert.equal(sends, 0);
+  });
+});
+
+describe("CTE ladder schedules and the rep can finish", () => {
+  it("keeps CTE4 at +7 business days in the offset table", () => {
+    assert.deepEqual(CTE_OFFSETS, { CTE2: 1, CTE3: 3, CTE4: 7 });
+  });
+
+  it("No answer queues CTE2/3/4 and cron sends each when due, then parks after CTE4", async () => {
+    const sent = [];
+    const env = envUsers([james]);
+    const hint = { id: "c-ladder", name: "Gary Smith", email: "gary@test.com", owner: "James" };
+    const fetchOk = async (_url, init) => {
+      sent.push(JSON.parse(init.body));
+      return new Response(JSON.stringify({ message_id: "m-" + sent.length, thread_id: "t-ladder" }), { status: 200 });
+    };
+    const noAnswer = await logAttempt(env, hint, "no_answer", "James", fetchOk);
+    assert.equal(noAnswer.rec.sends.cte1.status, "sent");
+    assert.equal(noAnswer.rec.sends.cte2.status, "pending");
+    assert.equal(noAnswer.rec.sends.cte3.status, "pending");
+    assert.equal(noAnswer.rec.sends.cte4.status, "pending");
+    assert.match(http, /trim\(\) === "no_answer"/);
+
+    const rec = await env.SESSIONS.get("cycle:rec:c-ladder", "json");
+    rec.cte1Date = "2026-09-14";
+    applyNoAnswerSchedule(rec);
+    await writeRecord(env, rec);
+    assert.equal(rec.sends.cte2.dueAt, "2026-09-15T10:00");
+    assert.equal(rec.sends.cte3.dueAt, "2026-09-17T10:00");
+    assert.equal(rec.sends.cte4.dueAt, "2026-09-23T10:00");
+
+    const early = await runDueSends(env, new Date("2026-09-14T15:00:00Z"), fetchOk);
+    assert.equal(early.sent, 0);
+
+    const day2 = await runDueSends(env, new Date("2026-09-15T15:00:00Z"), fetchOk);
+    assert.equal(day2.sent, 1);
+    const after2 = await env.SESSIONS.get("cycle:rec:c-ladder", "json");
+    assert.equal(after2.sends.cte2.status, "sent");
+    assert.equal(after2.sends.cte3.status, "pending");
+    assert.equal(after2.sends.cte4.status, "pending");
+    assert.match(sent.at(-1).subject, /checking in from CB Shipping Solutions/);
+
+    const day3 = await runDueSends(env, new Date("2026-09-17T15:00:00Z"), fetchOk);
+    assert.equal(day3.sent, 1);
+    const after3 = await env.SESSIONS.get("cycle:rec:c-ladder", "json");
+    assert.equal(after3.sends.cte3.status, "sent");
+    assert.equal(after3.sends.cte4.status, "pending");
+    assert.match(sent.at(-1).subject, /still here if you want the next step/);
+
+    const day4 = await runDueSends(env, new Date("2026-09-23T15:00:00Z"), fetchOk);
+    assert.equal(day4.sent, 1);
+    const after4 = await env.SESSIONS.get("cycle:rec:c-ladder", "json");
+    assert.equal(after4.sends.cte4.status, "sent");
+    assert.equal(after4.cteStage, "parked");
+    assert.equal(after4.nextDue, "");
+    assert.equal(dueTemplates(after4, new Date("2026-09-30T15:00:00Z")).length, 0);
+    assert.ok(after4.events.some((e) => /CTE4 sent\. Ladder parked/.test(e.text)));
+    assert.match(sent.at(-1).subject, /last note from James/);
+  });
+
+  it("Replied skips remaining CTE mail and the rep can Complete the CRM follow-up", async () => {
+    const env = envUsers([james]);
+    const hint = { id: "c-finish", name: "Gary Smith", email: "gary@test.com", owner: "James" };
+    await logAttempt(env, hint, "no_answer", "James", async () => {
+      return new Response(JSON.stringify({ message_id: "m-fin", thread_id: "t-fin" }), { status: 200 });
+    });
+    const replied = await handleCycleAuthed("/cycle/replied", "POST", env, james, hint, new URLSearchParams());
+    assert.equal(replied.status, 200);
+    assert.equal(replied.body.cycle.stopped, true);
+    assert.equal(replied.body.cycle.cteStage, "parked");
+    assert.equal(replied.body.cycle.sends.cte2.status, "skipped");
+    assert.equal(replied.body.cycle.sends.cte3.status, "skipped");
+    assert.equal(replied.body.cycle.sends.cte4.status, "skipped");
+    assert.equal(dueTemplates(replied.body.cycle, new Date("2026-12-01T15:00:00Z")).length, 0);
+
+    const open = stampFollowupRow(
+      { nextAction: "Call — first outreach", followUpDate: "2026-09-14T10:00" },
+      Date.parse("2026-09-14T15:00:00Z"),
+    );
+    assert.equal(open.completed, false);
+    assert.equal(open.status, "open");
+    const book = applyLiveCrmFollowupPatch({}, { "c-finish": open });
+    const done = applyLiveCrmFollowupPatch(book, {
+      "c-finish": {
+        nextAction: "",
+        followUpDate: "",
+        completed: true,
+        status: "completed",
+        updatedAt: "2026-09-14T16:00:00Z",
+      },
+    });
+    assert.equal(isCompletedFollowup(done["c-finish"]), true);
+    assert.match(page, /id="fu-done">Complete</);
+    assert.match(page, /action:"completeFollowup"/);
+    assert.match(page, /async function completeWork/);
+  });
+
+  it("Logged attempt does not start the email ladder; Replied still closes the work", async () => {
+    let sends = 0;
+    const env = envUsers([james]);
+    const hint = { id: "c-logged", name: "Gary Smith", email: "gary@test.com", owner: "James" };
+    const logged = await handleCycleAuthed(
+      "/cycle/attempt",
+      "POST",
+      env,
+      james,
+      { ...hint, outcome: "logged" },
+      new URLSearchParams(),
+    );
+    assert.equal(logged.status, 200);
+    assert.equal(logged.body.cycle.lifecycle, "Working");
+    assert.equal(logged.body.cycle.cteStage, "CTE1");
+    assert.equal(logged.body.cycle.sends.cte2, undefined);
+    const { rec } = await logAttempt(env, hint, "logged", "James", async () => {
+      sends += 1;
+      return new Response(JSON.stringify({ message_id: "nope" }), { status: 200 });
+    });
+    assert.equal(sends, 0);
+    const stopped = await stopForReply(env, hint, "James", "rep");
+    assert.equal(stopped.stopped, true);
+    assert.equal(dueTemplates(stopped).length, 0);
+    assert.equal(rec.sends.cte1, undefined);
   });
 });
 
