@@ -98,6 +98,9 @@ describe("CBSS platform brand", () => {
     assert.match(page, /@media \(max-width: 860px\)/);
     assert.match(page, /phone-hide/);
     assert.match(page, /book-split/);
+    assert.match(page, /#crm-detail \{\s*position: sticky;/);
+    assert.match(page, /\.book-split \{ align-items: start; \}/);
+    assert.match(page, /scrollIntoView\(\{ behavior:"smooth", block: mobile \? "start" : "nearest" \}\)/);
     assert.match(page, /100dvh/);
     assert.match(page, /safe-area-inset/);
     assert.ok(SALES_SPARKS.length >= 8);

@@ -250,6 +250,24 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     .gate { display: contents; }
     .table-scroll { overflow: auto; }
     .scroll-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; align-items: center; }
+    @media (min-width: 861px) {
+      .book-split { align-items: start; }
+      .book-split .table-scroll {
+        max-height: calc(100dvh - 220px);
+        max-height: calc(100vh - 220px);
+        overflow: auto;
+      }
+      #crm-detail {
+        position: sticky;
+        top: 16px;
+        align-self: start;
+        max-height: calc(100dvh - 32px);
+        max-height: calc(100vh - 32px);
+        overflow-y: auto;
+        min-width: 0;
+        scroll-margin-top: 16px;
+      }
+    }
     @media (max-width: 860px) {
       html, body { height: auto; min-height: 100%; min-height: 100dvh; min-height: -webkit-fill-available; }
       body { padding-bottom: env(safe-area-inset-bottom); }
@@ -1320,7 +1338,11 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       const stageSel = $("crm-stage");
       if (stageSel) stageSel.onchange = function(){ saveContactStage(selected.id, stageSel.value); };
       paintCycle(selected);
-      if (window.matchMedia("(max-width: 860px)").matches) $("crm-detail").scrollIntoView({ behavior:"smooth", block:"start" });
+      const detail = $("crm-detail");
+      if (detail) {
+        const mobile = window.matchMedia("(max-width: 860px)").matches;
+        detail.scrollIntoView({ behavior:"smooth", block: mobile ? "start" : "nearest" });
+      }
     }
     function cycleHint(c){
       return { id:String(c.id), name:c.name||"", email:c.email||"", owner:c.owner||"", status:contactStage(c)||"" };
