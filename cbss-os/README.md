@@ -20,7 +20,7 @@ Navy `#0B1F3A` / gold `#C9A227` / cream `#F7F4EC`.
 
 - **CRM** — contacts, follow-ups, tasks, pipeline, notes. Email-campaign hold keeps the contact on the book so you can still open and edit it. Save follow-up confirms what landed on Follow-ups. Assigning an owner pulls that lead off New/Unassigned — including Facebook twins that match an already-assigned card.
 - **Desk** — Harbor (CBSS AI) first, Container One / USA Containers price match, then call scraps and email
-- **Proposal** — stepped quote: pick the box, Get CBSS Price, proposal amount, submit
+- **Proposal** — stepped quote: pick the box (including reefer working / reefer non-working), Get CBSS Price, proposal amount, submit. A sent proposal writes that amount and Proposal Sent onto the matching CRM contact.
 - **Modified** — build-out spec: Apex helical pylons, doors, roll-up, windows, framing, insulation, electrical. No invented prices
 - **Money** — branded invoice (ACH/wire or card). Mark paid records the KV card; the invoice Worker emails Next Steps from AgentMail. No Veem. No Master Chief webhook.
 - **Lifecycle / CTE** — New → Working → Quoted → Invoiced → Paid → Delivered (exits: Lost, Not interested, Bought elsewhere). Contact card shows assigned rep, CTE stage, next due, compact timeline, Logged attempt / No answer / Replied / Override CTE / Mark paid.
