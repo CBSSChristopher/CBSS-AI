@@ -32,6 +32,8 @@ export const TEAM_OWNERS = [
   "Aliyah",
   "Brittni Keeling",
   "Derrek Clements",
+  "Sean Thurman",
+  "Julia",
   "New/Unassigned",
 ] as const;
 
@@ -46,6 +48,8 @@ export const OWNER_ALIASES: Record<string, string> = {
   aliyah: "Aliyah",
   brittni: "Brittni Keeling",
   derrek: "Derrek Clements",
+  sean: "Sean Thurman",
+  julia: "Julia",
 };
 
 export function titleOwner(value: string): string {
