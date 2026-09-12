@@ -39,7 +39,7 @@ Workers own the ladder. Grok Bot / Master Chief / AgentMail MCP are not used at 
 
 - Secret: `AGENTMAIL_API_KEY`. Inbox var: `AGENTMAIL_INBOX=cbss@agentmail.to`.
 - Cron: `0 * * * *`. Sends only 08:00–19:00 America/Chicago. Each `contactId:template` send is idempotent.
-- CTE1 = human call/text day. **No answer** sends the intro and schedules CTE2 +1, CTE3 +3, CTE4 +5 business days from the CTE1 date (weekends + U.S. federal holidays for any year; optional `US_HOLIDAY_EXTRA=YYYY-MM-DD,YYYY-MM-DD`).
+- CTE1 = human call/text day. **No answer** sends the intro and schedules CTE2 +1, CTE3 +3, CTE4 +7 business days from the CTE1 date (weekends + U.S. federal holidays for any year; optional `US_HOLIDAY_EXTRA=YYYY-MM-DD,YYYY-MM-DD`).
 - **Replied** (button) or inbound AgentMail reply (webhook `POST /cycle/hooks/agentmail` with `AGENTMAIL_WEBHOOK_SECRET`, plus hourly poll) cancels remaining sends and writes `Client replied · Ladder stopped`. System-detected replies alert the **current** assigned rep only (in-Yard + AgentMail).
 - Override CTE sets the next unsent step; later steps keep the original gaps. Reply-stop always wins.
 - Assigned rep for **CTE** emails comes from the contact owner matched to an active Yard login (`cycle:users`). Missing / inactive rep or missing client email pauses CTE and flags — never invents an email for an unknown name.
