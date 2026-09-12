@@ -1,6 +1,6 @@
 import { firstNameOf } from "./rep.ts";
 
-export type TemplateId = "cte1" | "cte2" | "cte3" | "cte4" | "paid" | "lost" | "not_interested" | "bought_elsewhere";
+export type TemplateId = "cte1" | "cte2" | "cte3" | "cte4" | "paid" | "lost" | "not_interested" | "bought_elsewhere" | "bad_number";
 
 export type TemplateVars = {
   clientFirstName: string;
@@ -99,6 +99,19 @@ export function renderTemplate(id: TemplateId, vars: TemplateVars): { subject: s
         "This is my last scheduled follow-up. I will not keep emailing the same thread.",
         "",
         "If you want help later, reply here or call me. The door stays open.",
+        ...close,
+      ].join("\n"),
+    };
+  }
+  if (id === "bad_number") {
+    return {
+      subject: `${first} — we cannot reach you at the number we have`,
+      text: [
+        `Hi ${first},`,
+        "",
+        `This is ${rep} with CB Shipping Solutions. The phone number we have for you is not a working way to reach you, so we do not know how to contact you.`,
+        "",
+        "If you still want help with a container, reply to this email with a good phone number and the best time to call. If this inbox is wrong too, send the right email address.",
         ...close,
       ].join("\n"),
     };

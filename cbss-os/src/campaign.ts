@@ -2,6 +2,8 @@ import type { Env } from "./auth.ts";
 
 const KEY = "campaign:leads";
 
+export type CampaignReason = "hold" | "bad_number";
+
 export type CampaignLead = {
   id: string;
   name: string;
@@ -11,7 +13,12 @@ export type CampaignLead = {
   owner: string;
   addedBy: string;
   addedAt: string;
+  reason?: CampaignReason;
 };
+
+export function campaignReasonOf(lead: { reason?: string } | null | undefined): CampaignReason {
+  return String(lead?.reason || "").trim() === "bad_number" ? "bad_number" : "hold";
+}
 
 async function readBag(env: Env): Promise<CampaignLead[]> {
   if (!env.SESSIONS) return [];
@@ -38,16 +45,21 @@ export async function addCampaign(env: Env, lead: CampaignLead): Promise<Campaig
   const items = await readBag(env);
   const id = String(lead.id || "").trim();
   if (!id) return items;
+  const prior = items.find((row) => String(row.id) === id);
   const next = items.filter((row) => String(row.id) !== id);
+  const reason = campaignReasonOf(lead) === "bad_number" || campaignReasonOf(prior) === "bad_number"
+    ? "bad_number"
+    : "hold";
   next.unshift({
     id,
-    name: String(lead.name || "").trim(),
-    email: String(lead.email || "").trim(),
-    phone: String(lead.phone || "").trim(),
-    city: String(lead.city || "").trim(),
-    owner: String(lead.owner || "").trim(),
-    addedBy: String(lead.addedBy || "").trim(),
-    addedAt: lead.addedAt || new Date().toISOString(),
+    name: String(lead.name || prior?.name || "").trim(),
+    email: String(lead.email || prior?.email || "").trim(),
+    phone: String(lead.phone || prior?.phone || "").trim(),
+    city: String(lead.city || prior?.city || "").trim(),
+    owner: String(lead.owner || prior?.owner || "").trim(),
+    addedBy: String(lead.addedBy || prior?.addedBy || "").trim(),
+    addedAt: lead.addedAt || prior?.addedAt || new Date().toISOString(),
+    reason,
   });
   await writeBag(env, next);
   return next;

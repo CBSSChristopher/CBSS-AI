@@ -34,4 +34,31 @@ describe("email campaign hold", () => {
     const back = await returnCampaign(env, "99");
     assert.equal(back.length, 0);
   });
+
+  it("keeps a bad-number reason when the same lead is added again as a hold", async () => {
+    const env = mockEnv();
+    await addCampaign(env, {
+      id: "12",
+      name: "Pat Lee",
+      email: "pat@example.com",
+      phone: "8705550199",
+      city: "Corning",
+      owner: "James",
+      addedBy: "James",
+      addedAt: "2026-09-12T16:00:00.000Z",
+      reason: "bad_number",
+    });
+    const again = await addCampaign(env, {
+      id: "12",
+      name: "Pat Lee",
+      email: "pat@example.com",
+      phone: "8705550199",
+      city: "Corning",
+      owner: "James",
+      addedBy: "James",
+      addedAt: "2026-09-12T16:05:00.000Z",
+      reason: "hold",
+    });
+    assert.equal(again[0].reason, "bad_number");
+  });
 });
