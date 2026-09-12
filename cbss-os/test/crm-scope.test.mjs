@@ -102,6 +102,8 @@ describe("CRM GET owner scope", () => {
     assert.match(index, /shouldScopeCrmGet/);
     assert.match(page, /No names in this book/);
     assert.match(page, /left New\/Unassigned/);
+    assert.match(page, /claimAssignedOnBook/);
+    assert.match(page, /saveContactsAdded/);
   });
 
   it("takes contactEdits.owner over the raw New/Unassigned stamp", () => {

@@ -18,7 +18,7 @@ Navy `#0B1F3A` / gold `#C9A227` / cream `#F7F4EC`.
 
 ## Modules
 
-- **CRM** — contacts, follow-ups, tasks, pipeline, notes. Email-campaign hold keeps the contact on the book so you can still open and edit it. Save follow-up confirms what landed on Follow-ups. Assigning an owner pulls that lead off New/Unassigned — including Facebook twins that match an already-assigned card.
+- **CRM** — contacts, follow-ups, tasks, pipeline, notes. Email-campaign hold keeps the contact on the book so you can still open and edit it. Save follow-up confirms what landed on Follow-ups. Assigning an owner pulls that lead off New/Unassigned — including Facebook twins that match an already-assigned card. The pile reloads after the save so a pull does not put that name back.
 - **Desk** — Harbor (CBSS AI) first, Container One / USA Containers price match, then call scraps and email
 - **Proposal** — stepped quote: pick the box (including reefer working / reefer non-working), Get CBSS Price, proposal amount, submit. A sent proposal writes that amount and Proposal Sent onto the matching CRM contact.
 - **Modified** — build-out spec: Apex helical pylons, doors, roll-up, windows, framing, insulation, electrical. No invented prices

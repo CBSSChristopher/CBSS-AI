@@ -1095,6 +1095,44 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       const first = raw.split(/[\\s@]/)[0].toLowerCase();
       return OWNER_ALIASES[first] || raw;
     }
+    function isUnassignedPool(owner){
+      const named = titleOwner(owner);
+      return !named || named === "New/Unassigned";
+    }
+    function normEmail(value){ return String(value||"").trim().toLowerCase(); }
+    function normPhone(value){
+      const digits = String(value||"").replace(/\\D/g, "");
+      return digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
+    }
+    function normName(value){ return String(value||"").trim().toLowerCase().replace(/\\s+/g, " "); }
+    function claimAssignedOwner(row, assigned){
+      if (!row || !isUnassignedPool(row.owner)) return "";
+      const email = normEmail(row.email);
+      const phone = normPhone(row.phone);
+      const name = normName(row.name);
+      const pool = (assigned||[]).filter(function(other){ return other && String(other.id) !== String(row.id) && !isUnassignedPool(other.owner); });
+      if (email) {
+        const hit = pool.find(function(other){ return normEmail(other.email) === email; });
+        if (hit) return titleOwner(hit.owner);
+      }
+      if (phone.length >= 7) {
+        const hit = pool.find(function(other){ return normPhone(other.phone) === phone; });
+        if (hit) return titleOwner(hit.owner);
+      }
+      if (name && name.indexOf(" ") >= 0) {
+        const hits = pool.filter(function(other){ return normName(other.name) === name; });
+        if (hits.length === 1) return titleOwner(hits[0].owner);
+      }
+      return "";
+    }
+    function claimAssignedOnBook(contacts){
+      const assigned = (contacts||[]).filter(function(row){ return !isUnassignedPool(row.owner); });
+      (contacts||[]).forEach(function(row){
+        const taken = claimAssignedOwner(row, assigned);
+        if (taken) row.owner = taken;
+      });
+      return contacts;
+    }
     function mineName(){ return titleOwner((user && (user.name||user.email))||""); }
     function contactStage(c){
       if (!c) return "";
@@ -1181,7 +1219,8 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       });
     });
 
-    async function loadCrm(){
+    async function loadCrm(keepNotice){
+      const notice = keepNotice && typeof keepNotice === "object" ? keepNotice : null;
       $("crm-err").className = "err";
       $("crm-err").textContent = "Loading book…";
       let res;
@@ -1195,6 +1234,8 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       const j = res.j;
       const contacts = (j.contacts||[]).slice();
       const added = j.contactsAdded||[];
+      const addedIds = {};
+      added.forEach(function(a){ if (a && a.id != null) addedIds[String(a.id)] = true; });
       const ids = new Set(contacts.map(function(c){ return String(c.id); }));
       added.forEach(function(a){ if(!ids.has(String(a.id))){ contacts.unshift(a); ids.add(String(a.id)); } });
       contacts.forEach(function(c){
@@ -1214,9 +1255,16 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         const done = (j.completedTasks||{})[c.id] || (j.completedTasks||{})[String(c.id)];
         c.completedTasks = Array.isArray(done) ? done.slice() : [];
       });
+      claimAssignedOnBook(contacts);
       const deals = (j.deals||[]).map(function(d){ d.owner = titleOwner(d.owner); if (d.stage==="Quoted") d.stage="Quote"; return d; });
-      book = { contacts:contacts, deals:deals, followups:j.followups||{}, completed:j.completedTasks||{} };
-      $("crm-err").textContent = "";
+      book = { contacts:contacts, deals:deals, followups:j.followups||{}, completed:j.completedTasks||{}, addedIds:addedIds };
+      if (notice && notice.text) {
+        $("crm-err").className = notice.ok ? "ok" : "err";
+        $("crm-err").textContent = notice.text;
+      } else {
+        $("crm-err").className = "err";
+        $("crm-err").textContent = "";
+      }
       await loadCampaign();
       fillOwners(); renderStats(); renderContacts();
     }
@@ -1690,6 +1738,11 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       edits[id] = patch;
       edits[String(id)] = patch;
       await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"saveContactEdits", contactEdits: edits }) });
+      if (book && book.addedIds && book.addedIds[String(id)] && patch.owner) {
+        try {
+          await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"saveContactsAdded", contactsAdded: [Object.assign({}, row, patch)] }), allowError: true });
+        } catch (_) {}
+      }
       await recordContactChange(id, before, patch);
       if (patch.owner && String(patch.owner) !== String(before.owner||"")) {
         try {
@@ -1741,14 +1794,12 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       try {
         await persistContactPatch(id, patch);
         closeContactEdit();
-        $("crm-err").className = "err";
-        $("crm-err").textContent = "";
-        if (fromPool && patch.owner && titleOwner(patch.owner) !== "New/Unassigned") {
-          $("crm-err").className = "ok";
-          $("crm-err").textContent = (patch.name || "That lead")+" left New/Unassigned · now on "+titleOwner(patch.owner)+".";
-        }
-        fillOwners();
-        renderStats(); renderContacts(); renderFollowups(); renderTasks(); renderPipeline();
+        const leftPool = fromPool && patch.owner && titleOwner(patch.owner) !== "New/Unassigned";
+        const leaveNote = leftPool
+          ? { ok: true, text: (patch.name || "That lead")+" left New/Unassigned · now on "+titleOwner(patch.owner)+"." }
+          : null;
+        await loadCrm(leaveNote);
+        renderFollowups(); renderTasks(); renderPipeline();
         openContact(id);
       } catch (err) {
         $("m-err").textContent = (err && err.message) || "Could not save that contact.";
