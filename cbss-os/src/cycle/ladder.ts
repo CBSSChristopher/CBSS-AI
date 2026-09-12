@@ -15,7 +15,7 @@ import type { TemplateId } from "./templates.ts";
 export const CTE_OFFSETS: Record<Exclude<CteStep, "CTE1">, number> = {
   CTE2: 1,
   CTE3: 3,
-  CTE4: 5,
+  CTE4: 7,
 };
 
 export function holidayExtras(env: { US_HOLIDAY_EXTRA?: string }): CivilDate[] {
@@ -69,7 +69,7 @@ export function nextOpenDue(rec: CycleRecord): string {
 /**
  * Override the next unsent CTE email.
  * Remaining later steps keep the original gaps from that next step
- * (CTE2=+1, CTE3=+3, CTE4=+5 from CTE1 → later = override + (theirOffset - nextOffset) business days).
+ * (CTE2=+1, CTE3=+3, CTE4=+7 from CTE1 → later = override + (theirOffset - nextOffset) business days).
  */
 export function applyOverride(
   rec: CycleRecord,
@@ -78,9 +78,9 @@ export function applyOverride(
 ): { ok: true; from: string; to: string; step: TemplateId } | { ok: false; error: string } {
   if (rec.stopped) return { ok: false, error: "Reply-stop already won. Override cannot restart the ladder." };
   const order: Array<{ step: Exclude<CteStep, "CTE1">; id: TemplateId; offset: number }> = [
-    { step: "CTE2", id: "cte2", offset: 1 },
-    { step: "CTE3", id: "cte3", offset: 3 },
-    { step: "CTE4", id: "cte4", offset: 5 },
+    { step: "CTE2", id: "cte2", offset: CTE_OFFSETS.CTE2 },
+    { step: "CTE3", id: "cte3", offset: CTE_OFFSETS.CTE3 },
+    { step: "CTE4", id: "cte4", offset: CTE_OFFSETS.CTE4 },
   ];
   const next = order.find(({ id }) => {
     const send = rec.sends[id];

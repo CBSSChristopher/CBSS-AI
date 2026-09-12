@@ -77,11 +77,11 @@ describe("business-day math", () => {
     assert.ok(july4sat, "Independence Day 2026 is Saturday, observed Friday the 3rd");
   });
 
-  it("schedules CTE2/3/4 from CTE1 as +1 / +3 / +5 business days", () => {
+  it("schedules CTE2/3/4 from CTE1 as +1 / +3 / +7 business days", () => {
     const dates = scheduleFromCte1({ y: 2026, m: 9, d: 14 });
     assert.equal(dates.cte2, "2026-09-15T10:00");
     assert.equal(dates.cte3, "2026-09-17T10:00");
-    assert.equal(dates.cte4, "2026-09-21T10:00");
+    assert.equal(dates.cte4, "2026-09-23T10:00");
   });
 
   it("honors US_HOLIDAY_EXTRA in any year", () => {
@@ -139,7 +139,7 @@ describe("CTE override, stop, reassignment, cron idempotency", () => {
     assert.equal(result.ok, true);
     assert.equal(rec.sends.cte2.dueAt, "2026-09-16T09:00");
     assert.equal(rec.sends.cte3.dueAt, "2026-09-18T10:00");
-    assert.equal(rec.sends.cte4.dueAt, "2026-09-22T10:00");
+    assert.equal(rec.sends.cte4.dueAt, "2026-09-24T10:00");
   });
 
   it("reply-stop wins over override and cancels remaining sends", async () => {
