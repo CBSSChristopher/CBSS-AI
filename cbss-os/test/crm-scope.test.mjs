@@ -3,12 +3,15 @@ import { describe, it } from "node:test";
 import { readFileSync } from "node:fs";
 import {
   canSeeAllCrmOwners,
+  isUnassignedPool,
   ownerMatchesViewer,
+  ownerVisibleToViewer,
   scopeCrmGetPayload,
   shouldScopeCrmGet,
 } from "../src/crm-scope.ts";
 
 const index = readFileSync(new URL("../src/index.ts", import.meta.url), "utf8");
+const page = readFileSync(new URL("../src/page.ts", import.meta.url), "utf8");
 
 const jamesMail = ["james", "cbshippingsolutions.com"].join("@");
 const chrisMail = ["christopher", "cbshippingsolutions.com"].join("@");
@@ -18,8 +21,13 @@ const book = {
     { id: "1", name: "Pat", owner: "James" },
     { id: "2", name: "Sam", owner: "Christopher Banks" },
     { id: "3", name: "Lee", owner: jamesMail },
+    { id: "5", name: "Facebook Lead", owner: "New/Unassigned" },
+    { id: "6", name: "Blank Owner", owner: "" },
   ],
-  contactsAdded: [{ id: "4", name: "New", owner: "James" }],
+  contactsAdded: [
+    { id: "4", name: "New", owner: "James" },
+    { id: "7", name: "Julia pile", owner: "New/Unassigned" },
+  ],
   deals: [
     { id: "d1", contactId: "1", owner: "James", stage: "Quote" },
     { id: "d2", contactId: "2", owner: "Christopher Banks", stage: "Sold" },
@@ -49,8 +57,8 @@ describe("CRM GET owner scope", () => {
   it("filters contacts, deals, followups, edits, and completed for a rep", () => {
     const james = scopeCrmGetPayload(book, { email: jamesMail, name: "James" });
     assert.equal(james.scoped, true);
-    assert.deepEqual(james.contacts.map((c) => c.id), ["1", "3"]);
-    assert.deepEqual(james.contactsAdded.map((c) => c.id), ["4"]);
+    assert.deepEqual(james.contacts.map((c) => c.id), ["1", "3", "5", "6"]);
+    assert.deepEqual(james.contactsAdded.map((c) => c.id), ["4", "7"]);
     assert.deepEqual(james.deals.map((d) => d.id), ["d1"]);
     assert.ok(james.followups["1"]);
     assert.equal(james.followups["2"], undefined);
@@ -60,10 +68,28 @@ describe("CRM GET owner scope", () => {
     assert.equal(james.completedTasks["2"], undefined);
   });
 
+  it("lets Julia see New/Unassigned without Christopher or James books", () => {
+    assert.equal(isUnassignedPool("New/Unassigned"), true);
+    assert.equal(isUnassignedPool("unassigned"), true);
+    assert.equal(isUnassignedPool(""), true);
+    assert.equal(isUnassignedPool("James"), false);
+    const juliaMail = ["julia", "cbshippingsolutions.com"].join("@");
+    assert.equal(ownerVisibleToViewer("New/Unassigned", "Julia", juliaMail), true);
+    assert.equal(ownerVisibleToViewer("James", "Julia", juliaMail), false);
+    const julia = scopeCrmGetPayload(book, { email: juliaMail, name: "Julia" });
+    assert.equal(julia.scoped, true);
+    assert.deepEqual(julia.contacts.map((c) => c.id), ["5", "6"]);
+    assert.deepEqual(julia.contactsAdded.map((c) => c.id), ["7"]);
+    assert.deepEqual(julia.deals.map((d) => d.id), []);
+    assert.equal(julia.followups["1"], undefined);
+    assert.equal(julia.followups["2"], undefined);
+  });
+
   it("does not filter Christopher's GET", () => {
     const chris = scopeCrmGetPayload(book, { email: chrisMail, name: "Christopher Banks" });
     assert.equal(chris.scoped, false);
-    assert.equal(chris.contacts.length, 3);
+    assert.equal(chris.contacts.length, 5);
+    assert.equal(chris.contactsAdded.length, 2);
     assert.equal(chris.deals.length, 2);
     assert.ok(chris.followups["2"]);
   });
@@ -71,5 +97,6 @@ describe("CRM GET owner scope", () => {
   it("applies the filter on the worker after a live CRM GET", () => {
     assert.match(index, /scopeCrmGetPayload/);
     assert.match(index, /shouldScopeCrmGet/);
+    assert.match(page, /No names in this book/);
   });
 });
