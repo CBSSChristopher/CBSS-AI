@@ -19,6 +19,8 @@ export const CONFIGS = [
   { value: "side-os-4d", label: "Side door (OS 4D)" },
   { value: "side-door", label: "Side door" },
   { value: "full-open-side", label: "Full open side" },
+  { value: "reefer-working", label: "Reefer working" },
+  { value: "reefer-non-working", label: "Reefer non-working" },
   { value: "other", label: "Other / specialized" },
 ];
 
@@ -100,7 +102,13 @@ export function parseOfferConfig(raw) {
   if (!n) return "standard";
   if (n.includes("tridoor") || n.includes("3door")) return "tri-door";
   if (n.includes("fullopen") || n.includes("opensidefull") || n.includes("fullopenside")) return "full-open-side";
-  if (n.includes("opentop")) return "other";
+  if (n.includes("opentop") || n.includes("flatrack") || n.includes("duocon")) return "other";
+  if (n.includes("reefer") || n.includes("refrigerat")) {
+    if (n.includes("nonworking") || n.includes("notworking") || n.includes("inoperable") || n.includes("inop")) {
+      return "reefer-non-working";
+    }
+    return "reefer-working";
+  }
 
   const openSide =
     n.includes("openside") ||
@@ -137,7 +145,6 @@ export function parseOfferConfig(raw) {
   }
 
   if (n.includes("doubledoor") || n.includes("tunnel")) return "double-door";
-  if (n.includes("reefer") || n.includes("refrigerat")) return "other";
   if (n.includes("specialized") || n.includes("modified") || n.includes("custom")) return "other";
   return "standard";
 }

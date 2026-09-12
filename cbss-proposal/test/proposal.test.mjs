@@ -106,7 +106,10 @@ describe("Proposal tool picker, depot, and cash price", () => {
     assert.deepEqual(parseOfferSpec("40HC Open Side 4 Doors"), { size: "40", height: "HC", config: "side-os-4d" });
     assert.deepEqual(parseOfferSpec("40HC Open Side Full Open"), { size: "40", height: "HC", config: "full-open-side" });
     assert.equal(parseOfferSpec("40DC Open Top").config, "other");
-    assert.equal(parseOfferSpec("40HC Reefer").config, "other");
+    assert.equal(parseOfferSpec("40HC Reefer").config, "reefer-working");
+    assert.equal(parseOfferSpec("40HC Reefer non-working").config, "reefer-non-working");
+    assert.equal(parseOfferSpec("reefer inoperable").config, "reefer-non-working");
+    assert.equal(rateSheetSize("40", "reefer-working"), "Specialized");
     assert.equal(rateSheetSize("40", "standard"), "40ft");
     assert.equal(rateSheetSize("20", "standard"), "20ft");
     assert.equal(rateSheetSize("40", "full-open-side"), "Specialized");
@@ -239,6 +242,10 @@ describe("Proposal tool picker, depot, and cash price", () => {
     assert.match(page, /10 ft/);
     assert.match(page, /High cube \/ HC/);
     assert.match(page, /Full open side/);
+    assert.match(page, /data-val="reefer-working"/);
+    assert.match(page, /data-val="reefer-non-working"/);
+    assert.match(page, />Reefer working</);
+    assert.match(page, />Reefer non-working</);
     assert.match(page, /id="boxConfig"/);
     assert.match(page, /id="boxQty"/);
     assert.match(page, /How many/);
