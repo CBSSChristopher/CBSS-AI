@@ -1250,7 +1250,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       if (note) {
         note.textContent = hit.total > hit.rows.length
           ? "Showing "+hit.rows.length+" of "+hit.total+". Search to find anyone."
-          : (hit.total ? hit.total+" in this book." : "");
+          : (hit.total ? hit.total+" in this book." : "No names in this book.");
       }
     }
     $("crm-q").addEventListener("input", renderContacts);
