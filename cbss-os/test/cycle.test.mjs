@@ -164,7 +164,9 @@ describe("CTE copy is an introduction with the rep on the footer", () => {
     const last = renderTemplate("cte4", vars);
     assert.match(james.text, /\(870\) 260-7592/);
     assert.match(james.text, /james@cbshippingsolutions\.com/);
-    assert.match(julia.text, /\(870\) 323-1747/);
+    assert.match(julia.text, /\(870\) 682-3867/);
+    assert.doesNotMatch(julia.text, /\(870\) 323-1747/);
+    assert.doesNotMatch(julia.text, /\(870\) 323-2593/);
     assert.match(julia.text, /julia@cbshippingsolutions\.com/);
     assert.match(last.text, /\(870\) 682-3867/);
     assert.doesNotMatch(james.text, /I will not invent a price/);
