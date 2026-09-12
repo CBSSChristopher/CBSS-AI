@@ -76,6 +76,15 @@ describe("CBSS platform brand", () => {
     assert.match(page, />Text</);
     assert.match(page, />Email</);
     assert.match(page, /Add to email campaign/);
+    assert.match(page, /Return from email campaign/);
+    assert.match(page, /On the email campaign list/);
+    assert.match(page, /open anyone here to edit them/);
+    assert.match(page, /function returnFromCampaign/);
+    assert.doesNotMatch(page, /moved to Email campaign/);
+    assert.match(page, /id="fu-saved"/);
+    assert.match(page, /function showFollowupSaved/);
+    assert.match(page, /It is saved on Follow-ups/);
+    assert.match(page, /Show on Follow-ups/);
     assert.match(page, /Email campaign/);
     assert.ok(TEAM_OWNERS.includes("Derrek Clements"));
     assert.ok(TEAM_OWNERS.includes("Brittni Keeling"));

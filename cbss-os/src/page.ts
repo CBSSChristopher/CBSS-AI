@@ -870,6 +870,17 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       <div class="row"><button type="button" class="gold" id="n-saved-ok">Got it</button></div>
     </div>
   </div>
+  <div id="fu-saved" class="save-alert hide" role="alertdialog" aria-modal="true" aria-labelledby="fu-saved-title" aria-describedby="fu-saved-body">
+    <div class="box">
+      <p class="kicker">Follow-up</p>
+      <h3 id="fu-saved-title">Follow-up saved</h3>
+      <p id="fu-saved-body"></p>
+      <div class="row">
+        <button type="button" class="gold" id="fu-saved-ok">Got it</button>
+        <button type="button" class="secondary" id="fu-saved-go">Show on Follow-ups</button>
+      </div>
+    </div>
+  </div>
   <div id="contact-edit" class="modal-back hide">
     <div class="modal-card">
       <h2>Edit contact</h2>
@@ -1241,7 +1252,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       return named===want;
     }
     function onCampaign(id){ return Boolean(campaignIds[String(id)]); }
-    function working(){ return ((book&&book.contacts)||[]).filter(function(c){ return !c.archived && c.status!=="DNC" && !onCampaign(c.id); }); }
+    function working(){ return ((book&&book.contacts)||[]).filter(function(c){ return !c.archived && c.status!=="DNC"; }); }
     function scopedContacts(){ return working().filter(function(c){ return ownerScope(c.owner); }); }
     function renderStats(){
       if (!book) return;
@@ -1318,12 +1329,16 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         +(gmail ? '<a class="secondary" href="'+esc(gmail)+'" target="_blank" rel="noopener">Email</a>' : '<button type="button" class="secondary" disabled title="No email on this contact">Email</button>')
         +(textHref ? '<a class="secondary" href="'+textHref+'">Text</a>' : '<button type="button" class="secondary" disabled title="No phone on this contact">Text</button>')
         +'<button type="button" id="crm-edit">Edit</button>'
-        +'<button type="button" class="secondary" id="add-campaign">Add to email campaign</button>'
+        +(onCampaign(selected.id)
+          ? '<button type="button" class="secondary" id="return-campaign">Return from email campaign</button>'
+          : '<button type="button" class="secondary" id="add-campaign">Add to email campaign</button>')
         +"</div>"
+        +(onCampaign(selected.id) ? '<p class="muted">On the email campaign list. You can still edit this contact here.</p>' : "")
         +(fu.pendingNext || fu.completed ? '<p class="muted">Just completed. Type the next follow-up and save it — it stays on the book.</p>' : "")
         +'<label>Follow-up</label><input id="fu-act" value="'+esc(fu.pendingNext || fu.completed ? "" : (fu.nextAction||""))+'" placeholder="e.g. Call about 40ft WWT pricing" />'
         +'<input id="fu-date" type="datetime-local" value="'+esc(fu.pendingNext || fu.completed ? "" : (fu.followUpDate||"").slice(0,16))+'" />'
         +'<div class="row"><button type="button" class="secondary" id="fu-save">Save follow-up</button><button type="button" id="fu-done">Complete</button></div>'
+        +'<p class="ok" id="fu-ok"></p>'
         +'<label>Add note</label><textarea id="note-text" rows="2"></textarea><div class="row"><button type="button" class="secondary" id="note-add">Add note</button></div>'
         +doneTodayHtml(selected)
         +(notesErr ? '<p class="err" id="crm-notes-err">'+esc(notesErr)+"</p>" : "")
@@ -1333,6 +1348,8 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       $("note-add").onclick = addNote;
       const campBtn = $("add-campaign");
       if (campBtn) campBtn.onclick = addToCampaign;
+      const returnBtn = $("return-campaign");
+      if (returnBtn) returnBtn.onclick = function(){ returnFromCampaign(selected.id); };
       const editBtn = $("crm-edit");
       if (editBtn) editBtn.onclick = function(){ openContactEdit(selected); };
       const stageSel = $("crm-stage");
@@ -1452,15 +1469,44 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       if (c){ c.nextAction = row.nextAction; c.followUpDate = row.followUpDate; }
       return row;
     }
+    function followupWhenLabel(when){
+      const raw = String(when||"").trim().replace("T"," ");
+      return raw || "no date yet";
+    }
+    function showFollowupSaved(c, row){
+      const name = (c && c.name) || "That lead";
+      const action = String((row && row.nextAction) || "").trim() || "Follow-up";
+      const when = followupWhenLabel(row && row.followUpDate);
+      const line = name+" — "+action+" on "+when+". It is saved on Follow-ups.";
+      $("fu-saved-body").textContent = line;
+      $("fu-saved").classList.remove("hide");
+      const local = $("fu-ok");
+      if (local) local.textContent = "Saved · "+action+" · "+when+" · Follow-ups";
+      try { $("fu-saved").querySelector("button").focus(); } catch (e) {}
+    }
     async function saveFollowup(){
       if (!selected) return;
+      const act = $("fu-act").value.trim();
+      const when = $("fu-date").value;
+      if (!act && !when){
+        $("crm-err").textContent = "Type the next action or pick a date, then Save follow-up.";
+        const local = $("fu-ok");
+        if (local) local.textContent = "";
+        return;
+      }
+      const btn = $("fu-save");
+      if (btn) btn.disabled = true;
       try {
-        const row = await persistOpenFollowup(selected.id, $("fu-act").value, $("fu-date").value);
+        const row = await persistOpenFollowup(selected.id, act, when);
         if (!row) return;
         $("crm-err").textContent = "";
-        renderStats();
+        renderStats(); renderFollowups(); renderTasks();
+        await openContact(selected.id);
+        showFollowupSaved(selected, row);
       } catch (err) {
         $("crm-err").textContent = (err && err.message) || "Could not save follow-up.";
+      } finally {
+        if (btn) btn.disabled = false;
       }
     }
     async function completeTask(){
@@ -1498,18 +1544,32 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     }
     async function addToCampaign(){
       if (!selected) return;
+      const id = selected.id;
       try {
         const res = await api("/campaign/add", { method:"POST", body: JSON.stringify({
-          id:String(selected.id), name:selected.name||"", email:selected.email||"", phone:selected.phone||"",
+          id:String(id), name:selected.name||"", email:selected.email||"", phone:selected.phone||"",
           city:selected.city||"", owner:selected.owner||""
         }) });
+        campaignIds = {};
         (res.j.items||[]).forEach(function(row){ campaignIds[String(row.id)] = row; });
         $("crm-err").textContent = "";
-        $("crm-detail").innerHTML = '<p class="muted">'+esc(selected.name||"That lead")+" moved to Email campaign. The future campaign tool will work this list.</p>";
-        selected = null;
         renderStats(); renderContacts(); renderFollowups(); renderTasks(); renderPipeline(); renderCampaign();
+        await openContact(id);
       } catch (err) {
         $("crm-err").textContent = (err && err.message) || "Could not add to campaign.";
+      }
+    }
+    async function returnFromCampaign(id){
+      if (!id) return;
+      try {
+        const res = await api("/campaign/return", { method:"POST", body: JSON.stringify({ id:String(id) }) });
+        campaignIds = {};
+        (res.j.items||[]).forEach(function(row){ campaignIds[String(row.id)] = row; });
+        $("crm-err").textContent = "";
+        renderStats(); renderContacts(); renderFollowups(); renderTasks(); renderPipeline(); renderCampaign();
+        if (selected && String(selected.id)===String(id)) await openContact(id);
+      } catch (err) {
+        $("crm-err").textContent = (err && err.message) || "Could not return that lead.";
       }
     }
     function fillNameList(current){
@@ -1688,26 +1748,25 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     $("contact-edit").addEventListener("click", function(e){ if (e.target===this) closeContactEdit(); });
     function renderCampaign(){
       const rows = Object.keys(campaignIds).map(function(id){ return campaignIds[id]; });
-      $("crm-campaign").innerHTML = "<h2>Email campaign</h2><p class=\\"muted\\">Leads pulled off the working book for a future campaign tool. They stay in the CRM book. This hold list lives here.</p>"
+      $("crm-campaign").innerHTML = "<h2>Email campaign</h2><p class=\\"muted\\">Hold list for a future campaign tool. These people stay on Contacts — open anyone here to edit them.</p>"
         +(rows.length ? '<table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Owner</th><th></th></tr></thead><tbody>'
           +rows.map(function(row){
-            return '<tr><td>'+esc(row.name||"")+"</td><td>"+esc(row.email||"")+"</td><td>"+esc(row.phone||"")+"</td><td>"+esc(row.owner||"")
+            return '<tr data-id="'+esc(String(row.id))+'"><td>'+esc(row.name||"")+"</td><td>"+esc(row.email||"")+"</td><td>"+esc(row.phone||"")+"</td><td>"+esc(row.owner||"")
               +'</td><td><button type="button" class="secondary" data-return="'+esc(String(row.id))+'">Return to book</button></td></tr>';
           }).join("")+"</tbody></table>" : '<p class="muted">No campaign leads yet.</p>');
     }
     $("crm-campaign").addEventListener("click", async function(e){
       const btn = e.target.closest("[data-return]");
-      if (!btn) return;
-      const id = btn.getAttribute("data-return");
-      try {
-        const res = await api("/campaign/return", { method:"POST", body: JSON.stringify({ id:id }) });
-        campaignIds = {};
-        (res.j.items||[]).forEach(function(row){ campaignIds[String(row.id)] = row; });
-        $("crm-err").textContent = "";
-        renderStats(); renderContacts(); renderCampaign();
-      } catch (err) {
-        $("crm-err").textContent = (err && err.message) || "Could not return that lead.";
+      if (btn){
+        e.stopPropagation();
+        await returnFromCampaign(btn.getAttribute("data-return"));
+        return;
       }
+      const tr = e.target.closest("tr[data-id]");
+      if (!tr || e.target.closest("button, input, label, select")) return;
+      const tab = document.querySelector('[data-crm="contacts"]');
+      if (tab) tab.click();
+      openContact(tr.getAttribute("data-id"));
     });
     function paintFacebookStatus(j){
       const bits = [];
@@ -1747,8 +1806,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     function scopedDeals(){
       return ((book&&book.deals)||[]).filter(function(d){
         const c = contactForId(d.contactId);
-        if (c && (c.archived || onCampaign(c.id))) return false;
-        if (onCampaign(d.contactId)) return false;
+        if (c && c.archived) return false;
         return ownerScope(d.owner) || (c && ownerScope(c.owner));
       });
     }
@@ -1887,11 +1945,15 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       const when = document.querySelector('[data-next-date="'+id+'"]');
       const nextAction = act ? act.value.trim() : "";
       const followUpDate = when ? when.value : "";
-      if (!nextAction && !followUpDate) return;
+      if (!nextAction && !followUpDate){
+        $("crm-err").textContent = "Type the next action or pick a date, then Save next follow-up.";
+        return;
+      }
       try {
-        await persistOpenFollowup(id, nextAction, followUpDate);
+        const row = await persistOpenFollowup(id, nextAction, followUpDate);
         $("crm-err").textContent = "";
         renderStats(); renderFollowups(); renderTasks();
+        showFollowupSaved(contactForId(id), row);
       } catch (err) {
         $("crm-err").textContent = (err && err.message) || "Could not save that follow-up.";
       }
@@ -2109,6 +2171,13 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     }
     $("n-saved-ok").addEventListener("click", function(){ $("n-saved").classList.add("hide"); });
     $("n-saved").addEventListener("click", function(e){ if (e.target === $("n-saved")) $("n-saved").classList.add("hide"); });
+    $("fu-saved-ok").addEventListener("click", function(){ $("fu-saved").classList.add("hide"); });
+    $("fu-saved").addEventListener("click", function(e){ if (e.target === $("fu-saved")) $("fu-saved").classList.add("hide"); });
+    $("fu-saved-go").addEventListener("click", function(){
+      $("fu-saved").classList.add("hide");
+      const tab = document.querySelector('[data-crm="followups"]');
+      if (tab) tab.click();
+    });
     $("desk-new-open").addEventListener("click", function(){ hideNewContactSaved(); openDesk("new"); $("n-first").focus(); });
     let newTrack = "cte";
     $("n-track").addEventListener("click", function(e){

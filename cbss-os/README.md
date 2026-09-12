@@ -18,7 +18,7 @@ Navy `#0B1F3A` / gold `#C9A227` / cream `#F7F4EC`.
 
 ## Modules
 
-- **CRM** — contacts, follow-ups, tasks, pipeline, notes, email-campaign hold
+- **CRM** — contacts, follow-ups, tasks, pipeline, notes. Email-campaign hold keeps the contact on the book so you can still open and edit it. Save follow-up confirms what landed on Follow-ups.
 - **Desk** — Harbor (CBSS AI) first, Container One / USA Containers price match, then call scraps and email
 - **Proposal** — stepped quote: pick the box, Get CBSS Price, proposal amount, submit
 - **Modified** — build-out spec: Apex helical pylons, doors, roll-up, windows, framing, insulation, electrical. No invented prices
