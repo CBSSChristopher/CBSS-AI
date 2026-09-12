@@ -1181,6 +1181,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     });
 
     async function loadCrm(){
+      $("crm-err").className = "err";
       $("crm-err").textContent = "Loading book…";
       let res;
       try {
@@ -1732,11 +1733,20 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     async function saveContactEdit(){
       $("m-err").textContent = "";
       const id = $("m-id").value;
+      const before = contactForId(id) || selected || {};
+      const fromPool = titleOwner(before.owner) === "New/Unassigned" || !titleOwner(before.owner);
       const patch = readContactEdit();
       if (!patch.name){ $("m-err").textContent = "Name the contact first."; return; }
       try {
         await persistContactPatch(id, patch);
         closeContactEdit();
+        $("crm-err").className = "err";
+        $("crm-err").textContent = "";
+        if (fromPool && patch.owner && titleOwner(patch.owner) !== "New/Unassigned") {
+          $("crm-err").className = "ok";
+          $("crm-err").textContent = (patch.name || "That lead")+" left New/Unassigned · now on "+titleOwner(patch.owner)+".";
+        }
+        fillOwners();
         renderStats(); renderContacts(); renderFollowups(); renderTasks(); renderPipeline();
         openContact(id);
       } catch (err) {
