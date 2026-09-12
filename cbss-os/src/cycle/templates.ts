@@ -7,6 +7,8 @@ export type TemplateVars = {
   clientName: string;
   repName: string;
   repEmail: string;
+  repPhone: string;
+  repTitle: string;
 };
 
 export function paidSubject(): string {
@@ -30,14 +32,24 @@ export function paidBody(firstName: string): string {
   ].join("\n");
 }
 
-function signOff(repName: string): string[] {
-  const name = String(repName || "").trim() || "CB Shipping Solutions";
-  return ["", name, "CB Shipping Solutions", "https://cbshippingsolutions.app/"];
+export function signOff(vars: Pick<TemplateVars, "repName" | "repEmail" | "repPhone" | "repTitle">): string[] {
+  const name = String(vars.repName || "").trim() || "CB Shipping Solutions";
+  const title = String(vars.repTitle || "").trim();
+  const email = String(vars.repEmail || "").trim();
+  const phone = String(vars.repPhone || "").trim();
+  const lines = ["", name];
+  if (title) lines.push(title);
+  lines.push("CB Shipping Solutions");
+  if (email) lines.push(email);
+  if (phone) lines.push(phone);
+  lines.push("https://cbshippingsolutions.app/");
+  return lines;
 }
 
 export function renderTemplate(id: TemplateId, vars: TemplateVars): { subject: string; text: string } {
   const first = firstNameOf(vars.clientFirstName || vars.clientName) || "there";
   const rep = String(vars.repName || "").trim() || "your CB Shipping Solutions representative";
+  const close = signOff(vars);
   if (id === "paid") return { subject: paidSubject(), text: paidBody(first) };
   if (id === "cte1") {
     return {
@@ -45,12 +57,10 @@ export function renderTemplate(id: TemplateId, vars: TemplateVars): { subject: s
       text: [
         `Hi ${first},`,
         "",
-        `This is ${rep} with CB Shipping Solutions. I tried you earlier and wanted to put a real name on the follow-up.`,
+        `This is ${rep} with CB Shipping Solutions. I wanted to introduce myself — you asked about a shipping container, and I am the person who will help you with it.`,
         "",
-        "If you are still looking at a container, reply to this email or call me and I will pick up from there. I will not invent a price or a delivery date — we work from what you need and what is posted.",
-        "",
-        "If now is not the right time, a short reply is enough and I will close the loop.",
-        ...signOff(rep),
+        "Reply to this email or call me and I will take it from there.",
+        ...close,
       ].join("\n"),
     };
   }
@@ -60,10 +70,10 @@ export function renderTemplate(id: TemplateId, vars: TemplateVars): { subject: s
       text: [
         `Hi ${first},`,
         "",
-        `${rep} again. I do not want to crowd you — just making sure my last note did not get buried.`,
+        `${rep} again with CB Shipping Solutions. Just making sure my last note did not get buried.`,
         "",
-        "If you still want a container, tell me the size, ZIP, and whether this is delivery or pickup. I will take the next step from what you send. Nothing here is a quote.",
-        ...signOff(rep),
+        "If you still want a container, reply here or call me and I will help with the next step.",
+        ...close,
       ].join("\n"),
     };
   }
@@ -73,10 +83,10 @@ export function renderTemplate(id: TemplateId, vars: TemplateVars): { subject: s
       text: [
         `Hi ${first},`,
         "",
-        `Quick follow-up from ${rep} at CB Shipping Solutions. If the need is still real, reply with the ZIP and the box you want and I will work it.`,
+        `Quick follow-up from ${rep} at CB Shipping Solutions. If you still need a container, reply or call and I will work it.`,
         "",
-        "If you already bought elsewhere or the project stopped, say so and I will take you off this sequence.",
-        ...signOff(rep),
+        "If you already bought elsewhere or the project stopped, say so and I will take you off this list.",
+        ...close,
       ].join("\n"),
     };
   }
@@ -88,8 +98,8 @@ export function renderTemplate(id: TemplateId, vars: TemplateVars): { subject: s
         "",
         "This is my last scheduled follow-up. I will not keep emailing the same thread.",
         "",
-        "If you want help later, reply here or reach me directly. The door stays open — I am just parking this outreach now.",
-        ...signOff(rep),
+        "If you want help later, reply here or call me. The door stays open.",
+        ...close,
       ].join("\n"),
     };
   }
@@ -101,8 +111,8 @@ export function renderTemplate(id: TemplateId, vars: TemplateVars): { subject: s
         "",
         `Understood. ${rep} at CB Shipping Solutions will not keep this sequence going.`,
         "",
-        "If something changes, reply here. Thank you for the time.",
-        ...signOff(rep),
+        "If something changes, reply here or call me.",
+        ...close,
       ].join("\n"),
     };
   }
@@ -113,8 +123,8 @@ export function renderTemplate(id: TemplateId, vars: TemplateVars): { subject: s
       "",
       `Thanks for the update. ${rep} will close this file on our side.`,
       "",
-      "If a later project comes up, you already have this inbox.",
-      ...signOff(rep),
+      "If a later project comes up, reply here or call me.",
+      ...close,
     ].join("\n"),
   };
 }
