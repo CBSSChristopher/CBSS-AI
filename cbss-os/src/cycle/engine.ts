@@ -16,7 +16,7 @@ import {
 } from "./store.ts";
 import { firstNameOf, officeCopy, resolveAssignedRep, rosterPhone, rosterScheduleUrl, rosterTitle, type ActiveUser } from "./rep.ts";
 import { isExit, legacyStatusFor, normalizeLifecycle, type Lifecycle } from "./lifecycle.ts";
-import { lifecycleForStage, type Stage } from "../stages.ts";
+import { lifecycleForStage, normalizeStage, type Stage } from "../stages.ts";
 import { REENGAGE_TEMPLATE_IDS, renderTemplate, type TemplateId } from "./templates.ts";
 import { loadNextStepsPdf } from "../../../cbss-invoice/src/next-steps-pdf.ts";
 
@@ -630,10 +630,18 @@ export async function applyBookStage(
   stage: Stage,
   actor: string,
   fetchImpl: typeof fetch = fetch,
-): Promise<{ rec: CycleRecord; bookStatus: string }> {
+): Promise<{ rec: CycleRecord; bookStatus: string; error?: string }> {
   const rec = await loadOrCreate(env, hint);
   const users = await readUsers(env);
   applyRepGate(rec, users);
+  if (stage === "Paid") {
+    const current = rec.lifecycle === "Paid" ? "Paid" : (normalizeStage(hint.status, rec.lifecycle) || rec.lifecycle || "Working");
+    return {
+      rec,
+      bookStatus: current === "Paid" ? "Paid" : String(current),
+      error: "Use Paid under Work this lead. That asks before Next Steps.",
+    };
+  }
   if (stage === "DNC") {
     rec.lifecycle = "Lost";
     rec.stopped = true;

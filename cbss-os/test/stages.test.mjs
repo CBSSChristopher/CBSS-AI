@@ -188,6 +188,16 @@ describe("CTE work wizard", () => {
 });
 
 describe("book stage writes one language", () => {
+  it("refuses Paid from the stage dropdown so Next Steps goes through Work this lead", async () => {
+    const env = envUsers([james]);
+    const hint = { id: "paid-stage", name: "Pat Lee", email: "pat@test.com", owner: "James" };
+    const result = await applyBookStage(env, hint, "Paid", "James", async () => {
+      throw new Error("should not send");
+    });
+    assert.match(result.error, /Work this lead/);
+    assert.notEqual(result.rec.lifecycle, "Paid");
+  });
+
   it("parks DNC without sending a lost email", async () => {
     const env = envUsers([james]);
     const hint = { id: "dnc-1", name: "Pat Lee", email: "pat@test.com", owner: "James" };

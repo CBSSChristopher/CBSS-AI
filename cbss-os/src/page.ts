@@ -1419,11 +1419,12 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         +'<label for="crm-stage">Stage</label><select id="crm-stage">'+stageOptions(contactStage(selected))+"</select>"
         +'<div class="cycle-box" id="cycle-box"><p class="muted">Loading lifecycle…</p></div>'
         +'<div class="acts">'
-        +(callHref ? '<a class="gold" href="'+callHref+'">Call</a>' : '<button type="button" class="secondary" disabled title="No phone on this contact">Call</button>')
+        +(callHref ? '<a class="gold" id="crm-call" href="'+callHref+'">Call</a>' : '<button type="button" class="secondary" disabled title="No phone on this contact">Call</button>')
         +(gmail ? '<a class="secondary" href="'+esc(gmail)+'" target="_blank" rel="noopener">Email</a>' : '<button type="button" class="secondary" disabled title="No email on this contact">Email</button>')
-        +(textHref ? '<a class="secondary" href="'+textHref+'">Text</a>' : '<button type="button" class="secondary" disabled title="No phone on this contact">Text</button>')
+        +(textHref ? '<a class="secondary" id="crm-text" href="'+textHref+'">Text</a>' : '<button type="button" class="secondary" disabled title="No phone on this contact">Text</button>')
         +'<button type="button" id="crm-edit">Edit</button>'
         +"</div>"
+        +'<p class="muted">After Call or Text, pick CTE and how it went. Cancel if you do not want AgentMail to send.</p>'
         +(onCampaign(selected.id)
           ? (campaignReason(selected.id)==="bad_number"
             ? '<p class="muted">On the bad-number campaign. We emailed asking for a working number.</p>'
@@ -1439,6 +1440,10 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       if (editBtn) editBtn.onclick = function(){ openContactEdit(selected); };
       const stageSel = $("crm-stage");
       if (stageSel) stageSel.onchange = function(){ saveContactStage(selected.id, stageSel.value); };
+      const callBtn = $("crm-call");
+      if (callBtn) callBtn.addEventListener("click", function(){ openCteAfterTouch(); });
+      const textBtn = $("crm-text");
+      if (textBtn) textBtn.addEventListener("click", function(){ openCteAfterTouch(); });
       workPanel = "";
       cteStep = "";
       paintCycle(selected);
@@ -1936,8 +1941,24 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"saveDeals", deals: book.deals }) });
       }
     }
+    function paidShortcutMessage(){
+      return "Use Paid under Work this lead. That asks before Next Steps.";
+    }
+    function openCteAfterTouch(){
+      if (!selected) return;
+      workPanel = "cte";
+      paintCycle(selected);
+    }
     async function saveContactStage(id, status){
       if (!id || !status) return;
+      const prior = contactStage(contactForId(id) || selected || {});
+      if (status === "Paid" && prior !== "Paid") {
+        $("crm-err").className = "err";
+        $("crm-err").textContent = paidShortcutMessage();
+        const stageSel = $("crm-stage");
+        if (stageSel) stageSel.value = prior || "";
+        return;
+      }
       try {
         if (status === "Proposal Sent") {
           const c = contactForId(id);
@@ -2008,6 +2029,11 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       const fromPool = titleOwner(before.owner) === "New/Unassigned" || !titleOwner(before.owner);
       const patch = readContactEdit();
       if (!patch.name){ $("m-err").textContent = "Name the contact first."; return; }
+      if (patch.status === "Paid" && contactStage(before) !== "Paid") {
+        $("m-err").textContent = paidShortcutMessage();
+        $("m-status").value = contactStage(before) || "";
+        return;
+      }
       try {
         await persistContactPatch(id, patch);
         closeContactEdit();
@@ -2284,6 +2310,12 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       const deal = (book.deals||[]).find(function(d){ return String(d.id)===sel.getAttribute("data-deal"); });
       if (!deal) return;
       const prev = deal.stage;
+      if (sel.value === "Paid" && normalizeStage(prev) !== "Paid") {
+        sel.value = prev;
+        $("crm-err").className = "err";
+        $("crm-err").textContent = paidShortcutMessage();
+        return;
+      }
       deal.stage = sel.value;
       try {
         const c = contactForId(deal.contactId);
@@ -3092,11 +3124,20 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       }
     }
     $("i-list").addEventListener("click", loadInvoices);
-    $("i-hits").addEventListener("click", function(e){
+    $("i-hits").addEventListener("click", async function(e){
       const btn = e.target.closest("[data-mark-paid]");
       if (!btn) return;
+      const retry = /Retry Next Steps/i.test(btn.textContent || "");
+      const ok = await askSend(retry
+        ? "Send Next Steps for this invoice? Only goes out if it has not already sent."
+        : "Mark this invoice paid? Next Steps emails the customer once if it has not already sent.");
+      if (!ok) return;
       btn.disabled = true;
-      markInvoicePaid(btn.getAttribute("data-mark-paid"));
+      try {
+        await markInvoicePaid(btn.getAttribute("data-mark-paid"));
+      } finally {
+        btn.disabled = false;
+      }
     });
 
     (async function boot(){

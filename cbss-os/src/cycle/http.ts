@@ -158,6 +158,12 @@ export async function handleCycleAuthed(
     const stage = normalizeStage(body.stage || body.status || body.lifecycle);
     if (!stage) return { status: 400, body: { error: "Pick a stage." } };
     const result = await applyBookStage(env, hint, stage, actor);
+    if (result.error) {
+      return {
+        status: 200,
+        body: { ok: false, error: result.error, cycle: publicCycle(result.rec), bookStatus: result.bookStatus },
+      };
+    }
     return { status: 200, body: { ok: true, cycle: publicCycle(result.rec), bookStatus: result.bookStatus, legacyStatus: result.bookStatus } };
   }
   if (method === "POST" && path === "/cycle/touch") {
