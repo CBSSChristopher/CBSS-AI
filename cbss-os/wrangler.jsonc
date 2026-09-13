@@ -34,6 +34,7 @@
     "PUBLIC_TITLE": "The Yard",
     "AGENTMAIL_INBOX": "cbss@agentmail.to",
     "REENGAGE_EMAILS_ENABLED": "false",
+    "MEET_LINKS_JSON": "{}",
     "CRM_ORIGIN": "https://cbsscrm.cbss.workers.dev",
     "DESK_ORIGIN": "https://cbssbrain.cbss.workers.dev",
     "PROPOSAL_ORIGIN": "https://cbsscompletetool.cbss.workers.dev",

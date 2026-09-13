@@ -10,7 +10,7 @@ import {
 } from "../src/cycle/business-days.ts";
 import { applyOverride, applyNoAnswerSchedule, CTE_OFFSETS, dueTemplates, scheduleFromCte1 } from "../src/cycle/ladder.ts";
 import { emptyRecord, writeRecord } from "../src/cycle/store.ts";
-import { OFFICE_PHONE, resolveAssignedRep, rosterCompanyEmail, rosterPhone, rosterTitle } from "../src/cycle/rep.ts";
+import { OFFICE_PHONE, cleanScheduleUrl, resolveAssignedRep, rosterCompanyEmail, rosterPhone, rosterScheduleUrl, rosterTitle } from "../src/cycle/rep.ts";
 import { normalizeLifecycle, legacyStatusFor } from "../src/cycle/lifecycle.ts";
 import { fireTemplate, logAttempt, markBadNumber, markContactPaid, reassignOwner, runDueSends, stopForReply } from "../src/cycle/engine.ts";
 import { handleCycleAuthed } from "../src/cycle/http.ts";
@@ -205,6 +205,24 @@ describe("CTE copy is an introduction with the rep on the footer", () => {
     assert.match(body, /870\) 260-7592/);
     assert.doesNotMatch(body, /tried you earlier/);
     assert.doesNotMatch(body, /I will not invent a price/);
+    assert.doesNotMatch(body, /Prefer a Google Meet/);
+  });
+
+  it("adds the assigned rep's Google Meet link when one is saved, and never invents one", () => {
+    assert.equal(cleanScheduleUrl("javascript:alert(1)"), "");
+    assert.equal(cleanScheduleUrl("http://calendar.google.com/x"), "");
+    assert.equal(rosterScheduleUrl("James"), "");
+    const meet = "https://calendar.app.google.com/cbss-james-test";
+    const withMeet = { ...vars, repName: "James", repEmail: "james@cbshippingsolutions.com", repPhone: rosterPhone("James"), repTitle: rosterTitle("James"), repScheduleUrl: meet };
+    const mail = renderTemplate("cte1", withMeet);
+    assert.match(mail.text, /schedule a Google Meet with the link below/);
+    assert.match(mail.text, /Prefer a Google Meet\? Schedule a time with me:/);
+    assert.match(mail.text, /calendar\.app\.google\.com\/cbss-james-test/);
+    const paid = renderTemplate("paid", withMeet);
+    assert.match(paid.text, /calendar\.app\.google\.com\/cbss-james-test/);
+    const bare = renderTemplate("cte1", vars);
+    assert.doesNotMatch(bare.text, /Prefer a Google Meet/);
+    assert.equal(rosterScheduleUrl("James", { MEET_LINKS_JSON: JSON.stringify({ James: meet }) }), new URL(meet).toString());
   });
 });
 

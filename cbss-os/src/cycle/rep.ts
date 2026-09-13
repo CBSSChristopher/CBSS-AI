@@ -31,7 +31,7 @@ function isRosterOwner(name: string): boolean {
 /** Jonesboro office line. Used when a rep has no posted direct line. (870) 323-1747 is omit — out of service. */
 export const OFFICE_PHONE = "(870) 682-3867";
 
-const ROSTER_CONTACT: Record<string, { title: string; phone: string }> = {
+const ROSTER_CONTACT: Record<string, { title: string; phone: string; scheduleUrl?: string }> = {
   "Christopher Banks": { title: "President / Owner", phone: "(870) 682-3867" },
   James: { title: "Business Developer", phone: "(870) 260-7592" },
   "Bryan Reese": { title: "Vice President of Business Development", phone: "(870) 323-1749" },
@@ -44,6 +44,48 @@ const ROSTER_CONTACT: Record<string, { title: string; phone: string }> = {
   "Sean Thurman": { title: "Sales Representative", phone: OFFICE_PHONE },
   Julia: { title: "Sales Representative", phone: OFFICE_PHONE },
 };
+
+/** https booking page only. Never invent a Google Appointment link. */
+export function cleanScheduleUrl(raw: unknown): string {
+  const url = String(raw || "").trim();
+  if (!/^https:\/\//i.test(url)) return "";
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:") return "";
+    return parsed.toString();
+  } catch {
+    return "";
+  }
+}
+
+export function meetLinksFromEnv(env: { MEET_LINKS_JSON?: string } = {}): Record<string, string> {
+  const raw = String(env.MEET_LINKS_JSON || "").trim();
+  if (!raw) return {};
+  try {
+    const data = JSON.parse(raw) as Record<string, unknown>;
+    if (!data || typeof data !== "object" || Array.isArray(data)) return {};
+    const out: Record<string, string> = {};
+    for (const [key, value] of Object.entries(data)) {
+      const url = cleanScheduleUrl(value);
+      const name = String(key || "").trim();
+      if (name && url) out[name] = url;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+/** Assigned-rep Google Appointment / Meet booking page. Empty until a real https link is saved. */
+export function rosterScheduleUrl(owner: string, env: { MEET_LINKS_JSON?: string } = {}): string {
+  const titled = titleOwner(owner);
+  const bag = meetLinksFromEnv(env);
+  const email = rosterCompanyEmail(owner);
+  const first = firstNameOf(titled);
+  return cleanScheduleUrl(
+    bag[titled] || bag[owner] || bag[email] || bag[first] || ROSTER_CONTACT[titled]?.scheduleUrl,
+  );
+}
 
 /** Known CBSS sales roster → company email. Does not invent addresses for unknown names. */
 export function rosterCompanyEmail(owner: string): string {

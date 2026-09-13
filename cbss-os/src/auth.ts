@@ -29,6 +29,7 @@ export type Env = {
   AGENTMAIL_INBOX?: string;
   AGENTMAIL_WEBHOOK_SECRET?: string;
   US_HOLIDAY_EXTRA?: string;
+  MEET_LINKS_JSON?: string;
   REENGAGE_EMAILS_ENABLED?: string;
   /** Deprecated. Paid Next Steps never attaches by URL. */
   NEXT_STEPS_PDF_URL?: string;

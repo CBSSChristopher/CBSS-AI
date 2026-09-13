@@ -14,7 +14,7 @@ import {
   writeRecord,
   type CycleRecord,
 } from "./store.ts";
-import { firstNameOf, officeCopy, resolveAssignedRep, rosterPhone, rosterTitle, type ActiveUser } from "./rep.ts";
+import { firstNameOf, officeCopy, resolveAssignedRep, rosterPhone, rosterScheduleUrl, rosterTitle, type ActiveUser } from "./rep.ts";
 import { isExit, legacyStatusFor, normalizeLifecycle, type Lifecycle } from "./lifecycle.ts";
 import { lifecycleForStage, type Stage } from "../stages.ts";
 import { REENGAGE_TEMPLATE_IDS, renderTemplate, type TemplateId } from "./templates.ts";
@@ -28,6 +28,7 @@ export type CycleEnv = {
   AGENTMAIL_API_KEY?: string;
   AGENTMAIL_INBOX?: string;
   US_HOLIDAY_EXTRA?: string;
+  MEET_LINKS_JSON?: string;
   REENGAGE_EMAILS_ENABLED?: string;
   /** Deprecated. Paid Next Steps never attaches by URL. */
   NEXT_STEPS_PDF_URL?: string;
@@ -405,6 +406,7 @@ export async function fireTemplate(
     repEmail: rec.ownerEmail,
     repPhone: rosterPhone(rec.owner),
     repTitle: rosterTitle(rec.owner),
+    repScheduleUrl: rosterScheduleUrl(rec.owner, env),
   });
   const cc = id === "paid"
     ? [...officeCopy(), rec.ownerEmail].filter(Boolean)
