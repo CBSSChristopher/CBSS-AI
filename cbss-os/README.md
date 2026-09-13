@@ -23,7 +23,7 @@ Navy `#0B1F3A` / gold `#C9A227` / cream `#F7F4EC`.
 - **Proposal** — stepped quote: pick the box (including reefer working / reefer non-working), Get CBSS Price, proposal amount, submit. A sent proposal writes that amount, Proposal Sent, and a note on the matching CRM contact. Dragging a Kanban card to Proposal Sent copies a stored amount only — it does not invent a dollar. Cards with no proposal stay marked No proposal $.
 - **Modified** — build-out spec: Apex helical pylons, doors, roll-up, windows, framing, insulation, electrical. No invented prices
 - **Money** — branded invoice (ACH/wire or card). Mark paid records the KV card; the invoice Worker emails Next Steps from AgentMail. No Veem. No Master Chief webhook.
-- **Lifecycle / CTE** — Same stage language as the book: New → Working → Follow-up → Email campaign → Quoted → Proposal Sent → Invoiced → Paid → Delivered (exits: Lost, Not interested, Bought elsewhere, DNC). Contact card shows assigned rep, CTE stage, next due, AgentMail, activity, Logged attempt / No answer / Replied / Override CTE / Mark paid / Bad number. Call/text log does not send CTE mail — No answer on Lifecycle still queues CTE1. Bad number parks CTE calls, sets Email campaign, and emails asking for a working number.
+- **Lifecycle / CTE** — Same stage language as the book. On the card: **CTE**, **Follow-up**, or **Paid**. CTE opens CTE1–4, then how it went (Didn't answer / Did answer / They replied / Not interested / Bought elsewhere / Bad number). Didn't answer enrolls that step in AgentMail. Did answer only logs. They replied stops the ladder. Bad number asks for a working number. Follow-up is human only (no mail). Paid sends Next Steps once.
 
 ## Hard rules
 

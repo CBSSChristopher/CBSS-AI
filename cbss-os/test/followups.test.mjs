@@ -120,8 +120,8 @@ describe("complete then schedule does not drop the row", () => {
   });
 
   it("is build 20", () => {
-    assert.equal(BRAND.stamp, "build 22 · one stage + activity");
-    assert.match(page, /build 22 · one stage \+ activity/);
+    assert.equal(BRAND.stamp, "build 23 · CTE wizard");
+    assert.match(page, /build 23 · CTE wizard/);
   });
 
   it("keeps people finished today on the book", () => {

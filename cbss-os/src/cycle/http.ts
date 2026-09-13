@@ -12,6 +12,7 @@ import {
   pollReplies,
   publicCycle,
   reassignOwner,
+  runCteWork,
   runDueSends,
   setLifecycle,
   startWorking,
@@ -68,6 +69,41 @@ export async function handleCycleAuthed(
   const hint = hintFrom(body);
   if (!hint.id && path !== "/cycle/paid") return { status: 400, body: { error: "Missing contact id." } };
 
+  if (method === "POST" && path === "/cycle/work") {
+    const result = await runCteWork(env, hint, {
+      step: String(body.step || body.cte || ""),
+      outcome: String(body.outcome || ""),
+    }, actor);
+    if (result.error) return { status: 200, body: { ok: false, error: result.error, cycle: publicCycle(result.rec) } };
+    let items: unknown[] | undefined;
+    if (result.campaign) {
+      items = await addCampaign(env, {
+        id: hint.id,
+        name: hint.name || result.rec.clientName,
+        email: hint.email || result.rec.clientEmail,
+        phone: String(body.phone || ""),
+        city: String(body.city || ""),
+        owner: hint.owner || result.rec.owner,
+        addedBy: actor,
+        addedAt: new Date().toISOString(),
+        reason: result.campaign === "bad_number" ? "bad_number" : "hold",
+      });
+    }
+    const sendRec = result.send && typeof result.send === "object" ? result.send as { ok?: boolean; error?: string } : {};
+    const ok = sendRec.ok !== false;
+    return {
+      status: 200,
+      body: {
+        ok,
+        cycle: publicCycle(result.rec),
+        send: result.send,
+        bookStatus: result.bookStatus,
+        legacyStatus: result.bookStatus,
+        items,
+        ...(ok ? {} : { error: sendRec.error || "AgentMail did not send." }),
+      },
+    };
+  }
   if (method === "POST" && path === "/cycle/attempt") {
     const outcome = String(body.outcome || "").trim() === "no_answer" ? "no_answer" : "logged";
     const { rec, send } = await logAttempt(env, hint, outcome, actor);

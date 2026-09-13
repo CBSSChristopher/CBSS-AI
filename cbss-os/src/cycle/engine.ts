@@ -658,6 +658,69 @@ export async function applyBookStage(
   return { rec: result.rec, bookStatus: stage };
 }
 
+export const CTE_WORK_STEPS = ["cte1", "cte2", "cte3", "cte4"] as const;
+export const CTE_WORK_OUTCOMES = ["no_answer", "answered", "replied", "not_interested", "bought_elsewhere", "bad_number"] as const;
+export type CteWorkStep = (typeof CTE_WORK_STEPS)[number];
+export type CteWorkOutcome = (typeof CTE_WORK_OUTCOMES)[number];
+
+export function isCteWorkStep(value: string): value is CteWorkStep {
+  return (CTE_WORK_STEPS as readonly string[]).includes(value);
+}
+
+export function isCteWorkOutcome(value: string): value is CteWorkOutcome {
+  return (CTE_WORK_OUTCOMES as readonly string[]).includes(value);
+}
+
+export async function runCteWork(
+  env: CycleEnv,
+  hint: ContactHint,
+  input: { step: string; outcome: string },
+  actor: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ rec: CycleRecord; send?: unknown; bookStatus?: string; campaign?: "hold" | "bad_number"; error?: string }> {
+  const step = String(input.step || "").trim().toLowerCase();
+  const outcome = String(input.outcome || "").trim().toLowerCase();
+  if (!isCteWorkStep(step)) return { rec: await loadOrCreate(env, hint), error: "Pick CTE1, CTE2, CTE3, or CTE4." };
+  if (!isCteWorkOutcome(outcome)) return { rec: await loadOrCreate(env, hint), error: "Pick how that CTE went." };
+
+  if (outcome === "replied") {
+    const rec = await stopForReply(env, hint, actor, "rep", fetchImpl);
+    pushEvent(rec, `${step.toUpperCase()} · They replied. Ladder stopped.`, actor);
+    await writeRecord(env, rec);
+    return { rec, bookStatus: "Working" };
+  }
+  if (outcome === "bad_number") {
+    const result = await markBadNumber(env, hint, actor, fetchImpl);
+    const sendRec = result.send && typeof result.send === "object" ? result.send as { error?: string } : {};
+    const closed = sendRec.error === "This contact is already closed.";
+    return { rec: result.rec, send: result.send, bookStatus: closed ? undefined : "Email campaign", campaign: closed ? undefined : "bad_number" };
+  }
+  if (outcome === "not_interested" || outcome === "bought_elsewhere") {
+    const life = outcome === "not_interested" ? "Not interested" : "Bought elsewhere";
+    const result = await setLifecycle(env, hint, life, actor, fetchImpl);
+    return { rec: result.rec, bookStatus: life, campaign: "hold" };
+  }
+  if (outcome === "answered") {
+    const rec = await startWorking(env, hint, actor);
+    rec.cteStage = CTE_STAGE[step] || rec.cteStage;
+    rec.lifecycle = rec.lifecycle && rec.lifecycle !== "New" ? rec.lifecycle : "Working";
+    pushEvent(rec, `${step.toUpperCase()} · Did answer. Logged. No AgentMail send.`, actor);
+    await writeRecord(env, rec);
+    return { rec, bookStatus: "Working" };
+  }
+
+  const rec = await startWorking(env, hint, actor);
+  applyNoAnswerSchedule(rec, holidayExtras(env));
+  rec.cteStage = CTE_STAGE[step] || rec.cteStage;
+  rec.sends[step] = rec.sends[step] && rec.sends[step]?.status === "sent"
+    ? rec.sends[step]
+    : { template: step, status: "pending", dueAt: new Date().toISOString(), attempts: rec.sends[step]?.attempts || 0 };
+  pushEvent(rec, `${step.toUpperCase()} · Didn't answer. Enrolled in AgentMail ${step}.`, actor);
+  await writeRecord(env, rec);
+  const send = await fireTemplate(env, rec, step, actor, fetchImpl);
+  return { rec, send, bookStatus: "Working" };
+}
+
 export async function getCycle(env: CycleEnv, hint: ContactHint): Promise<CycleRecord> {
   const rec = await loadOrCreate(env, hint);
   applyRepGate(rec, await readUsers(env));

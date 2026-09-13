@@ -98,8 +98,9 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     .cycle-box h3 { margin: 0 0 6px; }
     .cycle-tl { font-size: 12px; color: #3d4d5c; margin: 6px 0 0; line-height: 1.35; }
     .cycle-flag { color: #8A1F1F; font-size: 13px; font-weight: 650; }
-    .touch-log { margin-top: 10px; }
-    .touch-log .picks { margin-top: 6px; }
+    .work-panel { margin-top: 10px; }
+    .work-panel .picks { margin-top: 8px; }
+    .work-panel .picks button.on { background: var(--navy); color: #fff; }
     .mail-item { border-top: 1px solid var(--line); padding: 8px 0; font-size: 13px; }
     .mail-item .dir { font-weight: 800; color: var(--navy); }
     .monday-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 12px 0; }
@@ -1026,6 +1027,8 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     const MOD_ITEMS = ${JSON.stringify(MODIFIED_ITEMS)};
     const MOD_USES = ${JSON.stringify(MODIFIED_USES)};
     let user = null, book = null, selected = null, deskContact = null, deskHits = [], deskSearchSeq = 0, deskSearchTimer = 0, lastGmail = "", lastDoc = "", lastPdf = "", pick = {size:"40",height:"HC",config:"standard",grade:"CW"};
+    let workPanel = "";
+    let cteStep = "";
     let lastQuote = null;
     let proposalLines = [];
     let campaignIds = {};
@@ -1409,54 +1412,24 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         +(gmail ? '<a class="secondary" href="'+esc(gmail)+'" target="_blank" rel="noopener">Email</a>' : '<button type="button" class="secondary" disabled title="No email on this contact">Email</button>')
         +(textHref ? '<a class="secondary" href="'+textHref+'">Text</a>' : '<button type="button" class="secondary" disabled title="No phone on this contact">Text</button>')
         +'<button type="button" id="crm-edit">Edit</button>'
-        +(onCampaign(selected.id)
-          ? '<button type="button" class="secondary" id="return-campaign">Return from email campaign</button>'
-          : '<button type="button" class="secondary" id="add-campaign">Add to email campaign</button>')
-        +"</div>"
-        +'<div class="touch-log">'
-        +'<p class="muted">After you call or text, tap how it went. Timestamp is automatic. This log does not send CTE mail — use No answer on Lifecycle for that.</p>'
-        +'<div class="picks" id="touch-call">'
-        +'<button type="button" class="secondary" data-touch="call" data-out="Connected">Connected</button>'
-        +'<button type="button" class="secondary" data-touch="call" data-out="No answer">No answer</button>'
-        +'<button type="button" class="secondary" data-touch="call" data-out="Voicemail">Voicemail</button>'
-        +'<button type="button" class="secondary" data-touch="call" data-out="Left message">Left message</button>'
-        +'<button type="button" class="secondary" data-touch="call" data-out="Wrong number">Wrong number</button>'
-        +"</div>"
-        +'<div class="picks" id="touch-text">'
-        +'<button type="button" class="secondary" data-touch="text" data-out="Sent">Text sent</button>'
-        +'<button type="button" class="secondary" data-touch="text" data-out="They replied">They replied</button>'
-        +'<button type="button" class="secondary" data-touch="text" data-out="Bad number">Bad number</button>'
-        +"</div>"
-        +'<p class="ok" id="touch-ok"></p>'
         +"</div>"
         +(onCampaign(selected.id)
           ? (campaignReason(selected.id)==="bad_number"
-            ? '<p class="muted">On the bad-number campaign. We emailed asking for a working number. You can still edit this contact here.</p>'
-            : '<p class="muted">On the email campaign list. You can still edit this contact here.</p>')
+            ? '<p class="muted">On the bad-number campaign. We emailed asking for a working number.</p>'
+            : '<p class="muted">On the email campaign. Open CTE if you want them back on the book.</p>')
           : "")
-        +(fu.pendingNext || fu.completed ? '<p class="muted">Just completed. Type the next follow-up and save it — it stays on the book.</p>' : "")
-        +'<label>Follow-up</label><input id="fu-act" value="'+esc(fu.pendingNext || fu.completed ? "" : (fu.nextAction||""))+'" placeholder="e.g. Call about 40ft WWT pricing" />'
-        +'<input id="fu-date" type="datetime-local" value="'+esc(fu.pendingNext || fu.completed ? "" : (fu.followUpDate||"").slice(0,16))+'" />'
-        +'<div class="row"><button type="button" class="secondary" id="fu-save">Save follow-up</button><button type="button" id="fu-done">Complete</button></div>'
-        +'<p class="ok" id="fu-ok"></p>'
+        +(fu.pendingNext || fu.completed ? '<p class="muted">Just completed a follow-up. Open Follow-up to set the next one.</p>' : "")
         +'<label>Add note</label><textarea id="note-text" rows="2"></textarea><div class="row"><button type="button" class="secondary" id="note-add">Add note</button></div>'
         +doneTodayHtml(selected)
         +(notesErr ? '<p class="err" id="crm-notes-err">'+esc(notesErr)+"</p>" : "")
         +"<div>"+(notesErr ? '<p class="muted">Notes did not load.</p>' : (notes.slice(0,20).map(function(n){ return '<div class="note"><strong>'+esc(n.tag||n.author||"")+"</strong> "+esc(n.timestamp||"")+"<div>"+esc(n.text||"")+"</div></div>"; }).join("")||'<p class="muted">No notes yet.</p>'))+"</div>";
-      $("fu-save").onclick = saveFollowup;
-      $("fu-done").onclick = completeTask;
       $("note-add").onclick = addNote;
-      const campBtn = $("add-campaign");
-      if (campBtn) campBtn.onclick = addToCampaign;
-      const returnBtn = $("return-campaign");
-      if (returnBtn) returnBtn.onclick = function(){ returnFromCampaign(selected.id); };
       const editBtn = $("crm-edit");
       if (editBtn) editBtn.onclick = function(){ openContactEdit(selected); };
       const stageSel = $("crm-stage");
       if (stageSel) stageSel.onchange = function(){ saveContactStage(selected.id, stageSel.value); };
-      document.querySelectorAll("[data-touch]").forEach(function(btn){
-        btn.onclick = function(){ logTouch(btn.getAttribute("data-touch"), btn.getAttribute("data-out")); };
-      });
+      workPanel = "";
+      cteStep = "";
       paintCycle(selected);
       const detail = $("crm-detail");
       if (detail) {
@@ -1497,40 +1470,85 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
             +(m.preview?"<div>"+esc(m.preview)+"</div>":"")
             +"</div>";
         }).join("");
-        box.innerHTML = "<h3>Lifecycle</h3>"
-          +"<p>Assigned "+esc(cy.owner||c.owner||"—")+(cy.ownerEmail?" · "+esc(cy.ownerEmail):"")+" · stage "+esc(contactStage(c)||cy.lifecycle||"—")+" · CTE "+esc(cy.cteStage||"—")+" · next "+esc(cy.nextDue||"—")+"</p>"
+        const fu = (book.followups||{})[c.id] || (book.followups||{})[String(c.id)] || {};
+        const ctePanel = workPanel==="cte";
+        const followPanel = workPanel==="followup";
+        const paidPanel = workPanel==="paid";
+        const stepHint = {
+          cte1: "Didn't answer sends the CTE1 intro and books CTE2/3/4.",
+          cte2: "Didn't answer sends CTE2 now and keeps the later emails on the ladder.",
+          cte3: "Didn't answer sends CTE3 now.",
+          cte4: "Didn't answer sends the last CTE email and parks the ladder."
+        };
+        box.innerHTML = "<h3>Work this lead</h3>"
+          +"<p>Assigned "+esc(cy.owner||c.owner||"—")+(cy.ownerEmail?" · "+esc(cy.ownerEmail):"")+" · "+esc(contactStage(c)||cy.lifecycle||"—")+" · "+esc(cy.cteStage||"no CTE")+(cy.nextDue?" · next "+esc(cy.nextDue):"")+"</p>"
           +flags
           +'<div class="row">'
-          +'<button type="button" class="secondary" id="cycle-logged">Logged attempt</button>'
-          +'<button type="button" class="secondary" id="cycle-no">No answer</button>'
-          +'<button type="button" class="gold" id="cycle-replied">Replied</button>'
-          +'<button type="button" class="secondary" id="cycle-over">Override CTE</button>'
-          +(cycleClosed ? "" : '<button type="button" class="gold" id="cycle-paid">Mark paid</button>')
-          +(cy.lifecycle==="Paid" && !paidSent ? '<button type="button" class="gold" id="cycle-paid-retry">Retry Next Steps</button>' : "")
-          +(cycleClosed || badSent ? "" : '<button type="button" class="secondary" id="cycle-bad">Bad number</button>')
-          +(cy.stoppedReason==="Bad number" && !badSent ? '<button type="button" class="gold" id="cycle-bad-retry">Retry bad-number email</button>' : "")
+          +'<button type="button" class="'+(ctePanel?"gold":"secondary")+'" id="work-cte">CTE</button>'
+          +'<button type="button" class="'+(followPanel?"gold":"secondary")+'" id="work-follow">Follow-up</button>'
+          +(cycleClosed && !(cy.lifecycle==="Paid" && !paidSent) ? "" : '<button type="button" class="'+(paidPanel?"gold":"secondary")+'" id="work-paid">Paid</button>')
+          +(onCampaign(c.id) ? '<button type="button" class="secondary" id="return-campaign">Return from campaign</button>' : "")
           +"</div>"
-          +'<div id="cycle-over-form" class="hide"><label>Next step</label><input id="cycle-when" type="datetime-local" /><label>Reason (optional)</label><input id="cycle-reason" /><div class="row"><button type="button" class="gold" id="cycle-over-save">Save override</button></div></div>'
+          +'<div class="work-panel '+(ctePanel?"":"hide")+'" id="cte-panel">'
+          +'<p class="muted">Pick the CTE you just worked. Then pick how it went. AgentMail enrolls from that.</p>'
+          +'<div class="picks" id="cte-steps">'
+          +["cte1","cte2","cte3","cte4"].map(function(s){ return '<button type="button" class="secondary'+(cteStep===s?" on":"")+'" data-cte="'+s+'">'+s.toUpperCase()+"</button>"; }).join("")
+          +"</div>"
+          +(cteStep
+            ? '<p class="muted">'+esc(stepHint[cteStep]||"")+'</p>'
+              +'<div class="picks" id="cte-outs">'
+              +'<button type="button" class="gold" data-out="no_answer">Didn\'t answer</button>'
+              +'<button type="button" class="secondary" data-out="answered">Did answer</button>'
+              +'<button type="button" class="secondary" data-out="replied">They replied</button>'
+              +'<button type="button" class="secondary" data-out="not_interested">Not interested</button>'
+              +'<button type="button" class="secondary" data-out="bought_elsewhere">Bought elsewhere</button>'
+              +'<button type="button" class="secondary" data-out="bad_number">Bad number</button>'
+              +"</div>"
+            : "")
+          +"</div>"
+          +'<div class="work-panel '+(followPanel?"":"hide")+'" id="follow-panel">'
+          +'<p class="muted">Human follow-up. This does not send AgentMail.</p>'
+          +'<label>Follow-up</label><input id="fu-act" value="'+esc(fu.pendingNext || fu.completed ? "" : (fu.nextAction||""))+'" placeholder="e.g. Call about 40ft WWT pricing" />'
+          +'<input id="fu-date" type="datetime-local" value="'+esc(fu.pendingNext || fu.completed ? "" : (fu.followUpDate||"").slice(0,16))+'" />'
+          +'<div class="row"><button type="button" class="secondary" id="fu-save">Save follow-up</button><button type="button" id="fu-done">Complete</button></div>'
+          +'<p class="ok" id="fu-ok"></p>'
+          +"</div>"
+          +'<div class="work-panel '+(paidPanel?"":"hide")+'" id="paid-panel">'
+          +'<p class="muted">Marks Paid and sends Next Steps once. Does not invent a price.</p>'
+          +'<div class="row">'
+          +(cycleClosed && cy.lifecycle!=="Paid" ? "" : '<button type="button" class="gold" id="cycle-paid">Mark paid</button>')
+          +(cy.lifecycle==="Paid" && !paidSent ? '<button type="button" class="gold" id="cycle-paid-retry">Retry Next Steps</button>' : "")
+          +"</div>"
+          +"</div>"
           +'<p class="err" id="cycle-err"></p>'
           +(mail ? "<h3>AgentMail</h3>"+mail : '<p class="muted">No AgentMail on this card yet. CTE sends and replies will show here.</p>')
           +"<h3>Activity</h3>"
           +'<div>'+tl+"</div>";
-        $("cycle-logged").onclick = function(){ cycleAct("/cycle/attempt", { outcome:"logged" }); };
-        $("cycle-no").onclick = function(){ cycleAct("/cycle/attempt", { outcome:"no_answer" }); };
-        $("cycle-replied").onclick = function(){ cycleAct("/cycle/replied", {}); };
-        $("cycle-over").onclick = function(){ $("cycle-over-form").classList.toggle("hide"); };
-        $("cycle-over-save").onclick = function(){ cycleAct("/cycle/override", { when:$("cycle-when").value, reason:$("cycle-reason").value }); };
+        $("work-cte").onclick = function(){ workPanel = workPanel==="cte" ? "" : "cte"; paintCycle(c); };
+        $("work-follow").onclick = function(){ workPanel = workPanel==="followup" ? "" : "followup"; paintCycle(c); };
+        const paidOpen = $("work-paid");
+        if (paidOpen) paidOpen.onclick = function(){ workPanel = workPanel==="paid" ? "" : "paid"; paintCycle(c); };
+        const returnBtn = $("return-campaign");
+        if (returnBtn) returnBtn.onclick = function(){ returnFromCampaign(c.id); };
+        document.querySelectorAll("[data-cte]").forEach(function(btn){
+          btn.onclick = function(){ cteStep = btn.getAttribute("data-cte")||""; paintCycle(c); };
+        });
+        document.querySelectorAll("[data-out]").forEach(function(btn){
+          btn.onclick = function(){ runCteWork(btn.getAttribute("data-out")); };
+        });
+        if ($("fu-save")) $("fu-save").onclick = saveFollowup;
+        if ($("fu-done")) $("fu-done").onclick = completeTask;
         const paidBtn = $("cycle-paid");
         if (paidBtn) paidBtn.onclick = function(){ cycleAct("/cycle/paid", {}); };
         const paidRetry = $("cycle-paid-retry");
         if (paidRetry) paidRetry.onclick = function(){ cycleAct("/cycle/paid", {}); };
-        const badBtn = $("cycle-bad");
-        if (badBtn) badBtn.onclick = function(){ markBadNumber(); };
-        const badRetry = $("cycle-bad-retry");
-        if (badRetry) badRetry.onclick = function(){ markBadNumber(); };
       } catch (err) {
         box.innerHTML = '<p class="cycle-flag">'+(err && err.message ? esc(err.message) : "Lifecycle did not load.")+"</p>";
       }
+    }
+    async function runCteWork(outcome){
+      if (!selected || !cteStep) return;
+      await cycleAct("/cycle/work", { step: cteStep, outcome: outcome, phone: selected.phone, city: selected.city });
     }
     async function cycleAct(path, extra){
       if (!selected) return;
@@ -1542,7 +1560,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         if (res.j.legacyStatus && selected) {
           try { await persistContactPatch(selected.id, { status: res.j.legacyStatus }); } catch (_) {}
         }
-        if (Array.isArray(res.j.items) && res.j.items.length) {
+        if (Array.isArray(res.j.items)) {
           campaignIds = {};
           res.j.items.forEach(function(row){ campaignIds[String(row.id)] = row; });
         }
@@ -1550,7 +1568,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
           try { await persistContactPatch(selected.id, { invoicePaid: "yes" }); } catch (_) {}
         }
         await paintCycle(selected);
-        renderStats(); renderContacts();
+        renderStats(); renderContacts(); renderFollowups(); renderTasks(); renderPipeline(); renderCampaign();
       } catch (err) {
         $("cycle-err").textContent = (err && err.message) || "Could not save that.";
       }
