@@ -2,9 +2,11 @@ import { chicagoBusinessHours, chicagoNow, civilKey } from "./business-days.ts";
 import { agentMailReady, listInboxMessages, sendAgentMail } from "./agentmail.ts";
 import { applyNoAnswerSchedule, applyOverride, dueTemplates, holidayExtras, nextOpenDue } from "./ladder.ts";
 import {
+  clipPreview,
   emptyRecord,
   pushAlert,
   pushEvent,
+  pushMail,
   readRecord,
   readIndex,
   readUsers,
@@ -14,6 +16,7 @@ import {
 } from "./store.ts";
 import { firstNameOf, officeCopy, resolveAssignedRep, rosterPhone, rosterTitle, type ActiveUser } from "./rep.ts";
 import { isExit, legacyStatusFor, normalizeLifecycle, type Lifecycle } from "./lifecycle.ts";
+import { lifecycleForStage, type Stage } from "../stages.ts";
 import { REENGAGE_TEMPLATE_IDS, renderTemplate, type TemplateId } from "./templates.ts";
 import { loadNextStepsPdf } from "../../../cbss-invoice/src/next-steps-pdf.ts";
 
@@ -67,6 +70,7 @@ export function publicCycle(rec: CycleRecord | null) {
     overrideAt: rec.overrideAt,
     events: rec.events,
     sends: rec.sends,
+    mail: rec.mail || [],
   };
 }
 
@@ -436,6 +440,15 @@ export async function fireTemplate(
     if (result.threadId && !rec.threadIds.includes(result.threadId)) rec.threadIds.push(result.threadId);
     if (result.messageId && !rec.messageIds.includes(result.messageId)) rec.messageIds.push(result.messageId);
     rec.cteStage = CTE_STAGE[id] || rec.cteStage;
+    pushMail(rec, {
+      direction: "out",
+      from: rec.ownerEmail || "cbss@agentmail.to",
+      subject: mail.subject,
+      preview: mail.text,
+      template: id,
+      messageId: result.messageId,
+      threadId: result.threadId,
+    });
     if (id === "cte4" || id === "paid") {
       rec.cteStage = "parked";
       rec.nextDue = "";
@@ -494,6 +507,31 @@ export async function runDueSends(env: CycleEnv, now = new Date(), fetchImpl: ty
   return { scanned: ids.length, sent };
 }
 
+function alreadyHasMail(rec: CycleRecord, messageId: string): boolean {
+  if (!messageId) return false;
+  if ((rec.messageIds || []).includes(messageId)) return true;
+  return (rec.mail || []).some((row) => row.messageId === messageId);
+}
+
+function recordInboundMail(
+  rec: CycleRecord,
+  payload: { from?: string; subject?: string; preview?: string; messageId?: string; threadId?: string },
+): void {
+  const messageId = String(payload.messageId || "").trim();
+  const subject = String(payload.subject || "").trim();
+  const preview = clipPreview(payload.preview);
+  pushMail(rec, {
+    direction: "in",
+    from: String(payload.from || "").trim(),
+    subject,
+    preview,
+    messageId,
+    threadId: String(payload.threadId || "").trim(),
+  });
+  const label = subject || preview || "reply";
+  pushEvent(rec, `AgentMail in · ${label}`, "agentmail");
+}
+
 export async function pollReplies(env: CycleEnv, fetchImpl: typeof fetch = fetch): Promise<number> {
   if (!agentMailReady(env)) return 0;
   const listed = await listInboxMessages(env, { limit: 40, labels: ["received"] }, fetchImpl);
@@ -503,10 +541,14 @@ export async function pollReplies(env: CycleEnv, fetchImpl: typeof fetch = fetch
     if (!msg.threadId || !msg.messageId) continue;
     const matches = await recordsByThread(env, msg.threadId);
     for (const rec of matches) {
-      if (rec.messageIds.includes(msg.messageId)) continue;
-      if (rec.stopped) continue;
-      rec.messageIds.push(msg.messageId);
-      await stopForReply(env, asHint(rec), "agentmail", "agentmail", fetchImpl);
+      if (alreadyHasMail(rec, msg.messageId)) continue;
+      if (msg.messageId && !rec.messageIds.includes(msg.messageId)) rec.messageIds.push(msg.messageId);
+      recordInboundMail(rec, { from: msg.from, subject: msg.subject, messageId: msg.messageId, threadId: msg.threadId });
+      if (!rec.stopped) {
+        await stopForReply(env, asHint(rec), "agentmail", "agentmail", fetchImpl);
+      } else {
+        await writeRecord(env, rec);
+      }
       n += 1;
     }
   }
@@ -515,7 +557,7 @@ export async function pollReplies(env: CycleEnv, fetchImpl: typeof fetch = fetch
 
 export async function ingestInbound(
   env: CycleEnv,
-  payload: { threadId?: string; messageId?: string; from?: string },
+  payload: { threadId?: string; messageId?: string; from?: string; subject?: string; text?: string; preview?: string },
   fetchImpl: typeof fetch = fetch,
 ): Promise<number> {
   const threadId = String(payload.threadId || "").trim();
@@ -524,16 +566,101 @@ export async function ingestInbound(
   const matches = await recordsByThread(env, threadId);
   let n = 0;
   for (const rec of matches) {
-    if (messageId && rec.messageIds.includes(messageId)) continue;
-    if (messageId) rec.messageIds.push(messageId);
-    await stopForReply(env, asHint(rec), "agentmail", "agentmail", fetchImpl);
+    if (alreadyHasMail(rec, messageId)) continue;
+    if (messageId && !rec.messageIds.includes(messageId)) rec.messageIds.push(messageId);
+    recordInboundMail(rec, {
+      from: payload.from,
+      subject: payload.subject,
+      preview: payload.preview || payload.text,
+      messageId,
+      threadId,
+    });
+    if (!rec.stopped) {
+      await stopForReply(env, asHint(rec), "agentmail", "agentmail", fetchImpl);
+    } else {
+      await writeRecord(env, rec);
+    }
     n += 1;
   }
   return n;
 }
 
+export const CALL_OUTCOMES = ["Connected", "No answer", "Voicemail", "Left message", "Wrong number"] as const;
+export const TEXT_OUTCOMES = ["Sent", "They replied", "Bad number"] as const;
+export type TouchChannel = "call" | "text";
+
+export function isCallOutcome(value: string): value is (typeof CALL_OUTCOMES)[number] {
+  return (CALL_OUTCOMES as readonly string[]).includes(value);
+}
+
+export function isTextOutcome(value: string): value is (typeof TEXT_OUTCOMES)[number] {
+  return (TEXT_OUTCOMES as readonly string[]).includes(value);
+}
+
+export async function logTouch(
+  env: CycleEnv,
+  hint: ContactHint,
+  input: { channel: TouchChannel; outcome: string; note?: string },
+  actor: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ rec: CycleRecord; error?: string }> {
+  const channel = input.channel;
+  const outcome = String(input.outcome || "").trim();
+  if (channel === "call" && !isCallOutcome(outcome)) return { rec: await loadOrCreate(env, hint), error: "Pick how the call went." };
+  if (channel === "text" && !isTextOutcome(outcome)) return { rec: await loadOrCreate(env, hint), error: "Pick how the text went." };
+  const rec = await loadOrCreate(env, hint);
+  const users = await readUsers(env);
+  applyRepGate(rec, users);
+  if (!rec.lifecycle || rec.lifecycle === "New") rec.lifecycle = "Working";
+  const note = clipPreview(input.note, 200);
+  const line = `${channel === "call" ? "Call" : "Text"} · ${outcome}${note ? " · " + note : ""}`;
+  pushEvent(rec, line, actor);
+  await writeRecord(env, rec);
+  if (channel === "text" && outcome === "They replied") {
+    return { rec: await stopForReply(env, hint, actor, "rep", fetchImpl) };
+  }
+  return { rec };
+}
+
+export async function applyBookStage(
+  env: CycleEnv,
+  hint: ContactHint,
+  stage: Stage,
+  actor: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ rec: CycleRecord; bookStatus: string }> {
+  const rec = await loadOrCreate(env, hint);
+  const users = await readUsers(env);
+  applyRepGate(rec, users);
+  if (stage === "DNC") {
+    rec.lifecycle = "Lost";
+    rec.stopped = true;
+    rec.stoppedReason = "DNC";
+    rec.cteStage = "parked";
+    rec.nextDue = "";
+    pushEvent(rec, "Stage → DNC. CTE parked. No exit email.", actor);
+    await writeRecord(env, rec);
+    return { rec, bookStatus: "DNC" };
+  }
+  if (stage === "Email campaign") {
+    if (!rec.lifecycle || rec.lifecycle === "New") rec.lifecycle = "Working";
+    pushEvent(rec, "Stage → Email campaign. Contact stays on the book. Use Bad number to park CTE and ask for a working number.", actor);
+    await writeRecord(env, rec);
+    return { rec, bookStatus: "Email campaign" };
+  }
+  if (stage === "Follow-up" || stage === "Proposal Sent") {
+    rec.lifecycle = lifecycleForStage(stage);
+    pushEvent(rec, `Stage → ${stage}.`, actor);
+    await writeRecord(env, rec);
+    return { rec, bookStatus: stage };
+  }
+  const result = await setLifecycle(env, hint, lifecycleForStage(stage), actor, fetchImpl);
+  return { rec: result.rec, bookStatus: stage };
+}
+
 export async function getCycle(env: CycleEnv, hint: ContactHint): Promise<CycleRecord> {
   const rec = await loadOrCreate(env, hint);
   applyRepGate(rec, await readUsers(env));
+  if (!rec.mail) rec.mail = [];
   return rec;
 }

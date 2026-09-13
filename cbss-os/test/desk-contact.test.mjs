@@ -35,7 +35,7 @@ describe("Desk new contact on The Yard", () => {
     const row = buildDeskAddedContact(draft, "kyle@cbshippingsolutions.com", new Date("2026-09-01T12:00:00Z"));
     assert.equal(row.name, "Pat Lee");
     assert.equal(row.owner, "Kyle Hodgkiss");
-    assert.equal(row.status, "CTE in progress");
+    assert.equal(row.status, "Working");
     assert.equal(row.source, "Desk");
     assert.equal(row.street, "14 Depot Rd");
     assert.equal(row.created, "2026-09-01");
@@ -53,13 +53,13 @@ describe("Desk new contact on The Yard", () => {
   it("books CTE or one follow-up from the same two buttons as Desk", () => {
     const cte = scheduleDeskTrack({ track: "cte", nextAction: "", followUpDate: "" }, new Date("2026-09-01T15:00:00Z"));
     assert.equal(cte.track, "cte");
-    assert.equal(cte.stage, "CTE in progress");
+    assert.equal(cte.stage, "Working");
     assert.match(cte.noteSuffix, /CTE plan/);
     const follow = scheduleDeskTrack(
       { track: "followup", nextAction: "Call about site access", followUpDate: "2026-09-03T09:00" },
       new Date("2026-09-01T15:00:00Z"),
     );
-    assert.equal(follow.stage, "Follow up in progress");
+    assert.equal(follow.stage, "Follow-up");
     assert.equal(follow.nextAction, "Call about site access");
     assert.equal(follow.followUpDate, "2026-09-03T09:00");
     assert.doesNotMatch(follow.noteSuffix, /CTE plan/);

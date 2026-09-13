@@ -20,7 +20,7 @@ export type DeskContactDraft = {
 
 export type DeskTrackPlan = {
   track: DeskTrack;
-  stage: "CTE in progress" | "Follow up in progress";
+  stage: "Working" | "Follow-up";
   nextAction: string;
   followUpDate: string;
   noteSuffix: string;
@@ -37,7 +37,7 @@ export type DeskAddedContact = {
   zip: string;
   street: string;
   owner: string;
-  status: "New Lead" | "CTE in progress" | "Follow up in progress";
+  status: "New" | "Working" | "Follow-up";
   source: "Desk";
   created: string;
   nextAction: string;
@@ -79,8 +79,8 @@ export function readDeskTrack(raw: Record<string, unknown>): DeskTrack {
   return "cte";
 }
 
-export function deskTrackStage(track: DeskTrack): "CTE in progress" | "Follow up in progress" {
-  return track === "followup" ? "Follow up in progress" : "CTE in progress";
+export function deskTrackStage(track: DeskTrack): "Working" | "Follow-up" {
+  return track === "followup" ? "Follow-up" : "Working";
 }
 
 function pad(n: number): string {
@@ -126,7 +126,7 @@ export function scheduleDeskTrack(
     const nextAction = overrideAction || "Follow up — next step after they connected";
     return {
       track: "followup",
-      stage: "Follow up in progress",
+      stage: "Follow-up",
       nextAction,
       followUpDate,
       noteSuffix: "Follow-up set: " + nextAction + " @ " + followUpDate.replace("T", " "),
@@ -147,7 +147,7 @@ export function scheduleDeskTrack(
   ];
   return {
     track: "cte",
-    stage: "CTE in progress",
+    stage: "Working",
     nextAction,
     followUpDate: callWhen,
     noteSuffix: "CTE plan:\n" + lines.join("\n") + "\nCRM follow-up slot: " + nextAction + " @ " + callWhen.replace("T", " "),

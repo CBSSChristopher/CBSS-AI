@@ -100,8 +100,8 @@ describe("lifecycle compatibility", () => {
     assert.equal(normalizeLifecycle("CTE in progress"), "Working");
     assert.equal(normalizeLifecycle("Quoted"), "Quoted");
     assert.equal(normalizeLifecycle("Won"), "Paid");
-    assert.equal(legacyStatusFor("Working"), "CTE in progress");
-    assert.equal(legacyStatusFor("Not interested"), "Lost");
+    assert.equal(legacyStatusFor("Working"), "Working");
+    assert.equal(legacyStatusFor("Not interested"), "Not interested");
   });
 });
 

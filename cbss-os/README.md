@@ -18,12 +18,12 @@ Navy `#0B1F3A` / gold `#C9A227` / cream `#F7F4EC`.
 
 ## Modules
 
-- **CRM** — contacts, follow-ups, tasks, pipeline, notes. Email-campaign hold keeps the contact on the book so you can still open and edit it. Save follow-up confirms what landed on Follow-ups. Assigning an owner pulls that lead off New/Unassigned — including Facebook twins that match an already-assigned card. The pile reloads after the save so a pull does not put that name back.
+- **CRM** — contacts, follow-ups, tasks, pipeline, notes. One stage list (old Kanban names still normalize). Call/text outcomes timestamp on the card. AgentMail in/out shows on the contact. Christopher-only Monday book (not emailed until he says go). Email-campaign hold keeps the contact on the book so you can still open and edit it. Save follow-up confirms what landed on Follow-ups. Assigning an owner pulls that lead off New/Unassigned — including Facebook twins that match an already-assigned card. The pile reloads after the save so a pull does not put that name back.
 - **Desk** — Harbor (CBSS AI) first, Container One / USA Containers price match, then call scraps and email
 - **Proposal** — stepped quote: pick the box (including reefer working / reefer non-working), Get CBSS Price, proposal amount, submit. A sent proposal writes that amount, Proposal Sent, and a note on the matching CRM contact. Dragging a Kanban card to Proposal Sent copies a stored amount only — it does not invent a dollar. Cards with no proposal stay marked No proposal $.
 - **Modified** — build-out spec: Apex helical pylons, doors, roll-up, windows, framing, insulation, electrical. No invented prices
 - **Money** — branded invoice (ACH/wire or card). Mark paid records the KV card; the invoice Worker emails Next Steps from AgentMail. No Veem. No Master Chief webhook.
-- **Lifecycle / CTE** — New → Working → Quoted → Invoiced → Paid → Delivered (exits: Lost, Not interested, Bought elsewhere). Contact card shows assigned rep, CTE stage, next due, compact timeline, Logged attempt / No answer / Replied / Override CTE / Mark paid / Bad number. Bad number parks CTE calls, sets Email campaign, and emails asking for a working number.
+- **Lifecycle / CTE** — Same stage language as the book: New → Working → Follow-up → Email campaign → Quoted → Proposal Sent → Invoiced → Paid → Delivered (exits: Lost, Not interested, Bought elsewhere, DNC). Contact card shows assigned rep, CTE stage, next due, AgentMail, activity, Logged attempt / No answer / Replied / Override CTE / Mark paid / Bad number. Call/text log does not send CTE mail — No answer on Lifecycle still queues CTE1. Bad number parks CTE calls, sets Email campaign, and emails asking for a working number.
 
 ## Hard rules
 

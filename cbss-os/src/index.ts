@@ -36,6 +36,7 @@ import { scopeCrmGetPayload, shouldScopeCrmGet } from "./crm-scope.ts";
 import { rememberUser } from "./cycle/store.ts";
 import { handleAgentMailHook, handleCycleAuthed, runCycleCron } from "./cycle/http.ts";
 import { startWorking } from "./cycle/engine.ts";
+import { buildMondayReport } from "./monday-report.ts";
 
 const SECURITY = {
   "X-Content-Type-Options": "nosniff",
@@ -404,6 +405,17 @@ export default {
       const geo = lookupZipFromZippopotam(await res.json() as { places?: Array<Record<string, string>> });
       if (!geo) return json(404, { error: "Could not find that ZIP." });
       return json(200, { ok: true, zip: digits, ...geo });
+    }
+
+    if (request.method === "GET" && path === "/report/monday") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      if (!isChristopherUser(user.email, user.name)) {
+        return json(403, { error: "Monday book is for Christopher only." });
+      }
+      const get = await crmJson(request, env, "/crm-data?action=get&omitNotes=1");
+      if (!get.ok) return json(502, { error: "Could not read the book for the Monday report." });
+      return json(200, buildMondayReport(get.data));
     }
 
     if (request.method === "GET" && path === "/facebook/status") {

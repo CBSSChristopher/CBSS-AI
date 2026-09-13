@@ -260,16 +260,18 @@ describe("The Yard CRM edit and Money invoice send", () => {
     assert.match(page, /action:"saveContactEdits"/);
     assert.match(page, /action:"saveDeals"/);
     for (const stage of [
-      "New Lead",
-      "Contacted",
-      "CTE in progress",
-      "Follow up in progress",
+      "New",
+      "Working",
+      "Follow-up",
       "Email campaign",
-      "Quote",
+      "Quoted",
       "Proposal Sent",
-      "Flex Buy",
-      "Won",
+      "Invoiced",
+      "Paid",
+      "Delivered",
       "Lost",
+      "Not interested",
+      "Bought elsewhere",
       "DNC",
     ]) {
       assert.match(page, new RegExp(stage.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));

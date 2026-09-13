@@ -1,6 +1,7 @@
 import { BRAND, OWNER_ALIASES, SALES_SPARKS, TEAM_OWNERS, YARD_PUBLIC } from "./brand.ts";
 import { CONTACT_CHANGE_LABELS } from "./contact-log.ts";
 import { MODIFIED_CATEGORIES, MODIFIED_ITEMS, MODIFIED_USES } from "./modified-catalog.ts";
+import { PIPELINE_ALWAYS, STAGE_ALIASES, STAGES } from "./stages.ts";
 
 function htmlEsc(value: string): string {
   return String(value || "").replace(/[&<>"']/g, function (c) {
@@ -97,6 +98,13 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     .cycle-box h3 { margin: 0 0 6px; }
     .cycle-tl { font-size: 12px; color: #3d4d5c; margin: 6px 0 0; line-height: 1.35; }
     .cycle-flag { color: #8A1F1F; font-size: 13px; font-weight: 650; }
+    .touch-log { margin-top: 10px; }
+    .touch-log .picks { margin-top: 6px; }
+    .mail-item { border-top: 1px solid var(--line); padding: 8px 0; font-size: 13px; }
+    .mail-item .dir { font-weight: 800; color: var(--navy); }
+    .monday-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 12px 0; }
+    .monday-grid .stat-box { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+    .monday-grid .stat-box strong { display: block; font-size: 22px; color: var(--navy); }
     #cycle-alerts { background: #10263f; color: #fff; padding: 10px 18px; font-size: 13px; }
     #cycle-alerts div { margin: 4px 0; }
     .hide { display: none !important; }
@@ -413,6 +421,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
             <button type="button" class="secondary" data-crm="tasks">Tasks</button>
             <button type="button" class="secondary" data-crm="pipeline">Pipeline</button>
             <button type="button" class="secondary" data-crm="campaign">Email campaign</button>
+            <button type="button" class="secondary hide" data-crm="monday" id="crm-monday-tab">Monday</button>
             <button type="button" class="secondary" data-crm="facebook">Facebook</button>
           </div>
           <div class="card" style="margin-top:12px">
@@ -429,6 +438,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
             <div id="crm-tasks" class="hide"></div>
             <div id="crm-pipeline" class="hide"></div>
             <div id="crm-campaign" class="hide"></div>
+            <div id="crm-monday" class="hide"></div>
             <div id="crm-facebook" class="hide">
               <h2>Facebook app</h2>
               <p class="muted">Paste the App ID, app secret, and client token from Meta for Developers. Empty boxes keep what is already saved. The secret and token are not shown again.</p>
@@ -990,7 +1000,15 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     </div>
   </div>
   <script>
-    const STAGES = ["New Lead","Contacted","CTE in progress","Follow up in progress","Email campaign","Quote","Proposal Sent","Flex Buy","Won","Lost","DNC"];
+    const STAGES = ${JSON.stringify([...STAGES])};
+    const STAGE_ALIASES = ${JSON.stringify(STAGE_ALIASES)};
+    const PIPELINE_ALWAYS = ${JSON.stringify([...PIPELINE_ALWAYS])};
+    function normalizeStage(raw, fallback){
+      const first = STAGE_ALIASES[String(raw||"").trim().toLowerCase()];
+      if (first) return first;
+      const second = STAGE_ALIASES[String(fallback||"").trim().toLowerCase()];
+      return second || "";
+    }
     const SIZES = [{v:"20",l:"20 ft"},{v:"40",l:"40 ft"},{v:"10",l:"10 ft"},{v:"45",l:"45 ft"},{v:"53",l:"53 ft"}];
     const HEIGHTS = [{v:"DC",l:"Standard / DC"},{v:"HC",l:"High cube / HC"}];
     const CONFIGS = [
@@ -1137,7 +1155,12 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     function contactStage(c){
       if (!c) return "";
       const deal = ((book&&book.deals)||[]).find(function(d){ return String(d.contactId)===String(c.id); });
-      return String((deal && deal.stage) || c.status || "").trim();
+      return normalizeStage((deal && deal.stage) || c.status) || String((deal && deal.stage) || c.status || "").trim();
+    }
+    function isChristopher(){
+      const e = String((user&&user.email)||"").trim().toLowerCase();
+      const n = String((user&&user.name)||"").trim().toLowerCase();
+      return e.indexOf("christopher@")===0 || n==="christopher banks";
     }
     function stageOptions(selected){
       const cur = String(selected||"");
@@ -1193,6 +1216,8 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         });
         if (!res.r.ok || !res.j.ok){ $("login-err").textContent = res.j.error || "Could not sign in."; return; }
         user = res.j.user; greet(user.name); paintTools(user.tools); show("app"); openMod("home");
+        const mondayTab = $("crm-monday-tab");
+        if (mondayTab) mondayTab.classList.toggle("hide", !isChristopher());
         try { await loadCrm(); } catch (err) { $("crm-err").textContent = "Signed in. Refresh if the book stays empty."; }
       } catch (err) {
         try { e.target.submit(); return; }
@@ -1210,11 +1235,12 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     });
     document.querySelectorAll("[data-crm]").forEach(function(btn){
       btn.addEventListener("click", function(){
-        ["contacts","followups","tasks","pipeline","campaign","facebook"].forEach(function(v){ $("crm-"+v).classList.toggle("hide", v!==btn.dataset.crm); });
+        ["contacts","followups","tasks","pipeline","campaign","monday","facebook"].forEach(function(v){ $("crm-"+v).classList.toggle("hide", v!==btn.dataset.crm); });
         if (btn.dataset.crm==="followups") renderFollowups();
         if (btn.dataset.crm==="tasks") renderTasks();
         if (btn.dataset.crm==="pipeline") renderPipeline();
         if (btn.dataset.crm==="campaign") renderCampaign();
+        if (btn.dataset.crm==="monday") loadMonday();
         if (btn.dataset.crm==="facebook") loadFacebook();
       });
     });
@@ -1387,6 +1413,22 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
           ? '<button type="button" class="secondary" id="return-campaign">Return from email campaign</button>'
           : '<button type="button" class="secondary" id="add-campaign">Add to email campaign</button>')
         +"</div>"
+        +'<div class="touch-log">'
+        +'<p class="muted">After you call or text, tap how it went. Timestamp is automatic. This log does not send CTE mail — use No answer on Lifecycle for that.</p>'
+        +'<div class="picks" id="touch-call">'
+        +'<button type="button" class="secondary" data-touch="call" data-out="Connected">Connected</button>'
+        +'<button type="button" class="secondary" data-touch="call" data-out="No answer">No answer</button>'
+        +'<button type="button" class="secondary" data-touch="call" data-out="Voicemail">Voicemail</button>'
+        +'<button type="button" class="secondary" data-touch="call" data-out="Left message">Left message</button>'
+        +'<button type="button" class="secondary" data-touch="call" data-out="Wrong number">Wrong number</button>'
+        +"</div>"
+        +'<div class="picks" id="touch-text">'
+        +'<button type="button" class="secondary" data-touch="text" data-out="Sent">Text sent</button>'
+        +'<button type="button" class="secondary" data-touch="text" data-out="They replied">They replied</button>'
+        +'<button type="button" class="secondary" data-touch="text" data-out="Bad number">Bad number</button>'
+        +"</div>"
+        +'<p class="ok" id="touch-ok"></p>'
+        +"</div>"
         +(onCampaign(selected.id)
           ? (campaignReason(selected.id)==="bad_number"
             ? '<p class="muted">On the bad-number campaign. We emailed asking for a working number. You can still edit this contact here.</p>'
@@ -1412,6 +1454,9 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       if (editBtn) editBtn.onclick = function(){ openContactEdit(selected); };
       const stageSel = $("crm-stage");
       if (stageSel) stageSel.onchange = function(){ saveContactStage(selected.id, stageSel.value); };
+      document.querySelectorAll("[data-touch]").forEach(function(btn){
+        btn.onclick = function(){ logTouch(btn.getAttribute("data-touch"), btn.getAttribute("data-out")); };
+      });
       paintCycle(selected);
       const detail = $("crm-detail");
       if (detail) {
@@ -1429,8 +1474,6 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         const res = await api("/cycle/contact", { method:"POST", body: JSON.stringify(cycleHint(c)), allowError: true });
         if (!res.r.ok || !res.j.ok){ box.innerHTML = '<p class="cycle-flag">'+esc(res.j.error||"Lifecycle did not load.")+"</p>"; return; }
         const cy = res.j.cycle || {};
-        const lives = res.j.lifecycles || [];
-        const opts = lives.map(function(v){ return '<option value="'+esc(v)+'"'+(cy.lifecycle===v?" selected":"")+">"+esc(v)+"</option>"; }).join("");
         const paidSend = cy.sends && cy.sends.paid;
         const paidSent = paidSend && paidSend.status === "sent";
         const badSend = cy.sends && cy.sends.bad_number;
@@ -1444,13 +1487,19 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
           .concat(badSent ? ['<p class="ok">Bad-number email sent. On the email campaign.</p>'] : [])
           .concat(cy.stoppedReason==="Bad number" && !badSent ? ['<p class="cycle-flag">Bad number · campaign email not sent'+(badSend && badSend.error ? " · "+esc(badSend.error) : " · use Retry bad-number email")+"</p>"] : [])
           .join("");
-        const tl = (cy.events||[]).slice(0,8).map(function(e){
+        const tl = (cy.events||[]).slice(0,12).map(function(e){
           return '<div class="cycle-tl"><strong>'+esc((e.at||"").replace("T"," ").slice(0,16))+"</strong> "+esc(e.text||"")+"</div>";
         }).join("") || '<p class="muted">No cycle events yet.</p>';
+        const mail = (cy.mail||[]).slice(0,8).map(function(m){
+          return '<div class="mail-item"><span class="dir">'+(m.direction==="in"?"In":"Out")+"</span> "
+            +esc((m.at||"").replace("T"," ").slice(0,16))+" · "+esc(m.subject||"(no subject)")
+            +(m.from?" · "+esc(m.from):"")
+            +(m.preview?"<div>"+esc(m.preview)+"</div>":"")
+            +"</div>";
+        }).join("");
         box.innerHTML = "<h3>Lifecycle</h3>"
-          +"<p>Assigned "+esc(cy.owner||c.owner||"—")+(cy.ownerEmail?" · "+esc(cy.ownerEmail):"")+" · CTE "+esc(cy.cteStage||"—")+" · next "+esc(cy.nextDue||"—")+"</p>"
+          +"<p>Assigned "+esc(cy.owner||c.owner||"—")+(cy.ownerEmail?" · "+esc(cy.ownerEmail):"")+" · stage "+esc(contactStage(c)||cy.lifecycle||"—")+" · CTE "+esc(cy.cteStage||"—")+" · next "+esc(cy.nextDue||"—")+"</p>"
           +flags
-          +'<label for="cycle-life">Lifecycle</label><select id="cycle-life">'+opts+"</select>"
           +'<div class="row">'
           +'<button type="button" class="secondary" id="cycle-logged">Logged attempt</button>'
           +'<button type="button" class="secondary" id="cycle-no">No answer</button>'
@@ -1463,13 +1512,14 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
           +"</div>"
           +'<div id="cycle-over-form" class="hide"><label>Next step</label><input id="cycle-when" type="datetime-local" /><label>Reason (optional)</label><input id="cycle-reason" /><div class="row"><button type="button" class="gold" id="cycle-over-save">Save override</button></div></div>'
           +'<p class="err" id="cycle-err"></p>'
+          +(mail ? "<h3>AgentMail</h3>"+mail : '<p class="muted">No AgentMail on this card yet. CTE sends and replies will show here.</p>')
+          +"<h3>Activity</h3>"
           +'<div>'+tl+"</div>";
         $("cycle-logged").onclick = function(){ cycleAct("/cycle/attempt", { outcome:"logged" }); };
         $("cycle-no").onclick = function(){ cycleAct("/cycle/attempt", { outcome:"no_answer" }); };
         $("cycle-replied").onclick = function(){ cycleAct("/cycle/replied", {}); };
         $("cycle-over").onclick = function(){ $("cycle-over-form").classList.toggle("hide"); };
         $("cycle-over-save").onclick = function(){ cycleAct("/cycle/override", { when:$("cycle-when").value, reason:$("cycle-reason").value }); };
-        $("cycle-life").onchange = function(){ cycleAct("/cycle/lifecycle", { lifecycle:$("cycle-life").value }); };
         const paidBtn = $("cycle-paid");
         if (paidBtn) paidBtn.onclick = function(){ cycleAct("/cycle/paid", {}); };
         const paidRetry = $("cycle-paid-retry");
@@ -1820,12 +1870,66 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     async function saveContactStage(id, status){
       if (!id || !status) return;
       try {
+        if (status === "Proposal Sent") {
+          const c = contactForId(id);
+          const amount = c && (c.amount || storedProposalAmount(c.id) || "");
+          if (c && !amount) {
+            $("crm-err").className = "err";
+            $("crm-err").textContent = (c.name || "That card")+" is on Proposal Sent with no proposal dollar. Submit from Proposal — do not invent a price.";
+          }
+        }
         await persistContactPatch(id, { status: status });
-        $("crm-err").textContent = "";
+        const c = contactForId(id) || selected || {};
+        await api("/cycle/stage", { method:"POST", body: JSON.stringify({ id:String(id), stage:status, name:c.name, email:c.email, owner:c.owner }), allowError: true });
+        $("crm-err").className = "err";
+        if (!$("crm-err").textContent) $("crm-err").textContent = "";
         renderStats(); renderContacts(); renderPipeline();
         if (selected && String(selected.id)===String(id)) openContact(id);
       } catch (err) {
         $("crm-err").textContent = (err && err.message) || "Could not save stage.";
+      }
+    }
+    async function logTouch(channel, outcome){
+      if (!selected) return;
+      const box = $("touch-ok");
+      if (box) box.textContent = "Saving…";
+      try {
+        const res = await api("/cycle/touch", { method:"POST", body: JSON.stringify(Object.assign(cycleHint(selected), { channel:channel, outcome:outcome })), allowError: true });
+        if (!res.r.ok || res.j.ok === false) throw new Error(res.j.error || "Could not log that.");
+        if (box) box.textContent = (channel==="call"?"Call":"Text")+" · "+outcome+" · saved.";
+        paintCycle(selected);
+      } catch (err) {
+        if (box) box.textContent = (err && err.message) || "Could not log that.";
+      }
+    }
+    async function loadMonday(){
+      const el = $("crm-monday");
+      if (!el) return;
+      if (!isChristopher()){ el.innerHTML = "<p class=\\"muted\\">Monday book is for Christopher only.</p>"; return; }
+      el.innerHTML = "<p class=\\"muted\\">Loading Monday book…</p>";
+      try {
+        const res = await api("/report/monday", { allowError: true });
+        if (!res.r.ok || !res.j.ok) throw new Error(res.j.error || "Could not build the Monday book.");
+        const r = res.j;
+        const stageRows = STAGES.map(function(st){ return "<tr><td>"+esc(st)+"</td><td>"+((r.stages&&r.stages[st])||0)+"</td></tr>"; }).join("");
+        el.innerHTML = "<h2>Monday book</h2>"
+          +'<p class="muted">'+esc(r.note||"")+"</p>"
+          +'<div class="monday-grid">'
+          +'<div class="stat-box"><span>Contacts</span><strong>'+r.contacts+"</strong></div>"
+          +'<div class="stat-box"><span>Added</span><strong>'+r.added+"</strong></div>"
+          +'<div class="stat-box"><span>Deals</span><strong>'+r.deals+"</strong></div>"
+          +'<div class="stat-box"><span>Open follow-ups</span><strong>'+r.openFollowups+"</strong></div>"
+          +'<div class="stat-box"><span>Unassigned</span><strong>'+r.unassigned+"</strong></div>"
+          +'<div class="stat-box"><span>Facebook unassigned</span><strong>'+r.facebookUnassigned+"</strong> <span class="muted">of "+r.facebookBook+"</span></div>"
+          +'<div class="stat-box"><span>Paid</span><strong>'+r.paidCards+"</strong></div>"
+          +'<div class="stat-box"><span>Proposal Sent with $</span><strong>'+r.proposalSentWithAmount+"</strong></div>"
+          +'<div class="stat-box"><span>Proposal Sent blank</span><strong>'+r.proposalSentBlank+"</strong></div>"
+          +'<div class="stat-box"><span>Stored proposal $</span><strong>'+(r.storedProposalDollars?money(r.storedProposalDollars):"0")+"</strong></div>"
+          +"</div>"
+          +"<h3>Stages</h3><table><thead><tr><th>Stage</th><th>Count</th></tr></thead><tbody>"+stageRows+"</tbody></table>"
+          +'<p class="muted">Not emailed. Say go if you want this in your inbox Monday morning.</p>';
+      } catch (err) {
+        el.innerHTML = '<p class="err">'+(err && err.message ? esc(err.message) : "Could not build the Monday book.")+"</p>";
       }
     }
     async function saveContactEdit(){
@@ -2077,8 +2181,11 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     }
     function renderPipeline(){
       const deals = scopedDeals();
-      $("crm-pipeline").innerHTML = '<div class="board">'+STAGES.map(function(st){
-        const cards = deals.filter(function(d){ return (d.stage||"")===st || (st==="Quote"&&d.stage==="Quoted"); });
+      $("crm-pipeline").innerHTML = '<div class="board">'+STAGES.filter(function(st){
+        const cards = deals.filter(function(d){ return normalizeStage(d.stage)===st; });
+        return cards.length || PIPELINE_ALWAYS.indexOf(st)>=0;
+      }).map(function(st){
+        const cards = deals.filter(function(d){ return normalizeStage(d.stage)===st; });
         const total = cards.reduce(function(sum,d){
           const n = parseFloat(String((d.amount!=null&&d.amount!=="")?d.amount:((contactForId(d.contactId)||{}).amount||"")).replace(/[$,]/g,""));
           return sum + (Number.isFinite(n)?n:0);
@@ -2091,9 +2198,10 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
             const company = (c&&c.company) || d.company || "";
             const owner = titleOwner(d.owner) || (c&&c.owner) || "";
             const amt = dealAmount(d);
-            const amtLabel = amt || ((d.stage||"")==="Proposal Sent" ? "No proposal $" : "—");
+            const amtLabel = amt || (normalizeStage(d.stage)==="Proposal Sent" ? "No proposal $" : "—");
+            const shown = normalizeStage(d.stage) || d.stage || "";
             return '<div class="pc" data-id="'+esc(String(d.contactId||""))+'"><div class="pc-name">'+esc(name)+'</div><div class="muted">'+esc(company||"—")+'</div><div class="pc-meta"><span class="pc-amt">'+esc(amtLabel)+'</span><span>'+esc(owner||"—")+"</span></div>"
-              +'<select data-deal="'+esc(String(d.id))+'">'+STAGES.map(function(s){ return '<option value="'+s+'"'+(s===d.stage?" selected":"")+">"+s+"</option>"; }).join("")+"</select></div>";
+              +'<select data-deal="'+esc(String(d.id))+'">'+STAGES.map(function(s){ return '<option value="'+s+'"'+(s===shown?" selected":"")+">"+s+"</option>"; }).join("")+"</select></div>";
           }).join("")+"</div>";
       }).join("")+"</div>";
     }
@@ -2375,11 +2483,11 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         email: c.email || draft.email,
         city: c.city || draft.city,
         zip: c.zip || draft.zip,
-        stage: c.status || res.j.stage || "New Lead"
+        stage: normalizeStage(c.status || res.j.stage) || "New"
       });
       if (book && book.contacts && c.id != null){
         const id = String(c.id);
-        const row = Object.assign({ source:"Desk", owner: titleOwner((user&&(user.name||user.email))||"") }, c, { status: c.status || res.j.stage || "New Lead" });
+        const row = Object.assign({ source:"Desk", owner: titleOwner((user&&(user.name||user.email))||"") }, c, { status: normalizeStage(c.status || res.j.stage) || "New" });
         const hit = (book.contacts||[]).find(function(item){ return String(item.id)===id; });
         if (hit) Object.assign(hit, row);
         else book.contacts.unshift(row);
@@ -2926,7 +3034,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       try {
         const res = await api("/session");
         if (user) return;
-        if (res.j.ok && res.j.user){ user=res.j.user; greet(user.name); paintTools(user.tools); show("app"); openMod("home"); loadCrm(); loadCycleAlerts(); }
+        if (res.j.ok && res.j.user){ user=res.j.user; greet(user.name); paintTools(user.tools); show("app"); openMod("home"); const mondayTab = $("crm-monday-tab"); if (mondayTab) mondayTab.classList.toggle("hide", !isChristopher()); loadCrm(); loadCycleAlerts(); }
         else show("login");
       } catch (err) {
         show("login");
