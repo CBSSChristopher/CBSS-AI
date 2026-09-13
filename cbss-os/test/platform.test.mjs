@@ -77,8 +77,8 @@ describe("CBSS platform brand", () => {
     assert.match(page, />Email</);
     assert.match(page, /id="work-cte"/);
     assert.match(page, /On the email campaign/);
-    assert.match(page, /Return from email campaign/);
-    assert.match(page, /On the email campaign list/);
+    assert.match(page, /Return from campaign/);
+    assert.match(page, /These people stay on Contacts/);
     assert.match(page, /open anyone here to edit them/);
     assert.match(page, /Hold list plus the bad-number campaign/);
     assert.match(page, /Bad-number leads were emailed asking for a working number/);
