@@ -49,6 +49,7 @@ describe("one stage language", () => {
     assert.match(page, /id="work-cte"/);
     assert.match(page, /data-cte="/);
     assert.match(page, /Didn't answer/);
+    assert.match(page, /id="send-sure"/);
     assert.match(page, /\/cycle\/work/);
     assert.match(page, /crm-monday-tab/);
     assert.match(page, /No AgentMail on this card yet/);

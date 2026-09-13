@@ -641,6 +641,10 @@ describe("Yard cycle surfaces", () => {
     assert.match(page, /Mark paid/);
     assert.match(page, /function paintCycle/);
     assert.match(page, /function runCteWork/);
+    assert.match(page, /function askSend/);
+    assert.match(page, /id="send-sure"/);
+    assert.match(page, /Send this email\?/);
+    assert.match(page, /id="send-sure-no">Cancel</);
     assert.match(page, /\/cycle\/work/);
     assert.match(http, /\/cycle\/work/);
     assert.match(page, /function markBadNumber/);

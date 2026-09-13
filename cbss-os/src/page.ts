@@ -892,6 +892,17 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       </div>
     </div>
   </div>
+  <div id="send-sure" class="save-alert hide" role="alertdialog" aria-modal="true" aria-labelledby="send-sure-title" aria-describedby="send-sure-body">
+    <div class="box">
+      <p class="kicker">Send email</p>
+      <h3 id="send-sure-title">Send this email?</h3>
+      <p id="send-sure-body"></p>
+      <div class="row">
+        <button type="button" class="gold" id="send-sure-go">Send</button>
+        <button type="button" class="secondary" id="send-sure-no">Cancel</button>
+      </div>
+    </div>
+  </div>
   <div id="contact-edit" class="modal-back hide">
     <div class="modal-card">
       <h2>Edit contact</h2>
@@ -1490,7 +1501,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
           +(onCampaign(c.id) ? '<button type="button" class="secondary" id="return-campaign">Return from campaign</button>' : "")
           +"</div>"
           +'<div class="work-panel '+(ctePanel?"":"hide")+'" id="cte-panel">'
-          +'<p class="muted">Pick the CTE you just worked. Then pick how it went. AgentMail enrolls from that.</p>'
+          +'<p class="muted">Pick the CTE you just worked. Then pick how it went. Didn\'t answer and Bad number ask before AgentMail sends.</p>'
           +'<div class="picks" id="cte-steps">'
           +["cte1","cte2","cte3","cte4"].map(function(s){ return '<button type="button" class="secondary'+(cteStep===s?" on":"")+'" data-cte="'+s+'">'+s.toUpperCase()+"</button>"; }).join("")
           +"</div>"
@@ -1539,16 +1550,56 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         if ($("fu-save")) $("fu-save").onclick = saveFollowup;
         if ($("fu-done")) $("fu-done").onclick = completeTask;
         const paidBtn = $("cycle-paid");
-        if (paidBtn) paidBtn.onclick = function(){ cycleAct("/cycle/paid", {}); };
+        if (paidBtn) paidBtn.onclick = function(){ runPaidSend(false); };
         const paidRetry = $("cycle-paid-retry");
-        if (paidRetry) paidRetry.onclick = function(){ cycleAct("/cycle/paid", {}); };
+        if (paidRetry) paidRetry.onclick = function(){ runPaidSend(true); };
       } catch (err) {
         box.innerHTML = '<p class="cycle-flag">'+(err && err.message ? esc(err.message) : "Lifecycle did not load.")+"</p>";
       }
     }
+    function askSend(body){
+      return new Promise(function(resolve){
+        const box = $("send-sure");
+        const text = $("send-sure-body");
+        const yes = $("send-sure-go");
+        const no = $("send-sure-no");
+        if (!box || !text || !yes || !no){ resolve(false); return; }
+        text.textContent = body;
+        box.classList.remove("hide");
+        function done(ok){
+          box.classList.add("hide");
+          yes.onclick = null;
+          no.onclick = null;
+          resolve(ok);
+        }
+        yes.onclick = function(){ done(true); };
+        no.onclick = function(){ done(false); };
+      });
+    }
+    function sendSureCopy(kind){
+      const name = (selected && selected.name) || "this contact";
+      if (kind === "no_answer") {
+        const step = String(cteStep||"cte1").toUpperCase();
+        const skip = cteStep && cteStep !== "cte1" ? " This sends "+step+", not the CTE1 intro." : "";
+        return "Send "+step+" to "+name+" via AgentMail?"+skip+" Cancel if you only meant to log the call.";
+      }
+      if (kind === "bad_number") return "Email "+name+" asking for a working number and put them on the campaign?";
+      if (kind === "paid") return "Mark "+name+" paid and send Next Steps? This emails the customer once.";
+      if (kind === "paid-retry") return "Send Next Steps to "+name+"? Only goes out if it has not already sent.";
+      return "Send this email to "+name+"?";
+    }
     async function runCteWork(outcome){
       if (!selected || !cteStep) return;
+      if (outcome === "no_answer" || outcome === "bad_number") {
+        const ok = await askSend(sendSureCopy(outcome));
+        if (!ok) return;
+      }
       await cycleAct("/cycle/work", { step: cteStep, outcome: outcome, phone: selected.phone, city: selected.city });
+    }
+    async function runPaidSend(retry){
+      const ok = await askSend(sendSureCopy(retry ? "paid-retry" : "paid"));
+      if (!ok) return;
+      await cycleAct("/cycle/paid", {});
     }
     async function cycleAct(path, extra){
       if (!selected) return;
