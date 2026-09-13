@@ -4,7 +4,7 @@ export const BRAND = {
   paper: "#F7F4EC",
   company: "CBGC LLC DBA CB Shipping Solutions",
   title: "The Yard",
-  stamp: "build 21 · cycle + AgentMail",
+  stamp: "build 24 · CTE wizard",
 } as const;
 
 export const SALES_SPARKS = [

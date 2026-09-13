@@ -18,12 +18,12 @@ Navy `#0B1F3A` / gold `#C9A227` / cream `#F7F4EC`.
 
 ## Modules
 
-- **CRM** — contacts, follow-ups, tasks, pipeline, notes. Email-campaign hold keeps the contact on the book so you can still open and edit it. Save follow-up confirms what landed on Follow-ups. Assigning an owner pulls that lead off New/Unassigned — including Facebook twins that match an already-assigned card. The pile reloads after the save so a pull does not put that name back.
+- **CRM** — contacts, follow-ups, tasks, pipeline, notes. One stage list (old Kanban names still normalize). Call/text outcomes timestamp on the card. AgentMail in/out shows on the contact. Christopher-only Monday book (not emailed until he says go). Email-campaign hold keeps the contact on the book so you can still open and edit it. Save follow-up confirms what landed on Follow-ups. Assigning an owner pulls that lead off New/Unassigned — including Facebook twins that match an already-assigned card. The pile reloads after the save so a pull does not put that name back.
 - **Desk** — Harbor (CBSS AI) first, Container One / USA Containers price match, then call scraps and email
 - **Proposal** — stepped quote: pick the box (including reefer working / reefer non-working), Get CBSS Price, proposal amount, submit. A sent proposal writes that amount, Proposal Sent, and a note on the matching CRM contact. Dragging a Kanban card to Proposal Sent copies a stored amount only — it does not invent a dollar. Cards with no proposal stay marked No proposal $.
 - **Modified** — build-out spec: Apex helical pylons, doors, roll-up, windows, framing, insulation, electrical. No invented prices
 - **Money** — branded invoice (ACH/wire or card). Mark paid records the KV card; the invoice Worker emails Next Steps from AgentMail. No Veem. No Master Chief webhook.
-- **Lifecycle / CTE** — New → Working → Quoted → Invoiced → Paid → Delivered (exits: Lost, Not interested, Bought elsewhere). Contact card shows assigned rep, CTE stage, next due, compact timeline, Logged attempt / No answer / Replied / Override CTE / Mark paid / Bad number. Bad number parks CTE calls, sets Email campaign, and emails asking for a working number.
+- **Lifecycle / CTE** — Same stage language as the book. On the card: **CTE**, **Follow-up**, or **Paid**. CTE opens CTE1–4, then how it went (Didn't answer / Did answer / They replied / Not interested / Bought elsewhere / Bad number). Didn't answer and Bad number ask **Send / Cancel** before AgentMail goes out. Did answer only logs. They replied stops the ladder. Paid / Retry Next Steps / Money Mark paid ask before Next Steps. The stage dropdown cannot mark Paid — use the Paid button. Call or Text opens the CTE panel so they log how it went when they hang up. Follow-up is human only (no mail).
 
 ## Hard rules
 
@@ -39,7 +39,7 @@ Workers own the ladder. Grok Bot / Master Chief / AgentMail MCP are not used at 
 
 - Secret: `AGENTMAIL_API_KEY`. Inbox var: `AGENTMAIL_INBOX=cbss@agentmail.to`.
 - Cron: `0 * * * *`. Sends only 08:00–19:00 America/Chicago. Each `contactId:template` send is idempotent.
-- CTE1 = human call/text day. **No answer** sends a short introduction (who we are, reply or call) with the assigned rep's name, title, company email, and phone on the footer. CTE2/3/4 keep that same footer. Schedules CTE2 +1, CTE3 +3, CTE4 +7 business days from the CTE1 date (weekends + U.S. federal holidays for any year; optional `US_HOLIDAY_EXTRA=YYYY-MM-DD,YYYY-MM-DD`).
+- CTE1 = human call/text day. **No answer** sends a short introduction (who we are, reply or call) with the assigned rep's name, title, company email, and phone on the footer. CTE2/3/4 keep that same footer. If that rep has a Google Appointment / Meet booking link (`MEET_LINKS_JSON` or roster), the footer adds “Prefer a Google Meet? Schedule a time with me:” plus that https link. No link is invented. Schedules CTE2 +1, CTE3 +3, CTE4 +7 business days from the CTE1 date (weekends + U.S. federal holidays for any year; optional `US_HOLIDAY_EXTRA=YYYY-MM-DD,YYYY-MM-DD`).
 - **Replied** (button) or inbound AgentMail reply (webhook `POST /cycle/hooks/agentmail` with `AGENTMAIL_WEBHOOK_SECRET`, plus hourly poll) cancels remaining sends and writes `Client replied · Ladder stopped`. System-detected replies alert the **current** assigned rep only (in-Yard + AgentMail).
 - Override CTE sets the next unsent step; later steps keep the original gaps. Reply-stop always wins.
 - Assigned rep for **CTE** emails comes from the contact owner matched to an active Yard login (`cycle:users`). Missing / inactive rep or missing client email pauses CTE and flags — never invents an email for an unknown name.

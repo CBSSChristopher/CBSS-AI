@@ -1,6 +1,7 @@
 import { BRAND, OWNER_ALIASES, SALES_SPARKS, TEAM_OWNERS, YARD_PUBLIC } from "./brand.ts";
 import { CONTACT_CHANGE_LABELS } from "./contact-log.ts";
 import { MODIFIED_CATEGORIES, MODIFIED_ITEMS, MODIFIED_USES } from "./modified-catalog.ts";
+import { PIPELINE_ALWAYS, STAGE_ALIASES, STAGES } from "./stages.ts";
 
 function htmlEsc(value: string): string {
   return String(value || "").replace(/[&<>"']/g, function (c) {
@@ -97,6 +98,14 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     .cycle-box h3 { margin: 0 0 6px; }
     .cycle-tl { font-size: 12px; color: #3d4d5c; margin: 6px 0 0; line-height: 1.35; }
     .cycle-flag { color: #8A1F1F; font-size: 13px; font-weight: 650; }
+    .work-panel { margin-top: 10px; }
+    .work-panel .picks { margin-top: 8px; }
+    .work-panel .picks button.on { background: var(--navy); color: #fff; }
+    .mail-item { border-top: 1px solid var(--line); padding: 8px 0; font-size: 13px; }
+    .mail-item .dir { font-weight: 800; color: var(--navy); }
+    .monday-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 12px 0; }
+    .monday-grid .stat-box { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+    .monday-grid .stat-box strong { display: block; font-size: 22px; color: var(--navy); }
     #cycle-alerts { background: #10263f; color: #fff; padding: 10px 18px; font-size: 13px; }
     #cycle-alerts div { margin: 4px 0; }
     .hide { display: none !important; }
@@ -413,6 +422,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
             <button type="button" class="secondary" data-crm="tasks">Tasks</button>
             <button type="button" class="secondary" data-crm="pipeline">Pipeline</button>
             <button type="button" class="secondary" data-crm="campaign">Email campaign</button>
+            <button type="button" class="secondary hide" data-crm="monday" id="crm-monday-tab">Monday</button>
             <button type="button" class="secondary" data-crm="facebook">Facebook</button>
           </div>
           <div class="card" style="margin-top:12px">
@@ -429,6 +439,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
             <div id="crm-tasks" class="hide"></div>
             <div id="crm-pipeline" class="hide"></div>
             <div id="crm-campaign" class="hide"></div>
+            <div id="crm-monday" class="hide"></div>
             <div id="crm-facebook" class="hide">
               <h2>Facebook app</h2>
               <p class="muted">Paste the App ID, app secret, and client token from Meta for Developers. Empty boxes keep what is already saved. The secret and token are not shown again.</p>
@@ -881,6 +892,17 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       </div>
     </div>
   </div>
+  <div id="send-sure" class="save-alert hide" role="alertdialog" aria-modal="true" aria-labelledby="send-sure-title" aria-describedby="send-sure-body">
+    <div class="box">
+      <p class="kicker">Send email</p>
+      <h3 id="send-sure-title">Send this email?</h3>
+      <p id="send-sure-body"></p>
+      <div class="row">
+        <button type="button" class="gold" id="send-sure-go">Send</button>
+        <button type="button" class="secondary" id="send-sure-no">Cancel</button>
+      </div>
+    </div>
+  </div>
   <div id="contact-edit" class="modal-back hide">
     <div class="modal-card">
       <h2>Edit contact</h2>
@@ -990,7 +1012,15 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     </div>
   </div>
   <script>
-    const STAGES = ["New Lead","Contacted","CTE in progress","Follow up in progress","Email campaign","Quote","Proposal Sent","Flex Buy","Won","Lost","DNC"];
+    const STAGES = ${JSON.stringify([...STAGES])};
+    const STAGE_ALIASES = ${JSON.stringify(STAGE_ALIASES)};
+    const PIPELINE_ALWAYS = ${JSON.stringify([...PIPELINE_ALWAYS])};
+    function normalizeStage(raw, fallback){
+      const first = STAGE_ALIASES[String(raw||"").trim().toLowerCase()];
+      if (first) return first;
+      const second = STAGE_ALIASES[String(fallback||"").trim().toLowerCase()];
+      return second || "";
+    }
     const SIZES = [{v:"20",l:"20 ft"},{v:"40",l:"40 ft"},{v:"10",l:"10 ft"},{v:"45",l:"45 ft"},{v:"53",l:"53 ft"}];
     const HEIGHTS = [{v:"DC",l:"Standard / DC"},{v:"HC",l:"High cube / HC"}];
     const CONFIGS = [
@@ -1008,6 +1038,8 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     const MOD_ITEMS = ${JSON.stringify(MODIFIED_ITEMS)};
     const MOD_USES = ${JSON.stringify(MODIFIED_USES)};
     let user = null, book = null, selected = null, deskContact = null, deskHits = [], deskSearchSeq = 0, deskSearchTimer = 0, lastGmail = "", lastDoc = "", lastPdf = "", pick = {size:"40",height:"HC",config:"standard",grade:"CW"};
+    let workPanel = "";
+    let cteStep = "";
     let lastQuote = null;
     let proposalLines = [];
     let campaignIds = {};
@@ -1137,7 +1169,12 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     function contactStage(c){
       if (!c) return "";
       const deal = ((book&&book.deals)||[]).find(function(d){ return String(d.contactId)===String(c.id); });
-      return String((deal && deal.stage) || c.status || "").trim();
+      return normalizeStage((deal && deal.stage) || c.status) || String((deal && deal.stage) || c.status || "").trim();
+    }
+    function isChristopher(){
+      const e = String((user&&user.email)||"").trim().toLowerCase();
+      const n = String((user&&user.name)||"").trim().toLowerCase();
+      return e.indexOf("christopher@")===0 || n==="christopher banks";
     }
     function stageOptions(selected){
       const cur = String(selected||"");
@@ -1193,6 +1230,8 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         });
         if (!res.r.ok || !res.j.ok){ $("login-err").textContent = res.j.error || "Could not sign in."; return; }
         user = res.j.user; greet(user.name); paintTools(user.tools); show("app"); openMod("home");
+        const mondayTab = $("crm-monday-tab");
+        if (mondayTab) mondayTab.classList.toggle("hide", !isChristopher());
         try { await loadCrm(); } catch (err) { $("crm-err").textContent = "Signed in. Refresh if the book stays empty."; }
       } catch (err) {
         try { e.target.submit(); return; }
@@ -1210,11 +1249,12 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     });
     document.querySelectorAll("[data-crm]").forEach(function(btn){
       btn.addEventListener("click", function(){
-        ["contacts","followups","tasks","pipeline","campaign","facebook"].forEach(function(v){ $("crm-"+v).classList.toggle("hide", v!==btn.dataset.crm); });
+        ["contacts","followups","tasks","pipeline","campaign","monday","facebook"].forEach(function(v){ $("crm-"+v).classList.toggle("hide", v!==btn.dataset.crm); });
         if (btn.dataset.crm==="followups") renderFollowups();
         if (btn.dataset.crm==="tasks") renderTasks();
         if (btn.dataset.crm==="pipeline") renderPipeline();
         if (btn.dataset.crm==="campaign") renderCampaign();
+        if (btn.dataset.crm==="monday") loadMonday();
         if (btn.dataset.crm==="facebook") loadFacebook();
       });
     });
@@ -1379,39 +1419,33 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         +'<label for="crm-stage">Stage</label><select id="crm-stage">'+stageOptions(contactStage(selected))+"</select>"
         +'<div class="cycle-box" id="cycle-box"><p class="muted">Loading lifecycle…</p></div>'
         +'<div class="acts">'
-        +(callHref ? '<a class="gold" href="'+callHref+'">Call</a>' : '<button type="button" class="secondary" disabled title="No phone on this contact">Call</button>')
+        +(callHref ? '<a class="gold" id="crm-call" href="'+callHref+'">Call</a>' : '<button type="button" class="secondary" disabled title="No phone on this contact">Call</button>')
         +(gmail ? '<a class="secondary" href="'+esc(gmail)+'" target="_blank" rel="noopener">Email</a>' : '<button type="button" class="secondary" disabled title="No email on this contact">Email</button>')
-        +(textHref ? '<a class="secondary" href="'+textHref+'">Text</a>' : '<button type="button" class="secondary" disabled title="No phone on this contact">Text</button>')
+        +(textHref ? '<a class="secondary" id="crm-text" href="'+textHref+'">Text</a>' : '<button type="button" class="secondary" disabled title="No phone on this contact">Text</button>')
         +'<button type="button" id="crm-edit">Edit</button>'
-        +(onCampaign(selected.id)
-          ? '<button type="button" class="secondary" id="return-campaign">Return from email campaign</button>'
-          : '<button type="button" class="secondary" id="add-campaign">Add to email campaign</button>')
         +"</div>"
+        +'<p class="muted">After Call or Text, pick CTE and how it went. Cancel if you do not want AgentMail to send.</p>'
         +(onCampaign(selected.id)
           ? (campaignReason(selected.id)==="bad_number"
-            ? '<p class="muted">On the bad-number campaign. We emailed asking for a working number. You can still edit this contact here.</p>'
-            : '<p class="muted">On the email campaign list. You can still edit this contact here.</p>')
+            ? '<p class="muted">On the bad-number campaign. We emailed asking for a working number.</p>'
+            : '<p class="muted">On the email campaign. Open CTE if you want them back on the book.</p>')
           : "")
-        +(fu.pendingNext || fu.completed ? '<p class="muted">Just completed. Type the next follow-up and save it — it stays on the book.</p>' : "")
-        +'<label>Follow-up</label><input id="fu-act" value="'+esc(fu.pendingNext || fu.completed ? "" : (fu.nextAction||""))+'" placeholder="e.g. Call about 40ft WWT pricing" />'
-        +'<input id="fu-date" type="datetime-local" value="'+esc(fu.pendingNext || fu.completed ? "" : (fu.followUpDate||"").slice(0,16))+'" />'
-        +'<div class="row"><button type="button" class="secondary" id="fu-save">Save follow-up</button><button type="button" id="fu-done">Complete</button></div>'
-        +'<p class="ok" id="fu-ok"></p>'
+        +(fu.pendingNext || fu.completed ? '<p class="muted">Just completed a follow-up. Open Follow-up to set the next one.</p>' : "")
         +'<label>Add note</label><textarea id="note-text" rows="2"></textarea><div class="row"><button type="button" class="secondary" id="note-add">Add note</button></div>'
         +doneTodayHtml(selected)
         +(notesErr ? '<p class="err" id="crm-notes-err">'+esc(notesErr)+"</p>" : "")
         +"<div>"+(notesErr ? '<p class="muted">Notes did not load.</p>' : (notes.slice(0,20).map(function(n){ return '<div class="note"><strong>'+esc(n.tag||n.author||"")+"</strong> "+esc(n.timestamp||"")+"<div>"+esc(n.text||"")+"</div></div>"; }).join("")||'<p class="muted">No notes yet.</p>'))+"</div>";
-      $("fu-save").onclick = saveFollowup;
-      $("fu-done").onclick = completeTask;
       $("note-add").onclick = addNote;
-      const campBtn = $("add-campaign");
-      if (campBtn) campBtn.onclick = addToCampaign;
-      const returnBtn = $("return-campaign");
-      if (returnBtn) returnBtn.onclick = function(){ returnFromCampaign(selected.id); };
       const editBtn = $("crm-edit");
       if (editBtn) editBtn.onclick = function(){ openContactEdit(selected); };
       const stageSel = $("crm-stage");
       if (stageSel) stageSel.onchange = function(){ saveContactStage(selected.id, stageSel.value); };
+      const callBtn = $("crm-call");
+      if (callBtn) callBtn.addEventListener("click", function(){ openCteAfterTouch(); });
+      const textBtn = $("crm-text");
+      if (textBtn) textBtn.addEventListener("click", function(){ openCteAfterTouch(); });
+      workPanel = "";
+      cteStep = "";
       paintCycle(selected);
       const detail = $("crm-detail");
       if (detail) {
@@ -1429,8 +1463,6 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         const res = await api("/cycle/contact", { method:"POST", body: JSON.stringify(cycleHint(c)), allowError: true });
         if (!res.r.ok || !res.j.ok){ box.innerHTML = '<p class="cycle-flag">'+esc(res.j.error||"Lifecycle did not load.")+"</p>"; return; }
         const cy = res.j.cycle || {};
-        const lives = res.j.lifecycles || [];
-        const opts = lives.map(function(v){ return '<option value="'+esc(v)+'"'+(cy.lifecycle===v?" selected":"")+">"+esc(v)+"</option>"; }).join("");
         const paidSend = cy.sends && cy.sends.paid;
         const paidSent = paidSend && paidSend.status === "sent";
         const badSend = cy.sends && cy.sends.bad_number;
@@ -1444,43 +1476,135 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
           .concat(badSent ? ['<p class="ok">Bad-number email sent. On the email campaign.</p>'] : [])
           .concat(cy.stoppedReason==="Bad number" && !badSent ? ['<p class="cycle-flag">Bad number · campaign email not sent'+(badSend && badSend.error ? " · "+esc(badSend.error) : " · use Retry bad-number email")+"</p>"] : [])
           .join("");
-        const tl = (cy.events||[]).slice(0,8).map(function(e){
+        const tl = (cy.events||[]).slice(0,12).map(function(e){
           return '<div class="cycle-tl"><strong>'+esc((e.at||"").replace("T"," ").slice(0,16))+"</strong> "+esc(e.text||"")+"</div>";
         }).join("") || '<p class="muted">No cycle events yet.</p>';
-        box.innerHTML = "<h3>Lifecycle</h3>"
-          +"<p>Assigned "+esc(cy.owner||c.owner||"—")+(cy.ownerEmail?" · "+esc(cy.ownerEmail):"")+" · CTE "+esc(cy.cteStage||"—")+" · next "+esc(cy.nextDue||"—")+"</p>"
+        const mail = (cy.mail||[]).slice(0,8).map(function(m){
+          return '<div class="mail-item"><span class="dir">'+(m.direction==="in"?"In":"Out")+"</span> "
+            +esc((m.at||"").replace("T"," ").slice(0,16))+" · "+esc(m.subject||"(no subject)")
+            +(m.from?" · "+esc(m.from):"")
+            +(m.preview?"<div>"+esc(m.preview)+"</div>":"")
+            +"</div>";
+        }).join("");
+        const fu = (book.followups||{})[c.id] || (book.followups||{})[String(c.id)] || {};
+        const ctePanel = workPanel==="cte";
+        const followPanel = workPanel==="followup";
+        const paidPanel = workPanel==="paid";
+        const stepHint = {
+          cte1: "Didn't answer sends the CTE1 intro and books CTE2/3/4.",
+          cte2: "Didn't answer sends CTE2 now and keeps the later emails on the ladder.",
+          cte3: "Didn't answer sends CTE3 now.",
+          cte4: "Didn't answer sends the last CTE email and parks the ladder."
+        };
+        box.innerHTML = "<h3>Work this lead</h3>"
+          +"<p>Assigned "+esc(cy.owner||c.owner||"—")+(cy.ownerEmail?" · "+esc(cy.ownerEmail):"")+" · "+esc(contactStage(c)||cy.lifecycle||"—")+" · "+esc(cy.cteStage||"no CTE")+(cy.nextDue?" · next "+esc(cy.nextDue):"")+"</p>"
           +flags
-          +'<label for="cycle-life">Lifecycle</label><select id="cycle-life">'+opts+"</select>"
           +'<div class="row">'
-          +'<button type="button" class="secondary" id="cycle-logged">Logged attempt</button>'
-          +'<button type="button" class="secondary" id="cycle-no">No answer</button>'
-          +'<button type="button" class="gold" id="cycle-replied">Replied</button>'
-          +'<button type="button" class="secondary" id="cycle-over">Override CTE</button>'
-          +(cycleClosed ? "" : '<button type="button" class="gold" id="cycle-paid">Mark paid</button>')
-          +(cy.lifecycle==="Paid" && !paidSent ? '<button type="button" class="gold" id="cycle-paid-retry">Retry Next Steps</button>' : "")
-          +(cycleClosed || badSent ? "" : '<button type="button" class="secondary" id="cycle-bad">Bad number</button>')
-          +(cy.stoppedReason==="Bad number" && !badSent ? '<button type="button" class="gold" id="cycle-bad-retry">Retry bad-number email</button>' : "")
+          +'<button type="button" class="'+(ctePanel?"gold":"secondary")+'" id="work-cte">CTE</button>'
+          +'<button type="button" class="'+(followPanel?"gold":"secondary")+'" id="work-follow">Follow-up</button>'
+          +(cycleClosed && !(cy.lifecycle==="Paid" && !paidSent) ? "" : '<button type="button" class="'+(paidPanel?"gold":"secondary")+'" id="work-paid">Paid</button>')
+          +(onCampaign(c.id) ? '<button type="button" class="secondary" id="return-campaign">Return from campaign</button>' : "")
           +"</div>"
-          +'<div id="cycle-over-form" class="hide"><label>Next step</label><input id="cycle-when" type="datetime-local" /><label>Reason (optional)</label><input id="cycle-reason" /><div class="row"><button type="button" class="gold" id="cycle-over-save">Save override</button></div></div>'
+          +'<div class="work-panel '+(ctePanel?"":"hide")+'" id="cte-panel">'
+          +'<p class="muted">Pick the CTE you just worked. Then pick how it went. Didn\'t answer and Bad number ask before AgentMail sends.</p>'
+          +'<div class="picks" id="cte-steps">'
+          +["cte1","cte2","cte3","cte4"].map(function(s){ return '<button type="button" class="secondary'+(cteStep===s?" on":"")+'" data-cte="'+s+'">'+s.toUpperCase()+"</button>"; }).join("")
+          +"</div>"
+          +(cteStep
+            ? '<p class="muted">'+esc(stepHint[cteStep]||"")+'</p>'
+              +'<div class="picks" id="cte-outs">'
+              +'<button type="button" class="gold" data-out="no_answer">Didn\'t answer</button>'
+              +'<button type="button" class="secondary" data-out="answered">Did answer</button>'
+              +'<button type="button" class="secondary" data-out="replied">They replied</button>'
+              +'<button type="button" class="secondary" data-out="not_interested">Not interested</button>'
+              +'<button type="button" class="secondary" data-out="bought_elsewhere">Bought elsewhere</button>'
+              +'<button type="button" class="secondary" data-out="bad_number">Bad number</button>'
+              +"</div>"
+            : "")
+          +"</div>"
+          +'<div class="work-panel '+(followPanel?"":"hide")+'" id="follow-panel">'
+          +'<p class="muted">Human follow-up. This does not send AgentMail.</p>'
+          +'<label>Follow-up</label><input id="fu-act" value="'+esc(fu.pendingNext || fu.completed ? "" : (fu.nextAction||""))+'" placeholder="e.g. Call about 40ft WWT pricing" />'
+          +'<input id="fu-date" type="datetime-local" value="'+esc(fu.pendingNext || fu.completed ? "" : (fu.followUpDate||"").slice(0,16))+'" />'
+          +'<div class="row"><button type="button" class="secondary" id="fu-save">Save follow-up</button><button type="button" id="fu-done">Complete</button></div>'
+          +'<p class="ok" id="fu-ok"></p>'
+          +"</div>"
+          +'<div class="work-panel '+(paidPanel?"":"hide")+'" id="paid-panel">'
+          +'<p class="muted">Marks Paid and sends Next Steps once. Does not invent a price.</p>'
+          +'<div class="row">'
+          +(cycleClosed && cy.lifecycle!=="Paid" ? "" : '<button type="button" class="gold" id="cycle-paid">Mark paid</button>')
+          +(cy.lifecycle==="Paid" && !paidSent ? '<button type="button" class="gold" id="cycle-paid-retry">Retry Next Steps</button>' : "")
+          +"</div>"
+          +"</div>"
           +'<p class="err" id="cycle-err"></p>'
+          +(mail ? "<h3>AgentMail</h3>"+mail : '<p class="muted">No AgentMail on this card yet. CTE sends and replies will show here.</p>')
+          +"<h3>Activity</h3>"
           +'<div>'+tl+"</div>";
-        $("cycle-logged").onclick = function(){ cycleAct("/cycle/attempt", { outcome:"logged" }); };
-        $("cycle-no").onclick = function(){ cycleAct("/cycle/attempt", { outcome:"no_answer" }); };
-        $("cycle-replied").onclick = function(){ cycleAct("/cycle/replied", {}); };
-        $("cycle-over").onclick = function(){ $("cycle-over-form").classList.toggle("hide"); };
-        $("cycle-over-save").onclick = function(){ cycleAct("/cycle/override", { when:$("cycle-when").value, reason:$("cycle-reason").value }); };
-        $("cycle-life").onchange = function(){ cycleAct("/cycle/lifecycle", { lifecycle:$("cycle-life").value }); };
+        $("work-cte").onclick = function(){ workPanel = workPanel==="cte" ? "" : "cte"; paintCycle(c); };
+        $("work-follow").onclick = function(){ workPanel = workPanel==="followup" ? "" : "followup"; paintCycle(c); };
+        const paidOpen = $("work-paid");
+        if (paidOpen) paidOpen.onclick = function(){ workPanel = workPanel==="paid" ? "" : "paid"; paintCycle(c); };
+        const returnBtn = $("return-campaign");
+        if (returnBtn) returnBtn.onclick = function(){ returnFromCampaign(c.id); };
+        document.querySelectorAll("[data-cte]").forEach(function(btn){
+          btn.onclick = function(){ cteStep = btn.getAttribute("data-cte")||""; paintCycle(c); };
+        });
+        document.querySelectorAll("[data-out]").forEach(function(btn){
+          btn.onclick = function(){ runCteWork(btn.getAttribute("data-out")); };
+        });
+        if ($("fu-save")) $("fu-save").onclick = saveFollowup;
+        if ($("fu-done")) $("fu-done").onclick = completeTask;
         const paidBtn = $("cycle-paid");
-        if (paidBtn) paidBtn.onclick = function(){ cycleAct("/cycle/paid", {}); };
+        if (paidBtn) paidBtn.onclick = function(){ runPaidSend(false); };
         const paidRetry = $("cycle-paid-retry");
-        if (paidRetry) paidRetry.onclick = function(){ cycleAct("/cycle/paid", {}); };
-        const badBtn = $("cycle-bad");
-        if (badBtn) badBtn.onclick = function(){ markBadNumber(); };
-        const badRetry = $("cycle-bad-retry");
-        if (badRetry) badRetry.onclick = function(){ markBadNumber(); };
+        if (paidRetry) paidRetry.onclick = function(){ runPaidSend(true); };
       } catch (err) {
         box.innerHTML = '<p class="cycle-flag">'+(err && err.message ? esc(err.message) : "Lifecycle did not load.")+"</p>";
       }
+    }
+    function askSend(body){
+      return new Promise(function(resolve){
+        const box = $("send-sure");
+        const text = $("send-sure-body");
+        const yes = $("send-sure-go");
+        const no = $("send-sure-no");
+        if (!box || !text || !yes || !no){ resolve(false); return; }
+        text.textContent = body;
+        box.classList.remove("hide");
+        function done(ok){
+          box.classList.add("hide");
+          yes.onclick = null;
+          no.onclick = null;
+          resolve(ok);
+        }
+        yes.onclick = function(){ done(true); };
+        no.onclick = function(){ done(false); };
+      });
+    }
+    function sendSureCopy(kind){
+      const name = (selected && selected.name) || "this contact";
+      if (kind === "no_answer") {
+        const step = String(cteStep||"cte1").toUpperCase();
+        const skip = cteStep && cteStep !== "cte1" ? " This sends "+step+", not the CTE1 intro." : "";
+        return "Send "+step+" to "+name+" via AgentMail?"+skip+" Cancel if you only meant to log the call.";
+      }
+      if (kind === "bad_number") return "Email "+name+" asking for a working number and put them on the campaign?";
+      if (kind === "paid") return "Mark "+name+" paid and send Next Steps? This emails the customer once.";
+      if (kind === "paid-retry") return "Send Next Steps to "+name+"? Only goes out if it has not already sent.";
+      return "Send this email to "+name+"?";
+    }
+    async function runCteWork(outcome){
+      if (!selected || !cteStep) return;
+      if (outcome === "no_answer" || outcome === "bad_number") {
+        const ok = await askSend(sendSureCopy(outcome));
+        if (!ok) return;
+      }
+      await cycleAct("/cycle/work", { step: cteStep, outcome: outcome, phone: selected.phone, city: selected.city });
+    }
+    async function runPaidSend(retry){
+      const ok = await askSend(sendSureCopy(retry ? "paid-retry" : "paid"));
+      if (!ok) return;
+      await cycleAct("/cycle/paid", {});
     }
     async function cycleAct(path, extra){
       if (!selected) return;
@@ -1492,7 +1616,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         if (res.j.legacyStatus && selected) {
           try { await persistContactPatch(selected.id, { status: res.j.legacyStatus }); } catch (_) {}
         }
-        if (Array.isArray(res.j.items) && res.j.items.length) {
+        if (Array.isArray(res.j.items)) {
           campaignIds = {};
           res.j.items.forEach(function(row){ campaignIds[String(row.id)] = row; });
         }
@@ -1500,7 +1624,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
           try { await persistContactPatch(selected.id, { invoicePaid: "yes" }); } catch (_) {}
         }
         await paintCycle(selected);
-        renderStats(); renderContacts();
+        renderStats(); renderContacts(); renderFollowups(); renderTasks(); renderPipeline(); renderCampaign();
       } catch (err) {
         $("cycle-err").textContent = (err && err.message) || "Could not save that.";
       }
@@ -1817,15 +1941,85 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         await api("/x/crm/crm-data", { method:"POST", body: JSON.stringify({ action:"saveDeals", deals: book.deals }) });
       }
     }
+    function paidShortcutMessage(){
+      return "Use Paid under Work this lead. That asks before Next Steps.";
+    }
+    function openCteAfterTouch(){
+      if (!selected) return;
+      workPanel = "cte";
+      paintCycle(selected);
+    }
     async function saveContactStage(id, status){
       if (!id || !status) return;
+      const prior = contactStage(contactForId(id) || selected || {});
+      if (status === "Paid" && prior !== "Paid") {
+        $("crm-err").className = "err";
+        $("crm-err").textContent = paidShortcutMessage();
+        const stageSel = $("crm-stage");
+        if (stageSel) stageSel.value = prior || "";
+        return;
+      }
       try {
+        if (status === "Proposal Sent") {
+          const c = contactForId(id);
+          const amount = c && (c.amount || storedProposalAmount(c.id) || "");
+          if (c && !amount) {
+            $("crm-err").className = "err";
+            $("crm-err").textContent = (c.name || "That card")+" is on Proposal Sent with no proposal dollar. Submit from Proposal — do not invent a price.";
+          }
+        }
         await persistContactPatch(id, { status: status });
-        $("crm-err").textContent = "";
+        const c = contactForId(id) || selected || {};
+        await api("/cycle/stage", { method:"POST", body: JSON.stringify({ id:String(id), stage:status, name:c.name, email:c.email, owner:c.owner }), allowError: true });
+        $("crm-err").className = "err";
+        if (!$("crm-err").textContent) $("crm-err").textContent = "";
         renderStats(); renderContacts(); renderPipeline();
         if (selected && String(selected.id)===String(id)) openContact(id);
       } catch (err) {
         $("crm-err").textContent = (err && err.message) || "Could not save stage.";
+      }
+    }
+    async function logTouch(channel, outcome){
+      if (!selected) return;
+      const box = $("touch-ok");
+      if (box) box.textContent = "Saving…";
+      try {
+        const res = await api("/cycle/touch", { method:"POST", body: JSON.stringify(Object.assign(cycleHint(selected), { channel:channel, outcome:outcome })), allowError: true });
+        if (!res.r.ok || res.j.ok === false) throw new Error(res.j.error || "Could not log that.");
+        if (box) box.textContent = (channel==="call"?"Call":"Text")+" · "+outcome+" · saved.";
+        paintCycle(selected);
+      } catch (err) {
+        if (box) box.textContent = (err && err.message) || "Could not log that.";
+      }
+    }
+    async function loadMonday(){
+      const el = $("crm-monday");
+      if (!el) return;
+      if (!isChristopher()){ el.innerHTML = "<p class=\\"muted\\">Monday book is for Christopher only.</p>"; return; }
+      el.innerHTML = "<p class=\\"muted\\">Loading Monday book…</p>";
+      try {
+        const res = await api("/report/monday", { allowError: true });
+        if (!res.r.ok || !res.j.ok) throw new Error(res.j.error || "Could not build the Monday book.");
+        const r = res.j;
+        const stageRows = STAGES.map(function(st){ return "<tr><td>"+esc(st)+"</td><td>"+((r.stages&&r.stages[st])||0)+"</td></tr>"; }).join("");
+        el.innerHTML = "<h2>Monday book</h2>"
+          +'<p class="muted">'+esc(r.note||"")+"</p>"
+          +'<div class="monday-grid">'
+          +'<div class="stat-box"><span>Contacts</span><strong>'+r.contacts+"</strong></div>"
+          +'<div class="stat-box"><span>Added</span><strong>'+r.added+"</strong></div>"
+          +'<div class="stat-box"><span>Deals</span><strong>'+r.deals+"</strong></div>"
+          +'<div class="stat-box"><span>Open follow-ups</span><strong>'+r.openFollowups+"</strong></div>"
+          +'<div class="stat-box"><span>Unassigned</span><strong>'+r.unassigned+"</strong></div>"
+          +'<div class="stat-box"><span>Facebook unassigned</span><strong>'+r.facebookUnassigned+"</strong> <span class="muted">of "+r.facebookBook+"</span></div>"
+          +'<div class="stat-box"><span>Paid</span><strong>'+r.paidCards+"</strong></div>"
+          +'<div class="stat-box"><span>Proposal Sent with $</span><strong>'+r.proposalSentWithAmount+"</strong></div>"
+          +'<div class="stat-box"><span>Proposal Sent blank</span><strong>'+r.proposalSentBlank+"</strong></div>"
+          +'<div class="stat-box"><span>Stored proposal $</span><strong>'+(r.storedProposalDollars?money(r.storedProposalDollars):"0")+"</strong></div>"
+          +"</div>"
+          +"<h3>Stages</h3><table><thead><tr><th>Stage</th><th>Count</th></tr></thead><tbody>"+stageRows+"</tbody></table>"
+          +'<p class="muted">Not emailed. Say go if you want this in your inbox Monday morning.</p>';
+      } catch (err) {
+        el.innerHTML = '<p class="err">'+(err && err.message ? esc(err.message) : "Could not build the Monday book.")+"</p>";
       }
     }
     async function saveContactEdit(){
@@ -1835,6 +2029,11 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       const fromPool = titleOwner(before.owner) === "New/Unassigned" || !titleOwner(before.owner);
       const patch = readContactEdit();
       if (!patch.name){ $("m-err").textContent = "Name the contact first."; return; }
+      if (patch.status === "Paid" && contactStage(before) !== "Paid") {
+        $("m-err").textContent = paidShortcutMessage();
+        $("m-status").value = contactStage(before) || "";
+        return;
+      }
       try {
         await persistContactPatch(id, patch);
         closeContactEdit();
@@ -2077,8 +2276,11 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     }
     function renderPipeline(){
       const deals = scopedDeals();
-      $("crm-pipeline").innerHTML = '<div class="board">'+STAGES.map(function(st){
-        const cards = deals.filter(function(d){ return (d.stage||"")===st || (st==="Quote"&&d.stage==="Quoted"); });
+      $("crm-pipeline").innerHTML = '<div class="board">'+STAGES.filter(function(st){
+        const cards = deals.filter(function(d){ return normalizeStage(d.stage)===st; });
+        return cards.length || PIPELINE_ALWAYS.indexOf(st)>=0;
+      }).map(function(st){
+        const cards = deals.filter(function(d){ return normalizeStage(d.stage)===st; });
         const total = cards.reduce(function(sum,d){
           const n = parseFloat(String((d.amount!=null&&d.amount!=="")?d.amount:((contactForId(d.contactId)||{}).amount||"")).replace(/[$,]/g,""));
           return sum + (Number.isFinite(n)?n:0);
@@ -2091,9 +2293,10 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
             const company = (c&&c.company) || d.company || "";
             const owner = titleOwner(d.owner) || (c&&c.owner) || "";
             const amt = dealAmount(d);
-            const amtLabel = amt || ((d.stage||"")==="Proposal Sent" ? "No proposal $" : "—");
+            const amtLabel = amt || (normalizeStage(d.stage)==="Proposal Sent" ? "No proposal $" : "—");
+            const shown = normalizeStage(d.stage) || d.stage || "";
             return '<div class="pc" data-id="'+esc(String(d.contactId||""))+'"><div class="pc-name">'+esc(name)+'</div><div class="muted">'+esc(company||"—")+'</div><div class="pc-meta"><span class="pc-amt">'+esc(amtLabel)+'</span><span>'+esc(owner||"—")+"</span></div>"
-              +'<select data-deal="'+esc(String(d.id))+'">'+STAGES.map(function(s){ return '<option value="'+s+'"'+(s===d.stage?" selected":"")+">"+s+"</option>"; }).join("")+"</select></div>";
+              +'<select data-deal="'+esc(String(d.id))+'">'+STAGES.map(function(s){ return '<option value="'+s+'"'+(s===shown?" selected":"")+">"+s+"</option>"; }).join("")+"</select></div>";
           }).join("")+"</div>";
       }).join("")+"</div>";
     }
@@ -2107,6 +2310,12 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       const deal = (book.deals||[]).find(function(d){ return String(d.id)===sel.getAttribute("data-deal"); });
       if (!deal) return;
       const prev = deal.stage;
+      if (sel.value === "Paid" && normalizeStage(prev) !== "Paid") {
+        sel.value = prev;
+        $("crm-err").className = "err";
+        $("crm-err").textContent = paidShortcutMessage();
+        return;
+      }
       deal.stage = sel.value;
       try {
         const c = contactForId(deal.contactId);
@@ -2375,11 +2584,11 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         email: c.email || draft.email,
         city: c.city || draft.city,
         zip: c.zip || draft.zip,
-        stage: c.status || res.j.stage || "New Lead"
+        stage: normalizeStage(c.status || res.j.stage) || "New"
       });
       if (book && book.contacts && c.id != null){
         const id = String(c.id);
-        const row = Object.assign({ source:"Desk", owner: titleOwner((user&&(user.name||user.email))||"") }, c, { status: c.status || res.j.stage || "New Lead" });
+        const row = Object.assign({ source:"Desk", owner: titleOwner((user&&(user.name||user.email))||"") }, c, { status: normalizeStage(c.status || res.j.stage) || "New" });
         const hit = (book.contacts||[]).find(function(item){ return String(item.id)===id; });
         if (hit) Object.assign(hit, row);
         else book.contacts.unshift(row);
@@ -2915,18 +3124,27 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       }
     }
     $("i-list").addEventListener("click", loadInvoices);
-    $("i-hits").addEventListener("click", function(e){
+    $("i-hits").addEventListener("click", async function(e){
       const btn = e.target.closest("[data-mark-paid]");
       if (!btn) return;
+      const retry = /Retry Next Steps/i.test(btn.textContent || "");
+      const ok = await askSend(retry
+        ? "Send Next Steps for this invoice? Only goes out if it has not already sent."
+        : "Mark this invoice paid? Next Steps emails the customer once if it has not already sent.");
+      if (!ok) return;
       btn.disabled = true;
-      markInvoicePaid(btn.getAttribute("data-mark-paid"));
+      try {
+        await markInvoicePaid(btn.getAttribute("data-mark-paid"));
+      } finally {
+        btn.disabled = false;
+      }
     });
 
     (async function boot(){
       try {
         const res = await api("/session");
         if (user) return;
-        if (res.j.ok && res.j.user){ user=res.j.user; greet(user.name); paintTools(user.tools); show("app"); openMod("home"); loadCrm(); loadCycleAlerts(); }
+        if (res.j.ok && res.j.user){ user=res.j.user; greet(user.name); paintTools(user.tools); show("app"); openMod("home"); const mondayTab = $("crm-monday-tab"); if (mondayTab) mondayTab.classList.toggle("hide", !isChristopher()); loadCrm(); loadCycleAlerts(); }
         else show("login");
       } catch (err) {
         show("login");

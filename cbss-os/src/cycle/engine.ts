@@ -2,9 +2,11 @@ import { chicagoBusinessHours, chicagoNow, civilKey } from "./business-days.ts";
 import { agentMailReady, listInboxMessages, sendAgentMail } from "./agentmail.ts";
 import { applyNoAnswerSchedule, applyOverride, dueTemplates, holidayExtras, nextOpenDue } from "./ladder.ts";
 import {
+  clipPreview,
   emptyRecord,
   pushAlert,
   pushEvent,
+  pushMail,
   readRecord,
   readIndex,
   readUsers,
@@ -12,8 +14,9 @@ import {
   writeRecord,
   type CycleRecord,
 } from "./store.ts";
-import { firstNameOf, officeCopy, resolveAssignedRep, rosterPhone, rosterTitle, type ActiveUser } from "./rep.ts";
+import { firstNameOf, officeCopy, resolveAssignedRep, rosterPhone, rosterScheduleUrl, rosterTitle, type ActiveUser } from "./rep.ts";
 import { isExit, legacyStatusFor, normalizeLifecycle, type Lifecycle } from "./lifecycle.ts";
+import { lifecycleForStage, normalizeStage, type Stage } from "../stages.ts";
 import { REENGAGE_TEMPLATE_IDS, renderTemplate, type TemplateId } from "./templates.ts";
 import { loadNextStepsPdf } from "../../../cbss-invoice/src/next-steps-pdf.ts";
 
@@ -25,6 +28,7 @@ export type CycleEnv = {
   AGENTMAIL_API_KEY?: string;
   AGENTMAIL_INBOX?: string;
   US_HOLIDAY_EXTRA?: string;
+  MEET_LINKS_JSON?: string;
   REENGAGE_EMAILS_ENABLED?: string;
   /** Deprecated. Paid Next Steps never attaches by URL. */
   NEXT_STEPS_PDF_URL?: string;
@@ -67,6 +71,7 @@ export function publicCycle(rec: CycleRecord | null) {
     overrideAt: rec.overrideAt,
     events: rec.events,
     sends: rec.sends,
+    mail: rec.mail || [],
   };
 }
 
@@ -401,6 +406,7 @@ export async function fireTemplate(
     repEmail: rec.ownerEmail,
     repPhone: rosterPhone(rec.owner),
     repTitle: rosterTitle(rec.owner),
+    repScheduleUrl: rosterScheduleUrl(rec.owner, env),
   });
   const cc = id === "paid"
     ? [...officeCopy(), rec.ownerEmail].filter(Boolean)
@@ -436,6 +442,15 @@ export async function fireTemplate(
     if (result.threadId && !rec.threadIds.includes(result.threadId)) rec.threadIds.push(result.threadId);
     if (result.messageId && !rec.messageIds.includes(result.messageId)) rec.messageIds.push(result.messageId);
     rec.cteStage = CTE_STAGE[id] || rec.cteStage;
+    pushMail(rec, {
+      direction: "out",
+      from: rec.ownerEmail || "cbss@agentmail.to",
+      subject: mail.subject,
+      preview: mail.text,
+      template: id,
+      messageId: result.messageId,
+      threadId: result.threadId,
+    });
     if (id === "cte4" || id === "paid") {
       rec.cteStage = "parked";
       rec.nextDue = "";
@@ -494,6 +509,31 @@ export async function runDueSends(env: CycleEnv, now = new Date(), fetchImpl: ty
   return { scanned: ids.length, sent };
 }
 
+function alreadyHasMail(rec: CycleRecord, messageId: string): boolean {
+  if (!messageId) return false;
+  if ((rec.messageIds || []).includes(messageId)) return true;
+  return (rec.mail || []).some((row) => row.messageId === messageId);
+}
+
+function recordInboundMail(
+  rec: CycleRecord,
+  payload: { from?: string; subject?: string; preview?: string; messageId?: string; threadId?: string },
+): void {
+  const messageId = String(payload.messageId || "").trim();
+  const subject = String(payload.subject || "").trim();
+  const preview = clipPreview(payload.preview);
+  pushMail(rec, {
+    direction: "in",
+    from: String(payload.from || "").trim(),
+    subject,
+    preview,
+    messageId,
+    threadId: String(payload.threadId || "").trim(),
+  });
+  const label = subject || preview || "reply";
+  pushEvent(rec, `AgentMail in · ${label}`, "agentmail");
+}
+
 export async function pollReplies(env: CycleEnv, fetchImpl: typeof fetch = fetch): Promise<number> {
   if (!agentMailReady(env)) return 0;
   const listed = await listInboxMessages(env, { limit: 40, labels: ["received"] }, fetchImpl);
@@ -503,10 +543,14 @@ export async function pollReplies(env: CycleEnv, fetchImpl: typeof fetch = fetch
     if (!msg.threadId || !msg.messageId) continue;
     const matches = await recordsByThread(env, msg.threadId);
     for (const rec of matches) {
-      if (rec.messageIds.includes(msg.messageId)) continue;
-      if (rec.stopped) continue;
-      rec.messageIds.push(msg.messageId);
-      await stopForReply(env, asHint(rec), "agentmail", "agentmail", fetchImpl);
+      if (alreadyHasMail(rec, msg.messageId)) continue;
+      if (msg.messageId && !rec.messageIds.includes(msg.messageId)) rec.messageIds.push(msg.messageId);
+      recordInboundMail(rec, { from: msg.from, subject: msg.subject, messageId: msg.messageId, threadId: msg.threadId });
+      if (!rec.stopped) {
+        await stopForReply(env, asHint(rec), "agentmail", "agentmail", fetchImpl);
+      } else {
+        await writeRecord(env, rec);
+      }
       n += 1;
     }
   }
@@ -515,7 +559,7 @@ export async function pollReplies(env: CycleEnv, fetchImpl: typeof fetch = fetch
 
 export async function ingestInbound(
   env: CycleEnv,
-  payload: { threadId?: string; messageId?: string; from?: string },
+  payload: { threadId?: string; messageId?: string; from?: string; subject?: string; text?: string; preview?: string },
   fetchImpl: typeof fetch = fetch,
 ): Promise<number> {
   const threadId = String(payload.threadId || "").trim();
@@ -524,16 +568,172 @@ export async function ingestInbound(
   const matches = await recordsByThread(env, threadId);
   let n = 0;
   for (const rec of matches) {
-    if (messageId && rec.messageIds.includes(messageId)) continue;
-    if (messageId) rec.messageIds.push(messageId);
-    await stopForReply(env, asHint(rec), "agentmail", "agentmail", fetchImpl);
+    if (alreadyHasMail(rec, messageId)) continue;
+    if (messageId && !rec.messageIds.includes(messageId)) rec.messageIds.push(messageId);
+    recordInboundMail(rec, {
+      from: payload.from,
+      subject: payload.subject,
+      preview: payload.preview || payload.text,
+      messageId,
+      threadId,
+    });
+    if (!rec.stopped) {
+      await stopForReply(env, asHint(rec), "agentmail", "agentmail", fetchImpl);
+    } else {
+      await writeRecord(env, rec);
+    }
     n += 1;
   }
   return n;
 }
 
+export const CALL_OUTCOMES = ["Connected", "No answer", "Voicemail", "Left message", "Wrong number"] as const;
+export const TEXT_OUTCOMES = ["Sent", "They replied", "Bad number"] as const;
+export type TouchChannel = "call" | "text";
+
+export function isCallOutcome(value: string): value is (typeof CALL_OUTCOMES)[number] {
+  return (CALL_OUTCOMES as readonly string[]).includes(value);
+}
+
+export function isTextOutcome(value: string): value is (typeof TEXT_OUTCOMES)[number] {
+  return (TEXT_OUTCOMES as readonly string[]).includes(value);
+}
+
+export async function logTouch(
+  env: CycleEnv,
+  hint: ContactHint,
+  input: { channel: TouchChannel; outcome: string; note?: string },
+  actor: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ rec: CycleRecord; error?: string }> {
+  const channel = input.channel;
+  const outcome = String(input.outcome || "").trim();
+  if (channel === "call" && !isCallOutcome(outcome)) return { rec: await loadOrCreate(env, hint), error: "Pick how the call went." };
+  if (channel === "text" && !isTextOutcome(outcome)) return { rec: await loadOrCreate(env, hint), error: "Pick how the text went." };
+  const rec = await loadOrCreate(env, hint);
+  const users = await readUsers(env);
+  applyRepGate(rec, users);
+  if (!rec.lifecycle || rec.lifecycle === "New") rec.lifecycle = "Working";
+  const note = clipPreview(input.note, 200);
+  const line = `${channel === "call" ? "Call" : "Text"} · ${outcome}${note ? " · " + note : ""}`;
+  pushEvent(rec, line, actor);
+  await writeRecord(env, rec);
+  if (channel === "text" && outcome === "They replied") {
+    return { rec: await stopForReply(env, hint, actor, "rep", fetchImpl) };
+  }
+  return { rec };
+}
+
+export async function applyBookStage(
+  env: CycleEnv,
+  hint: ContactHint,
+  stage: Stage,
+  actor: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ rec: CycleRecord; bookStatus: string; error?: string }> {
+  const rec = await loadOrCreate(env, hint);
+  const users = await readUsers(env);
+  applyRepGate(rec, users);
+  if (stage === "Paid") {
+    const current = rec.lifecycle === "Paid" ? "Paid" : (normalizeStage(hint.status, rec.lifecycle) || rec.lifecycle || "Working");
+    return {
+      rec,
+      bookStatus: current === "Paid" ? "Paid" : String(current),
+      error: "Use Paid under Work this lead. That asks before Next Steps.",
+    };
+  }
+  if (stage === "DNC") {
+    rec.lifecycle = "Lost";
+    rec.stopped = true;
+    rec.stoppedReason = "DNC";
+    rec.cteStage = "parked";
+    rec.nextDue = "";
+    pushEvent(rec, "Stage → DNC. CTE parked. No exit email.", actor);
+    await writeRecord(env, rec);
+    return { rec, bookStatus: "DNC" };
+  }
+  if (stage === "Email campaign") {
+    if (!rec.lifecycle || rec.lifecycle === "New") rec.lifecycle = "Working";
+    pushEvent(rec, "Stage → Email campaign. Contact stays on the book. Use Bad number to park CTE and ask for a working number.", actor);
+    await writeRecord(env, rec);
+    return { rec, bookStatus: "Email campaign" };
+  }
+  if (stage === "Follow-up" || stage === "Proposal Sent") {
+    rec.lifecycle = lifecycleForStage(stage);
+    pushEvent(rec, `Stage → ${stage}.`, actor);
+    await writeRecord(env, rec);
+    return { rec, bookStatus: stage };
+  }
+  const result = await setLifecycle(env, hint, lifecycleForStage(stage), actor, fetchImpl);
+  return { rec: result.rec, bookStatus: stage };
+}
+
+export const CTE_WORK_STEPS = ["cte1", "cte2", "cte3", "cte4"] as const;
+export const CTE_WORK_OUTCOMES = ["no_answer", "answered", "replied", "not_interested", "bought_elsewhere", "bad_number"] as const;
+export type CteWorkStep = (typeof CTE_WORK_STEPS)[number];
+export type CteWorkOutcome = (typeof CTE_WORK_OUTCOMES)[number];
+
+export function isCteWorkStep(value: string): value is CteWorkStep {
+  return (CTE_WORK_STEPS as readonly string[]).includes(value);
+}
+
+export function isCteWorkOutcome(value: string): value is CteWorkOutcome {
+  return (CTE_WORK_OUTCOMES as readonly string[]).includes(value);
+}
+
+export async function runCteWork(
+  env: CycleEnv,
+  hint: ContactHint,
+  input: { step: string; outcome: string },
+  actor: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ rec: CycleRecord; send?: unknown; bookStatus?: string; campaign?: "hold" | "bad_number"; error?: string }> {
+  const step = String(input.step || "").trim().toLowerCase();
+  const outcome = String(input.outcome || "").trim().toLowerCase();
+  if (!isCteWorkStep(step)) return { rec: await loadOrCreate(env, hint), error: "Pick CTE1, CTE2, CTE3, or CTE4." };
+  if (!isCteWorkOutcome(outcome)) return { rec: await loadOrCreate(env, hint), error: "Pick how that CTE went." };
+
+  if (outcome === "replied") {
+    const rec = await stopForReply(env, hint, actor, "rep", fetchImpl);
+    pushEvent(rec, `${step.toUpperCase()} · They replied. Ladder stopped.`, actor);
+    await writeRecord(env, rec);
+    return { rec, bookStatus: "Working" };
+  }
+  if (outcome === "bad_number") {
+    const result = await markBadNumber(env, hint, actor, fetchImpl);
+    const sendRec = result.send && typeof result.send === "object" ? result.send as { error?: string } : {};
+    const closed = sendRec.error === "This contact is already closed.";
+    return { rec: result.rec, send: result.send, bookStatus: closed ? undefined : "Email campaign", campaign: closed ? undefined : "bad_number" };
+  }
+  if (outcome === "not_interested" || outcome === "bought_elsewhere") {
+    const life = outcome === "not_interested" ? "Not interested" : "Bought elsewhere";
+    const result = await setLifecycle(env, hint, life, actor, fetchImpl);
+    return { rec: result.rec, bookStatus: life, campaign: "hold" };
+  }
+  if (outcome === "answered") {
+    const rec = await startWorking(env, hint, actor);
+    rec.cteStage = CTE_STAGE[step] || rec.cteStage;
+    rec.lifecycle = rec.lifecycle && rec.lifecycle !== "New" ? rec.lifecycle : "Working";
+    pushEvent(rec, `${step.toUpperCase()} · Did answer. Logged. No AgentMail send.`, actor);
+    await writeRecord(env, rec);
+    return { rec, bookStatus: "Working" };
+  }
+
+  const rec = await startWorking(env, hint, actor);
+  applyNoAnswerSchedule(rec, holidayExtras(env));
+  rec.cteStage = CTE_STAGE[step] || rec.cteStage;
+  rec.sends[step] = rec.sends[step] && rec.sends[step]?.status === "sent"
+    ? rec.sends[step]
+    : { template: step, status: "pending", dueAt: new Date().toISOString(), attempts: rec.sends[step]?.attempts || 0 };
+  pushEvent(rec, `${step.toUpperCase()} · Didn't answer. Enrolled in AgentMail ${step}.`, actor);
+  await writeRecord(env, rec);
+  const send = await fireTemplate(env, rec, step, actor, fetchImpl);
+  return { rec, send, bookStatus: "Working" };
+}
+
 export async function getCycle(env: CycleEnv, hint: ContactHint): Promise<CycleRecord> {
   const rec = await loadOrCreate(env, hint);
   applyRepGate(rec, await readUsers(env));
+  if (!rec.mail) rec.mail = [];
   return rec;
 }

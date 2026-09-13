@@ -28,6 +28,17 @@ export type CycleEvent = {
   actor: string;
 };
 
+export type MailItem = {
+  at: string;
+  direction: "in" | "out";
+  from: string;
+  subject: string;
+  preview: string;
+  template?: string;
+  messageId?: string;
+  threadId?: string;
+};
+
 export type CycleRecord = {
   contactId: string;
   clientEmail: string;
@@ -51,6 +62,7 @@ export type CycleRecord = {
   threadIds: string[];
   messageIds: string[];
   events: CycleEvent[];
+  mail: MailItem[];
   updatedAt: string;
 };
 
@@ -105,6 +117,7 @@ export function emptyRecord(contactId: string): CycleRecord {
     threadIds: [],
     messageIds: [],
     events: [],
+    mail: [],
     updatedAt: new Date().toISOString(),
   };
 }
@@ -119,6 +132,7 @@ export async function writeRecord(env: { SESSIONS?: KVNamespace }, rec: CycleRec
   if (!env.SESSIONS) return;
   rec.updatedAt = new Date().toISOString();
   rec.events = (rec.events || []).slice(-80);
+  rec.mail = (rec.mail || []).slice(-40);
   await env.SESSIONS.put(recKey(rec.contactId), JSON.stringify(rec));
   const index = await readIndex(env);
   if (!index.includes(rec.contactId)) await writeIndex(env, [rec.contactId, ...index]);
@@ -126,6 +140,24 @@ export async function writeRecord(env: { SESSIONS?: KVNamespace }, rec: CycleRec
 
 export function pushEvent(rec: CycleRecord, text: string, actor: string): void {
   rec.events.unshift({ at: new Date().toISOString(), text, actor });
+}
+
+export function clipPreview(text: unknown, max = 400): string {
+  return String(text || "").replace(/\s+/g, " ").trim().slice(0, max);
+}
+
+export function pushMail(rec: CycleRecord, item: Omit<MailItem, "at"> & { at?: string }): void {
+  if (!rec.mail) rec.mail = [];
+  rec.mail.unshift({
+    at: item.at || new Date().toISOString(),
+    direction: item.direction,
+    from: String(item.from || "").trim(),
+    subject: String(item.subject || "").trim(),
+    preview: clipPreview(item.preview),
+    template: item.template,
+    messageId: item.messageId,
+    threadId: item.threadId,
+  });
 }
 
 export async function readAlerts(env: { SESSIONS?: KVNamespace }, email: string): Promise<Array<{ at: string; text: string; contactId: string }>> {
