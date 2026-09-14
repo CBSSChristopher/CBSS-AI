@@ -37,15 +37,15 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     html { -webkit-text-size-adjust: 100%; }
     html, body {
       margin: 0;
+      min-height: -webkit-fill-available;
       min-height: 100%;
       min-height: 100dvh;
-      min-height: -webkit-fill-available;
     }
     body { font-family: Helvetica, Arial, "Segoe UI", sans-serif; background: var(--paper); color: var(--ink); font-size: 15px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
     .shell {
+      min-height: -webkit-fill-available;
       min-height: 100%;
       min-height: 100dvh;
-      min-height: -webkit-fill-available;
       display: grid;
       grid-template-columns: 232px 1fr;
     }
@@ -242,18 +242,26 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     .chip.off { background: #f8ecec; border-color: #e4c8c8; }
     .login-wrap {
       box-sizing: border-box;
+      min-height: -webkit-fill-available;
       min-height: 100%;
       min-height: 100dvh;
-      min-height: -webkit-fill-available;
       display: -webkit-flex;
       display: flex;
+      -webkit-flex-direction: column;
+      flex-direction: column;
       -webkit-align-items: center;
       align-items: center;
-      -webkit-justify-content: center;
-      justify-content: center;
-      padding: 24px 14px;
+      -webkit-justify-content: flex-start;
+      justify-content: flex-start;
+      padding: 48px 14px 24px;
+      overflow: auto;
     }
-    .login-card { width: min(460px, 100%); }
+    .login-card {
+      width: min(460px, 100%);
+      -webkit-flex-shrink: 0;
+      flex-shrink: 0;
+      margin: 0 auto;
+    }
     .login-card .seal { margin-bottom: 12px; }
     footer { margin-top: 16px; color: var(--muted); font-size: 11px; }
     .gate { display: contents; }
@@ -278,7 +286,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       }
     }
     @media (max-width: 860px) {
-      html, body { height: auto; min-height: 100%; min-height: 100dvh; min-height: -webkit-fill-available; }
+      html, body { height: auto; min-height: -webkit-fill-available; min-height: 100%; min-height: 100dvh; }
       body { padding-bottom: env(safe-area-inset-bottom); }
       .shell { grid-template-columns: 1fr; min-height: 100dvh; }
       aside {

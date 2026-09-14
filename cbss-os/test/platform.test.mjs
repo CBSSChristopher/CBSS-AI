@@ -239,6 +239,10 @@ describe("Safari can open The Yard", () => {
     assert.doesNotMatch(page, /html, body \{ height: 100%; margin: 0; \}/);
     assert.match(page, /e\.target\.submit\(\)/);
     assert.match(page, /catch \(err\) \{\s*show\("login"\)/);
+    const wrap = page.slice(page.indexOf(".login-wrap {"), page.indexOf(".login-card {"));
+    assert.ok(wrap.indexOf("-webkit-fill-available") < wrap.lastIndexOf("100dvh"), wrap);
+    assert.match(page, /\.login-card \{[\s\S]*flex-shrink: 0/);
+    assert.match(page, /justify-content: flex-start/);
   });
 });
 
