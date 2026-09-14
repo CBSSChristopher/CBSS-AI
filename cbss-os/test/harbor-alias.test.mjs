@@ -81,6 +81,7 @@ describe("The Yard sign-in on any hostname", () => {
     assert.match(page, /if \(user\) return;/);
     assert.match(page, /Could not sign in\. Try again\./);
     assert.match(index, /readLoginBody/);
-    assert.match(index, /status: 303/);
+    assert.match(index, /htmlWithCookies/);
+    assert.doesNotMatch(index, /status: 303/);
   });
 });

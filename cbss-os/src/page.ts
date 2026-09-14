@@ -1100,7 +1100,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       opt = opt || {};
       const allow401 = opt.allow401;
       const allowError = opt.allowError;
-      const fetchOpt = Object.assign({ credentials:"same-origin", headers:{ "Content-Type":"application/json" } }, opt);
+      const fetchOpt = Object.assign({ credentials:"same-origin", headers:{ "Content-Type":"application/json", "Accept":"application/json" } }, opt);
       delete fetchOpt.allow401;
       delete fetchOpt.allowError;
       const r = await fetch(path, fetchOpt);
@@ -1236,7 +1236,10 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
           allow401: true,
           allowError: true
         });
-        if (!res.r.ok || !res.j.ok){ $("login-err").textContent = res.j.error || "Could not sign in."; return; }
+        if (!res.r.ok || !res.j.ok){
+          try { e.target.submit(); return; }
+          catch (ignored) { $("login-err").textContent = res.j.error || "Could not sign in."; return; }
+        }
         user = res.j.user; greet(user.name); paintTools(user.tools); show("app"); openMod("home");
         const mondayTab = $("crm-monday-tab");
         if (mondayTab) mondayTab.classList.toggle("hide", !isChristopher());

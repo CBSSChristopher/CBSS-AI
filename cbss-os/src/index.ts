@@ -79,6 +79,16 @@ function html(body: string): Response {
   });
 }
 
+function htmlWithCookies(body: string, cookies: string[]): Response {
+  const headers = new Headers({
+    "Content-Type": "text/html; charset=utf-8",
+    "Cache-Control": "no-store",
+    ...SECURITY,
+  });
+  for (const c of cookies) headers.append("Set-Cookie", c);
+  return new Response(body, { status: 200, headers });
+}
+
 function yardPage(request: Request, opts?: { loginError?: string }): Response {
   const page = html(pageHtml(opts));
   if (request.method === "HEAD") return new Response(null, { status: 200, headers: page.headers });
@@ -348,9 +358,8 @@ export default {
       const cookies = await makeSession(request, env, result.user);
       await rememberUser(env, result.user);
       if (asPage) {
-        const headers = new Headers({ Location: "/", ...SECURITY });
-        for (const c of cookies) headers.append("Set-Cookie", c);
-        return new Response(null, { status: 303, headers });
+        // 303 drops Set-Cookie in Safari/Chrome on these hosts. Stay on 200 so the session sticks.
+        return htmlWithCookies(pageHtml(), cookies);
       }
       return withCookies(200, { ok: true, user: publicUser(result.user) }, cookies);
     }

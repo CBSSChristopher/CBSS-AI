@@ -201,11 +201,11 @@ describe("session stays small", () => {
     assert.doesNotMatch(cookies[0], /Domain=/);
     const appReq = new Request("https://floor.cbshippingsolutions.app/");
     const appCookies = await makeSession(appReq, env, user);
-    assert.match(appCookies[0], /Domain=\.cbshippingsolutions\.app/);
+    assert.doesNotMatch(appCookies[0], /Domain=/);
     assert.match(appCookies[0], /Secure/);
     assert.match(appCookies[0], /HttpOnly/);
     assert.match(appCookies[0], /SameSite=Lax/);
-    assert.equal(sessionCookieDomain("floor.cbshippingsolutions.app"), ".cbshippingsolutions.app");
+    assert.equal(sessionCookieDomain("floor.cbshippingsolutions.app"), null);
     assert.equal(sessionCookieDomain("theyard.cbss.workers.dev"), null);
     const inbound = new Request("https://cbssos.cbss.workers.dev/", {
       headers: { Cookie: cookies[0].split(";")[0] },
