@@ -37,15 +37,15 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     html { -webkit-text-size-adjust: 100%; }
     html, body {
       margin: 0;
+      min-height: -webkit-fill-available;
       min-height: 100%;
       min-height: 100dvh;
-      min-height: -webkit-fill-available;
     }
     body { font-family: Helvetica, Arial, "Segoe UI", sans-serif; background: var(--paper); color: var(--ink); font-size: 15px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
     .shell {
+      min-height: -webkit-fill-available;
       min-height: 100%;
       min-height: 100dvh;
-      min-height: -webkit-fill-available;
       display: grid;
       grid-template-columns: 232px 1fr;
     }
@@ -242,18 +242,26 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     .chip.off { background: #f8ecec; border-color: #e4c8c8; }
     .login-wrap {
       box-sizing: border-box;
+      min-height: -webkit-fill-available;
       min-height: 100%;
       min-height: 100dvh;
-      min-height: -webkit-fill-available;
       display: -webkit-flex;
       display: flex;
+      -webkit-flex-direction: column;
+      flex-direction: column;
       -webkit-align-items: center;
       align-items: center;
-      -webkit-justify-content: center;
-      justify-content: center;
-      padding: 24px 14px;
+      -webkit-justify-content: flex-start;
+      justify-content: flex-start;
+      padding: 48px 14px 24px;
+      overflow: auto;
     }
-    .login-card { width: min(460px, 100%); }
+    .login-card {
+      width: min(460px, 100%);
+      -webkit-flex-shrink: 0;
+      flex-shrink: 0;
+      margin: 0 auto;
+    }
     .login-card .seal { margin-bottom: 12px; }
     footer { margin-top: 16px; color: var(--muted); font-size: 11px; }
     .gate { display: contents; }
@@ -278,7 +286,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       }
     }
     @media (max-width: 860px) {
-      html, body { height: auto; min-height: 100%; min-height: 100dvh; min-height: -webkit-fill-available; }
+      html, body { height: auto; min-height: -webkit-fill-available; min-height: 100%; min-height: 100dvh; }
       body { padding-bottom: env(safe-area-inset-bottom); }
       .shell { grid-template-columns: 1fr; min-height: 100dvh; }
       aside {
@@ -1092,7 +1100,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       opt = opt || {};
       const allow401 = opt.allow401;
       const allowError = opt.allowError;
-      const fetchOpt = Object.assign({ credentials:"same-origin", headers:{ "Content-Type":"application/json" } }, opt);
+      const fetchOpt = Object.assign({ credentials:"same-origin", headers:{ "Content-Type":"application/json", "Accept":"application/json" } }, opt);
       delete fetchOpt.allow401;
       delete fetchOpt.allowError;
       const r = await fetch(path, fetchOpt);
@@ -1228,7 +1236,10 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
           allow401: true,
           allowError: true
         });
-        if (!res.r.ok || !res.j.ok){ $("login-err").textContent = res.j.error || "Could not sign in."; return; }
+        if (!res.r.ok || !res.j.ok){
+          try { e.target.submit(); return; }
+          catch (ignored) { $("login-err").textContent = res.j.error || "Could not sign in."; return; }
+        }
         user = res.j.user; greet(user.name); paintTools(user.tools); show("app"); openMod("home");
         const mondayTab = $("crm-monday-tab");
         if (mondayTab) mondayTab.classList.toggle("hide", !isChristopher());
@@ -1506,14 +1517,14 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
           +(onCampaign(c.id) ? '<button type="button" class="secondary" id="return-campaign">Return from campaign</button>' : "")
           +"</div>"
           +'<div class="work-panel '+(ctePanel?"":"hide")+'" id="cte-panel">'
-          +'<p class="muted">Pick the CTE you just worked. Then pick how it went. Didn\'t answer and Bad number ask before AgentMail sends.</p>'
+          +"<p class='muted'>Pick the CTE you just worked. Then pick how it went. Didn't answer and Bad number ask before AgentMail sends.</p>"
           +'<div class="picks" id="cte-steps">'
           +["cte1","cte2","cte3","cte4"].map(function(s){ return '<button type="button" class="secondary'+(cteStep===s?" on":"")+'" data-cte="'+s+'">'+s.toUpperCase()+"</button>"; }).join("")
           +"</div>"
           +(cteStep
             ? '<p class="muted">'+esc(stepHint[cteStep]||"")+'</p>'
               +'<div class="picks" id="cte-outs">'
-              +'<button type="button" class="gold" data-out="no_answer">Didn\'t answer</button>'
+              +"<button type='button' class='gold' data-out='no_answer'>Didn't answer</button>"
               +'<button type="button" class="secondary" data-out="answered">Did answer</button>'
               +'<button type="button" class="secondary" data-out="replied">They replied</button>'
               +'<button type="button" class="secondary" data-out="not_interested">Not interested</button>'
@@ -2010,7 +2021,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
           +'<div class="stat-box"><span>Deals</span><strong>'+r.deals+"</strong></div>"
           +'<div class="stat-box"><span>Open follow-ups</span><strong>'+r.openFollowups+"</strong></div>"
           +'<div class="stat-box"><span>Unassigned</span><strong>'+r.unassigned+"</strong></div>"
-          +'<div class="stat-box"><span>Facebook unassigned</span><strong>'+r.facebookUnassigned+"</strong> <span class="muted">of "+r.facebookBook+"</span></div>"
+          +'<div class="stat-box"><span>Facebook unassigned</span><strong>'+r.facebookUnassigned+'</strong> <span class="muted">of '+r.facebookBook+'</span></div>'
           +'<div class="stat-box"><span>Paid</span><strong>'+r.paidCards+"</strong></div>"
           +'<div class="stat-box"><span>Proposal Sent with $</span><strong>'+r.proposalSentWithAmount+"</strong></div>"
           +'<div class="stat-box"><span>Proposal Sent blank</span><strong>'+r.proposalSentBlank+"</strong></div>"

@@ -119,6 +119,16 @@ describe("CBSS platform brand", () => {
     assert.ok(SALES_SPARKS.length >= 8);
     assert.match(page, new RegExp(SALES_SPARKS[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   });
+
+  it("emits a page script browsers can parse so login can leave the card", () => {
+    const start = page.indexOf("<script>");
+    const end = page.lastIndexOf("</script>");
+    assert.ok(start >= 0 && end > start, "page has an inline script");
+    const script = page.slice(start + 8, end);
+    assert.doesNotThrow(() => new Function(script));
+    assert.match(script, /Accept":"application\/json"/);
+    assert.match(script, /Didn't answer/);
+  });
 });
 
 describe("hard rules stay on the platform", () => {
@@ -201,11 +211,11 @@ describe("session stays small", () => {
     assert.doesNotMatch(cookies[0], /Domain=/);
     const appReq = new Request("https://floor.cbshippingsolutions.app/");
     const appCookies = await makeSession(appReq, env, user);
-    assert.match(appCookies[0], /Domain=\.cbshippingsolutions\.app/);
+    assert.doesNotMatch(appCookies[0], /Domain=/);
     assert.match(appCookies[0], /Secure/);
     assert.match(appCookies[0], /HttpOnly/);
     assert.match(appCookies[0], /SameSite=Lax/);
-    assert.equal(sessionCookieDomain("floor.cbshippingsolutions.app"), ".cbshippingsolutions.app");
+    assert.equal(sessionCookieDomain("floor.cbshippingsolutions.app"), null);
     assert.equal(sessionCookieDomain("theyard.cbss.workers.dev"), null);
     const inbound = new Request("https://cbssos.cbss.workers.dev/", {
       headers: { Cookie: cookies[0].split(";")[0] },
@@ -239,6 +249,10 @@ describe("Safari can open The Yard", () => {
     assert.doesNotMatch(page, /html, body \{ height: 100%; margin: 0; \}/);
     assert.match(page, /e\.target\.submit\(\)/);
     assert.match(page, /catch \(err\) \{\s*show\("login"\)/);
+    const wrap = page.slice(page.indexOf(".login-wrap {"), page.indexOf(".login-card {"));
+    assert.ok(wrap.indexOf("-webkit-fill-available") < wrap.lastIndexOf("100dvh"), wrap);
+    assert.match(page, /\.login-card \{[\s\S]*flex-shrink: 0/);
+    assert.match(page, /justify-content: flex-start/);
   });
 });
 
