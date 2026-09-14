@@ -635,7 +635,7 @@ describe("Yard cycle surfaces", () => {
     assert.match(index, /async scheduled/);
     assert.match(page, /id="work-cte"/);
     assert.match(page, /id="work-follow"/);
-    assert.match(page, /Didn\\'t answer|Didn't answer/);
+    assert.match(page, /Didn't answer/);
     assert.match(page, /Did answer/);
     assert.match(page, /They replied/);
     assert.match(page, /Mark paid/);

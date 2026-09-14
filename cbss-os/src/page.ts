@@ -1517,14 +1517,14 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
           +(onCampaign(c.id) ? '<button type="button" class="secondary" id="return-campaign">Return from campaign</button>' : "")
           +"</div>"
           +'<div class="work-panel '+(ctePanel?"":"hide")+'" id="cte-panel">'
-          +'<p class="muted">Pick the CTE you just worked. Then pick how it went. Didn\'t answer and Bad number ask before AgentMail sends.</p>'
+          +"<p class='muted'>Pick the CTE you just worked. Then pick how it went. Didn't answer and Bad number ask before AgentMail sends.</p>"
           +'<div class="picks" id="cte-steps">'
           +["cte1","cte2","cte3","cte4"].map(function(s){ return '<button type="button" class="secondary'+(cteStep===s?" on":"")+'" data-cte="'+s+'">'+s.toUpperCase()+"</button>"; }).join("")
           +"</div>"
           +(cteStep
             ? '<p class="muted">'+esc(stepHint[cteStep]||"")+'</p>'
               +'<div class="picks" id="cte-outs">'
-              +'<button type="button" class="gold" data-out="no_answer">Didn\'t answer</button>'
+              +"<button type='button' class='gold' data-out='no_answer'>Didn't answer</button>"
               +'<button type="button" class="secondary" data-out="answered">Did answer</button>'
               +'<button type="button" class="secondary" data-out="replied">They replied</button>'
               +'<button type="button" class="secondary" data-out="not_interested">Not interested</button>'
@@ -2021,7 +2021,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
           +'<div class="stat-box"><span>Deals</span><strong>'+r.deals+"</strong></div>"
           +'<div class="stat-box"><span>Open follow-ups</span><strong>'+r.openFollowups+"</strong></div>"
           +'<div class="stat-box"><span>Unassigned</span><strong>'+r.unassigned+"</strong></div>"
-          +'<div class="stat-box"><span>Facebook unassigned</span><strong>'+r.facebookUnassigned+"</strong> <span class="muted">of "+r.facebookBook+"</span></div>"
+          +'<div class="stat-box"><span>Facebook unassigned</span><strong>'+r.facebookUnassigned+'</strong> <span class="muted">of '+r.facebookBook+'</span></div>'
           +'<div class="stat-box"><span>Paid</span><strong>'+r.paidCards+"</strong></div>"
           +'<div class="stat-box"><span>Proposal Sent with $</span><strong>'+r.proposalSentWithAmount+"</strong></div>"
           +'<div class="stat-box"><span>Proposal Sent blank</span><strong>'+r.proposalSentBlank+"</strong></div>"

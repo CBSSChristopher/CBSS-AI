@@ -119,6 +119,16 @@ describe("CBSS platform brand", () => {
     assert.ok(SALES_SPARKS.length >= 8);
     assert.match(page, new RegExp(SALES_SPARKS[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   });
+
+  it("emits a page script browsers can parse so login can leave the card", () => {
+    const start = page.indexOf("<script>");
+    const end = page.lastIndexOf("</script>");
+    assert.ok(start >= 0 && end > start, "page has an inline script");
+    const script = page.slice(start + 8, end);
+    assert.doesNotThrow(() => new Function(script));
+    assert.match(script, /Accept":"application\/json"/);
+    assert.match(script, /Didn't answer/);
+  });
 });
 
 describe("hard rules stay on the platform", () => {
