@@ -640,6 +640,12 @@ describe("Yard cycle surfaces", () => {
     assert.match(page, /They replied/);
     assert.match(page, /Mark paid/);
     assert.match(page, /function paintCycle/);
+    assert.match(page, /function markCteChoice/);
+    assert.match(page, /let cteOut = ""/);
+    assert.match(page, /cteOut===o\?" on":""/);
+    assert.match(page, /The gold button is the one you clicked/);
+    assert.match(page, /\.cte-picked/);
+    assert.match(page, /background: var\(--gold\)/);
     assert.match(page, /function runCteWork/);
     assert.match(page, /function askSend/);
     assert.match(page, /function openCteAfterTouch/);

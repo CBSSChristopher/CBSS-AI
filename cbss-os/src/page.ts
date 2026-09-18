@@ -100,7 +100,27 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     .cycle-flag { color: #8A1F1F; font-size: 13px; font-weight: 650; }
     .work-panel { margin-top: 10px; }
     .work-panel .picks { margin-top: 8px; }
-    .work-panel .picks button.on { background: var(--navy); color: #fff; }
+    .work-panel .picks button.on,
+    .picks button.on {
+      background: var(--gold);
+      color: var(--navy);
+      border-color: var(--navy);
+      box-shadow: inset 0 0 0 1px var(--navy);
+      font-weight: 800;
+    }
+    .cycle-box .row > button.gold {
+      box-shadow: inset 0 0 0 1px var(--navy);
+    }
+    .cte-picked {
+      margin: 10px 0 0;
+      background: var(--navy);
+      color: var(--gold);
+      border: 1px solid var(--gold);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 13px;
+      font-weight: 800;
+    }
     .mail-item { border-top: 1px solid var(--line); padding: 8px 0; font-size: 13px; }
     .mail-item .dir { font-weight: 800; color: var(--navy); }
     .monday-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 12px 0; }
@@ -146,7 +166,13 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     .tile .kicker { color: var(--gold); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; }
     .picks { display: flex; flex-wrap: wrap; gap: 6px; }
     .picks button { background: #fff; color: var(--navy); border: 1px solid var(--line); }
-    .picks button.on { background: var(--navy); color: #fff; }
+    .picks button.on {
+      background: var(--gold);
+      color: var(--navy);
+      border-color: var(--navy);
+      box-shadow: inset 0 0 0 1px var(--navy);
+      font-weight: 800;
+    }
     .picks.big button { min-width: 72px; padding: 12px 14px; }
     .step { margin-top: 12px; }
     .step-head { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 8px; }
@@ -1048,6 +1074,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     let user = null, book = null, selected = null, deskContact = null, deskHits = [], deskSearchSeq = 0, deskSearchTimer = 0, lastGmail = "", lastDoc = "", lastPdf = "", pick = {size:"40",height:"HC",config:"standard",grade:"CW"};
     let workPanel = "";
     let cteStep = "";
+    let cteOut = "";
     let lastQuote = null;
     let proposalLines = [];
     let campaignIds = {};
@@ -1457,6 +1484,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       if (textBtn) textBtn.addEventListener("click", function(){ openCteAfterTouch(); });
       workPanel = "";
       cteStep = "";
+      cteOut = "";
       paintCycle(selected);
       const detail = $("crm-detail");
       if (detail) {
@@ -1466,6 +1494,40 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     }
     function cycleHint(c){
       return { id:String(c.id), name:c.name||"", email:c.email||"", owner:c.owner||"", status:contactStage(c)||"" };
+    }
+    function markCteChoice(){
+      const root = $("cte-panel") || document;
+      root.querySelectorAll("[data-cte]").forEach(function(btn){
+        const on = (btn.getAttribute("data-cte")||"") === cteStep;
+        btn.classList.toggle("on", on);
+        btn.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+      root.querySelectorAll("[data-out]").forEach(function(btn){
+        const on = (btn.getAttribute("data-out")||"") === cteOut;
+        btn.classList.toggle("on", on);
+        btn.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+      const label = ({
+        no_answer: "Didn't answer",
+        answered: "Did answer",
+        replied: "They replied",
+        not_interested: "Not interested",
+        bought_elsewhere: "Bought elsewhere",
+        bad_number: "Bad number"
+      })[cteOut] || cteOut;
+      let chip = $("cte-picked");
+      if (cteStep && cteOut) {
+        if (!chip) {
+          chip = document.createElement("p");
+          chip.id = "cte-picked";
+          chip.className = "cte-picked";
+          const outs = $("cte-outs");
+          if (outs && outs.parentNode) outs.parentNode.insertBefore(chip, outs.nextSibling);
+        }
+        chip.textContent = String(cteStep||"").toUpperCase()+" · "+label;
+      } else if (chip) {
+        chip.remove();
+      }
     }
     async function paintCycle(c){
       const box = $("cycle-box");
@@ -1507,30 +1569,36 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
           cte3: "Didn't answer sends CTE3 now.",
           cte4: "Didn't answer sends the last CTE email and parks the ladder."
         };
+        const outLabels = {
+          no_answer: "Didn't answer",
+          answered: "Did answer",
+          replied: "They replied",
+          not_interested: "Not interested",
+          bought_elsewhere: "Bought elsewhere",
+          bad_number: "Bad number"
+        };
         box.innerHTML = "<h3>Work this lead</h3>"
           +"<p>Assigned "+esc(cy.owner||c.owner||"—")+(cy.ownerEmail?" · "+esc(cy.ownerEmail):"")+" · "+esc(contactStage(c)||cy.lifecycle||"—")+" · "+esc(cy.cteStage||"no CTE")+(cy.nextDue?" · next "+esc(cy.nextDue):"")+"</p>"
           +flags
           +'<div class="row">'
-          +'<button type="button" class="'+(ctePanel?"gold":"secondary")+'" id="work-cte">CTE</button>'
-          +'<button type="button" class="'+(followPanel?"gold":"secondary")+'" id="work-follow">Follow-up</button>'
-          +(cycleClosed && !(cy.lifecycle==="Paid" && !paidSent) ? "" : '<button type="button" class="'+(paidPanel?"gold":"secondary")+'" id="work-paid">Paid</button>')
+          +'<button type="button" class="'+(ctePanel?"gold":"secondary")+'" id="work-cte" aria-pressed="'+(ctePanel?"true":"false")+'">CTE</button>'
+          +'<button type="button" class="'+(followPanel?"gold":"secondary")+'" id="work-follow" aria-pressed="'+(followPanel?"true":"false")+'">Follow-up</button>'
+          +(cycleClosed && !(cy.lifecycle==="Paid" && !paidSent) ? "" : '<button type="button" class="'+(paidPanel?"gold":"secondary")+'" id="work-paid" aria-pressed="'+(paidPanel?"true":"false")+'">Paid</button>')
           +(onCampaign(c.id) ? '<button type="button" class="secondary" id="return-campaign">Return from campaign</button>' : "")
           +"</div>"
           +'<div class="work-panel '+(ctePanel?"":"hide")+'" id="cte-panel">'
-          +"<p class='muted'>Pick the CTE you just worked. Then pick how it went. Didn't answer and Bad number ask before AgentMail sends.</p>"
+          +"<p class='muted'>Pick the CTE you just worked. Then pick how it went. Didn't answer and Bad number ask before AgentMail sends. The gold button is the one you clicked.</p>"
           +'<div class="picks" id="cte-steps">'
-          +["cte1","cte2","cte3","cte4"].map(function(s){ return '<button type="button" class="secondary'+(cteStep===s?" on":"")+'" data-cte="'+s+'">'+s.toUpperCase()+"</button>"; }).join("")
+          +["cte1","cte2","cte3","cte4"].map(function(s){ return '<button type="button" class="secondary'+(cteStep===s?" on":"")+'" data-cte="'+s+'" aria-pressed="'+(cteStep===s?"true":"false")+'">'+s.toUpperCase()+"</button>"; }).join("")
           +"</div>"
           +(cteStep
             ? '<p class="muted">'+esc(stepHint[cteStep]||"")+'</p>'
               +'<div class="picks" id="cte-outs">'
-              +"<button type='button' class='gold' data-out='no_answer'>Didn't answer</button>"
-              +'<button type="button" class="secondary" data-out="answered">Did answer</button>'
-              +'<button type="button" class="secondary" data-out="replied">They replied</button>'
-              +'<button type="button" class="secondary" data-out="not_interested">Not interested</button>'
-              +'<button type="button" class="secondary" data-out="bought_elsewhere">Bought elsewhere</button>'
-              +'<button type="button" class="secondary" data-out="bad_number">Bad number</button>'
+              +["no_answer","answered","replied","not_interested","bought_elsewhere","bad_number"].map(function(o){
+                return '<button type="button" class="secondary'+(cteOut===o?" on":"")+'" data-out="'+o+'" aria-pressed="'+(cteOut===o?"true":"false")+'">'+esc(outLabels[o])+"</button>";
+              }).join("")
               +"</div>"
+              +(cteOut ? '<p class="cte-picked" id="cte-picked">'+esc((cteStep||"").toUpperCase())+" · "+esc(outLabels[cteOut]||cteOut)+"</p>" : "")
             : "")
           +"</div>"
           +'<div class="work-panel '+(followPanel?"":"hide")+'" id="follow-panel">'
@@ -1558,10 +1626,19 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         const returnBtn = $("return-campaign");
         if (returnBtn) returnBtn.onclick = function(){ returnFromCampaign(c.id); };
         document.querySelectorAll("[data-cte]").forEach(function(btn){
-          btn.onclick = function(){ cteStep = btn.getAttribute("data-cte")||""; paintCycle(c); };
+          btn.onclick = function(){
+            const next = btn.getAttribute("data-cte")||"";
+            if (next !== cteStep) cteOut = "";
+            cteStep = next;
+            paintCycle(c);
+          };
         });
         document.querySelectorAll("[data-out]").forEach(function(btn){
-          btn.onclick = function(){ runCteWork(btn.getAttribute("data-out")); };
+          btn.onclick = function(){
+            cteOut = btn.getAttribute("data-out")||"";
+            markCteChoice();
+            runCteWork(cteOut);
+          };
         });
         if ($("fu-save")) $("fu-save").onclick = saveFollowup;
         if ($("fu-done")) $("fu-done").onclick = completeTask;
