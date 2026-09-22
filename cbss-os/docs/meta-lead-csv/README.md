@@ -35,4 +35,4 @@ Empty phone → skipped and counted. DNC cards are not overwritten. `TEST-` / fi
 - Extra form answers: Book note
 - Outbound queue: VA capture, **not dialed**
 
-Harbor then: pull → owner `Harbor` → CTE1–4 → ready-to-buy accounting handoff to Christopher or Bryan Reese (full closer note). Soft delay stays on Harbor. Hard no closes out. Inbound callbacks hit Harbor. See `docs/outbound-sales-va/workflow.md` and `scripts.md`.
+Harbor then: pull → owner `Harbor` → CTE1–4 → ready-to-buy accounting handoff to Christopher or Bryan Reese (full closer note). Soft delay stays on Harbor. Hard no closes out. Inbound **voice** callbacks hit Harbor. Call + email only — no SMS. See `docs/outbound-sales-va/workflow.md` and `scripts.md`.

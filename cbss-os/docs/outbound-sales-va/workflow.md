@@ -36,6 +36,7 @@ Inbound: when they call the Twilio Harbor DID, Harbor answers. Same qualificatio
 8. **Inbound:** match CLI or create/attach a note. Solid → Christopher or Bryan. Not solid → Harbor handles.
 9. Christopher and Bryan can open the card at any time and see owner + stage + CTE + notes.
 10. `VA_DIAL_ARMED` stays `false`. Pull/assign/notes work. Live Twilio dial does not.
+11. **Call + email only.** Harbor never SMS / texts a lead. Twilio DID is Voice only — Messaging not required. See [twilio.md](./twilio.md).
 
 ## APIs
 

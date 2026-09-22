@@ -142,5 +142,6 @@ describe("Yard wiring for CSV import and Harbor pull", () => {
     assert.match(page, /Ready to buy/);
     assert.match(page, /"Harbor"/);
     assert.match(page, /self-assigns, runs CTE/);
+    assert.match(page, /Call \+ email only — no SMS/);
   });
 });

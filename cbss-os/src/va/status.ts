@@ -28,6 +28,7 @@ export function vaDialArmed(env: VaEnvBits): boolean {
   return flag(env.VA_DIAL_ARMED);
 }
 
+/** Voice SID / token / number only. Messaging / A2P is not required. */
 export function vaSecretsReady(env: VaEnvBits): boolean {
   return present(env.VA_WEBHOOK_SECRET) && present(env.ELEVENLABS_API_KEY) && present(env.TWILIO_ACCOUNT_SID) && present(env.TWILIO_AUTH_TOKEN) && present(env.TWILIO_PHONE_NUMBER);
 }
@@ -72,6 +73,10 @@ export function publicVaStatus(env: VaEnvBits): Record<string, unknown> {
     enabled: vaEnabled(env),
     dialArmed: vaDialArmed(env),
     dialing: false,
+    sms: false,
+    texting: false,
+    channels: ["call", "email"],
+    twilioMessagingRequired: false,
     hasWebhookSecret: present(env.VA_WEBHOOK_SECRET),
     hasElevenLabsKey: present(env.ELEVENLABS_API_KEY),
     hasElevenLabsAgent: present(env.ELEVENLABS_AGENT_ID),
@@ -82,6 +87,6 @@ export function publicVaStatus(env: VaEnvBits): Record<string, unknown> {
     hasCrmServiceLogin: present(env.VA_CRM_EMAIL) && present(env.VA_CRM_PASSWORD),
     voiceNote: "Neutral professional voice placeholder. Do not clone Christopher without a written decision.",
     harborNote:
-      "Harbor opens CTE, answers inbound on the Twilio DID, and hands ready-to-buy to Christopher or Bryan Reese. This is not the Harbor staff-comms Grok Bot. Harbor does not collect payment.",
+      "Harbor opens CTE, answers inbound voice on the Twilio DID, and hands ready-to-buy to Christopher or Bryan Reese. Call + email only — no SMS. This is not the Harbor staff-comms Grok Bot. Harbor does not collect payment.",
   };
 }

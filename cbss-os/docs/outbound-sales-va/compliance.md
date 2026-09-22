@@ -61,9 +61,9 @@ Use [payments.md](./payments.md). Cards are frozen. Offer wire / ACH / e-check /
 > No. This is the CB Shipping Solutions outbound desk. Christopher is the closer who would take the appointment.
 
 **“Send me something.”**
-> I can have the desk draft an email. I do not send mail from this call. What address should the closer use?
+> I can have the desk draft an email. I do not send mail from this call, and I do not text. What address should the closer use?
 
-Do not promise a brochure blast. v1 email is drafts-only.
+Do not promise a brochure blast. Do not send or promise SMS. v1 email is drafts-only.
 
 **“We only needed a storage unit for the house.”**
 > We set appointments for business containers, not personal storage. I will close this out. Thank you.
@@ -82,7 +82,7 @@ Polite close-out. Outcome `bought-elsewhere`. No follow-up.
 ## Forbidden ops
 
 - No auto-dial of the whole book.
-- No SMS blasts from this pack.
+- No SMS / text / MMS to leads. Harbor channels are call + email only. A Voice-only Twilio number is enough.
 - No scraping Facebook/Google for numbers to feed the VA.
 - No “we already have you approved” or fake urgency.
 - No Harbor staff thread used as a customer sales channel.

@@ -5,6 +5,7 @@ import { applyFlushResult, planVaFlush } from "./flush.ts";
 import { verifyVaWebhook } from "./hmac.ts";
 import { VA_NOTE_TAG } from "./note.ts";
 import { parseVaWebhookPayload } from "./parse.ts";
+import { smsGate } from "./channels.ts";
 import { dialGate, publicVaStatus, type VaEnvBits } from "./status.ts";
 import {
   findCaptureByCall,
@@ -118,6 +119,11 @@ export function vaDraftResponse(body: Record<string, unknown>): VaHandlerResult 
 
 export function vaDialResponse(env: VaEnvBits): VaHandlerResult {
   const gate = dialGate(env);
+  return { status: gate.status, body: gate.body };
+}
+
+export function vaSmsResponse(): VaHandlerResult {
+  const gate = smsGate();
   return { status: gate.status, body: gate.body };
 }
 

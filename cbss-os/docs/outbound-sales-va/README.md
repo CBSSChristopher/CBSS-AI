@@ -6,7 +6,7 @@ Goal: Harbor opens on CTE (and answers inbound), then hands **ready-to-buy** to 
 
 **No Meta webhook.** Leads enter from a Meta CSV (`docs/meta-lead-csv/`). Workflow: `workflow.md`. Scripts: `scripts.md`. Inbound: `inbound.md`.
 
-v1 channel: CSV import → New/Unassigned pile → Harbor pull/CTE → closer handoff. Inbound callbacks hit Harbor. ElevenLabs + Twilio later. Email drafts only. Nothing dials until Christopher arms `VA_DIAL_ARMED`.
+v1 channels: **call + email only**. No SMS. CSV import → New/Unassigned pile → Harbor pull/CTE → closer handoff. Inbound **voice** callbacks hit Harbor. Twilio number is Voice-only (`twilio.md`) — Messaging / A2P not required. Email drafts only. Nothing dials until Christopher arms `VA_DIAL_ARMED`.
 
 ## Architecture
 
@@ -40,6 +40,7 @@ This pack reuses The Yard and the live CRM `appendNote` path. It does **not** in
 | `VA_DIAL_ARMED` | `false` | `POST /va/dial` stays 403. |
 | Live Twilio REST | not implemented | Even if both flags are true and secrets are present, `/va/dial` returns 501. Harbor will not call Twilio from this repo until Christopher says go. |
 | Email sequences | drafts only | `POST /va/email/draft` returns text. Never AgentMail. Never Gmail. |
+| SMS / text | out of scope | `POST /va/sms` and `/va/text` stay 403. Voice-only Twilio is enough. |
 
 ## Routes (Yard / cbssos)
 
@@ -51,6 +52,7 @@ This pack reuses The Yard and the live CRM `appendNote` path. It does **not** in
 | `POST` | `/va/captures/flush` | Christopher session. Writes pending captures to CRM notes. |
 | `POST` | `/va/email/draft` | Company session. Returns a draft. Does not send. |
 | `POST` | `/va/dial` | Company session. Parked. Never dials. |
+| `POST` | `/va/sms` `/va/text` | Always 403. Harbor does not text. |
 | `GET` | `/va/harbor/next` | Christopher or Bearer. Assigns Harbor + CTE1. |
 | `POST` | `/va/harbor/outcome` | Same auth. CTE / soft-delay / ready-to-buy. |
 | `POST` | `/va/harbor/inbound` | Same auth. They called the Harbor DID. |
@@ -82,6 +84,7 @@ Webhook URL after a Yard deploy Christopher approves:
 - [persona.md](./persona.md) — system prompt (sales opener, not cashier)
 - [scripts.md](./scripts.md) — ready-to-buy variants, voicemail, soft delay, hard no
 - [inbound.md](./inbound.md) — they call the Harbor DID
+- [twilio.md](./twilio.md) — Voice-only Buy Number (SMS off)
 - [compliance.md](./compliance.md) — recording consent, TCPA, objections
 - [outcomes.md](./outcomes.md) — call outcome taxonomy
 - [payments.md](./payments.md) — cards frozen language

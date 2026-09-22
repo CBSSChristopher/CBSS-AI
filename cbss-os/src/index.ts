@@ -49,6 +49,7 @@ import {
   vaDialResponse,
   vaDraftResponse,
   vaPublicStatus,
+  vaSmsResponse,
 } from "./va/http.ts";
 import { applyLeadImport, parseLeadCsv, parseLeadJsonRows, planLeadImport, publicImportPreview, readImportPayload } from "./va/leads-import.ts";
 import { timingSafeEqualStr } from "./va/hmac.ts";
@@ -1114,6 +1115,11 @@ export default {
       const user = await readSession(request, env);
       if (!user) return json(401, { error: "Sign in first." });
       const result = vaDialResponse(env);
+      return json(result.status, result.body);
+    }
+
+    if ((path === "/va/sms" || path === "/va/text") && (request.method === "POST" || request.method === "GET")) {
+      const result = vaSmsResponse();
       return json(result.status, result.body);
     }
 

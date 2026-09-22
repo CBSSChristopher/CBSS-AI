@@ -14,13 +14,18 @@ Harbor is **not outbound-only**. When a lead calls the Twilio Harbor caller ID, 
 
 ## Twilio / ElevenLabs (Christopher taps later — Harbor does not buy)
 
-1. Buy or import a CBSS Twilio number. That number is the **Harbor DID**.
-2. Import the same number into the ElevenLabs Conversational Agent (Twilio Voice).
-3. Point Twilio Voice to the ElevenLabs inbound webhook (or the agent’s Twilio integration).
-4. Point the agent post-call webhook at `https://floor.cbshippingsolutions.app/va/hooks/outbound` (HMAC) **and** send Harbor dispositions to `POST /va/harbor/inbound`.
-5. Paste `TWILIO_PHONE_NUMBER` as the Harbor DID. Voicemail and CTE leave **that** number.
+Harbor is **Voice + email**. No SMS. See [twilio.md](./twilio.md).
+
+1. Twilio **Buy a number** → enable **Voice**. SMS / Messaging optional and **off**. No A2P.
+2. Inventory digits may differ from any preferred number unless you port. Buy what is in stock; paste it as `TWILIO_PHONE_NUMBER`.
+3. Import that Voice number into the ElevenLabs Conversational Agent (Twilio **Voice**). Do not attach a Messaging webhook.
+4. Point Twilio Voice to the ElevenLabs inbound webhook (or the agent’s Twilio Voice integration).
+5. Point the agent post-call webhook at `https://floor.cbshippingsolutions.app/va/hooks/outbound` (HMAC) **and** send Harbor dispositions to `POST /va/harbor/inbound`.
+6. Voicemail and CTE leave **that** Harbor DID.
 
 Do **not** put Christopher’s personal cell `(870) 323-2593` on customer CTE or voicemail. That line is for human handoff only.
+
+`POST /va/sms` and `/va/text` stay 403. Messaging capability is not required on the Twilio number.
 
 ## Outcomes on inbound
 

@@ -19,7 +19,7 @@ VA_DIAL_ARMED=false
 | `ELEVENLABS_VOICE_ID` | Neutral professional voice. Not a Christopher clone. |
 | `TWILIO_ACCOUNT_SID` | Later. Do not buy a number from Harbor. |
 | `TWILIO_AUTH_TOKEN` | Later. |
-| `TWILIO_PHONE_NUMBER` | E.164 Harbor DID (voicemail + inbound callback). Never Christopher’s personal cell. |
+| `TWILIO_PHONE_NUMBER` | E.164 Harbor **Voice** DID (voicemail + inbound callback). SMS / Messaging not required. Never Christopher’s personal cell. |
 | `VA_CRM_EMAIL` | Optional service login so the webhook can `appendNote` without a browser session. |
 | `VA_CRM_PASSWORD` | Optional. Same rule: secret put, never git. |
 
@@ -50,7 +50,7 @@ Also accepted header names: `X-Webhook-Signature`, `X-ElevenLabs-Signature`.
 
 1. Merge / deploy The Yard **only when Christopher says go**. This PR does not deploy.
 2. `npx wrangler secret put VA_WEBHOOK_SECRET` on `cbssos`.
-3. Point ElevenLabs post-call webhook at `https://floor.cbshippingsolutions.app/va/hooks/outbound`. Import the Twilio number into the agent for inbound (`inbound.md`). Harbor dispositions go to `POST /va/harbor/inbound`.
+3. Buy a **Voice-only** Twilio number (`twilio.md`). Point ElevenLabs post-call webhook at `https://floor.cbshippingsolutions.app/va/hooks/outbound`. Import the number into the agent for **Voice** inbound (`inbound.md`). Harbor dispositions go to `POST /va/harbor/inbound`. Do not configure SMS.
 4. Open The Yard signed in as Christopher → CRM → **VA calls**. Confirm a test capture (no live customer).
 5. Click **Write pending to CRM** on a contact that already exists.
 6. Leave `VA_DIAL_ARMED=false` until the first list is approved.

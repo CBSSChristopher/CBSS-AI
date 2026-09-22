@@ -49,6 +49,17 @@ describe("ready-to-buy spoken variants", () => {
     assert.match(scripts, /Variant `checkbook`/);
     assert.match(scripts, /do not read the identical sentence/i);
   });
+
+  it("locks Harbor to call + email — no SMS, Voice-only Twilio", () => {
+    const twilio = readFileSync(new URL("../docs/outbound-sales-va/twilio.md", import.meta.url), "utf8");
+    assert.match(persona, /call \+ email only/i);
+    assert.match(persona, /never texts/i);
+    assert.match(scripts, /call \+ email only/i);
+    assert.match(twilio, /Enable \*\*Voice\*\*/);
+    assert.match(twilio, /SMS \/ Messaging off/);
+    assert.match(twilio, /may differ from any preferred number unless you \*\*port\*\*/);
+    assert.match(twilio, /Messaging capability/);
+  });
 });
 
 describe("ready-to-buy closer note + handoff", () => {
@@ -147,6 +158,7 @@ describe("inbound Harbor answer", () => {
     assert.match(soft.note, /Not solid yet/);
     assert.match(inbound, /Harbor \*\*answers\*\*/);
     assert.match(inbound, /870\) 323-2593/);
+    assert.match(inbound, /Voice only|enable \*\*Voice\*\*/);
   });
 });
 

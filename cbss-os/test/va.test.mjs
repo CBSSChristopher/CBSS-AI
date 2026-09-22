@@ -9,6 +9,7 @@ import { isDoNotTouch, matchCrmContact, phoneDigits } from "../src/va/match.ts";
 import { vaActivityNote } from "../src/va/note.ts";
 import { parseVaWebhookPayload } from "../src/va/parse.ts";
 import { normalizeVaOutcome, VA_OUTCOMES } from "../src/va/outcomes.ts";
+import { smsGate } from "../src/va/channels.ts";
 import { dialGate, publicVaStatus } from "../src/va/status.ts";
 import { emptyCapture } from "../src/va/store.ts";
 
@@ -168,7 +169,14 @@ describe("outbound VA parked rails", () => {
     const pub = publicVaStatus({ VA_ENABLED: "false" });
     assert.equal(pub.dialing, false);
     assert.equal(pub.enabled, false);
+    assert.equal(pub.sms, false);
+    assert.deepEqual(pub.channels, ["call", "email"]);
+    assert.equal(pub.twilioMessagingRequired, false);
     assert.match(String(pub.harborNote), /not the Harbor staff-comms/);
+    const sms = smsGate();
+    assert.equal(sms.status, 403);
+    assert.equal(sms.body.sms, false);
+    assert.match(String(sms.body.error), /Voice-only/);
   });
 
   it("email drafts never mark sent and never promise cards", () => {
@@ -198,6 +206,8 @@ describe("outbound VA Yard wiring", () => {
     assert.match(index, /\/va\/captures\/flush/);
     assert.match(index, /\/va\/email\/draft/);
     assert.match(index, /\/va\/dial/);
+    assert.match(index, /\/va\/sms/);
+    assert.match(index, /vaSmsResponse/);
     assert.doesNotMatch(index, /\/va\/hooks\/facebook-leads/);
     assert.match(index, /handleVaOutboundHook/);
     assert.match(index, /appendCycleCrmNote/);
