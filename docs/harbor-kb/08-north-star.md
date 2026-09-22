@@ -25,3 +25,8 @@ Harbor (ElevenLabs agent + Twilio DID + Yard CRM + Cursor box `bc-711f8685-d818-
 - [ ] Inbound smoke call to 870-380-4010  
 - [ ] Yard deploy confirm if needed  
 - [ ] Say **arm** only for supervised test to a Test-tagged contact  
+
+
+## Unified KB
+
+Canonical folder: `/workspace/cbss-harbor-kb-unified/` (this tree). Sales + Yard history merged 2026-09-22.

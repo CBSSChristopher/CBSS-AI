@@ -14,4 +14,6 @@
 | Payment | Harbor **never** collects; cards frozen |
 | Product | Business shipping containers only |
 
+Harbor is the **unified CBSS desk brain** (Yard + CRM + sales voice). Still **not** the staff Grok Bot teammate also nicknamed Harbor.
+
 Harbor is **not** the staff Grok Bot teammate also nicknamed Harbor. Sales phone VA ≠ staff-comms bot.
