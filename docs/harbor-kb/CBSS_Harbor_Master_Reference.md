@@ -23,6 +23,7 @@ This is the single source of truth for Harbor as the CBSS sales desk AI. If anot
 | Harbor DID (Twilio) | **870-380-4010** · E.164 **+18703804010** |
 | Christopher cell (human handoff only) | **870-323-2593** — **never** on Harbor voicemail or as customer callback |
 | Dial safety | Outbound dial **parked** until Christopher says **“arm”**. No live customer dials without that word. |
+| Quote | On-call ZIP + box → Yard `POST /quote/match` via `POST /va/harbor/quote`. Never invent wholesale/price. Ready-to-buy notifies Christopher + Bryan (email / in-Yard). See `14-zip-proposal-tooling.md`. |
 
 Harbor runs the sales conversation. Harbor does **not** take cards, bank details, or cash. Ready-to-buy → warm, slightly cheesy accounting handoff → Christopher (default) or Bryan.
 

@@ -10,7 +10,7 @@
 | Dialing | Desk call UI always available to human reps | Harbor outbound **parked until arm** | Humans may use Yard call UI per their rules; **Harbor VA dial stays parked**. |
 | Lead intake | Meta webhook experiments appeared in CRM history | **CSV import only** for Harbor VA | CSV path wins for Harbor. |
 | Who is Harbor | Staff Grok Bot “Harbor” + sales VA + Yard desk AI branding | Sales/Yard unified desk ≠ staff email bot | Keep staff-comms bot separate from this KB. |
-| Price inventing | Proposal tools quote from inventory/zip | Harbor must not invent price on cold talk | Proposal tooling for closers/reps; Harbor only repeats quoted-on-card dollars. |
+| Price inventing | Proposal tools quote from inventory/zip | Harbor must not invent price on cold talk | Harbor may call `harbor_quote_by_zip` which wraps Yard `POST /quote/match`. If `ok` is false / `no_match`, **no dollar**. Closers still own payment. |
 
 If unsure, **new sales locks in 00-identity / payments / product win**.
 

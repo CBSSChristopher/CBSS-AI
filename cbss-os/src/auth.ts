@@ -44,6 +44,8 @@ export type Env = {
   TWILIO_PHONE_NUMBER?: string;
   VA_CRM_EMAIL?: string;
   VA_CRM_PASSWORD?: string;
+  /** ElevenLabs Harbor quote / ready-to-buy. Secret put only — never commit. */
+  HARBOR_QUOTE_TOKEN?: string;
   ASSETS?: Fetcher;
   SESSIONS?: KVNamespace;
   CRM?: Fetcher;
@@ -320,6 +322,18 @@ export async function loginCrmTool(
   const crm = await loginOrigin(o.crm, email, password, env.CRM);
   if (!crm.ok) return { ok: false, status: crm.status || 401, error: crm.error || "Could not sign into CRM." };
   return { ok: true, cookie: crm.cookie, name: crm.name };
+}
+
+/** Optional Harbor quote login so ZIP match can pull posted xChange inventory. Never commit the password. */
+export async function loginProposalTool(
+  env: Env,
+  email: string,
+  password: string,
+): Promise<{ ok: true; cookie: string; name: string } | { ok: false; status: number; error: string }> {
+  const o = origins(env);
+  const proposal = await loginOrigin(o.proposal, email, password, env.PROPOSAL);
+  if (!proposal.ok) return { ok: false, status: proposal.status || 401, error: proposal.error || "Could not sign into the proposal tool." };
+  return { ok: true, cookie: proposal.cookie, name: proposal.name };
 }
 
 export { UA, COOKIE };

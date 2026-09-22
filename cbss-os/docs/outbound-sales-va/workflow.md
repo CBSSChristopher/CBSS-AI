@@ -46,6 +46,8 @@ Inbound: when they call the Twilio Harbor DID, Harbor answers. Same qualificatio
 | `GET` | `/va/harbor/next` | Christopher session, or `Authorization: Bearer VA_WEBHOOK_SECRET` plus `VA_CRM_*`. Assigns Harbor + CTE1. `dialing: false`. |
 | `POST` | `/va/harbor/outcome` | Same auth. `{ contactId, outcome, closer?, note?, deal fields?, followUpDate?, spoken? }`. |
 | `POST` | `/va/harbor/inbound` | Same auth. `{ phone / from, outcome?, closer?, deal fields? }`. Matches CLI or creates a Harbor card. |
+| `POST` | `/va/harbor/quote` | `X-Harbor-Token` / Bearer `HARBOR_QUOTE_TOKEN`. ZIP + box → same match as `/quote/match`. `spoken_summary` + `unit_price`. `no_match` never invents a price. `dialing: false`. |
+| `POST` | `/va/harbor/ready-to-buy` | Same Harbor token. Rematch quote, CRM note if matched, email/alert Christopher + Bryan. No SMS. |
 
 Outcomes: `no-answer`, `voicemail`, `answered`, `callback`, `soft-delay`, `ready-to-buy`, `inbound-answered`, `inbound-message`, `inbound-ready-to-buy`, `not-interested`, `bought-elsewhere`, `DNC`, `wrong-number`.
 

@@ -56,6 +56,8 @@ This pack reuses The Yard and the live CRM `appendNote` path. It does **not** in
 | `GET` | `/va/harbor/next` | Christopher or Bearer. Assigns Harbor + CTE1. |
 | `POST` | `/va/harbor/outcome` | Same auth. CTE / soft-delay / ready-to-buy. |
 | `POST` | `/va/harbor/inbound` | Same auth. They called the Harbor DID. |
+| `POST` | `/va/harbor/quote` | `HARBOR_QUOTE_TOKEN` (`X-Harbor-Token` or Bearer). ZIP + box → same match as `/quote/match`. Never invents a price. Does not dial. |
+| `POST` | `/va/harbor/ready-to-buy` | Same Harbor token. CRM note if matched; email/alert Christopher + Bryan. No SMS. |
 
 Webhook URL after a Yard deploy Christopher approves:
 

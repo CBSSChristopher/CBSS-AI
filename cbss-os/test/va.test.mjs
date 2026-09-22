@@ -194,8 +194,11 @@ describe("outbound VA Yard wiring", () => {
     assert.match(wrangler, /"VA_ENABLED": "false"/);
     assert.match(wrangler, /"VA_DIAL_ARMED": "false"/);
     assert.doesNotMatch(wrangler, /ELEVENLABS_API_KEY|TWILIO_AUTH_TOKEN|VA_WEBHOOK_SECRET\s*:/);
+    assert.doesNotMatch(wrangler, /HARBOR_QUOTE_TOKEN/);
     assert.match(auth, /VA_WEBHOOK_SECRET\?: string/);
+    assert.match(auth, /HARBOR_QUOTE_TOKEN\?: string/);
     assert.match(auth, /loginCrmTool/);
+    assert.match(auth, /loginProposalTool/);
   });
 
   it("exposes webhook, flush, draft, and parked dial routes", () => {
@@ -203,6 +206,10 @@ describe("outbound VA Yard wiring", () => {
     assert.match(index, /\/va\/leads\/import/);
     assert.match(index, /\/va\/harbor\/next/);
     assert.match(index, /\/va\/harbor\/inbound/);
+    assert.match(index, /\/va\/harbor\/quote/);
+    assert.match(index, /\/va\/harbor\/ready-to-buy/);
+    assert.match(index, /handleHarborQuote/);
+    assert.match(index, /handleHarborReadyToBuy/);
     assert.match(index, /\/va\/captures\/flush/);
     assert.match(index, /\/va\/email\/draft/);
     assert.match(index, /\/va\/dial/);

@@ -22,9 +22,11 @@
 7. [06-payments.md](./06-payments.md) · [07-product.md](./07-product.md)  
 8. [04-cursor-box.md](./04-cursor-box.md) · [08-north-star.md](./08-north-star.md)  
 9. [13-out-of-scope-deflection.md](./13-out-of-scope-deflection.md) — logistics / yard deflection (cheesy)
-10. [11-contradictions.md](./11-contradictions.md) — old vs new flags  
-10. [12-yard-history-index.md](./12-yard-history-index.md) — where the 3-week artifacts live  
-11. [CBSS_Harbor_Master_Reference.md](./CBSS_Harbor_Master_Reference.md) — full backbone  
+10. [14-zip-proposal-tooling.md](./14-zip-proposal-tooling.md) — **ZIP + box → posted proposal quote** (`harbor_quote_by_zip` / `harbor_ready_to_buy`)
+11. [15-elevenlabs-tools.md](./15-elevenlabs-tools.md) — ElevenLabs webhook JSON for those routes
+12. [11-contradictions.md](./11-contradictions.md) — old vs new flags  
+13. [12-yard-history-index.md](./12-yard-history-index.md) — where the 3-week artifacts live  
+14. [CBSS_Harbor_Master_Reference.md](./CBSS_Harbor_Master_Reference.md) — full backbone  
 
 ## Cancelled
 

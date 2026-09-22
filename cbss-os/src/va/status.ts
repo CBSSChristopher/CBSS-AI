@@ -10,6 +10,7 @@ export type VaEnvBits = {
   TWILIO_PHONE_NUMBER?: string;
   VA_CRM_EMAIL?: string;
   VA_CRM_PASSWORD?: string;
+  HARBOR_QUOTE_TOKEN?: string;
 };
 
 function flag(value: unknown): boolean {
@@ -85,6 +86,7 @@ export function publicVaStatus(env: VaEnvBits): Record<string, unknown> {
     hasTwilioToken: present(env.TWILIO_AUTH_TOKEN),
     hasTwilioNumber: present(env.TWILIO_PHONE_NUMBER),
     hasCrmServiceLogin: present(env.VA_CRM_EMAIL) && present(env.VA_CRM_PASSWORD),
+    hasHarborQuoteToken: present(env.HARBOR_QUOTE_TOKEN),
     voiceNote: "Neutral professional voice placeholder. Do not clone Christopher without a written decision.",
     harborNote:
       "Harbor opens CTE, answers inbound voice on the Twilio DID, and hands ready-to-buy to Christopher or Bryan Reese. Call + email only — no SMS. This is not the Harbor staff-comms Grok Bot. Harbor does not collect payment.",

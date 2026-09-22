@@ -2,7 +2,7 @@
 
 ## Goal
 
-Harbor (ElevenLabs agent + Twilio DID + Yard CRM + Cursor box `bc-711f8685-d818-473d-b1ac-1fd96e69e69c`) is the **unified CBSS desk**: yard, CRM, and outbound/inbound sales voice — call + email only — human close by Christopher or Bryan — dialing gated on **arm**.
+Harbor (ElevenLabs agent + Twilio DID + Yard CRM + Cursor box `bc-711f8685-d818-473d-b1ac-1fd96e69e69c`) is the **unified CBSS desk**: yard, CRM, and outbound/inbound sales voice — call + email only — on-call **ZIP + box → posted proposal quote** — ready-to-buy notifies Christopher Banks (default) + Bryan Reese — human close — no payment collection — dialing gated on **arm**.
 
 ## Open gaps (do not paper over)
 

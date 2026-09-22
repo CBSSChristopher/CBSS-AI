@@ -66,6 +66,7 @@ import {
   harborOutcomePlan,
   pickHarborNext,
 } from "./va/workflow.ts";
+import { handleHarborQuote, handleHarborReadyToBuy } from "./va/harbor-quote.ts";
 
 const SECURITY = {
   "X-Content-Type-Options": "nosniff",
@@ -1102,6 +1103,16 @@ export default {
         plan,
         ...vaPublicStatus(env),
       });
+    }
+
+    if (path === "/va/harbor/quote" && request.method === "POST") {
+      const result = await handleHarborQuote(env, request);
+      return json(result.status, result.body);
+    }
+
+    if (path === "/va/harbor/ready-to-buy" && request.method === "POST") {
+      const result = await handleHarborReadyToBuy(env, request);
+      return json(result.status, result.body);
     }
 
     if (path === "/va/email/draft" && request.method === "POST") {
