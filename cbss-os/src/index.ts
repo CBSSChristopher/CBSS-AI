@@ -1,0 +1,1228 @@
+import { BRAND, titleOwner } from "./brand.ts";
+import {
+  clearSession,
+  isCompanyEmail,
+  loginAllTools,
+  loginCrmTool,
+  makeSession,
+  origins,
+  readSession,
+  toolsReady,
+  UA,
+  type Env,
+  type ToolKey,
+} from "./auth.ts";
+import { addCampaign, listCampaign, returnCampaign } from "./campaign.ts";
+import { rewriteCrmWrite } from "./followups.ts";
+import {
+  FACEBOOK_TOKEN_KEY,
+  isChristopherUser,
+  publicFacebookStatus,
+  readFacebookUpload,
+} from "./facebook.ts";
+import { lookupZipFromZippopotam, matchPostedBox, type BoxPick } from "./xchange-match.ts";
+import { pageHtml } from "./page.ts";
+import {
+  buildDeskAddedContact,
+  deskContactName,
+  deskContactNote,
+  findOwnDeskContact,
+  readDeskContactDraft,
+  scheduleDeskTrack,
+} from "./desk-contact.ts";
+import { buildModifiedSpec, readModifiedDraft } from "./modified-catalog.ts";
+import { buildProposalSubmit, readProposalLine } from "./proposal-lines.ts";
+import { matchContactForProposal, proposalAttachPatch } from "./crm-proposal.ts";
+import { scopeCrmGetPayload, shouldScopeCrmGet } from "./crm-scope.ts";
+import { rememberUser } from "./cycle/store.ts";
+import { handleAgentMailHook, handleCycleAuthed, runCycleCron } from "./cycle/http.ts";
+import { startWorking } from "./cycle/engine.ts";
+import { buildMondayReport } from "./monday-report.ts";
+import {
+  contactsAddedFromCrmPayload,
+  contactsFromCrmPayload,
+  crmContactPool,
+  flushVaCaptures,
+  handleVaOutboundHook,
+  listVaCaptures,
+  maybeServiceFlush,
+  vaDialResponse,
+  vaDraftResponse,
+  vaPublicStatus,
+  vaSmsResponse,
+} from "./va/http.ts";
+import { applyLeadImport, parseLeadCsv, parseLeadJsonRows, planLeadImport, publicImportPreview, readImportPayload } from "./va/leads-import.ts";
+import { emptyCapture, putVaCapture } from "./va/store.ts";
+import { crmRequestWithCookie } from "./va/crm-client.ts";
+import { readHarborDeal } from "./va/close-note.ts";
+import { inboundCallerPhone, planInboundContact } from "./va/inbound.ts";
+import {
+  HARBOR_OWNER,
+  harborAssignNote,
+  harborAssignPatch,
+  harborFollowupRow,
+  harborOutcomeEdits,
+  harborOutcomePlan,
+  normalizeCteStep,
+  pickHarborQueue,
+} from "./va/workflow.ts";
+import { handleHarborQuote, handleHarborReadyToBuy, harborWorkflowAuthed } from "./va/harbor-quote.ts";
+import { dispatchHarborCteMail } from "./va/harbor-mail.ts";
+
+const SECURITY = {
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "same-origin",
+  "X-Frame-Options": "DENY",
+  "Strict-Transport-Security": "max-age=31536000",
+  "Alt-Svc": "clear",
+  "Content-Security-Policy":
+    "default-src 'none'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com https://challenges.cloudflare.com; style-src 'unsafe-inline'; img-src 'self' data: https://challenges.cloudflare.com; connect-src 'self' https://cloudflareinsights.com https://static.cloudflareinsights.com https://challenges.cloudflare.com; frame-src 'self' https://challenges.cloudflare.com; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+};
+
+const TOOLS: Record<ToolKey, { path: string }> = {
+  crm: { path: "/x/crm" },
+  desk: { path: "/x/desk" },
+  proposal: { path: "/x/proposal" },
+  pay: { path: "/x/pay" },
+  invoice: { path: "/x/invoice" },
+};
+
+function json(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json; charset=utf-8", ...SECURITY },
+  });
+}
+
+function withCookies(status: number, body: unknown, cookies: string[]): Response {
+  const headers = new Headers({ "Content-Type": "application/json; charset=utf-8", ...SECURITY });
+  for (const c of cookies) headers.append("Set-Cookie", c);
+  return new Response(JSON.stringify(body), { status, headers });
+}
+
+function html(body: string): Response {
+  return new Response(body, {
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store",
+      ...SECURITY,
+    },
+  });
+}
+
+function htmlWithCookies(body: string, cookies: string[]): Response {
+  const headers = new Headers({
+    "Content-Type": "text/html; charset=utf-8",
+    "Cache-Control": "no-store",
+    ...SECURITY,
+  });
+  for (const c of cookies) headers.append("Set-Cookie", c);
+  return new Response(body, { status: 200, headers });
+}
+
+function yardPage(request: Request, opts?: { loginError?: string }): Response {
+  const page = html(pageHtml(opts));
+  if (request.method === "HEAD") return new Response(null, { status: 200, headers: page.headers });
+  return page;
+}
+
+function isYardPagePath(path: string): boolean {
+  return path === "/" || path === "/index.html" || path === "/auth/login";
+}
+
+async function readJson(request: Request): Promise<Record<string, unknown>> {
+  try {
+    const data = await request.json();
+    return data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
+}
+
+async function readLoginBody(request: Request): Promise<Record<string, unknown>> {
+  const ct = String(request.headers.get("Content-Type") || "").toLowerCase();
+  if (ct.includes("application/x-www-form-urlencoded") || ct.includes("multipart/form-data")) {
+    try {
+      const form = await request.formData();
+      return {
+        email: String(form.get("email") || ""),
+        password: String(form.get("password") || ""),
+      };
+    } catch {
+      return {};
+    }
+  }
+  return readJson(request);
+}
+
+function loginWantsRedirect(request: Request): boolean {
+  const ct = String(request.headers.get("Content-Type") || "").toLowerCase();
+  const accept = String(request.headers.get("Accept") || "").toLowerCase();
+  return ct.includes("application/x-www-form-urlencoded") || (accept.includes("text/html") && !accept.includes("application/json"));
+}
+
+function str(v: unknown): string {
+  return typeof v === "string" ? v.trim() : "";
+}
+
+function publicUser(user: { email: string; name: string; tools: { crm: string; desk: string; proposal: string; pay: string; invoice: string } }) {
+  return { email: user.email, name: user.name, tools: toolsReady(user.tools) };
+}
+
+function matchTool(path: string): { key: ToolKey; rest: string } | null {
+  for (const [key, spec] of Object.entries(TOOLS) as Array<[ToolKey, { path: string }]>) {
+    if (path === spec.path || path.startsWith(spec.path + "/")) {
+      return { key, rest: path.slice(spec.path.length) || "/" };
+    }
+  }
+  return null;
+}
+
+async function stampCrmFollowupBody(request: Request): Promise<ArrayBuffer> {
+  const buf = await request.arrayBuffer();
+  try {
+    const text = new TextDecoder().decode(buf);
+    if (!text.trim()) return buf;
+    const body = JSON.parse(text) as Record<string, unknown>;
+    if (!body || typeof body !== "object" || Array.isArray(body)) return buf;
+    const action = String(body.action || new URL(request.url).searchParams.get("action") || "").trim();
+    const next = rewriteCrmWrite(action, body);
+    if (next === body) return buf;
+    return new TextEncoder().encode(JSON.stringify(next)).buffer as ArrayBuffer;
+  } catch {
+    return buf;
+  }
+}
+
+async function appendCycleCrmNote(request: Request, env: Env, contactId: string, text: string): Promise<void> {
+  const noteReq = new Request(new URL("/x/crm/crm-data", request.url), {
+    method: "POST",
+    headers: {
+      Cookie: request.headers.get("Cookie") || "",
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      action: "appendNote",
+      contactId,
+      text,
+      tag: "Book",
+    }),
+  });
+  try {
+    await proxyTool(noteReq, env, "crm", "/crm-data");
+  } catch {
+    // Cycle KV already has the event. CRM note is best-effort so a CRM blip does not roll back the ladder.
+  }
+}
+
+async function crmJson(
+  request: Request,
+  env: Env,
+  rest: string,
+  init: { method?: string; body?: unknown } = {},
+): Promise<{ ok: boolean; data: Record<string, unknown> }> {
+  const req = new Request(new URL("/x/crm" + rest, request.url), {
+    method: init.method || "GET",
+    headers: {
+      Cookie: request.headers.get("Cookie") || "",
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: init.body == null ? undefined : JSON.stringify(init.body),
+  });
+  const res = await proxyTool(req, env, "crm", rest.startsWith("/crm-data") ? rest : "/crm-data");
+  const data = await res.json().catch(() => ({})) as Record<string, unknown>;
+  return { ok: res.ok, data };
+}
+
+async function finishHarborOutcome(
+  env: Env,
+  hit: Record<string, unknown>,
+  body: Record<string, unknown>,
+  plan: { outcome: string; spoken?: string },
+  extra: Record<string, unknown> = {},
+): Promise<Response> {
+  const mailed = await dispatchHarborCteMail(env, {
+    ...hit,
+    email: str(hit.email || body.email),
+  }, plan.outcome);
+  const ok = mailed.required ? mailed.ok === true : true;
+  return json(ok ? 200 : 502, {
+    ...extra,
+    ok,
+    tool: extra.tool || "log_outcome",
+    dialing: false,
+    sms: false,
+    spoken: plan.spoken || "",
+    plan,
+    mail: mailed,
+    ...vaPublicStatus(env),
+  });
+}
+
+async function harborCrmAccess(request: Request, env: Env, user: { email: string; name: string } | null) {
+  if (user) {
+    return {
+      ok: true as const,
+      get: () => crmJson(request, env, "/crm-data?action=get&omitNotes=1"),
+      edits: (edits: Record<string, Record<string, unknown>>) =>
+        crmJson(request, env, "/crm-data", { method: "POST", body: { action: "saveContactEdits", contactEdits: edits } }),
+      note: async (contactId: string, text: string) => {
+        await appendCycleCrmNote(request, env, contactId, text);
+        return { ok: true };
+      },
+      followups: (followups: Record<string, Record<string, unknown>>) =>
+        crmJson(request, env, "/crm-data?action=saveFollowups", {
+          method: "POST",
+          body: { action: "saveFollowups", followups },
+        }),
+      added: (contactsAdded: Record<string, unknown>[]) =>
+        crmJson(request, env, "/crm-data", { method: "POST", body: { action: "saveContactsAdded", contactsAdded } }),
+    };
+  }
+  const email = String(env.VA_CRM_EMAIL || "").trim();
+  const password = String(env.VA_CRM_PASSWORD || "").trim();
+  if (!email || !password) return { ok: false as const, error: "Sign into The Yard, or set VA_CRM_EMAIL / VA_CRM_PASSWORD for the Harbor agent." };
+  const login = await loginCrmTool(env, email, password);
+  if (!login.ok) return { ok: false as const, error: "Harbor CRM service login failed." };
+  return {
+    ok: true as const,
+    get: () => crmRequestWithCookie(env, login.cookie, { method: "GET", search: "?action=get&omitNotes=1" }),
+    edits: (edits: Record<string, Record<string, unknown>>) =>
+      crmRequestWithCookie(env, login.cookie, { body: { action: "saveContactEdits", contactEdits: edits } }),
+    note: (contactId: string, text: string) =>
+      crmRequestWithCookie(env, login.cookie, { body: { action: "appendNote", contactId, text, tag: "Book" } }),
+    followups: (followups: Record<string, Record<string, unknown>>) =>
+      crmRequestWithCookie(env, login.cookie, {
+        search: "?action=saveFollowups",
+        body: { action: "saveFollowups", followups },
+      }),
+    added: (contactsAdded: Record<string, unknown>[]) =>
+      crmRequestWithCookie(env, login.cookie, { body: { action: "saveContactsAdded", contactsAdded } }),
+  };
+}
+
+async function attachProposalToCrm(
+  request: Request,
+  env: Env,
+  hint: {
+    id?: unknown;
+    email?: unknown;
+    phone?: unknown;
+    name?: unknown;
+    unitPrice?: unknown;
+    containerDesc?: unknown;
+    quantity?: unknown;
+    owner?: unknown;
+  },
+): Promise<boolean> {
+  const get = await crmJson(request, env, "/crm-data?action=get&omitNotes=1");
+  if (!get.ok) return false;
+  const contacts = [
+    ...(Array.isArray(get.data.contacts) ? get.data.contacts as Array<Record<string, unknown>> : []),
+    ...(Array.isArray(get.data.contactsAdded) ? get.data.contactsAdded as Array<Record<string, unknown>> : []),
+  ];
+  const edits = get.data.contactEdits && typeof get.data.contactEdits === "object"
+    ? get.data.contactEdits as Record<string, Record<string, unknown>>
+    : {};
+  for (const row of contacts) {
+    const ed = edits[String(row.id)] || {};
+    if (ed && typeof ed === "object") Object.assign(row, ed);
+  }
+  const hit = matchContactForProposal(contacts, hint);
+  if (!hit || hit.id == null) return false;
+  const id = String(hit.id);
+  const patch = proposalAttachPatch(hint);
+  const contactEdits: Record<string, Record<string, unknown>> = {};
+  contactEdits[id] = {
+    amount: patch.amount || hit.amount || "",
+    status: patch.status,
+    owner: patch.owner || hit.owner || "",
+  };
+  const saved = await crmJson(request, env, "/crm-data", {
+    method: "POST",
+    body: { action: "saveContactEdits", contactEdits },
+  });
+  if (!saved.ok) return false;
+  const deals = Array.isArray(get.data.deals) ? (get.data.deals as Array<Record<string, unknown>>).slice() : [];
+  let deal = deals.find((row) => String(row.contactId) === id);
+  if (!deal) {
+    deal = {
+      id: "c-" + id,
+      contactId: id,
+      contactName: String(hit.name || hint.name || ""),
+      owner: patch.owner || hit.owner || "",
+      stage: patch.status,
+      amount: patch.amount,
+    };
+    deals.push(deal);
+  } else {
+    deal.stage = patch.status;
+    if (patch.amount) deal.amount = patch.amount;
+    if (patch.owner) deal.owner = patch.owner;
+  }
+  await crmJson(request, env, "/crm-data", { method: "POST", body: { action: "saveDeals", deals } });
+  await appendCycleCrmNote(request, env, id, patch.note);
+  return true;
+}
+
+async function proxyTool(request: Request, env: Env, key: ToolKey, rest: string): Promise<Response> {
+  const user = await readSession(request, env);
+  if (!user) return json(401, { error: "Sign in first." });
+  const cookie = user.tools[key];
+  if (!cookie) return json(503, { error: "That module did not sign in. Sign out and sign in again." });
+  const o = origins(env);
+  const target = o[key] + rest + (new URL(request.url).search || "");
+  const headers = new Headers();
+  headers.set("User-Agent", UA);
+  headers.set("Origin", o[key]);
+  headers.set("Accept", request.headers.get("Accept") || "application/json");
+  const contentType = request.headers.get("Content-Type");
+  if (contentType) headers.set("Content-Type", contentType);
+  headers.set("Cookie", cookie);
+  const init: RequestInit = {
+    method: request.method,
+    headers,
+    redirect: "manual",
+  };
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    init.body = key === "crm" ? await stampCrmFollowupBody(request) : await request.arrayBuffer();
+  }
+  const binding =
+    key === "crm" ? env.CRM
+    : key === "desk" ? env.DESK
+    : key === "proposal" ? env.PROPOSAL
+    : key === "pay" ? env.PAY
+    : env.INVOICE;
+  const res = binding ? await binding.fetch(new Request(target, init)) : await fetch(target, init);
+  const out = new Headers(res.headers);
+  out.set("Cache-Control", "no-store");
+  for (const [k, v] of Object.entries(SECURITY)) out.set(k, v);
+  out.delete("set-cookie");
+  if (key === "invoice" && rest.startsWith("/invoice/document/")) {
+    out.delete("X-Frame-Options");
+    out.set(
+      "Content-Security-Policy",
+      SECURITY["Content-Security-Policy"].replace("frame-ancestors 'none'", "frame-ancestors 'self'"),
+    );
+  }
+  if (key === "crm" && res.ok && shouldScopeCrmGet(rest, new URL(request.url).search, request.method)) {
+    const text = await res.text();
+    try {
+      const data = JSON.parse(text) as Record<string, unknown>;
+      return new Response(JSON.stringify(scopeCrmGetPayload(data, user)), { status: res.status, headers: out });
+    } catch {
+      return new Response(text, { status: res.status, headers: out });
+    }
+  }
+  return new Response(res.body, { status: res.status, headers: out });
+}
+
+export default {
+  async fetch(request, env): Promise<Response> {
+    const url = new URL(request.url);
+    const path = url.pathname;
+
+    if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: SECURITY });
+    if ((request.method === "GET" || request.method === "HEAD") && isYardPagePath(path)) {
+      return yardPage(request);
+    }
+
+    if (request.method === "GET" && path === "/health") {
+      return json(200, { ok: true, stamp: BRAND.stamp, live: origins(env) });
+    }
+
+    if (request.method === "GET" && path === "/session") {
+      const user = await readSession(request, env);
+      if (user) await rememberUser(env, user);
+      return json(200, user ? { ok: true, user: publicUser(user) } : { ok: false });
+    }
+
+    if (request.method === "POST" && path === "/auth/login") {
+      const asPage = loginWantsRedirect(request);
+      if (!env.AUTH_SECRET) {
+        return asPage ? html(pageHtml({ loginError: "Platform is not set up yet." })) : json(500, { error: "Platform is not set up yet." });
+      }
+      const body = await readLoginBody(request);
+      const email = str(body.email).toLowerCase();
+      const password = str(body.password);
+      const fail = (status: number, error: string) =>
+        asPage ? html(pageHtml({ loginError: error })) : json(status, { error });
+      if (!password) return fail(401, "Type your CRM password in the password box, then Open The Yard.");
+      if (!email || !isCompanyEmail(email)) return fail(401, "Use your full company email — name@cbshippingsolutions.com.");
+      const result = await loginAllTools(env, email, password);
+      if (!result.ok) return fail(result.status, result.error || "Could not sign in.");
+      const cookies = await makeSession(request, env, result.user);
+      await rememberUser(env, result.user);
+      if (asPage) {
+        // 303 drops Set-Cookie in Safari/Chrome on these hosts. Stay on 200 so the session sticks.
+        return htmlWithCookies(pageHtml(), cookies);
+      }
+      return withCookies(200, { ok: true, user: publicUser(result.user) }, cookies);
+    }
+
+    if (request.method === "POST" && path === "/auth/logout") {
+      return withCookies(200, { ok: true }, await clearSession(request, env));
+    }
+
+    if (request.method === "GET" && path === "/campaign") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      return json(200, { ok: true, items: await listCampaign(env) });
+    }
+
+    if (request.method === "POST" && path === "/campaign/add") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      const body = await readJson(request);
+      const id = str(body.id || body.contactId);
+      if (!id) return json(400, { error: "Pick a contact first." });
+      const items = await addCampaign(env, {
+        id,
+        name: str(body.name),
+        email: str(body.email),
+        phone: str(body.phone),
+        city: str(body.city),
+        owner: str(body.owner),
+        addedBy: user.name || user.email,
+        addedAt: new Date().toISOString(),
+        reason: str(body.reason) === "bad_number" ? "bad_number" : "hold",
+      });
+      return json(200, { ok: true, items });
+    }
+
+    if (request.method === "POST" && path === "/campaign/return") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      const body = await readJson(request);
+      const id = str(body.id || body.contactId);
+      if (!id) return json(400, { error: "Pick a campaign lead first." });
+      return json(200, { ok: true, items: await returnCampaign(env, id) });
+    }
+
+    if (request.method === "GET" && path === "/geo/zip") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      const zip = url.searchParams.get("code") || "";
+      const digits = zip.replace(/\D/g, "").slice(0, 5);
+      if (digits.length !== 5) return json(400, { error: "Type a 5-digit ZIP." });
+      const res = await fetch("https://api.zippopotam.us/us/" + digits, { headers: { "User-Agent": UA } });
+      if (!res.ok) return json(404, { error: "Could not find that ZIP." });
+      const geo = lookupZipFromZippopotam(await res.json() as { places?: Array<Record<string, string>> });
+      if (!geo) return json(404, { error: "Could not find that ZIP." });
+      return json(200, { ok: true, zip: digits, ...geo });
+    }
+
+    if (request.method === "GET" && path === "/report/monday") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      if (!isChristopherUser(user.email, user.name)) {
+        return json(403, { error: "Monday book is for Christopher only." });
+      }
+      const get = await crmJson(request, env, "/crm-data?action=get&omitNotes=1");
+      if (!get.ok) return json(502, { error: "Could not read the book for the Monday report." });
+      return json(200, buildMondayReport(get.data));
+    }
+
+    if (request.method === "GET" && path === "/facebook/status") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      if (!isChristopherUser(user.email, user.name)) {
+        return json(403, { error: "Only Christopher can open Facebook credentials." });
+      }
+      const crmReq = new Request(new URL("/x/crm/crm-data", request.url), {
+        method: "POST",
+        headers: {
+          Cookie: request.headers.get("Cookie") || "",
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "getMetaStatus" }),
+      });
+      const crmRes = await proxyTool(crmReq, env, "crm", "/crm-data");
+      const crm = await crmRes.json().catch(() => ({})) as {
+        appId?: string;
+        hasAppSecret?: boolean;
+        webhookUrl?: string;
+      };
+      const stored = env.SESSIONS ? await env.SESSIONS.get(FACEBOOK_TOKEN_KEY) : "";
+      return json(200, {
+        ok: true,
+        ...publicFacebookStatus({
+          appId: crm.appId,
+          hasAppSecret: crm.hasAppSecret,
+          hasClientToken: Boolean(stored && String(stored).trim()),
+          webhookUrl: crm.webhookUrl,
+        }),
+      });
+    }
+
+    if (request.method === "POST" && path === "/facebook/save") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      if (!isChristopherUser(user.email, user.name)) {
+        return json(403, { error: "Only Christopher can upload Facebook credentials." });
+      }
+      const uploaded = readFacebookUpload(await readJson(request));
+      if (!uploaded.appId && !uploaded.appSecret && !uploaded.clientToken) {
+        return json(400, { error: "Paste the App ID, app secret, or client token." });
+      }
+      if (uploaded.appId || uploaded.appSecret) {
+        const crmReq = new Request(new URL("/x/crm/crm-data", request.url), {
+          method: "POST",
+          headers: {
+            Cookie: request.headers.get("Cookie") || "",
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            action: "saveMetaConfig",
+            appId: uploaded.appId,
+            appSecret: uploaded.appSecret,
+          }),
+        });
+        const crmRes = await proxyTool(crmReq, env, "crm", "/crm-data");
+        const crm = await crmRes.json().catch(() => ({})) as { error?: string };
+        if (!crmRes.ok) return json(crmRes.status, { error: crm.error || "Could not save the Facebook app to CRM." });
+      }
+      if (uploaded.clientToken && env.SESSIONS) {
+        await env.SESSIONS.put(FACEBOOK_TOKEN_KEY, uploaded.clientToken);
+      }
+      const checkReq = new Request(new URL("/x/crm/crm-data", request.url), {
+        method: "POST",
+        headers: {
+          Cookie: request.headers.get("Cookie") || "",
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "getMetaStatus" }),
+      });
+      const checkRes = await proxyTool(checkReq, env, "crm", "/crm-data");
+      const check = await checkRes.json().catch(() => ({})) as {
+        appId?: string;
+        hasAppSecret?: boolean;
+        webhookUrl?: string;
+      };
+      const stored = env.SESSIONS ? await env.SESSIONS.get(FACEBOOK_TOKEN_KEY) : "";
+      return json(200, {
+        ok: true,
+        ...publicFacebookStatus({
+          appId: check.appId || uploaded.appId,
+          hasAppSecret: Boolean(check.hasAppSecret || uploaded.appSecret),
+          hasClientToken: Boolean(stored && String(stored).trim()),
+          webhookUrl: check.webhookUrl,
+        }),
+      });
+    }
+
+    if (request.method === "POST" && path === "/desk/contact") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      const draft = readDeskContactDraft(await readJson(request));
+      const name = deskContactName(draft);
+      if (!draft.firstName || !draft.lastName || !name) {
+        return json(400, { error: "Type first and last name." });
+      }
+      const owner = titleOwner(user.name || user.email) || user.name || user.email;
+      const getReq = new Request(new URL("/x/crm/crm-data?action=get&omitNotes=1", request.url), {
+        method: "GET",
+        headers: {
+          Cookie: request.headers.get("Cookie") || "",
+          Accept: "application/json",
+        },
+      });
+      const getRes = await proxyTool(getReq, env, "crm", "/crm-data");
+      const book = await getRes.json().catch(() => ({})) as {
+        contacts?: Array<Record<string, unknown>>;
+        contactsAdded?: Array<Record<string, unknown>>;
+        error?: string;
+      };
+      if (!getRes.ok) return json(getRes.status, { error: book.error || "Could not read the CRM." });
+      const added = Array.isArray(book.contactsAdded) ? book.contactsAdded.slice() : [];
+      const pool = added.concat(Array.isArray(book.contacts) ? book.contacts : []);
+      const plan = scheduleDeskTrack(draft);
+      const existing = findOwnDeskContact(pool, draft, owner);
+      let contact: Record<string, unknown>;
+      let created = false;
+      if (existing && existing.id != null) {
+        contact = existing;
+      } else {
+        contact = buildDeskAddedContact(draft, owner);
+        contact.status = plan.stage;
+        contact.nextAction = plan.nextAction;
+        contact.followUpDate = plan.followUpDate;
+        added.unshift(contact);
+        const saveReq = new Request(new URL("/x/crm/crm-data", request.url), {
+          method: "POST",
+          headers: {
+            Cookie: request.headers.get("Cookie") || "",
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ action: "saveContactsAdded", contactsAdded: added }),
+        });
+        const saveRes = await proxyTool(saveReq, env, "crm", "/crm-data");
+        const saved = await saveRes.json().catch(() => ({})) as { error?: string };
+        if (!saveRes.ok) return json(saveRes.status, { error: saved.error || "Could not save the contact to the CRM." });
+        created = true;
+      }
+      const id = String(contact.id);
+      const edits: Record<string, Record<string, unknown>> = {};
+      edits[id] = { status: plan.stage, nextAction: plan.nextAction, followUpDate: plan.followUpDate };
+      const followups: Record<string, Record<string, unknown>> = {};
+      followups[id] = { nextAction: plan.nextAction, followUpDate: plan.followUpDate, completed: false, status: "open" };
+      const extraReq = new Request(new URL("/x/crm/crm-data", request.url), {
+        method: "POST",
+        headers: {
+          Cookie: request.headers.get("Cookie") || "",
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "saveContactEdits", contactEdits: edits }),
+      });
+      const extraRes = await proxyTool(extraReq, env, "crm", "/crm-data");
+      if (!extraRes.ok) {
+        const extra = await extraRes.json().catch(() => ({})) as { error?: string };
+        return json(extraRes.status, { error: extra.error || "Contact is on the book. Stage did not save. Try again.", contact, created });
+      }
+      const fuReq = new Request(new URL("/x/crm/crm-data?action=saveFollowups", request.url), {
+        method: "POST",
+        headers: {
+          Cookie: request.headers.get("Cookie") || "",
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "saveFollowups", followups }),
+      });
+      const fuRes = await proxyTool(fuReq, env, "crm", "/crm-data");
+      if (!fuRes.ok) {
+        const fu = await fuRes.json().catch(() => ({})) as { error?: string };
+        return json(fuRes.status, { error: fu.error || "Contact is on the book. The follow-up did not save. Try again.", contact, created });
+      }
+      const noteText = deskContactNote(draft.notes, plan);
+      const noteReq = new Request(new URL("/x/crm/crm-data", request.url), {
+        method: "POST",
+        headers: {
+          Cookie: request.headers.get("Cookie") || "",
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "appendNote",
+          contactId: id,
+          text: noteText,
+          tag: "Desk",
+        }),
+      });
+      const noteRes = await proxyTool(noteReq, env, "crm", "/crm-data");
+      if (!noteRes.ok) {
+        const note = await noteRes.json().catch(() => ({})) as { error?: string };
+        return json(noteRes.status, {
+          error: note.error || "Contact is on the book. The note did not save. Try again.",
+          contact,
+          created,
+        });
+      }
+      contact.status = plan.stage;
+      contact.nextAction = plan.nextAction;
+      contact.followUpDate = plan.followUpDate;
+      if (plan.track === "cte") {
+        await startWorking(env, {
+          id,
+          name: String(contact.name || name),
+          email: String(contact.email || draft.email || ""),
+          owner,
+          status: plan.stage,
+        }, user.name || user.email);
+      }
+      return json(200, {
+        ok: true,
+        created,
+        reused: !created,
+        track: plan.track,
+        stage: plan.stage,
+        contact,
+        summary: created
+          ? (plan.track === "followup" ? "Saved to CRM. Follow-up booked." : "Saved to CRM. CTE booked.")
+          : "That contact is already on your book. CTE or follow-up updated.",
+      });
+    }
+
+    if (request.method === "POST" && path === "/modified/spec") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      const body = await readJson(request);
+      const draft = readModifiedDraft(body);
+      const spec = buildModifiedSpec(draft);
+      if (!spec.ok) return json(400, { error: spec.error || "Pick the box or at least one modification first." });
+      const contactId = String(body.contactId == null ? "" : body.contactId).trim();
+      if (contactId) {
+        const noteReq = new Request(new URL("/x/crm/crm-data", request.url), {
+          method: "POST",
+          headers: {
+            Cookie: request.headers.get("Cookie") || "",
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            action: "appendNote",
+            contactId,
+            text: spec.text,
+            tag: "Modified",
+          }),
+        });
+        const noteRes = await proxyTool(noteReq, env, "crm", "/crm-data");
+        if (!noteRes.ok) {
+          const note = await noteRes.json().catch(() => ({})) as { error?: string };
+          return json(noteRes.status, { error: note.error || "Spec is ready. The CRM note did not save. Try again.", spec });
+        }
+      }
+      return json(200, { ok: true, spec, saved: Boolean(contactId) });
+    }
+
+    if (request.method === "POST" && path === "/proposal/submit") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      const raw = await readJson(request);
+      const rawLines = Array.isArray(raw.lines) ? raw.lines : [];
+      const lines = rawLines
+        .map((row) => (row && typeof row === "object" ? readProposalLine(row as Record<string, unknown>) : null))
+        .filter((row): row is NonNullable<typeof row> => Boolean(row));
+      const built = buildProposalSubmit({
+        customerName: raw.customerName,
+        email: raw.email,
+        phone: raw.phone,
+        company: raw.company,
+        zip: raw.zip,
+        delivery: raw.delivery,
+        notes: raw.notes,
+        clientType: raw.clientType,
+        paymentMode: raw.paymentMode,
+        fulfillment: raw.fulfillment,
+        repName: raw.repName || user.name,
+        repEmail: raw.repEmail || user.email,
+        lines,
+      });
+      if (!built.ok || !built.body) return json(400, { error: built.error || "Could not build that proposal." });
+      const sendReq = new Request(new URL("/x/proposal/submit-proposal", request.url), {
+        method: "POST",
+        headers: {
+          Cookie: request.headers.get("Cookie") || "",
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(built.body),
+      });
+      const sendRes = await proxyTool(sendReq, env, "proposal", "/submit-proposal");
+      const sent = await sendRes.json().catch(() => ({})) as { status?: string; error?: string; message?: string };
+      if (!sendRes.ok) {
+        return json(sendRes.status, {
+          error: sent.error || sent.message || "The proposal tool did not write that proposal.",
+          message: sent.message,
+        });
+      }
+      const status = sent.status || "sent";
+      let attached = false;
+      if (status !== "flagged" && built.body) {
+        attached = await attachProposalToCrm(request, env, {
+          id: raw.contactId,
+          email: built.body.email,
+          phone: built.body.phone,
+          name: built.body.customerName,
+          unitPrice: built.body.unitPrice,
+          containerDesc: built.body.containerDesc,
+          quantity: built.body.quantity,
+          owner: raw.repName || user.name,
+        });
+      }
+      return json(200, {
+        ok: true,
+        status,
+        desc: built.body.containerDesc,
+        quantity: built.body.quantity,
+        unitPrice: built.body.unitPrice,
+        attached,
+      });
+    }
+
+    if (request.method === "POST" && path === "/quote/match") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      const body = await readJson(request);
+      const zip = str(body.zip).replace(/\D/g, "").slice(0, 5);
+      if (zip.length !== 5) return json(400, { error: "Type the client ZIP first." });
+      const geoRes = await fetch("https://api.zippopotam.us/us/" + zip, { headers: { "User-Agent": UA } });
+      if (!geoRes.ok) return json(404, { error: "Could not find that ZIP." });
+      const geo = lookupZipFromZippopotam(await geoRes.json() as { places?: Array<Record<string, string>> });
+      if (!geo) return json(404, { error: "Could not find that ZIP." });
+      const refresh = body.refresh === true;
+      const invReq = new Request(new URL(refresh ? "/x/proposal/inventory/refresh" : "/x/proposal/inventory", request.url), {
+        method: refresh ? "POST" : "GET",
+        headers: {
+          Cookie: request.headers.get("Cookie") || "",
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: refresh ? "{}" : undefined,
+      });
+      const invRes = await proxyTool(invReq, env, "proposal", refresh ? "/inventory/refresh" : "/inventory");
+      const inv = await invRes.json().catch(() => ({})) as { offers?: unknown[]; items?: unknown[]; error?: string; pulledAt?: string };
+      const offers = Array.isArray(inv.offers) ? inv.offers : Array.isArray(inv.items) ? inv.items : [];
+      const want: BoxPick = {
+        size: str(body.size) || "40",
+        height: str(body.height) || "HC",
+        config: str(body.config) || "standard",
+        grade: str(body.grade) || "CW",
+      };
+      const qty = Math.max(1, Number(body.qty) || 1);
+      const fulfillment = str(body.fulfillment) || "deliver";
+      const hit = matchPostedBox(offers as never[], want, geo, qty, fulfillment);
+      return json(hit.ok ? 200 : 404, {
+        ...hit,
+        zip,
+        place: geo.place,
+        pulledAt: inv.pulledAt || "",
+        offers: offers.length,
+        refreshStatus: invRes.status,
+      });
+    }
+
+    if (path === "/va/hooks/outbound" && request.method === "POST") {
+      const result = await handleVaOutboundHook(env, request);
+      if (result.status === 200 && result.capture) {
+        try {
+          await maybeServiceFlush(env, result.capture);
+        } catch {
+          // Capture is already in KV. CRM service flush is best-effort.
+        }
+      }
+      return json(result.status, result.body);
+    }
+
+    if (path === "/va/status" && request.method === "GET") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      if (!isChristopherUser(user.email, user.name)) {
+        return json(403, { error: "VA calls are for Christopher only." });
+      }
+      return json(200, { ok: true, ...vaPublicStatus(env) });
+    }
+
+    if (path === "/va/captures" && request.method === "GET") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      if (!isChristopherUser(user.email, user.name)) {
+        return json(403, { error: "VA calls are for Christopher only." });
+      }
+      const limit = Number(url.searchParams.get("limit") || 50);
+      return json(200, { ok: true, items: await listVaCaptures(env, limit), ...vaPublicStatus(env) });
+    }
+
+    if (path === "/va/captures/flush" && request.method === "POST") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      if (!isChristopherUser(user.email, user.name)) {
+        return json(403, { error: "VA calls are for Christopher only." });
+      }
+      const body = await readJson(request);
+      const get = await crmJson(request, env, "/crm-data?action=get&omitNotes=1");
+      if (!get.ok) return json(502, { error: "Could not read the book to match VA captures." });
+      const result = await flushVaCaptures(env, contactsFromCrmPayload(get.data), async (contactId, text) => {
+        await appendCycleCrmNote(request, env, contactId, text);
+        return true;
+      }, str(body.id));
+      return json(200, { ok: true, ...result, ...vaPublicStatus(env) });
+    }
+
+    if (path === "/va/leads/import" && request.method === "POST") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      if (!isChristopherUser(user.email, user.name)) {
+        return json(403, { error: "Lead import is for Christopher only." });
+      }
+      const payload = await readImportPayload(request);
+      if (payload.error) return json(400, { error: payload.error });
+      const parsed = payload.rows ? parseLeadJsonRows(payload.rows) : parseLeadCsv(payload.csv);
+      const get = await crmJson(request, env, "/crm-data?action=get&omitNotes=1");
+      if (!get.ok) return json(502, { error: "Could not read the book to import leads." });
+      const plan = planLeadImport(parsed.rows, crmContactPool(get.data));
+      if (payload.dryRun) {
+        return json(200, { ok: true, dryRun: true, skippedEmptyPhone: parsed.skippedEmptyPhone, ...publicImportPreview(plan) });
+      }
+      const applied = await applyLeadImport(plan, contactsAddedFromCrmPayload(get.data), {
+        saveAdded: async (added) => {
+          const res = await crmJson(request, env, "/crm-data", { method: "POST", body: { action: "saveContactsAdded", contactsAdded: added } });
+          return res.ok;
+        },
+        saveEdits: async (edits) => {
+          const res = await crmJson(request, env, "/crm-data", { method: "POST", body: { action: "saveContactEdits", contactEdits: edits } });
+          return res.ok;
+        },
+        appendNote: async (contactId, text) => {
+          await appendCycleCrmNote(request, env, contactId, text);
+          return true;
+        },
+      });
+      for (const item of plan.actions) {
+        if (item.action === "skip") continue;
+        const id = item.action === "create" ? String(item.contact.id || "") : item.contactId;
+        await putVaCapture(env, emptyCapture({
+          source: "facebook",
+          contactId: id,
+          contactName: item.row.name,
+          phone: item.row.phone,
+          summary: "Meta CSV · New/Unassigned · queued. Not dialed.",
+          crmFlushed: true,
+        }));
+      }
+      return json(200, { ok: applied.ok, dryRun: false, ...publicImportPreview(plan), applied, ...vaPublicStatus(env) });
+    }
+
+    if (
+      (path === "/va/harbor/next" && (request.method === "GET" || request.method === "POST")) ||
+      (path === "/va/harbor/get-next-lead" && (request.method === "GET" || request.method === "POST"))
+    ) {
+      const user = await readSession(request, env);
+      const asAgent = harborWorkflowAuthed(request, env);
+      if (!user && !asAgent) return json(401, { error: "Sign in first.", ok: false, dialing: false, sms: false });
+      if (user && !isChristopherUser(user.email, user.name) && !asAgent) {
+        return json(403, { error: "Harbor queue is for Christopher or the outbound VA.", ok: false, dialing: false });
+      }
+      const crm = await harborCrmAccess(request, env, user);
+      if (!crm.ok) return json(503, { error: crm.error });
+      const get = await crm.get();
+      if (!get.ok) return json(502, { error: "Could not read the book for Harbor." });
+      const followups = get.data.followups && typeof get.data.followups === "object"
+        ? get.data.followups as Record<string, unknown>
+        : {};
+      const queued = pickHarborQueue(crmContactPool(get.data), { followups });
+      if (!queued) {
+        return json(200, {
+          ok: true,
+          tool: "get_next_lead",
+          empty: true,
+          dialing: false,
+          sms: false,
+          source: null,
+          contact: null,
+          ...vaPublicStatus(env),
+        });
+      }
+      const hit = queued.contact;
+      const id = String(hit.id || "");
+      const cte = queued.source === "follow-up" ? normalizeCteStep(hit.cteStage) : "CTE1";
+      const patch = harborAssignPatch(cte, queued.source);
+      const edits: Record<string, Record<string, unknown>> = {};
+      edits[id] = patch;
+      await crm.edits(edits);
+      await crm.note(id, harborAssignNote(cte, queued.source));
+      return json(200, {
+        ok: true,
+        tool: "get_next_lead",
+        empty: false,
+        dialing: false,
+        sms: false,
+        source: queued.source,
+        assigned: HARBOR_OWNER,
+        cteStage: cte,
+        contact: { ...hit, ...patch, id },
+        ...vaPublicStatus(env),
+      });
+    }
+
+    if (
+      path === "/va/harbor/outcome" && request.method === "POST" ||
+      path === "/va/harbor/update-lead" && request.method === "POST" ||
+      path === "/va/harbor/log-outcome" && request.method === "POST"
+    ) {
+      const user = await readSession(request, env);
+      const asAgent = harborWorkflowAuthed(request, env);
+      if (!user && !asAgent) return json(401, { error: "Sign in first.", ok: false, dialing: false, sms: false });
+      if (user && !isChristopherUser(user.email, user.name) && !asAgent) {
+        return json(403, { error: "Harbor outcomes are for Christopher or the outbound VA.", ok: false, dialing: false });
+      }
+      const body = await readJson(request);
+      const crm = await harborCrmAccess(request, env, user);
+      if (!crm.ok) return json(503, { error: crm.error });
+      const get = await crm.get();
+      if (!get.ok) return json(502, { error: "Could not read the book for Harbor." });
+      const pool = crmContactPool(get.data);
+      const hit = pool.find((row) => {
+        const rec = row && typeof row === "object" ? (row as Record<string, unknown>) : {};
+        return String(rec.id || "") === str(body.contactId || body.id || body.contact_id);
+      }) as Record<string, unknown> | undefined;
+      if (!hit) return json(404, { error: "That contact is not on the book." });
+      const noteOnly = !str(body.outcome) && Boolean(str(body.note));
+      if (noteOnly) {
+        const id = String(hit.id || "");
+        const cte = body.cteStage ? normalizeCteStep(body.cteStage) : "";
+        if (cte) {
+          const edits: Record<string, Record<string, unknown>> = {};
+          edits[id] = { cteStage: cte };
+          await crm.edits(edits);
+        }
+        await crm.note(id, str(body.note));
+        return json(200, {
+          ok: true,
+          tool: "update_lead",
+          dialing: false,
+          sms: false,
+          noteWritten: true,
+          contactId: id,
+          ...vaPublicStatus(env),
+        });
+      }
+      const plan = harborOutcomePlan(hit, body.outcome, {
+        closer: body.closer,
+        note: str(body.note),
+        cte: body.cteStage || hit.cteStage,
+        inbound: Boolean(body.inbound),
+        reason: body.reason,
+        followUpDate: body.followUpDate || body.when,
+        deal: readHarborDeal(body),
+        spoken: body.spoken || body.variant,
+        harborDid: env.TWILIO_PHONE_NUMBER,
+        container: body.container || body.size,
+      });
+      if (!plan.outcome) return json(400, { error: "Need a Harbor call outcome." });
+      const id = String(hit.id || "");
+      const edits: Record<string, Record<string, unknown>> = {};
+      edits[id] = harborOutcomeEdits(plan);
+      await crm.edits(edits);
+      const follow = harborFollowupRow(plan);
+      if (follow) {
+        const followups: Record<string, Record<string, unknown>> = {};
+        followups[id] = follow;
+        await crm.followups(followups);
+      }
+      await crm.note(id, plan.note);
+      return finishHarborOutcome(env, hit, body, plan, { tool: "log_outcome" });
+    }
+
+    if (path === "/va/harbor/inbound" && request.method === "POST") {
+      const user = await readSession(request, env);
+      const asAgent = harborWorkflowAuthed(request, env);
+      if (!user && !asAgent) return json(401, { error: "Sign in first.", ok: false, dialing: false });
+      if (user && !isChristopherUser(user.email, user.name) && !asAgent) {
+        return json(403, { error: "Harbor inbound is for Christopher or the outbound VA." });
+      }
+      const body = await readJson(request);
+      const crm = await harborCrmAccess(request, env, user);
+      if (!crm.ok) return json(503, { error: crm.error });
+      const get = await crm.get();
+      if (!get.ok) return json(502, { error: "Could not read the book for Harbor inbound." });
+      const phone = inboundCallerPhone(body);
+      const found = planInboundContact(crmContactPool(get.data), {
+        contactId: str(body.contactId || body.id),
+        phone,
+        name: str(body.name || body.contactName),
+        company: str(body.company),
+        email: str(body.email),
+      });
+      if (!found.contact) return json(400, { error: found.error || "Need the inbound caller ID." });
+      let hit = found.contact;
+      if (found.created) {
+        const added = contactsAddedFromCrmPayload(get.data).slice();
+        added.unshift(hit);
+        const saved = await crm.added(added);
+        if (!saved.ok) return json(502, { error: "Could not park the inbound caller on the book." });
+      }
+      const plan = harborOutcomePlan(hit, body.outcome || "inbound-answered", {
+        closer: body.closer,
+        note: str(body.note),
+        cte: body.cteStage || hit.cteStage,
+        inbound: true,
+        reason: body.reason,
+        followUpDate: body.followUpDate || body.when,
+        deal: readHarborDeal(body),
+        spoken: body.spoken || body.variant,
+        harborDid: env.TWILIO_PHONE_NUMBER,
+        container: body.container || body.size,
+      });
+      if (!plan.outcome) return json(400, { error: "Need a Harbor inbound outcome." });
+      const id = String(hit.id || "");
+      const edits: Record<string, Record<string, unknown>> = {};
+      edits[id] = harborOutcomeEdits(plan);
+      await crm.edits(edits);
+      const follow = harborFollowupRow(plan);
+      if (follow) {
+        const followups: Record<string, Record<string, unknown>> = {};
+        followups[id] = follow;
+        await crm.followups(followups);
+      }
+      await crm.note(id, plan.note);
+      await putVaCapture(env, emptyCapture({
+        source: "inbound",
+        contactId: id,
+        contactName: String(hit.name || ""),
+        phone,
+        outcome: plan.outcome,
+        summary: plan.note.slice(0, 240),
+        crmFlushed: true,
+      }));
+      return finishHarborOutcome(env, hit, body, plan, {
+        tool: "inbound",
+        created: found.created,
+        contact: { ...hit, ...edits[id], id },
+      });
+    }
+
+    if (path === "/va/harbor/quote" && request.method === "POST") {
+      const result = await handleHarborQuote(env, request);
+      return json(result.status, result.body);
+    }
+
+    if (path === "/va/harbor/ready-to-buy" && request.method === "POST") {
+      const result = await handleHarborReadyToBuy(env, request);
+      return json(result.status, result.body);
+    }
+
+    if (path === "/va/email/draft" && request.method === "POST") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      const result = vaDraftResponse(await readJson(request));
+      return json(result.status, result.body);
+    }
+
+    if (path === "/va/dial" && request.method === "POST") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      const result = vaDialResponse(env);
+      return json(result.status, result.body);
+    }
+
+    if ((path === "/va/sms" || path === "/va/text") && (request.method === "POST" || request.method === "GET")) {
+      const result = vaSmsResponse();
+      return json(result.status, result.body);
+    }
+
+    if (path === "/cycle/hooks/agentmail" && request.method === "POST") {
+      const result = await handleAgentMailHook(env, request);
+      return json(result.status, result.body);
+    }
+
+    if (path.startsWith("/cycle/")) {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      await rememberUser(env, user);
+      const body = request.method === "GET" || request.method === "HEAD" ? {} : await readJson(request);
+      const result = await handleCycleAuthed(path, request.method, env, user, body, url.searchParams);
+      if (request.method === "POST" && path !== "/cycle/contact" && result.status < 300) {
+        const cycle = result.body.cycle as { contactId?: string; events?: Array<{ text?: string }> } | undefined;
+        const latest = cycle?.events?.[0]?.text;
+        const contactId = String(cycle?.contactId || body.id || "").trim();
+        if (contactId && latest) await appendCycleCrmNote(request, env, contactId, latest);
+      }
+      return json(result.status, result.body);
+    }
+
+    const tool = matchTool(path);
+    if (tool) return proxyTool(request, env, tool.key, tool.rest);
+
+    return json(404, { error: "Not found." });
+  },
+  async scheduled(_event, env, ctx): Promise<void> {
+    ctx.waitUntil(runCycleCron(env));
+  },
+} satisfies ExportedHandler<Env>;
