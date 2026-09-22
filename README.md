@@ -25,4 +25,4 @@ npx wrangler secret put AGENTMAIL_WEBHOOK_SECRET   # cbssos only, inbound reply 
 
 Paid Next Steps attaches the real `cbss-invoice/assets/CBSS-Next-Steps-After-Your-Order.pdf` (~1.36MB) as AgentMail `content` (base64). Do not invent a PDF. Do not use `NEXT_STEPS_PDF_URL` for attach.
 
-**Outbound sales VA (parked):** `cbss-os/docs/outbound-sales-va/`. ElevenLabs → Twilio → `POST /va/hooks/outbound` → CRM `appendNote`. Harbor does not buy accounts, dial, or send customer email. `VA_ENABLED` / `VA_DIAL_ARMED` stay false until Christopher says go. This is not the Harbor staff-comms Grok Bot.
+**Harbor knowledge base:** `docs/harbor-kb/` (internal — not the public site). Voice pack implementation notes: `cbss-os/docs/outbound-sales-va/`. `VA_ENABLED` / `VA_DIAL_ARMED` stay false until Christopher says arm. No SMS. No Cursor ↔ ElevenLabs MCP bridge. This is not the Harbor staff-comms Grok Bot.

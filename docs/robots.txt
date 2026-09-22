@@ -1,4 +1,5 @@
 User-agent: *
 Allow: /
+Disallow: /harbor-kb/
 
 Sitemap: https://cbshippingsolutions.app/sitemap.xml

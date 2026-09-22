@@ -90,3 +90,5 @@ Webhook URL after a Yard deploy Christopher approves:
 - [payments.md](./payments.md) — cards frozen language
 - [config-checklist.md](./config-checklist.md) — env placeholders
 - [OPEN-TODOS.md](./OPEN-TODOS.md) — what Christopher taps next
+
+Human / agent source of truth (no MCP bridge): [`docs/harbor-kb/`](../../../docs/harbor-kb/README.md).

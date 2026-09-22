@@ -24,6 +24,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Keep Harbor KB off the public site
+        run: rm -rf docs/harbor-kb
       - uses: actions/configure-pages@v5
         with:
           enablement: true
