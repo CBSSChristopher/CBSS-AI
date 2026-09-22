@@ -71,7 +71,7 @@ If `ok` is false or `unit_price` is null, **say there is no posted price and do 
 {
   "type": "webhook",
   "name": "log_outcome",
-  "description": "Disposition the card: voicemail, no-answer, answered, soft-delay, not-interested, DNC, wrong-number, bought-elsewhere, ready-to-buy. Advances CTE or sets follow-up. Never dials. Never SMS.",
+  "description": "Disposition the card: voicemail, no-answer, answered, soft-delay, not-interested, DNC, wrong-number, bought-elsewhere, ready-to-buy. Advances CTE or sets follow-up. No-answer, voicemail, and soft-delay send the current CTE template live through AgentMail (Reply-To Harbor). Never dials. Never SMS.",
   "api_schema": {
     "url": "https://floor.cbshippingsolutions.app/va/harbor/log-outcome",
     "method": "POST",

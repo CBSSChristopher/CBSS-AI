@@ -66,12 +66,14 @@ Christopher-style warmth. First name + container from card. Callback **(870) 380
 
 Used when no live close yet:
 
-- **CTE1** — Intro / first touch (call + optional email)  
-- **CTE2** — Follow-up (~+1 business day pattern from Yard templates)  
-- **CTE3** — Value / objection pass  
-- **CTE4** — Final nudge / break-up tone  
+- **CTE1** — Intro / first touch. No-answer, voicemail, or soft-delay sends the CTE1 template live through AgentMail, same `fireTemplate` path as any Yard rep.  
+- **CTE2** — Follow-up (~+1 business day). Sends live when that step is logged or comes due.  
+- **CTE3** — Value / objection pass. Same live send when logged or due.  
+- **CTE4** — Final nudge / break-up tone. Same live send when logged or due.  
 
-Templates live in Cursor Harbor box artifacts (`cte-templates-all-reps.txt` and CTE highlight demos). Harbor personalizes with lead card fields; never invents price.
+Harbor CTE mail: From = AgentMail inbox. Reply-To = Harbor (`harbor@cbshippingsolutions.com`). To = the lead’s email. Ladder offsets and template copy stay the Yard ladder. Dial stays parked unless `VA_DIAL_ARMED`. No SMS. Ready-to-buy still notifies Christopher Banks and Bryan Reese only. Paid / Next Steps CC rules are unchanged. If AgentMail is not configured, the send fails closed.
+
+Templates are the Yard CTE templates (not a Harbor-only copy). Harbor personalizes with the assigned-rep footer. Never invent a price.
 
 ## What Harbor does not do in the daily
 

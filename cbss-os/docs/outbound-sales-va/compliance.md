@@ -1,6 +1,6 @@
 # Compliance and objections
 
-Outbound phone VA for CB Shipping Solutions. Christopher authorizes every dial list. Harbor does not buy lists, does not dial from this scaffold, and does not send customer email.
+Outbound phone VA for CB Shipping Solutions. Christopher authorizes every dial list. Harbor does not buy lists and does not dial from this scaffold unless `VA_DIAL_ARMED`. Harbor CTE steps send the live AgentMail CTE templates the same way a Yard rep does (Reply-To Harbor). No SMS.
 
 ## TCPA / who we call
 

@@ -89,6 +89,6 @@ export function publicVaStatus(env: VaEnvBits): Record<string, unknown> {
     hasHarborQuoteToken: present(env.HARBOR_QUOTE_TOKEN),
     voiceNote: "Neutral professional voice placeholder. Do not clone Christopher without a written decision.",
     harborNote:
-      "Harbor opens CTE, answers inbound voice on the Twilio DID, and hands ready-to-buy to Christopher or Bryan Reese. Call + email only — no SMS. This is not the Harbor staff-comms Grok Bot. Harbor does not collect payment.",
+      "Harbor opens CTE and sends CTE1–CTE4 through the same live AgentMail path as a Yard rep (Reply-To Harbor). Answers inbound voice on the Twilio DID, and hands ready-to-buy to Christopher Banks or Bryan Reese. Call + email only — no SMS. Dial stays parked until VA_DIAL_ARMED. This is not the Harbor staff-comms Grok Bot. Harbor does not collect payment.",
   };
 }

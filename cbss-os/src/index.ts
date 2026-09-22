@@ -67,6 +67,7 @@ import {
   pickHarborQueue,
 } from "./va/workflow.ts";
 import { handleHarborQuote, handleHarborReadyToBuy, harborWorkflowAuthed } from "./va/harbor-quote.ts";
+import { dispatchHarborCteMail } from "./va/harbor-mail.ts";
 
 const SECURITY = {
   "X-Content-Type-Options": "nosniff",
@@ -233,6 +234,31 @@ async function crmJson(
   const res = await proxyTool(req, env, "crm", rest.startsWith("/crm-data") ? rest : "/crm-data");
   const data = await res.json().catch(() => ({})) as Record<string, unknown>;
   return { ok: res.ok, data };
+}
+
+async function finishHarborOutcome(
+  env: Env,
+  hit: Record<string, unknown>,
+  body: Record<string, unknown>,
+  plan: { outcome: string; spoken?: string },
+  extra: Record<string, unknown> = {},
+): Promise<Response> {
+  const mailed = await dispatchHarborCteMail(env, {
+    ...hit,
+    email: str(hit.email || body.email),
+  }, plan.outcome);
+  const ok = mailed.required ? mailed.ok === true : true;
+  return json(ok ? 200 : 502, {
+    ...extra,
+    ok,
+    tool: extra.tool || "log_outcome",
+    dialing: false,
+    sms: false,
+    spoken: plan.spoken || "",
+    plan,
+    mail: mailed,
+    ...vaPublicStatus(env),
+  });
 }
 
 async function harborCrmAccess(request: Request, env: Env, user: { email: string; name: string } | null) {
@@ -1071,15 +1097,7 @@ export default {
         await crm.followups(followups);
       }
       await crm.note(id, plan.note);
-      return json(200, {
-        ok: true,
-        tool: "log_outcome",
-        dialing: false,
-        sms: false,
-        spoken: plan.spoken,
-        plan,
-        ...vaPublicStatus(env),
-      });
+      return finishHarborOutcome(env, hit, body, plan, { tool: "log_outcome" });
     }
 
     if (path === "/va/harbor/inbound" && request.method === "POST") {
@@ -1143,14 +1161,10 @@ export default {
         summary: plan.note.slice(0, 240),
         crmFlushed: true,
       }));
-      return json(200, {
-        ok: true,
-        dialing: false,
+      return finishHarborOutcome(env, hit, body, plan, {
+        tool: "inbound",
         created: found.created,
-        spoken: plan.spoken,
         contact: { ...hit, ...edits[id], id },
-        plan,
-        ...vaPublicStatus(env),
       });
     }
 

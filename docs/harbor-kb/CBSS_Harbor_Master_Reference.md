@@ -210,7 +210,7 @@ Harbor (ElevenLabs agent + Twilio DID + Yard CRM + Cursor agent `bc-711f8685-…
 8. **Cloud agent vs “workspace”** — Christopher called `bc-711f8685-…` the day-to-day Harbor box; it is a **cloud agent**, not a local Cursor workspace root.  
 9. **Yard PR merge** — PR #29 exists; confirm merge/deploy to production Yard before treating routes as live.  
 10. **Dial arm** — Still **off**. No customer dials until Christopher says arm (even after Twilio import).  
-11. **Email path** — Call + email allowed; outbound email still should follow draft → Christopher says send (same dual-review spirit as other CBSS outbound).  
+11. **Email path** — Harbor CTE steps (no-answer, voicemail, soft-delay, and later CTE2/3/4 when logged or due) fire the live Yard AgentMail CTE templates like any rep. Reply-To is Harbor. Dial stays parked. Ready-to-buy notify is still Christopher Banks + Bryan Reese only. Paid / Next Steps rules are unchanged. Other outbound drafts still wait for Christopher when they are not a CTE ladder send.  
 12. **Cursor ↔ ElevenLabs MCP** — Optional for editing agents from Cursor; **does not** replace Twilio phone import.
 
 ---

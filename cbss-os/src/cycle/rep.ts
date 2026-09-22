@@ -25,7 +25,7 @@ export function firstNameOf(name: string): string {
 }
 
 function isRosterOwner(name: string): boolean {
-  return (TEAM_OWNERS as readonly string[]).includes(name) && name !== "New/Unassigned" && name !== "Harbor";
+  return (TEAM_OWNERS as readonly string[]).includes(name) && name !== "New/Unassigned";
 }
 
 /** Jonesboro office line. Used when a rep has no posted direct line. (870) 323-1747 is omit — out of service. */
@@ -43,7 +43,12 @@ const ROSTER_CONTACT: Record<string, { title: string; phone: string; scheduleUrl
   "Derrek Clements": { title: "Sales Representative", phone: OFFICE_PHONE },
   "Sean Thurman": { title: "Sales Representative", phone: OFFICE_PHONE },
   Julia: { title: "Sales Representative", phone: OFFICE_PHONE },
+  /** Harbor DID. CTE footer callback — never Christopher's personal cell. */
+  Harbor: { title: "Sales Representative", phone: "(870) 380-4010" },
 };
+
+/** Reply-To for Harbor CTE sends. Company roster mailbox, not a personal cell inbox. */
+export const HARBOR_REPLY_TO = "harbor@cbshippingsolutions.com";
 
 /** https booking page only. Never invent a Google Appointment link. */
 export function cleanScheduleUrl(raw: unknown): string {
@@ -127,6 +132,20 @@ export function resolveAssignedRep(
   const raw = String(owner || "").trim();
   if (!raw || titleOwner(raw) === "New/Unassigned") {
     return { ok: false, reason: "No assigned rep. Pause until a current Yard user owns this contact." };
+  }
+  // Harbor is the desk rep for CTE dispatch even without a human Yard login.
+  // Source stays "active" so CTE mail is not paused the way a roster-only human is.
+  if (titleOwner(raw) === "Harbor") {
+    return {
+      ok: true,
+      source: "active",
+      user: {
+        email: HARBOR_REPLY_TO,
+        name: "Harbor",
+        title: "Harbor",
+        lastLogin: "",
+      },
+    };
   }
   if (isCompanyEmail(raw)) {
     const hit = users.find((u) => u.email === raw.toLowerCase());
