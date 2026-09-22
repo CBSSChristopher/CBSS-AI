@@ -2,13 +2,15 @@
 
 Christopher lock (2026-09-22): **workflow first. Twilio import last. Do not work phone-number import.**
 
-Harbor works New/Unassigned leads **like a sales rep** on The Yard book. No live dials until Christopher says **arm**. No SMS. Cards frozen. Harbor never collects payment.
+Harbor works the book **like a sales rep**. `get_next_lead` is due follow-ups on Harbor-assigned leads first, then New/Unassigned. New/Unassigned is the global unassigned pool. Due follow-ups are Harbor-owner only — a Follow-up owned by James, Bryan, Christopher, or any other rep is not Harbor's card. No live dials until Christopher says **arm**. No SMS. Cards frozen. Harbor never collects payment.
 
 ## The loop
 
 ```
 get_next_lead
-    │  New/Unassigned pile  OR  due Harbor follow-up (due wins)
+    │  due follow-ups on Harbor-assigned leads first, then New/Unassigned
+    │  New/Unassigned is the global unassigned pool
+    │  due follow-ups are Harbor-owner only (not James, Bryan, Christopher, or any other rep)
     │  self-assign owner Harbor · Working
     │  pile → CTE1   follow-up → keep current CTE
     ▼
@@ -39,7 +41,7 @@ Auth: `X-Harbor-Token` or `Authorization: Bearer` === secret `HARBOR_QUOTE_TOKEN
 
 | Tool | Route | What it does |
 | --- | --- | --- |
-| `get_next_lead` | `GET`/`POST` `/va/harbor/next` or `/va/harbor/get-next-lead` | Due Harbor follow-ups first, then New/Unassigned. Assigns Harbor. `dialing: false`. |
+| `get_next_lead` | `GET`/`POST` `/va/harbor/next` or `/va/harbor/get-next-lead` | Due follow-ups on Harbor-assigned leads first, then New/Unassigned. New/Unassigned is global. Due follow-ups require owner Harbor (`isHarborOwner`) — other reps' Yard cards stay off this queue. Assigns Harbor. `dialing: false`. |
 | `update_lead` | `POST` `/va/harbor/update-lead` or `/va/harbor/outcome` | Note-only (no `outcome`) appends a CRM note. Optional `cteStage`. |
 | `log_outcome` | `POST` `/va/harbor/log-outcome` or `/va/harbor/outcome` | `voicemail`, `no-answer`, `soft-delay`, `answered`, `not-interested`, `DNC`, `wrong-number`, `bought-elsewhere`, `ready-to-buy`. |
 | `harbor_quote_by_zip` | `POST` `/va/harbor/quote` | Posted proposal match. Never invent price. |
@@ -59,7 +61,7 @@ Do this on a **Test-** tagged card or a dry book. Do **not** import the Harbor D
 6. `POST /va/harbor/update-lead` with `{ contactId, note: "Qualified: 40HC, ZIP …" }` — note lands, no disposition change.
 7. `POST /va/harbor/log-outcome` `{ contactId, outcome: "voicemail" }` — CTE advances, still Harbor, `dialing: false`.
 8. `POST /va/harbor/log-outcome` `{ contactId, outcome: "soft-delay", reason: "call tomorrow" }` — Follow-up set, stays Harbor.
-9. Pull again: due follow-up should win over a fresh New/Unassigned row. CTE is **not** reset to CTE1.
+9. Pull again: due follow-ups on Harbor-assigned leads first, then New/Unassigned. A due Follow-up owned by James, Bryan, Christopher, or any other rep is not returned. CTE is **not** reset to CTE1.
 10. `POST /va/harbor/log-outcome` `{ outcome: "not-interested" }` on a throwaway — closed, no follow-up.
 11. On a separate card: quote then `POST /va/harbor/ready-to-buy` — Christopher + Bryan notified by email/in-Yard alert. No SMS.
 12. `POST /va/dial` still 403. No Twilio console work. No phone-number import.

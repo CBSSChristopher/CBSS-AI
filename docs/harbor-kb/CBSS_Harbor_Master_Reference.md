@@ -160,7 +160,7 @@ Buy path already done (Voice-only). Remaining: **import into ElevenLabs** and as
 | Item | Lock |
 | --- | --- |
 | Lead intake | Meta **CSV import** → New/Unassigned (no Meta webhook) |
-| Harbor pull | Self-assigns from New/Unassigned → CTE1–4 cadence |
+| Harbor pull | `get_next_lead`: due follow-ups on Harbor-assigned leads first, then New/Unassigned. New/Unassigned is global. Due follow-ups are Harbor-owner only. Pile → CTE1; Harbor follow-up keeps CTE. |
 | Yard tests | **161/161** passed (last Harbor cloud run) |
 | `VA_DIAL_ARMED` / dial flags | **false** until Christopher explicitly says **arm** |
 | Soft delay | Stay in queue + dated follow-up |

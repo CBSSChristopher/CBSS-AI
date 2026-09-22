@@ -16,7 +16,7 @@ If `ok` is false or `unit_price` is null, **say there is no posted price and do 
 {
   "type": "webhook",
   "name": "get_next_lead",
-  "description": "Pull the next Harbor card like a sales rep. Due Harbor follow-ups first, then New/Unassigned. Assigns owner Harbor. Never dials. If empty is true, there is no card.",
+  "description": "Pull the next Harbor card like a sales rep. Due follow-ups on Harbor-assigned leads first, then New/Unassigned. New/Unassigned is the global pool. Due follow-ups are Harbor-owner only. Assigns owner Harbor. Never dials. If empty is true, there is no card.",
   "api_schema": {
     "url": "https://floor.cbshippingsolutions.app/va/harbor/get-next-lead",
     "method": "POST",

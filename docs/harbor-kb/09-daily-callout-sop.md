@@ -16,7 +16,7 @@ Harbor runs this as **one** daily operation — Yard queue + voice sales. Dial s
 
 1. **Health glance** — Yard login up; note any outage from overnight health checks.  
 2. **Ingest** — Import new Meta/FB CSV leads → stage **New / Unassigned** (no Meta webhook). Map phones/emails; skip DNC.  
-3. **Build today’s book** — Pull New/Unassigned + dated Harbor follow-ups + soft-delay callbacks due today.  
+3. **Build today’s book** — `get_next_lead`: due follow-ups on Harbor-assigned leads first, then New/Unassigned. New/Unassigned is the global pile. Due follow-ups are Harbor-owner only (not every sales rep's Yard cards).  
 4. **Prioritize** — Ready-to-buy / hot follow-ups first, then soft delays due, then fresh New/Unassigned, then CTE ladder continues.  
 5. **Card check** — Every dial target has a complete [lead card](./10-lead-card-spec.md). Fix gaps before calling.  
 6. **Arm gate** — If Christopher has not said **arm**, stop at prep: queue list + email drafts only. If he has, proceed to call block.

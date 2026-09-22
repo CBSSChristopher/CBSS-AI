@@ -183,6 +183,7 @@ export function attachHarborFollowup(
   };
 }
 
+/** Due only when Harbor itself owns the card. James, Bryan, Christopher, and every other rep stay off this queue. */
 export function isHarborDueFollowUp(
   contact: Record<string, unknown> | null | undefined,
   now = new Date(),
@@ -209,7 +210,8 @@ export function listHarborQueue(contacts: unknown, opts: HarborQueueOpts = {}): 
   for (const row of rows) {
     if (!row || typeof row !== "object") continue;
     const contact = attachHarborFollowup(row as Record<string, unknown>, opts.followups);
-    if (isHarborDueFollowUp(contact, now)) due.push(contact);
+    // Due follow-ups on Harbor-assigned leads only. owner must be Harbor (isHarborOwner).
+    if (isHarborOwner(contact.owner) && isHarborDueFollowUp(contact, now)) due.push(contact);
     else if (isCallableHarborLead(contact)) pool.push(contact);
   }
   due.sort((a, b) => String(a.followUpDate || "").localeCompare(String(b.followUpDate || "")));
@@ -223,7 +225,7 @@ export function pickHarborQueue(contacts: unknown, opts: HarborQueueOpts = {}): 
   return null;
 }
 
-/** New/Unassigned first-call pile, then due Harbor follow-ups (due wins). */
+/** Due follow-ups on Harbor-assigned leads first, then New/Unassigned. */
 export function pickHarborNext(contacts: unknown, opts: HarborQueueOpts = {}): Record<string, unknown> | null {
   return pickHarborQueue(contacts, opts)?.contact || null;
 }

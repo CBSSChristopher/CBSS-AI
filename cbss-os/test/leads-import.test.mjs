@@ -15,6 +15,9 @@ import {
   harborOutcomePlan,
   isCallableHarborLead,
   isFixtureContact,
+  isHarborDueFollowUp,
+  isHarborOwner,
+  listHarborQueue,
   pickHarborNext,
   pickHarborQueue,
   harborAssignNote,
@@ -133,6 +136,53 @@ describe("Harbor CTE workflow", () => {
     assert.equal(patch.owner, HARBOR_OWNER);
     assert.match(String(patch.nextAction), /follow-up/);
     assert.match(harborAssignNote("CTE3", "follow-up"), /due follow-up/);
+  });
+
+  it("rejects a due follow-up owned by another rep and returns New/Unassigned", () => {
+    const now = new Date("2026-09-22T17:00:00Z");
+    const james = {
+      id: "james-due",
+      name: "James Card",
+      phone: "8705550201",
+      owner: "James",
+      status: "Follow-up",
+      cteStage: "CTE2",
+      followUpDate: "2026-09-22T09:00",
+    };
+    const pile = { id: "pile", name: "Fresh Co", phone: "8705550202", owner: POOL_OWNER, status: "New" };
+    assert.equal(isHarborOwner("James"), false);
+    assert.equal(isHarborOwner("Bryan Reese"), false);
+    assert.equal(isHarborOwner("Christopher Banks"), false);
+    assert.equal(isHarborOwner(HARBOR_OWNER), true);
+    assert.equal(isHarborDueFollowUp(james, now), false);
+    assert.equal(isHarborDueFollowUp({ ...james, owner: "Bryan" }, now), false);
+    assert.equal(isHarborDueFollowUp({ ...james, owner: "Christopher" }, now), false);
+    const queued = pickHarborQueue(
+      [
+        james,
+        { id: "bryan-due", name: "Bryan Card", phone: "8705550203", owner: "Bryan Reese", status: "Follow-up", followUpDate: "2026-09-21T10:00" },
+        { id: "chris-due", name: "Chris Card", phone: "8705550204", owner: "Christopher Banks", status: "Follow-up", followUpDate: "2026-09-20T10:00" },
+        pile,
+      ],
+      { now },
+    );
+    assert.equal(queued && queued.source, "new-unassigned");
+    assert.equal(queued && queued.contact.id, "pile");
+    assert.equal(queued && queued.contact.owner, POOL_OWNER);
+    const listed = listHarborQueue([james, pile], { now });
+    assert.deepEqual(listed.due.map((row) => row.id), []);
+    assert.deepEqual(listed.pool.map((row) => row.id), ["pile"]);
+    const harborWins = pickHarborQueue(
+      [
+        james,
+        pile,
+        { id: "harbor-due", name: "Harbor Card", phone: "8705550205", owner: HARBOR_OWNER, status: "Follow-up", cteStage: "CTE4", followUpDate: "2026-09-22T11:00" },
+      ],
+      { now },
+    );
+    assert.equal(harborWins && harborWins.source, "follow-up");
+    assert.equal(harborWins && harborWins.contact.id, "harbor-due");
+    assert.equal(harborWins && harborWins.contact.owner, HARBOR_OWNER);
   });
 
   it("reads due date from the followups book and skips completed or future rows", () => {

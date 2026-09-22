@@ -2,7 +2,7 @@
 
 ## Goal
 
-Harbor (ElevenLabs agent + Yard CRM + Cursor box `bc-711f8685-d818-473d-b1ac-1fd96e69e69c`) is the **unified CBSS desk**. **Workflow first:** pull New/Unassigned + due follow-ups → qualify → ZIP quote → CRM note/disposition/CTE → ready-to-buy notifies Christopher Banks (default) + Bryan Reese. Cards frozen. Call + email only. **Twilio import last.** Dialing gated on **arm**.
+Harbor (ElevenLabs agent + Yard CRM + Cursor box `bc-711f8685-d818-473d-b1ac-1fd96e69e69c`) is the **unified CBSS desk**. **Workflow first:** get_next_lead pulls due follow-ups on Harbor-assigned leads first, then New/Unassigned → qualify → ZIP quote → CRM note/disposition/CTE → ready-to-buy notifies Christopher Banks (default) + Bryan Reese. New/Unassigned is global. Due follow-ups are Harbor-owner only. Cards frozen. Call + email only. **Twilio import last.** Dialing gated on **arm**.
 
 ## Open gaps (do not paper over)
 

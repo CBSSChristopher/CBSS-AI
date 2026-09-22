@@ -17,7 +17,7 @@ Meta Ads Manager CSV (iPad export)
 POST /va/leads/import     (Christopher · The Yard)
         │  owner New/Unassigned · stage New · source facebook_lead_ads
         ▼
-GET/POST /va/harbor/next  get_next_lead · due follow-ups then New/Unassigned
+GET/POST /va/harbor/next  get_next_lead · due follow-ups on Harbor-assigned leads first, then New/Unassigned
         │
         ▼
 POST /va/harbor/outcome   VM / answered / soft-delay / ready-to-buy / DNC …
