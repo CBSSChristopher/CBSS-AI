@@ -43,8 +43,8 @@ Inbound: when they call the Twilio Harbor DID, Harbor answers. Same qualificatio
 | Method | Path | Who |
 | --- | --- | --- |
 | `POST` | `/va/leads/import` | Christopher. `{ csv }` or `{ rows }`. `dryRun: true` previews. |
-| `GET` | `/va/harbor/next` | Christopher session, or `Authorization: Bearer VA_WEBHOOK_SECRET` plus `VA_CRM_*`. Assigns Harbor + CTE1. `dialing: false`. |
-| `POST` | `/va/harbor/outcome` | Same auth. `{ contactId, outcome, closer?, note?, deal fields?, followUpDate?, spoken? }`. |
+| `GET`/`POST` | `/va/harbor/next` · `/va/harbor/get-next-lead` | Christopher session, Bearer `VA_WEBHOOK_SECRET`, or `HARBOR_QUOTE_TOKEN`. Due Harbor follow-ups first, then New/Unassigned. Pile → CTE1; follow-up keeps CTE. `dialing: false`. |
+| `POST` | `/va/harbor/outcome` · `/update-lead` · `/log-outcome` | Same auth. Note-only (`note` without `outcome`) or `{ contactId, outcome, closer?, followUpDate?, spoken? }`. |
 | `POST` | `/va/harbor/inbound` | Same auth. `{ phone / from, outcome?, closer?, deal fields? }`. Matches CLI or creates a Harbor card. |
 | `POST` | `/va/harbor/quote` | `X-Harbor-Token` / Bearer `HARBOR_QUOTE_TOKEN`. ZIP + box → same match as `/quote/match`. `spoken_summary` + `unit_price`. `no_match` never invents a price. `dialing: false`. |
 | `POST` | `/va/harbor/ready-to-buy` | Same Harbor token. Rematch quote, CRM note if matched, email/alert Christopher + Bryan. No SMS. |

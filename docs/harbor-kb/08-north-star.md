@@ -2,12 +2,12 @@
 
 ## Goal
 
-Harbor (ElevenLabs agent + Twilio DID + Yard CRM + Cursor box `bc-711f8685-d818-473d-b1ac-1fd96e69e69c`) is the **unified CBSS desk**: yard, CRM, and outbound/inbound sales voice — call + email only — on-call **ZIP + box → posted proposal quote** — ready-to-buy notifies Christopher Banks (default) + Bryan Reese — human close — no payment collection — dialing gated on **arm**.
+Harbor (ElevenLabs agent + Yard CRM + Cursor box `bc-711f8685-d818-473d-b1ac-1fd96e69e69c`) is the **unified CBSS desk**. **Workflow first:** pull New/Unassigned + due follow-ups → qualify → ZIP quote → CRM note/disposition/CTE → ready-to-buy notifies Christopher Banks (default) + Bryan Reese. Cards frozen. Call + email only. **Twilio import last.** Dialing gated on **arm**.
 
 ## Open gaps (do not paper over)
 
 1. ElevenLabs UI name still may say **My Agent** — rename to **Harbor**  
-2. Twilio DID **import/assign** on https://elevenlabs.io/app/agents/phone-numbers not confirmed complete  
+2. Twilio DID **import/assign** — **last**; do not work phone-number import until the CRM + quote loop is dry-run clean  
 3. Live account secrets stay with Christopher (not in chat)  
 4. Two “Harbor” names: sales phone VA vs staff Grok Bot — keep separate  
 5. Prefer customer-facing brand **CB Shipping Solutions (CBSS)**  

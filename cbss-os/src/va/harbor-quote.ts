@@ -148,6 +148,18 @@ export function harborQuoteAuthed(request: Request, env: { HARBOR_QUOTE_TOKEN?: 
   return Boolean(given) && timingSafeEqualStr(given, expected);
 }
 
+/** Sales-rep tools: HARBOR_QUOTE_TOKEN (header or Bearer) or Bearer VA_WEBHOOK_SECRET. */
+export function harborWorkflowAuthed(
+  request: Request,
+  env: { HARBOR_QUOTE_TOKEN?: string; VA_WEBHOOK_SECRET?: string },
+): boolean {
+  if (harborQuoteAuthed(request, env)) return true;
+  const secret = str(env.VA_WEBHOOK_SECRET);
+  if (!secret) return false;
+  const bearer = str(request.headers.get("authorization")).replace(/^bearer\s+/i, "");
+  return Boolean(bearer) && timingSafeEqualStr(bearer, secret);
+}
+
 export function harborQuoteAuthResult(request: Request, env: { HARBOR_QUOTE_TOKEN?: string }): HarborQuoteHandlerResult | null {
   if (harborQuoteAuthed(request, env)) return null;
   if (!harborQuoteTokenExpected(env)) {

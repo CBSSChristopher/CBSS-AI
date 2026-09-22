@@ -16,6 +16,8 @@ import {
   isCallableHarborLead,
   isFixtureContact,
   pickHarborNext,
+  pickHarborQueue,
+  harborAssignNote,
   resolveCloser,
 } from "../src/va/workflow.ts";
 import { normalizeStage } from "../src/stages.ts";
@@ -114,6 +116,47 @@ describe("Harbor CTE workflow", () => {
     assert.equal(resolveCloser(""), "Christopher Banks");
   });
 
+  it("due Harbor follow-ups beat New/Unassigned and keep CTE", () => {
+    const now = new Date("2026-09-22T17:00:00Z");
+    const queued = pickHarborQueue(
+      [
+        { id: "new", name: "Fresh Co", phone: "8705550101", owner: POOL_OWNER, status: "New" },
+        { id: "later", name: "Tomorrow", phone: "8705550102", owner: HARBOR_OWNER, status: "Follow-up", cteStage: "CTE2", followUpDate: "2026-09-23T10:00" },
+        { id: "due", name: "Due Co", phone: "8705550103", owner: HARBOR_OWNER, status: "Follow-up", cteStage: "CTE3", followUpDate: "2026-09-22T10:00" },
+      ],
+      { now },
+    );
+    assert.equal(queued && queued.source, "follow-up");
+    assert.equal(queued && queued.contact.id, "due");
+    const patch = harborAssignPatch("CTE3", "follow-up");
+    assert.equal(patch.cteStage, "CTE3");
+    assert.equal(patch.owner, HARBOR_OWNER);
+    assert.match(String(patch.nextAction), /follow-up/);
+    assert.match(harborAssignNote("CTE3", "follow-up"), /due follow-up/);
+  });
+
+  it("reads due date from the followups book and skips completed or future rows", () => {
+    const now = new Date("2026-09-22T17:00:00Z");
+    const book = [
+      { id: "done", name: "Done", phone: "8705550110", owner: HARBOR_OWNER, status: "Follow-up" },
+      { id: "due", name: "Due Map", phone: "8705550111", owner: HARBOR_OWNER, status: "Follow-up", cteStage: "CTE2" },
+      { id: "pile", name: "Pile", phone: "8705550112", owner: POOL_OWNER, status: "New" },
+    ];
+    const skipDone = pickHarborQueue(book, {
+      now,
+      followups: {
+        done: { nextAction: "old", followUpDate: "2026-09-01T10:00", completed: true, status: "completed" },
+        due: { nextAction: "Call back", followUpDate: "2026-09-22T09:00", completed: false, status: "open" },
+      },
+    });
+    assert.equal(skipDone && skipDone.contact.id, "due");
+    const futureOnly = pickHarborNext(
+      [{ id: "later", name: "Later", phone: "8705550113", owner: HARBOR_OWNER, status: "Follow-up", followUpDate: "2026-12-01T10:00" }],
+      { now },
+    );
+    assert.equal(futureOnly, null);
+  });
+
   it("answered stays on Harbor Working; DNC and not-interested close the card", () => {
     const card = { owner: HARBOR_OWNER, status: "Working", cteStage: "CTE2" };
     const ans = harborOutcomePlan(card, "answered", { note: "Wants a 40HC. No price invented." });
@@ -131,8 +174,13 @@ describe("Yard wiring for CSV import and Harbor pull", () => {
     assert.doesNotMatch(index, /FB_WEBHOOK_VERIFY_TOKEN/);
     assert.match(index, /\/va\/leads\/import/);
     assert.match(index, /\/va\/harbor\/next/);
+    assert.match(index, /\/va\/harbor\/get-next-lead/);
     assert.match(index, /\/va\/harbor\/outcome/);
+    assert.match(index, /\/va\/harbor\/update-lead/);
+    assert.match(index, /\/va\/harbor\/log-outcome/);
     assert.match(index, /\/va\/harbor\/inbound/);
+    assert.match(index, /pickHarborQueue/);
+    assert.match(index, /harborWorkflowAuthed/);
   });
 
   it("puts Import Meta CSV on the Christopher VA tab", () => {

@@ -5,6 +5,7 @@ import {
   HARBOR_NOTIFY_EMAILS,
   harborCashQuote,
   harborQuoteAuthed,
+  harborWorkflowAuthed,
   harborQuoteFromMatch,
   harborQuoteWant,
   handleHarborQuote,
@@ -24,6 +25,7 @@ const wrangler = readFileSync(new URL("../wrangler.jsonc", import.meta.url), "ut
 const index = readFileSync(new URL("../src/index.ts", import.meta.url), "utf8");
 const kb14 = readFileSync(new URL("../../docs/harbor-kb/14-zip-proposal-tooling.md", import.meta.url), "utf8");
 const kb15 = readFileSync(new URL("../../docs/harbor-kb/15-elevenlabs-tools.md", import.meta.url), "utf8");
+const kbWorkflow = readFileSync(new URL("../../docs/harbor-kb/15-sales-rep-workflow.md", import.meta.url), "utf8");
 
 const TOKEN = "harbor-quote-test-token";
 const littleRock = { lat: 34.7465, lon: -92.2896, place: "Little Rock, AR" };
@@ -106,6 +108,9 @@ describe("Harbor ZIP quote helpers", () => {
     assert.equal(harborQuoteAuthed(req("/va/harbor/quote"), env()), false);
     assert.equal(harborQuoteAuthed(req("/va/harbor/quote", { token: "nope" }), env()), false);
     assert.equal(harborQuoteAuthed(req("/va/harbor/quote", { token: TOKEN }), env({ HARBOR_QUOTE_TOKEN: "" })), false);
+    assert.equal(harborWorkflowAuthed(req("/va/harbor/get-next-lead", { token: TOKEN }), env()), true);
+    assert.equal(harborWorkflowAuthed(req("/va/harbor/log-outcome", { bearer: "hook" }), env({ VA_WEBHOOK_SECRET: "hook" })), true);
+    assert.equal(harborWorkflowAuthed(req("/va/harbor/get-next-lead"), env()), false);
   });
 });
 
@@ -268,6 +273,9 @@ describe("Harbor quote rails stay parked", () => {
   it("wires quote routes without touching /va/dial", () => {
     assert.match(index, /\/va\/harbor\/quote/);
     assert.match(index, /\/va\/harbor\/ready-to-buy/);
+    assert.match(index, /\/va\/harbor\/get-next-lead/);
+    assert.match(index, /\/va\/harbor\/update-lead/);
+    assert.match(index, /\/va\/harbor\/log-outcome/);
     assert.match(index, /handleHarborQuote/);
     const quoteBlock = index.slice(index.indexOf('path === "/va/harbor/quote"'), index.indexOf('path === "/va/email/draft"'));
     assert.doesNotMatch(quoteBlock, /vaDialResponse|twilio|VA_DIAL_ARMED": "true"/i);
@@ -276,6 +284,13 @@ describe("Harbor quote rails stay parked", () => {
     assert.match(kb14, /Quote ≠ dial/);
     assert.match(kb15, /harbor_quote_by_zip/);
     assert.match(kb15, /harbor_ready_to_buy/);
+    assert.match(kb15, /get_next_lead/);
+    assert.match(kb15, /log_outcome/);
     assert.match(kb15, /\/va\/harbor\/quote/);
+    assert.match(kbWorkflow, /get_next_lead/);
+    assert.match(kbWorkflow, /Dry-run simulation checklist/);
+    assert.match(kbWorkflow, /Twilio import last/);
+    assert.match(kbWorkflow, /Do \*\*not\*\* import the Harbor DID/);
+    assert.doesNotMatch(kbWorkflow, /From Twilio →|Account SID \+ Auth Token/);
   });
 });

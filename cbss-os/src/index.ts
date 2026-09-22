@@ -52,7 +52,6 @@ import {
   vaSmsResponse,
 } from "./va/http.ts";
 import { applyLeadImport, parseLeadCsv, parseLeadJsonRows, planLeadImport, publicImportPreview, readImportPayload } from "./va/leads-import.ts";
-import { timingSafeEqualStr } from "./va/hmac.ts";
 import { emptyCapture, putVaCapture } from "./va/store.ts";
 import { crmRequestWithCookie } from "./va/crm-client.ts";
 import { readHarborDeal } from "./va/close-note.ts";
@@ -64,9 +63,10 @@ import {
   harborFollowupRow,
   harborOutcomeEdits,
   harborOutcomePlan,
-  pickHarborNext,
+  normalizeCteStep,
+  pickHarborQueue,
 } from "./va/workflow.ts";
-import { handleHarborQuote, handleHarborReadyToBuy } from "./va/harbor-quote.ts";
+import { handleHarborQuote, handleHarborReadyToBuy, harborWorkflowAuthed } from "./va/harbor-quote.ts";
 
 const SECURITY = {
   "X-Content-Type-Options": "nosniff",
@@ -953,57 +953,100 @@ export default {
       return json(200, { ok: applied.ok, dryRun: false, ...publicImportPreview(plan), applied, ...vaPublicStatus(env) });
     }
 
-    if (path === "/va/harbor/next" && request.method === "GET") {
+    if (
+      (path === "/va/harbor/next" && (request.method === "GET" || request.method === "POST")) ||
+      (path === "/va/harbor/get-next-lead" && (request.method === "GET" || request.method === "POST"))
+    ) {
       const user = await readSession(request, env);
-      const secret = String(env.VA_WEBHOOK_SECRET || "").trim();
-      const bearer = String(request.headers.get("authorization") || "").replace(/^bearer\s+/i, "").trim();
-      const asAgent = Boolean(secret && bearer && timingSafeEqualStr(bearer, secret));
-      if (!user && !asAgent) return json(401, { error: "Sign in first." });
+      const asAgent = harborWorkflowAuthed(request, env);
+      if (!user && !asAgent) return json(401, { error: "Sign in first.", ok: false, dialing: false, sms: false });
       if (user && !isChristopherUser(user.email, user.name) && !asAgent) {
-        return json(403, { error: "Harbor queue is for Christopher or the outbound VA." });
+        return json(403, { error: "Harbor queue is for Christopher or the outbound VA.", ok: false, dialing: false });
       }
       const crm = await harborCrmAccess(request, env, user);
       if (!crm.ok) return json(503, { error: crm.error });
       const get = await crm.get();
       if (!get.ok) return json(502, { error: "Could not read the book for Harbor." });
-      const hit = pickHarborNext(crmContactPool(get.data));
-      if (!hit) return json(200, { ok: true, empty: true, dialing: false, contact: null });
+      const followups = get.data.followups && typeof get.data.followups === "object"
+        ? get.data.followups as Record<string, unknown>
+        : {};
+      const queued = pickHarborQueue(crmContactPool(get.data), { followups });
+      if (!queued) {
+        return json(200, {
+          ok: true,
+          tool: "get_next_lead",
+          empty: true,
+          dialing: false,
+          sms: false,
+          source: null,
+          contact: null,
+          ...vaPublicStatus(env),
+        });
+      }
+      const hit = queued.contact;
       const id = String(hit.id || "");
-      const patch = harborAssignPatch("CTE1");
+      const cte = queued.source === "follow-up" ? normalizeCteStep(hit.cteStage) : "CTE1";
+      const patch = harborAssignPatch(cte, queued.source);
       const edits: Record<string, Record<string, unknown>> = {};
       edits[id] = patch;
       await crm.edits(edits);
-      await crm.note(id, harborAssignNote("CTE1"));
+      await crm.note(id, harborAssignNote(cte, queued.source));
       return json(200, {
         ok: true,
+        tool: "get_next_lead",
         empty: false,
         dialing: false,
+        sms: false,
+        source: queued.source,
         assigned: HARBOR_OWNER,
-        cteStage: "CTE1",
+        cteStage: cte,
         contact: { ...hit, ...patch, id },
         ...vaPublicStatus(env),
       });
     }
 
-    if (path === "/va/harbor/outcome" && request.method === "POST") {
+    if (
+      path === "/va/harbor/outcome" && request.method === "POST" ||
+      path === "/va/harbor/update-lead" && request.method === "POST" ||
+      path === "/va/harbor/log-outcome" && request.method === "POST"
+    ) {
       const user = await readSession(request, env);
-      const secret = String(env.VA_WEBHOOK_SECRET || "").trim();
-      const bearer = String(request.headers.get("authorization") || "").replace(/^bearer\s+/i, "").trim();
-      const asAgent = Boolean(secret && bearer && timingSafeEqualStr(bearer, secret));
-      if (!user && !asAgent) return json(401, { error: "Sign in first." });
+      const asAgent = harborWorkflowAuthed(request, env);
+      if (!user && !asAgent) return json(401, { error: "Sign in first.", ok: false, dialing: false, sms: false });
       if (user && !isChristopherUser(user.email, user.name) && !asAgent) {
-        return json(403, { error: "Harbor outcomes are for Christopher or the outbound VA." });
+        return json(403, { error: "Harbor outcomes are for Christopher or the outbound VA.", ok: false, dialing: false });
       }
       const body = await readJson(request);
       const crm = await harborCrmAccess(request, env, user);
       if (!crm.ok) return json(503, { error: crm.error });
       const get = await crm.get();
       if (!get.ok) return json(502, { error: "Could not read the book for Harbor." });
-      const hit = crmContactPool(get.data).find((row) => {
+      const pool = crmContactPool(get.data);
+      const hit = pool.find((row) => {
         const rec = row && typeof row === "object" ? (row as Record<string, unknown>) : {};
-        return String(rec.id || "") === str(body.contactId || body.id);
+        return String(rec.id || "") === str(body.contactId || body.id || body.contact_id);
       }) as Record<string, unknown> | undefined;
       if (!hit) return json(404, { error: "That contact is not on the book." });
+      const noteOnly = !str(body.outcome) && Boolean(str(body.note));
+      if (noteOnly) {
+        const id = String(hit.id || "");
+        const cte = body.cteStage ? normalizeCteStep(body.cteStage) : "";
+        if (cte) {
+          const edits: Record<string, Record<string, unknown>> = {};
+          edits[id] = { cteStage: cte };
+          await crm.edits(edits);
+        }
+        await crm.note(id, str(body.note));
+        return json(200, {
+          ok: true,
+          tool: "update_lead",
+          dialing: false,
+          sms: false,
+          noteWritten: true,
+          contactId: id,
+          ...vaPublicStatus(env),
+        });
+      }
       const plan = harborOutcomePlan(hit, body.outcome, {
         closer: body.closer,
         note: str(body.note),
@@ -1028,15 +1071,21 @@ export default {
         await crm.followups(followups);
       }
       await crm.note(id, plan.note);
-      return json(200, { ok: true, dialing: false, spoken: plan.spoken, plan, ...vaPublicStatus(env) });
+      return json(200, {
+        ok: true,
+        tool: "log_outcome",
+        dialing: false,
+        sms: false,
+        spoken: plan.spoken,
+        plan,
+        ...vaPublicStatus(env),
+      });
     }
 
     if (path === "/va/harbor/inbound" && request.method === "POST") {
       const user = await readSession(request, env);
-      const secret = String(env.VA_WEBHOOK_SECRET || "").trim();
-      const bearer = String(request.headers.get("authorization") || "").replace(/^bearer\s+/i, "").trim();
-      const asAgent = Boolean(secret && bearer && timingSafeEqualStr(bearer, secret));
-      if (!user && !asAgent) return json(401, { error: "Sign in first." });
+      const asAgent = harborWorkflowAuthed(request, env);
+      if (!user && !asAgent) return json(401, { error: "Sign in first.", ok: false, dialing: false });
       if (user && !isChristopherUser(user.email, user.name) && !asAgent) {
         return json(403, { error: "Harbor inbound is for Christopher or the outbound VA." });
       }

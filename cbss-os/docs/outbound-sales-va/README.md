@@ -17,7 +17,7 @@ Meta Ads Manager CSV (iPad export)
 POST /va/leads/import     (Christopher · The Yard)
         │  owner New/Unassigned · stage New · source facebook_lead_ads
         ▼
-GET /va/harbor/next       Harbor self-assigns · CTE1 · Working
+GET/POST /va/harbor/next  get_next_lead · due follow-ups then New/Unassigned
         │
         ▼
 POST /va/harbor/outcome   VM / answered / soft-delay / ready-to-buy / DNC …
@@ -53,8 +53,8 @@ This pack reuses The Yard and the live CRM `appendNote` path. It does **not** in
 | `POST` | `/va/email/draft` | Company session. Returns a draft. Does not send. |
 | `POST` | `/va/dial` | Company session. Parked. Never dials. |
 | `POST` | `/va/sms` `/va/text` | Always 403. Harbor does not text. |
-| `GET` | `/va/harbor/next` | Christopher or Bearer. Assigns Harbor + CTE1. |
-| `POST` | `/va/harbor/outcome` | Same auth. CTE / soft-delay / ready-to-buy. |
+| `GET`/`POST` | `/va/harbor/next` · `/get-next-lead` | Christopher, webhook Bearer, or `HARBOR_QUOTE_TOKEN`. Due follow-ups then New/Unassigned. |
+| `POST` | `/va/harbor/outcome` · `/update-lead` · `/log-outcome` | Same auth. Notes, CTE, VM, soft-delay, hard-no. |
 | `POST` | `/va/harbor/inbound` | Same auth. They called the Harbor DID. |
 | `POST` | `/va/harbor/quote` | `HARBOR_QUOTE_TOKEN` (`X-Harbor-Token` or Bearer). ZIP + box → same match as `/quote/match`. Never invents a price. Does not dial. |
 | `POST` | `/va/harbor/ready-to-buy` | Same Harbor token. CRM note if matched; email/alert Christopher + Bryan. No SMS. |

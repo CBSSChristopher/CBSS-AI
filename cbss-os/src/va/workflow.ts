@@ -1,5 +1,6 @@
 import { titleOwner } from "../brand.ts";
-import { addBusinessDays, chicagoNow, dueIso, nextBusinessDayOnOrAfter, parseCivil } from "../cycle/business-days.ts";
+import { addBusinessDays, chicagoNow, dueIso, dueReached, nextBusinessDayOnOrAfter, parseCivil } from "../cycle/business-days.ts";
+import { isCompletedFollowup } from "../followups.ts";
 import { normalizeStage } from "../stages.ts";
 import { buildReadyToBuyNote, readHarborDeal, type HarborDealFields } from "./close-note.ts";
 import { isDoNotTouch, phoneDigits } from "./match.ts";
@@ -143,18 +144,100 @@ export function isCallableHarborLead(contact: Record<string, unknown> | null | u
   return isUnassignedPool(contact.owner);
 }
 
-export function pickHarborNext(contacts: unknown): Record<string, unknown> | null {
-  const rows = Array.isArray(contacts) ? contacts : [];
-  const hit = rows.find((row) => row && typeof row === "object" && isCallableHarborLead(row as Record<string, unknown>));
-  return hit && typeof hit === "object" ? (hit as Record<string, unknown>) : null;
+export type HarborQueueSource = "follow-up" | "new-unassigned";
+
+export type HarborQueueHit = {
+  contact: Record<string, unknown>;
+  source: HarborQueueSource;
+};
+
+export type HarborQueueOpts = {
+  followups?: Record<string, unknown> | null;
+  now?: Date;
+};
+
+function followupMap(raw: unknown): Record<string, Record<string, unknown>> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: Record<string, Record<string, unknown>> = {};
+  for (const [id, row] of Object.entries(raw as Record<string, unknown>)) {
+    if (row && typeof row === "object") out[id] = row as Record<string, unknown>;
+  }
+  return out;
 }
 
-export function harborAssignPatch(cte: CteStep = "CTE1"): Record<string, unknown> {
+export function attachHarborFollowup(
+  contact: Record<string, unknown>,
+  followups?: Record<string, unknown> | null,
+): Record<string, unknown> {
+  const id = String(contact.id || "");
+  const bag = followupMap(followups);
+  const row = bag[id] || bag[String(contact.id || "")];
+  if (!row) return contact;
+  if (isCompletedFollowup(row) && !String(contact.followUpDate || "").trim()) {
+    return { ...contact, __followupCompleted: true };
+  }
+  return {
+    ...contact,
+    followUpDate: contact.followUpDate || row.followUpDate,
+    nextAction: contact.nextAction || row.nextAction,
+  };
+}
+
+export function isHarborDueFollowUp(
+  contact: Record<string, unknown> | null | undefined,
+  now = new Date(),
+): boolean {
+  if (!contact) return false;
+  if (isFixtureContact(contact)) return false;
+  if (isDoNotTouch(contact)) return false;
+  if (!phoneDigits(contact.phone || contact.mobile)) return false;
+  if (!isHarborOwner(contact.owner)) return false;
+  if (contact.__followupCompleted === true) return false;
+  const when = String(contact.followUpDate || contact.follow_up_date || "").trim();
+  if (when) return dueReached(when, now);
+  return normalizeStage(contact.status) === "Follow-up";
+}
+
+export function listHarborQueue(contacts: unknown, opts: HarborQueueOpts = {}): {
+  due: Record<string, unknown>[];
+  pool: Record<string, unknown>[];
+} {
+  const rows = Array.isArray(contacts) ? contacts : [];
+  const now = opts.now || new Date();
+  const due: Record<string, unknown>[] = [];
+  const pool: Record<string, unknown>[] = [];
+  for (const row of rows) {
+    if (!row || typeof row !== "object") continue;
+    const contact = attachHarborFollowup(row as Record<string, unknown>, opts.followups);
+    if (isHarborDueFollowUp(contact, now)) due.push(contact);
+    else if (isCallableHarborLead(contact)) pool.push(contact);
+  }
+  due.sort((a, b) => String(a.followUpDate || "").localeCompare(String(b.followUpDate || "")));
+  return { due, pool };
+}
+
+export function pickHarborQueue(contacts: unknown, opts: HarborQueueOpts = {}): HarborQueueHit | null {
+  const { due, pool } = listHarborQueue(contacts, opts);
+  if (due[0]) return { contact: due[0], source: "follow-up" };
+  if (pool[0]) return { contact: pool[0], source: "new-unassigned" };
+  return null;
+}
+
+/** New/Unassigned first-call pile, then due Harbor follow-ups (due wins). */
+export function pickHarborNext(contacts: unknown, opts: HarborQueueOpts = {}): Record<string, unknown> | null {
+  return pickHarborQueue(contacts, opts)?.contact || null;
+}
+
+export function harborAssignPatch(
+  cte: CteStep = "CTE1",
+  source: HarborQueueSource = "new-unassigned",
+): Record<string, unknown> {
+  const track = source === "follow-up" ? "follow-up" : "outbound";
   return {
     owner: HARBOR_OWNER,
     status: "Working",
     cteStage: cte,
-    nextAction: cte + " — Harbor outbound (dial parked until VA_DIAL_ARMED)",
+    nextAction: cte + " — Harbor " + track + " (dial parked until VA_DIAL_ARMED)",
   };
 }
 
@@ -353,7 +436,14 @@ export function harborOutcomePlan(
   };
 }
 
-export function harborAssignNote(cte: CteStep = "CTE1"): string {
+export function harborAssignNote(cte: CteStep = "CTE1", source: HarborQueueSource = "new-unassigned"): string {
+  if (source === "follow-up") {
+    return (
+      "Harbor pulled a due follow-up and is working it like a sales rep. " +
+      cte +
+      " stays open. Dial stays parked until Christopher arms VA_DIAL_ARMED."
+    );
+  }
   return (
     "Harbor pulled this card off New/Unassigned and self-assigned. " +
     cte +
