@@ -31,7 +31,7 @@ Reuses `/quote/match` fields:
 | `size` | no | `40` |
 | `height` | no | `HC` |
 | `config` | no | `standard` |
-| `grade` | no | `CW` |
+| `grade` | no | `CW` (used cargo-worthy). If they said **new**, send `OneTrip` (like-new — not factory brand-new). Used stays used. |
 | `qty` | no | `1` |
 | `fulfillment` | no | `deliver` (`pickup` allowed) |
 | `refresh` | no | `false` (same as session match) |

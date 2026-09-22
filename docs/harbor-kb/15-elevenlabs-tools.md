@@ -140,7 +140,7 @@ If `ok` is false or `unit_price` is null, **say there is no posted price and do 
         },
         "grade": {
           "type": "string",
-          "description": "CW, WWT, OneTrip, IICL, AsIs. Default CW."
+          "description": "CW, WWT, OneTrip, IICL, AsIs. Default CW (used). If the customer said new, use OneTrip (like-new — not factory brand-new)."
         },
         "qty": {
           "type": "number",
