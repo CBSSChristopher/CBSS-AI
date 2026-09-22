@@ -7,7 +7,7 @@
 | Org | CBSS (CB Shipping Solutions) |
 | Updated | 2026-09-22 |
 | Cursor Harbor box | `bc-711f8685-d818-473d-b1ac-1fd96e69e69c` |
-| ElevenLabs agent | **Harbor voice agent** · `agent_5401m358q6x4fwgvqtjvmaspf5dr` · [open agent](https://elevenlabs.io/app/agents/agent_5401m358q6x4fwgvqtjvmaspf5dr) · [upload secret](https://elevenlabs.io/app/developers/environment-variables) |
+| ElevenLabs agent | **Harbor voice agent** · `agent_5401m358q6x4fwgvqtjvmaspf5dr` · [open agent](https://elevenlabs.io/app/agents/agent_5401m358q6x4fwgvqtjvmaspf5dr) · workspace secret `HARBOR_QUOTE_TOKEN` + five Yard tools already attached |
 | Harbor DID | `+18703804010` / 870-380-4010 |
 | Sources merged | 3-week Yard/CRM cloud artifacts (~900) + `cbss-harbor-kb` sales locks |
 

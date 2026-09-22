@@ -287,6 +287,9 @@ describe("Harbor quote rails stay parked", () => {
     assert.match(kb15, /get_next_lead/);
     assert.match(kb15, /log_outcome/);
     assert.match(kb15, /\/va\/harbor\/quote/);
+    assert.match(kb15, /Harbor voice agent/);
+    assert.match(kb15, /X-Harbor-Token/);
+    assert.match(kb15, /Do \*\*not\*\* wire Cursor MCP/);
     assert.match(kbWorkflow, /get_next_lead/);
     assert.match(kbWorkflow, /Dry-run simulation checklist/);
     assert.match(kbWorkflow, /Twilio import last/);

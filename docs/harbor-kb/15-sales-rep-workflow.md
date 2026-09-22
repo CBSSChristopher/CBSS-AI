@@ -45,7 +45,7 @@ Auth: `X-Harbor-Token` or `Authorization: Bearer` === secret `HARBOR_QUOTE_TOKEN
 | `harbor_quote_by_zip` | `POST` `/va/harbor/quote` | Posted proposal match. Never invent price. |
 | `harbor_ready_to_buy` | `POST` `/va/harbor/ready-to-buy` | Rematch + CRM note if matched + email/alert Christopher + Bryan. |
 
-JSON paste for ElevenLabs: [15-elevenlabs-tools.md](./15-elevenlabs-tools.md). No Cursor MCP into ElevenLabs.
+Tools already attached on Harbor voice agent via official API: [15-elevenlabs-tools.md](./15-elevenlabs-tools.md). No Cursor MCP into ElevenLabs.
 
 ## Dry-run simulation checklist (no Twilio)
 

@@ -1,14 +1,19 @@
 # ElevenLabs Harbor tools (sales-rep workflow)
 
-## Secret upload (Harbor voice agent)
+## Connected (official ElevenLabs API)
 
-1. **Upload the token as a workspace secret**  
-   https://elevenlabs.io/app/developers/environment-variables  
-   Add a **Secret** named `HARBOR_QUOTE_TOKEN`. Paste the same value already on the `cbssos` Worker. Do not put it in git.
+Harbor attached these on `agent_5401m358q6x4fwgvqtjvmaspf5dr` using Christopher’s `ELEVENLABS_API_KEY` (Cursor secret, not MCP):
 
-2. **Attach it on Harbor voice agent tools**  
-   https://elevenlabs.io/app/agents/agent_5401m358q6x4fwgvqtjvmaspf5dr  
-   Open each webhook tool → request header `X-Harbor-Token` → type **Secret** → pick `HARBOR_QUOTE_TOKEN`.
+| Item | Status |
+| --- | --- |
+| UI name | **Harbor voice agent** |
+| Workspace secret | `HARBOR_QUOTE_TOKEN` (same value as `cbssos`) |
+| Tools | `get_next_lead`, `update_lead`, `log_outcome`, `harbor_quote_by_zip`, `harbor_ready_to_buy` |
+| Auth header | `X-Harbor-Token` → secret locator for `HARBOR_QUOTE_TOKEN` |
+| Prompt | Existing 5550-char Harbor prompt kept |
+| Phone import | Untouched. Existing Harbor number stay assigned. Do not re-import. |
+
+Editor: https://elevenlabs.io/app/agents/agent_5401m358q6x4fwgvqtjvmaspf5dr
 
 Do **not** wire Cursor MCP into ElevenLabs. Do **not** add SMS, dial, or Twilio phone-import tools.
 
@@ -228,9 +233,10 @@ If `ok` is false or `unit_price` is null, **say there is no posted price and do 
 }
 ```
 
-## After paste
+## After connect
 
-1. Christopher sets `HARBOR_QUOTE_TOKEN` on `cbssos`.
-2. Paste the same value into both tools’ `X-Harbor-Token` secret header.
+1. `HARBOR_QUOTE_TOKEN` is on `cbssos` and in the ElevenLabs workspace. Do not put it in git.
+2. Tools already use that secret on `X-Harbor-Token`.
 3. Leave Twilio outbound **parked**. These tools do not arm `VA_DIAL_ARMED`.
-4. Dry-run the tool from ElevenLabs against a known ZIP. If `ok` is false, Harbor must say it has no posted number.
+4. Floor routes from this PR are live only after Christopher says go. Until then, a tool test may 404 — that is not a dial.
+5. When the routes are live, dry-run a known ZIP. If `ok` is false, Harbor must say it has no posted number.

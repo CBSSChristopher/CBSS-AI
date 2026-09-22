@@ -6,9 +6,9 @@
 | Display name | **Harbor voice agent** |
 | Voice | **Harbor Voice** clone (warm CB Shipping style; agent still says it is Harbor, not Christopher) |
 | Agent editor | https://elevenlabs.io/app/agents/agent_5401m358q6x4fwgvqtjvmaspf5dr |
-| Secret upload | https://elevenlabs.io/app/developers/environment-variables |
-| Phone import | https://elevenlabs.io/app/agents/phone-numbers |
-| Steps | Import number → From Twilio → `+18703804010` → Account SID + Auth Token → **SMS off** → assign to Harbor |
+| Workspace secret | `HARBOR_QUOTE_TOKEN` (attached via official API; do not put in git) |
+| Phone import | Parked. Number already on the agent. Do not re-import. |
+| Steps | Phone import stays last. Tools + name are already on Harbor voice agent. |
 
 Browser widget / React / WebRTC SDK packs are for **dry-run only**. Production phone = Twilio import above.
 

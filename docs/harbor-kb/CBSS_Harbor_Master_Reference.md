@@ -36,7 +36,7 @@ Harbor runs the sales conversation. Harbor does **not** take cards, bank details
 | Agent ID | `agent_5401m358q6x4fwgvqtjvmaspf5dr` |
 | Display name | **Harbor voice agent** |
 | Agent editor | https://elevenlabs.io/app/agents/agent_5401m358q6x4fwgvqtjvmaspf5dr |
-| Secret upload | https://elevenlabs.io/app/developers/environment-variables |
+| Workspace secret | `HARBOR_QUOTE_TOKEN` attached via official API (do not put in git) |
 | Voice | **Harbor Voice** clone (Christopher’s CB Shipping warmth; agent must still name itself Harbor, not Christopher) |
 | Phone import URL | https://elevenlabs.io/app/agents/phone-numbers |
 | Import | From Twilio → `+18703804010` → Account SID + Auth Token → **SMS off** → assign to Harbor |

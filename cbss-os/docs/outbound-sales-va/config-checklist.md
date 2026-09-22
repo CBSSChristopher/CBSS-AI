@@ -22,7 +22,7 @@ VA_DIAL_ARMED=false
 | `TWILIO_PHONE_NUMBER` | E.164 Harbor **Voice** DID (voicemail + inbound callback). SMS / Messaging not required. Never Christopher’s personal cell. |
 | `VA_CRM_EMAIL` | Optional service login so the webhook can `appendNote` without a browser session. Also used to pull posted proposal inventory for Harbor ZIP quote. |
 | `VA_CRM_PASSWORD` | Optional. Same rule: secret put, never git. |
-| `HARBOR_QUOTE_TOKEN` | Shared secret for `POST /va/harbor/quote` and `POST /va/harbor/ready-to-buy`. Header `X-Harbor-Token` or `Authorization: Bearer`. Placeholder until Christopher runs `npx wrangler secret put HARBOR_QUOTE_TOKEN` on `cbssos`. |
+| `HARBOR_QUOTE_TOKEN` | Shared secret for Harbor desk routes (`next`, `outcome`, `quote`, `ready-to-buy`). Header `X-Harbor-Token` or `Authorization: Bearer`. On `cbssos` and in the ElevenLabs workspace (Harbor voice agent tools). Never git. |
 
 Already on the Worker (do not confuse them with this VA):
 
