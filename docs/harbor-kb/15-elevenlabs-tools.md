@@ -1,12 +1,22 @@
 # ElevenLabs Harbor tools (sales-rep workflow)
 
-Paste these **webhook** tools on **Harbor voice agent** (`agent_5401m358q6x4fwgvqtjvmaspf5dr`) in the ElevenLabs UI. Do **not** wire Cursor MCP into ElevenLabs. Do **not** add SMS, dial, or Twilio phone-import tools.
+## Secret upload (Harbor voice agent)
+
+1. **Upload the token as a workspace secret**  
+   https://elevenlabs.io/app/developers/environment-variables  
+   Add a **Secret** named `HARBOR_QUOTE_TOKEN`. Paste the same value already on the `cbssos` Worker. Do not put it in git.
+
+2. **Attach it on Harbor voice agent tools**  
+   https://elevenlabs.io/app/agents/agent_5401m358q6x4fwgvqtjvmaspf5dr  
+   Open each webhook tool → request header `X-Harbor-Token` → type **Secret** → pick `HARBOR_QUOTE_TOKEN`.
+
+Do **not** wire Cursor MCP into ElevenLabs. Do **not** add SMS, dial, or Twilio phone-import tools.
 
 Loop: `get_next_lead` → qualify → `harbor_quote_by_zip` → `update_lead` / `log_outcome` → `harbor_ready_to_buy`. See [15-sales-rep-workflow.md](./15-sales-rep-workflow.md).
 
 Yard origin (production when Christopher says go): `https://floor.cbshippingsolutions.app`
 
-Auth: header `X-Harbor-Token` = Worker secret `HARBOR_QUOTE_TOKEN` (Bearer is also accepted). Put the token in the ElevenLabs secret header field — never in this repo.
+Auth: header `X-Harbor-Token` = Worker secret `HARBOR_QUOTE_TOKEN` (Bearer is also accepted).
 
 If `ok` is false or `unit_price` is null, **say there is no posted price and do not invent one.**
 

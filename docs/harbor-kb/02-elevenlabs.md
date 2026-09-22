@@ -5,6 +5,8 @@
 | Agent ID | `agent_5401m358q6x4fwgvqtjvmaspf5dr` |
 | Display name | **Harbor voice agent** |
 | Voice | **Harbor Voice** clone (warm CB Shipping style; agent still says it is Harbor, not Christopher) |
+| Agent editor | https://elevenlabs.io/app/agents/agent_5401m358q6x4fwgvqtjvmaspf5dr |
+| Secret upload | https://elevenlabs.io/app/developers/environment-variables |
 | Phone import | https://elevenlabs.io/app/agents/phone-numbers |
 | Steps | Import number → From Twilio → `+18703804010` → Account SID + Auth Token → **SMS off** → assign to Harbor |
 
