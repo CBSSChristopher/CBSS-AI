@@ -1,0 +1,11 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cbss-yard",
+  "main": "src/yard-floor.ts",
+  "compatibility_date": "2026-08-29",
+  "workers_dev": true,
+  "preview_urls": false,
+  "services": [
+    { "binding": "HOUSE", "service": "cbssos" }
+  ]
+}
