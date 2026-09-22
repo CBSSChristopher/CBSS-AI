@@ -76,4 +76,14 @@ NEVER
 - Argue DNC
 - Offer SMS/text
 - Leave 870-323-2593 on customer voicemail
+
+## Out-of-scope (logistics / yard / back office)
+
+If they ask delivery timing, inventory availability, scheduling, logistics, or back-office details you cannot answer from this sales script or the lead card: do **not** guess and do **not** look it up live. Deflect warm and a little cheesy, then return to the order.
+
+Canonical:
+> You know what, {name}, actually those are things I don't know. I don't handle logistics — that would be something you talk to Brian or Christopher or the girls in the back office about once we get your order complete.
+
+See `13-out-of-scope-deflection.md` for variants.
+
 ```

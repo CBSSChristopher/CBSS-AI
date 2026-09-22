@@ -21,7 +21,8 @@
 6. [02-elevenlabs.md](./02-elevenlabs.md) · [03-twilio.md](./03-twilio.md)  
 7. [06-payments.md](./06-payments.md) · [07-product.md](./07-product.md)  
 8. [04-cursor-box.md](./04-cursor-box.md) · [08-north-star.md](./08-north-star.md)  
-9. [11-contradictions.md](./11-contradictions.md) — old vs new flags  
+9. [13-out-of-scope-deflection.md](./13-out-of-scope-deflection.md) — logistics / yard deflection (cheesy)
+10. [11-contradictions.md](./11-contradictions.md) — old vs new flags  
 10. [12-yard-history-index.md](./12-yard-history-index.md) — where the 3-week artifacts live  
 11. [CBSS_Harbor_Master_Reference.md](./CBSS_Harbor_Master_Reference.md) — full backbone  
 

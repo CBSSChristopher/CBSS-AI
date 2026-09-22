@@ -13,3 +13,6 @@
 | Price inventing | Proposal tools quote from inventory/zip | Harbor must not invent price on cold talk | Proposal tooling for closers/reps; Harbor only repeats quoted-on-card dollars. |
 
 If unsure, **new sales locks in 00-identity / payments / product win**.
+
+| Yard system lookup on-call | Desk UI / inventory / health tools exist in Yard history; temptation to “just check” | Harbor must **not** live-look-up yard logistics on the sales call; deflect | **Deflection wins.** See `13-out-of-scope-deflection.md`. Sales script + lead card only; Christopher / Bryan (Brian) / back office after order. |
+| ETA / inventory answers | Yard ops docs describe real inventory & scheduling workflows | Harbor never answers delivery timing, availability, scheduling, logistics | Resolved by out-of-scope deflection (cheesy handoff). No guessing. |
