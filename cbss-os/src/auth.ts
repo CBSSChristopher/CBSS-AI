@@ -33,6 +33,17 @@ export type Env = {
   REENGAGE_EMAILS_ENABLED?: string;
   /** Deprecated. Paid Next Steps never attaches by URL. */
   NEXT_STEPS_PDF_URL?: string;
+  VA_ENABLED?: string;
+  VA_DIAL_ARMED?: string;
+  VA_WEBHOOK_SECRET?: string;
+  ELEVENLABS_API_KEY?: string;
+  ELEVENLABS_AGENT_ID?: string;
+  ELEVENLABS_VOICE_ID?: string;
+  TWILIO_ACCOUNT_SID?: string;
+  TWILIO_AUTH_TOKEN?: string;
+  TWILIO_PHONE_NUMBER?: string;
+  VA_CRM_EMAIL?: string;
+  VA_CRM_PASSWORD?: string;
   ASSETS?: Fetcher;
   SESSIONS?: KVNamespace;
   CRM?: Fetcher;
@@ -297,6 +308,18 @@ export async function loginAllTools(
       },
     },
   };
+}
+
+/** Optional VA service login. Used only to appendNote. Never commit the password. */
+export async function loginCrmTool(
+  env: Env,
+  email: string,
+  password: string,
+): Promise<{ ok: true; cookie: string; name: string } | { ok: false; status: number; error: string }> {
+  const o = origins(env);
+  const crm = await loginOrigin(o.crm, email, password, env.CRM);
+  if (!crm.ok) return { ok: false, status: crm.status || 401, error: crm.error || "Could not sign into CRM." };
+  return { ok: true, cookie: crm.cookie, name: crm.name };
 }
 
 export { UA, COOKIE };

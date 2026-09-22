@@ -37,6 +37,16 @@ import { rememberUser } from "./cycle/store.ts";
 import { handleAgentMailHook, handleCycleAuthed, runCycleCron } from "./cycle/http.ts";
 import { startWorking } from "./cycle/engine.ts";
 import { buildMondayReport } from "./monday-report.ts";
+import {
+  contactsFromCrmPayload,
+  flushVaCaptures,
+  handleVaOutboundHook,
+  listVaCaptures,
+  maybeServiceFlush,
+  vaDialResponse,
+  vaDraftResponse,
+  vaPublicStatus,
+} from "./va/http.ts";
 
 const SECURITY = {
   "X-Content-Type-Options": "nosniff",
@@ -788,6 +798,67 @@ export default {
         offers: offers.length,
         refreshStatus: invRes.status,
       });
+    }
+
+    if (path === "/va/hooks/outbound" && request.method === "POST") {
+      const result = await handleVaOutboundHook(env, request);
+      if (result.status === 200 && result.capture) {
+        try {
+          await maybeServiceFlush(env, result.capture);
+        } catch {
+          // Capture is already in KV. CRM service flush is best-effort.
+        }
+      }
+      return json(result.status, result.body);
+    }
+
+    if (path === "/va/status" && request.method === "GET") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      if (!isChristopherUser(user.email, user.name)) {
+        return json(403, { error: "VA calls are for Christopher only." });
+      }
+      return json(200, { ok: true, ...vaPublicStatus(env) });
+    }
+
+    if (path === "/va/captures" && request.method === "GET") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      if (!isChristopherUser(user.email, user.name)) {
+        return json(403, { error: "VA calls are for Christopher only." });
+      }
+      const limit = Number(url.searchParams.get("limit") || 50);
+      return json(200, { ok: true, items: await listVaCaptures(env, limit), ...vaPublicStatus(env) });
+    }
+
+    if (path === "/va/captures/flush" && request.method === "POST") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      if (!isChristopherUser(user.email, user.name)) {
+        return json(403, { error: "VA calls are for Christopher only." });
+      }
+      const body = await readJson(request);
+      const get = await crmJson(request, env, "/crm-data?action=get&omitNotes=1");
+      if (!get.ok) return json(502, { error: "Could not read the book to match VA captures." });
+      const result = await flushVaCaptures(env, contactsFromCrmPayload(get.data), async (contactId, text) => {
+        await appendCycleCrmNote(request, env, contactId, text);
+        return true;
+      }, str(body.id));
+      return json(200, { ok: true, ...result, ...vaPublicStatus(env) });
+    }
+
+    if (path === "/va/email/draft" && request.method === "POST") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      const result = vaDraftResponse(await readJson(request));
+      return json(result.status, result.body);
+    }
+
+    if (path === "/va/dial" && request.method === "POST") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      const result = vaDialResponse(env);
+      return json(result.status, result.body);
     }
 
     if (path === "/cycle/hooks/agentmail" && request.method === "POST") {

@@ -18,7 +18,7 @@ Navy `#0B1F3A` / gold `#C9A227` / cream `#F7F4EC`.
 
 ## Modules
 
-- **CRM** — contacts, follow-ups, tasks, pipeline, notes. One stage list (old Kanban names still normalize). Call/text outcomes timestamp on the card. AgentMail in/out shows on the contact. Christopher-only Monday book (not emailed until he says go). Email-campaign hold keeps the contact on the book so you can still open and edit it. Save follow-up confirms what landed on Follow-ups. Assigning an owner pulls that lead off New/Unassigned — including Facebook twins that match an already-assigned card. The pile reloads after the save so a pull does not put that name back.
+- **CRM** — contacts, follow-ups, tasks, pipeline, notes. One stage list (old Kanban names still normalize). Call/text outcomes timestamp on the card. AgentMail in/out shows on the contact. Christopher-only Monday book (not emailed until he says go). Christopher-only **VA calls** tab for outbound sales phone-VA captures (parked until he pastes secrets and says go — see `docs/outbound-sales-va/`). Email-campaign hold keeps the contact on the book so you can still open and edit it. Save follow-up confirms what landed on Follow-ups. Assigning an owner pulls that lead off New/Unassigned — including Facebook twins that match an already-assigned card. The pile reloads after the save so a pull does not put that name back.
 - **Desk** — Harbor (CBSS AI) first, Container One / USA Containers price match, then call scraps and email
 - **Proposal** — stepped quote: pick the box (including reefer working / reefer non-working), Get CBSS Price, proposal amount, submit. A sent proposal writes that amount, Proposal Sent, and a note on the matching CRM contact. Dragging a Kanban card to Proposal Sent copies a stored amount only — it does not invent a dollar. Cards with no proposal stay marked No proposal $.
 - **Modified** — build-out spec: Apex helical pylons, doors, roll-up, windows, framing, insulation, electrical. No invented prices
@@ -68,3 +68,12 @@ POST https://api.agentmail.to/v0/webhooks
 ```
 
 Store the returned `whsec_…` as `AGENTMAIL_WEBHOOK_SECRET` on `cbssos`. Hourly poll still runs if the hook is missing.
+
+## Outbound sales VA (parked)
+
+Phone appointment-setter for **business shipping containers**. Not Harbor staff-comms. Docs: `docs/outbound-sales-va/`.
+
+- Webhook: `POST /va/hooks/outbound` with `VA_WEBHOOK_SECRET` (HMAC). Stores captures in `SESSIONS` (`va:capture:` / `va:index`) and flushes to CRM `appendNote` (tag Book).
+- Christopher-only CRM tab **VA calls**. `POST /va/captures/flush` writes pending notes. DNC / do-not-touch cards are skipped unless the outcome is `DNC`.
+- `VA_ENABLED=false` and `VA_DIAL_ARMED=false` in wrangler. `POST /va/dial` never calls Twilio. `POST /va/email/draft` never sends.
+- Do not deploy dialing. Christopher creates ElevenLabs + Twilio, pastes secrets, approves the first list, then says go.

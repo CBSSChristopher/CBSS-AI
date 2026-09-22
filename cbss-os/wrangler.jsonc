@@ -39,6 +39,8 @@
     "DESK_ORIGIN": "https://cbssbrain.cbss.workers.dev",
     "PROPOSAL_ORIGIN": "https://cbsscompletetool.cbss.workers.dev",
     "PAY_ORIGIN": "https://cbsspay.cbss.workers.dev",
-    "INVOICE_ORIGIN": "https://cbssinvoice.cbss.workers.dev"
+    "INVOICE_ORIGIN": "https://cbssinvoice.cbss.workers.dev",
+    "VA_ENABLED": "false",
+    "VA_DIAL_ARMED": "false"
   }
 }

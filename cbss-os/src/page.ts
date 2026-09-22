@@ -431,6 +431,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
             <button type="button" class="secondary" data-crm="pipeline">Pipeline</button>
             <button type="button" class="secondary" data-crm="campaign">Email campaign</button>
             <button type="button" class="secondary hide" data-crm="monday" id="crm-monday-tab">Monday</button>
+            <button type="button" class="secondary hide" data-crm="va" id="crm-va-tab">VA calls</button>
             <button type="button" class="secondary" data-crm="facebook">Facebook</button>
           </div>
           <div class="card" style="margin-top:12px">
@@ -448,6 +449,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
             <div id="crm-pipeline" class="hide"></div>
             <div id="crm-campaign" class="hide"></div>
             <div id="crm-monday" class="hide"></div>
+            <div id="crm-va" class="hide"></div>
             <div id="crm-facebook" class="hide">
               <h2>Facebook app</h2>
               <p class="muted">Paste the App ID, app secret, and client token from Meta for Developers. Empty boxes keep what is already saved. The secret and token are not shown again.</p>
@@ -1184,6 +1186,12 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       const n = String((user&&user.name)||"").trim().toLowerCase();
       return e.indexOf("christopher@")===0 || n==="christopher banks";
     }
+    function showChristopherTabs(){
+      const mondayTab = $("crm-monday-tab");
+      const vaTab = $("crm-va-tab");
+      if (mondayTab) mondayTab.classList.toggle("hide", !isChristopher());
+      if (vaTab) vaTab.classList.toggle("hide", !isChristopher());
+    }
     function stageOptions(selected){
       const cur = String(selected||"");
       return '<option value="">—</option>'+STAGES.map(function(st){
@@ -1241,8 +1249,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
           catch (ignored) { $("login-err").textContent = res.j.error || "Could not sign in."; return; }
         }
         user = res.j.user; greet(user.name); paintTools(user.tools); show("app"); openMod("home");
-        const mondayTab = $("crm-monday-tab");
-        if (mondayTab) mondayTab.classList.toggle("hide", !isChristopher());
+        showChristopherTabs();
         try { await loadCrm(); } catch (err) { $("crm-err").textContent = "Signed in. Refresh if the book stays empty."; }
       } catch (err) {
         try { e.target.submit(); return; }
@@ -1260,12 +1267,13 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     });
     document.querySelectorAll("[data-crm]").forEach(function(btn){
       btn.addEventListener("click", function(){
-        ["contacts","followups","tasks","pipeline","campaign","monday","facebook"].forEach(function(v){ $("crm-"+v).classList.toggle("hide", v!==btn.dataset.crm); });
+        ["contacts","followups","tasks","pipeline","campaign","monday","va","facebook"].forEach(function(v){ $("crm-"+v).classList.toggle("hide", v!==btn.dataset.crm); });
         if (btn.dataset.crm==="followups") renderFollowups();
         if (btn.dataset.crm==="tasks") renderTasks();
         if (btn.dataset.crm==="pipeline") renderPipeline();
         if (btn.dataset.crm==="campaign") renderCampaign();
         if (btn.dataset.crm==="monday") loadMonday();
+        if (btn.dataset.crm==="va") loadVaCalls();
         if (btn.dataset.crm==="facebook") loadFacebook();
       });
     });
@@ -2001,6 +2009,72 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         paintCycle(selected);
       } catch (err) {
         if (box) box.textContent = (err && err.message) || "Could not log that.";
+      }
+    }
+    function vaStatusBoxes(j){
+      const bit = function(label, on){ return '<div class="stat-box"><span>'+esc(label)+"</span><strong>"+(on?"yes":"no")+"</strong></div>"; };
+      return '<div class="monday-grid">'
+        +bit("VA_ENABLED", j && j.enabled)
+        +bit("Dial armed", j && j.dialArmed)
+        +bit("Webhook secret", j && j.hasWebhookSecret)
+        +bit("ElevenLabs key", j && j.hasElevenLabsKey)
+        +bit("Twilio SID", j && j.hasTwilioSid)
+        +bit("CRM service login", j && j.hasCrmServiceLogin)
+        +"</div>";
+    }
+    function vaOutcomeLabel(outcome){
+      const raw = String(outcome||"");
+      if (raw==="no-answer") return "No answer";
+      if (raw==="gatekeeper") return "Gatekeeper";
+      if (raw==="not-interested") return "Not interested";
+      if (raw==="callback") return "Callback";
+      if (raw==="booked") return "Booked";
+      if (raw==="DNC") return "DNC";
+      if (raw==="wrong-number") return "Wrong number";
+      return raw || "—";
+    }
+    function vaCrmCell(row){
+      if (row && row.crmFlushed) return "On the book";
+      if (row && row.skippedReason==="dnc") return "Skipped DNC";
+      if (row && row.skippedReason==="unmatched") return "No matching contact";
+      if (row && row.crmFlushError) return String(row.crmFlushError);
+      return "Pending";
+    }
+    async function loadVaCalls(){
+      const el = $("crm-va");
+      if (!el) return;
+      if (!isChristopher()){ el.innerHTML = "<p class=\\"muted\\">VA calls are for Christopher only.</p>"; return; }
+      el.innerHTML = "<p class=\\"muted\\">Loading VA captures…</p>";
+      try {
+        const res = await api("/va/captures", { allowError: true });
+        if (!res.r.ok || res.j.ok === false) throw new Error(res.j.error || "Could not load VA captures.");
+        const items = Array.isArray(res.j.items) ? res.j.items : [];
+        const rows = items.map(function(row){
+          return "<tr><td>"+esc(String(row.receivedAt||"").slice(0,19).replace("T"," "))+"</td><td>"+esc(vaOutcomeLabel(row.outcome))+"</td><td>"+esc(row.contactName||"")+"</td><td>"+esc(row.phone||row.from||"")+"</td><td>"+esc(vaCrmCell(row))+"</td><td>"+esc(String(row.summary||"").slice(0,140))+"</td></tr>";
+        }).join("");
+        el.innerHTML = "<h2>VA calls</h2>"
+          +'<p class="muted">Outbound appointment-setter captures. Phone VA is parked until secrets are pasted and Christopher says go. This is not the Harbor staff Grok Bot. Cards stay frozen — no card checkout talk.</p>'
+          +vaStatusBoxes(res.j)
+          +'<p class="muted">'+esc(String((res.j && res.j.voiceNote) || ""))+"</p>"
+          +'<div class="row"><button type="button" id="va-flush">Write pending to CRM</button></div>'
+          +'<p class="muted" id="va-flush-note"></p>'
+          +(rows ? "<table><thead><tr><th>When</th><th>Outcome</th><th>Name</th><th>Phone</th><th>CRM</th><th>Summary</th></tr></thead><tbody>"+rows+"</tbody></table>" : '<p class="muted">No VA captures yet.</p>');
+        const flush = $("va-flush");
+        if (flush) flush.addEventListener("click", flushVaCalls);
+      } catch (err) {
+        el.innerHTML = '<p class="err">'+(err && err.message ? esc(err.message) : "Could not load VA captures.")+"</p>";
+      }
+    }
+    async function flushVaCalls(){
+      const note = $("va-flush-note");
+      if (note) note.textContent = "Writing pending captures to the book…";
+      try {
+        const res = await api("/va/captures/flush", { method:"POST", body: JSON.stringify({}), allowError: true });
+        if (!res.r.ok || res.j.ok === false) throw new Error(res.j.error || "Could not write VA captures.");
+        if (note) note.textContent = "Flushed "+(res.j.flushed||0)+" · skipped "+(res.j.skipped||0)+" · errors "+(res.j.errors||0)+".";
+        await loadVaCalls();
+      } catch (err) {
+        if (note) note.textContent = (err && err.message) || "Could not write VA captures.";
       }
     }
     async function loadMonday(){
@@ -3155,7 +3229,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       try {
         const res = await api("/session");
         if (user) return;
-        if (res.j.ok && res.j.user){ user=res.j.user; greet(user.name); paintTools(user.tools); show("app"); openMod("home"); const mondayTab = $("crm-monday-tab"); if (mondayTab) mondayTab.classList.toggle("hide", !isChristopher()); loadCrm(); loadCycleAlerts(); }
+        if (res.j.ok && res.j.user){ user=res.j.user; greet(user.name); paintTools(user.tools); show("app"); openMod("home"); showChristopherTabs(); loadCrm(); loadCycleAlerts(); }
         else show("login");
       } catch (err) {
         show("login");
