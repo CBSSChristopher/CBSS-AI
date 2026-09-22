@@ -9,6 +9,7 @@
 | Default closer | **Christopher Banks** |
 | Alternate closer | **Bryan Reese** |
 | Harbor DID | **870-380-4010** · **+18703804010** |
+| Harbor CBSS email | **harbor@cbshippingsolutions.com** — CRM owner/rep, CTE Reply-To, AgentMail reply, outbound attribution. Do not invent another Harbor address. |
 | Christopher cell | **870-323-2593** — **human handoff only**; **never** on Harbor voicemail or customer callback |
 | Dial | **Parked** until Christopher says **arm** |
 | Payment | Harbor **never** collects; cards frozen |
