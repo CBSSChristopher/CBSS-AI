@@ -66,9 +66,9 @@ Use [payments.md](./payments.md). Cards are frozen. Offer wire / ACH / e-check /
 Do not promise a brochure blast. Do not send or promise SMS. v1 email is drafts-only.
 
 **“We only needed a storage unit for the house.”**
-> We set appointments for business containers, not personal storage. I will close this out. Thank you.
+> That’s in scope — we sell residential and business boxes. What’s the ZIP, and are you thinking one-trip / like-new or used?
 
-Outcome: `not-interested`.
+Stay on the card. Qualify. Do **not** close out for personal use.
 
 **Callback / soft delay**
 One agreed window. Outcome `callback` or `soft-delay`. Follow-up on that date or the next business day. Stay on Harbor. Do not close-out. Do not stack three “just checking” voicemails.

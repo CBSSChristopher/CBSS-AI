@@ -9,7 +9,7 @@ Harbor runs this as **one** daily operation — Yard queue + voice sales. Dial s
 - Christopher cell **870-323-2593**: human handoff only — **never** on voicemail  
 - Cards frozen; Harbor never collects payment  
 - Closers: **Christopher Banks** (default) or **Bryan Reese**  
-- Business shipping containers only  
+- Residential **and** business containers — do not refuse personal / backyard / home storage  
 - No live customer dials unless Christopher said **arm** today  
 
 ## Morning open (before first dial)
@@ -81,5 +81,4 @@ Templates are the Yard CTE templates (not a Harbor-only copy). Harbor personaliz
 - Collect payment or card data  
 - Leave Christopher’s cell on VM  
 - Dial while unarmed  
-- Sell household storage  
 - Mix staff-comms Harbor bot with this sales desk  
