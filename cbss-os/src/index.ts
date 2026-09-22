@@ -54,10 +54,14 @@ import { applyLeadImport, parseLeadCsv, parseLeadJsonRows, planLeadImport, publi
 import { timingSafeEqualStr } from "./va/hmac.ts";
 import { emptyCapture, putVaCapture } from "./va/store.ts";
 import { crmRequestWithCookie } from "./va/crm-client.ts";
+import { readHarborDeal } from "./va/close-note.ts";
+import { inboundCallerPhone, planInboundContact } from "./va/inbound.ts";
 import {
   HARBOR_OWNER,
   harborAssignNote,
   harborAssignPatch,
+  harborFollowupRow,
+  harborOutcomeEdits,
   harborOutcomePlan,
   pickHarborNext,
 } from "./va/workflow.ts";
@@ -240,6 +244,13 @@ async function harborCrmAccess(request: Request, env: Env, user: { email: string
         await appendCycleCrmNote(request, env, contactId, text);
         return { ok: true };
       },
+      followups: (followups: Record<string, Record<string, unknown>>) =>
+        crmJson(request, env, "/crm-data?action=saveFollowups", {
+          method: "POST",
+          body: { action: "saveFollowups", followups },
+        }),
+      added: (contactsAdded: Record<string, unknown>[]) =>
+        crmJson(request, env, "/crm-data", { method: "POST", body: { action: "saveContactsAdded", contactsAdded } }),
     };
   }
   const email = String(env.VA_CRM_EMAIL || "").trim();
@@ -254,6 +265,13 @@ async function harborCrmAccess(request: Request, env: Env, user: { email: string
       crmRequestWithCookie(env, login.cookie, { body: { action: "saveContactEdits", contactEdits: edits } }),
     note: (contactId: string, text: string) =>
       crmRequestWithCookie(env, login.cookie, { body: { action: "appendNote", contactId, text, tag: "Book" } }),
+    followups: (followups: Record<string, Record<string, unknown>>) =>
+      crmRequestWithCookie(env, login.cookie, {
+        search: "?action=saveFollowups",
+        body: { action: "saveFollowups", followups },
+      }),
+    added: (contactsAdded: Record<string, unknown>[]) =>
+      crmRequestWithCookie(env, login.cookie, { body: { action: "saveContactsAdded", contactsAdded } }),
   };
 }
 
@@ -984,14 +1002,105 @@ export default {
         return String(rec.id || "") === str(body.contactId || body.id);
       }) as Record<string, unknown> | undefined;
       if (!hit) return json(404, { error: "That contact is not on the book." });
-      const plan = harborOutcomePlan(hit, body.outcome, { closer: body.closer, note: str(body.note), cte: body.cteStage || hit.cteStage });
+      const plan = harborOutcomePlan(hit, body.outcome, {
+        closer: body.closer,
+        note: str(body.note),
+        cte: body.cteStage || hit.cteStage,
+        inbound: Boolean(body.inbound),
+        reason: body.reason,
+        followUpDate: body.followUpDate || body.when,
+        deal: readHarborDeal(body),
+        spoken: body.spoken || body.variant,
+        harborDid: env.TWILIO_PHONE_NUMBER,
+        container: body.container || body.size,
+      });
       if (!plan.outcome) return json(400, { error: "Need a Harbor call outcome." });
       const id = String(hit.id || "");
       const edits: Record<string, Record<string, unknown>> = {};
-      edits[id] = { owner: plan.owner, status: plan.status, cteStage: plan.cteStage };
+      edits[id] = harborOutcomeEdits(plan);
       await crm.edits(edits);
+      const follow = harborFollowupRow(plan);
+      if (follow) {
+        const followups: Record<string, Record<string, unknown>> = {};
+        followups[id] = follow;
+        await crm.followups(followups);
+      }
       await crm.note(id, plan.note);
-      return json(200, { ok: true, dialing: false, plan, ...vaPublicStatus(env) });
+      return json(200, { ok: true, dialing: false, spoken: plan.spoken, plan, ...vaPublicStatus(env) });
+    }
+
+    if (path === "/va/harbor/inbound" && request.method === "POST") {
+      const user = await readSession(request, env);
+      const secret = String(env.VA_WEBHOOK_SECRET || "").trim();
+      const bearer = String(request.headers.get("authorization") || "").replace(/^bearer\s+/i, "").trim();
+      const asAgent = Boolean(secret && bearer && timingSafeEqualStr(bearer, secret));
+      if (!user && !asAgent) return json(401, { error: "Sign in first." });
+      if (user && !isChristopherUser(user.email, user.name) && !asAgent) {
+        return json(403, { error: "Harbor inbound is for Christopher or the outbound VA." });
+      }
+      const body = await readJson(request);
+      const crm = await harborCrmAccess(request, env, user);
+      if (!crm.ok) return json(503, { error: crm.error });
+      const get = await crm.get();
+      if (!get.ok) return json(502, { error: "Could not read the book for Harbor inbound." });
+      const phone = inboundCallerPhone(body);
+      const found = planInboundContact(crmContactPool(get.data), {
+        contactId: str(body.contactId || body.id),
+        phone,
+        name: str(body.name || body.contactName),
+        company: str(body.company),
+        email: str(body.email),
+      });
+      if (!found.contact) return json(400, { error: found.error || "Need the inbound caller ID." });
+      let hit = found.contact;
+      if (found.created) {
+        const added = contactsAddedFromCrmPayload(get.data).slice();
+        added.unshift(hit);
+        const saved = await crm.added(added);
+        if (!saved.ok) return json(502, { error: "Could not park the inbound caller on the book." });
+      }
+      const plan = harborOutcomePlan(hit, body.outcome || "inbound-answered", {
+        closer: body.closer,
+        note: str(body.note),
+        cte: body.cteStage || hit.cteStage,
+        inbound: true,
+        reason: body.reason,
+        followUpDate: body.followUpDate || body.when,
+        deal: readHarborDeal(body),
+        spoken: body.spoken || body.variant,
+        harborDid: env.TWILIO_PHONE_NUMBER,
+        container: body.container || body.size,
+      });
+      if (!plan.outcome) return json(400, { error: "Need a Harbor inbound outcome." });
+      const id = String(hit.id || "");
+      const edits: Record<string, Record<string, unknown>> = {};
+      edits[id] = harborOutcomeEdits(plan);
+      await crm.edits(edits);
+      const follow = harborFollowupRow(plan);
+      if (follow) {
+        const followups: Record<string, Record<string, unknown>> = {};
+        followups[id] = follow;
+        await crm.followups(followups);
+      }
+      await crm.note(id, plan.note);
+      await putVaCapture(env, emptyCapture({
+        source: "inbound",
+        contactId: id,
+        contactName: String(hit.name || ""),
+        phone,
+        outcome: plan.outcome,
+        summary: plan.note.slice(0, 240),
+        crmFlushed: true,
+      }));
+      return json(200, {
+        ok: true,
+        dialing: false,
+        created: found.created,
+        spoken: plan.spoken,
+        contact: { ...hit, ...edits[id], id },
+        plan,
+        ...vaPublicStatus(env),
+      });
     }
 
     if (path === "/va/email/draft" && request.method === "POST") {

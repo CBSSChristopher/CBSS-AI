@@ -81,6 +81,7 @@ export function publicVaStatus(env: VaEnvBits): Record<string, unknown> {
     hasTwilioNumber: present(env.TWILIO_PHONE_NUMBER),
     hasCrmServiceLogin: present(env.VA_CRM_EMAIL) && present(env.VA_CRM_PASSWORD),
     voiceNote: "Neutral professional voice placeholder. Do not clone Christopher without a written decision.",
-    harborNote: "This is the outbound sales phone VA, not the Harbor staff-comms Grok Bot.",
+    harborNote:
+      "Harbor opens CTE, answers inbound on the Twilio DID, and hands ready-to-buy to Christopher or Bryan Reese. This is not the Harbor staff-comms Grok Bot. Harbor does not collect payment.",
   };
 }

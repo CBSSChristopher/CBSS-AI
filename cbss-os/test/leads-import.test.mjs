@@ -132,6 +132,7 @@ describe("Yard wiring for CSV import and Harbor pull", () => {
     assert.match(index, /\/va\/leads\/import/);
     assert.match(index, /\/va\/harbor\/next/);
     assert.match(index, /\/va\/harbor\/outcome/);
+    assert.match(index, /\/va\/harbor\/inbound/);
   });
 
   it("puts Import Meta CSV on the Christopher VA tab", () => {

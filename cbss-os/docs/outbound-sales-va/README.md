@@ -1,12 +1,12 @@
-# Outbound sales VA (phone setter)
+# Outbound sales VA (Harbor desk)
 
-Appointment-setter for **business shipping containers** only. Not personal storage fluff. Not the Harbor staff-comms Grok Bot.
+Harbor sales desk for **business shipping containers** only. Not personal storage fluff. Not the Harbor staff-comms Grok Bot.
 
-Goal: Harbor opens on CTE, then hands **ready-to-buy** to Christopher Banks or Bryan Reese. Harbor does not collect payment.
+Goal: Harbor opens on CTE (and answers inbound), then hands **ready-to-buy** to Christopher Banks or Bryan Reese with a warm accounting handoff. Harbor does not collect payment.
 
-**No Meta webhook.** Leads enter from a Meta CSV (`docs/meta-lead-csv/`). Workflow: `workflow.md`.
+**No Meta webhook.** Leads enter from a Meta CSV (`docs/meta-lead-csv/`). Workflow: `workflow.md`. Scripts: `scripts.md`. Inbound: `inbound.md`.
 
-v1 channel: CSV import → New/Unassigned pile → Harbor pull/CTE → closer handoff. ElevenLabs + Twilio later. Email drafts only. Nothing dials until Christopher arms `VA_DIAL_ARMED`.
+v1 channel: CSV import → New/Unassigned pile → Harbor pull/CTE → closer handoff. Inbound callbacks hit Harbor. ElevenLabs + Twilio later. Email drafts only. Nothing dials until Christopher arms `VA_DIAL_ARMED`.
 
 ## Architecture
 
@@ -20,10 +20,12 @@ POST /va/leads/import     (Christopher · The Yard)
 GET /va/harbor/next       Harbor self-assigns · CTE1 · Working
         │
         ▼
-POST /va/harbor/outcome   VM / answered / ready-to-buy / DNC …
+POST /va/harbor/outcome   VM / answered / soft-delay / ready-to-buy / DNC …
         │
         ▼
-Ready to buy → owner Christopher Banks or Bryan Reese
+Ready to buy → spoken handoff → owner Christopher Banks or Bryan Reese
+
+Inbound: they call Harbor DID → POST /va/harbor/inbound
 ```
 
 The Facebook Lead Ads Cloudflare webhook (`/va/hooks/facebook-leads`) is **abandoned**. Do not ask for FB app secrets for this flow.
@@ -49,6 +51,9 @@ This pack reuses The Yard and the live CRM `appendNote` path. It does **not** in
 | `POST` | `/va/captures/flush` | Christopher session. Writes pending captures to CRM notes. |
 | `POST` | `/va/email/draft` | Company session. Returns a draft. Does not send. |
 | `POST` | `/va/dial` | Company session. Parked. Never dials. |
+| `GET` | `/va/harbor/next` | Christopher or Bearer. Assigns Harbor + CTE1. |
+| `POST` | `/va/harbor/outcome` | Same auth. CTE / soft-delay / ready-to-buy. |
+| `POST` | `/va/harbor/inbound` | Same auth. They called the Harbor DID. |
 
 Webhook URL after a Yard deploy Christopher approves:
 
@@ -74,7 +79,9 @@ Webhook URL after a Yard deploy Christopher approves:
 
 ## Pack
 
-- [persona.md](./persona.md) — system prompt (setter, not closer)
+- [persona.md](./persona.md) — system prompt (sales opener, not cashier)
+- [scripts.md](./scripts.md) — ready-to-buy variants, voicemail, soft delay, hard no
+- [inbound.md](./inbound.md) — they call the Harbor DID
 - [compliance.md](./compliance.md) — recording consent, TCPA, objections
 - [outcomes.md](./outcomes.md) — call outcome taxonomy
 - [payments.md](./payments.md) — cards frozen language

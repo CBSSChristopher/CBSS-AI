@@ -1,6 +1,12 @@
 # Call outcome taxonomy
 
-Exactly one outcome per capture. The webhook and CRM note use these slugs.
+Exactly one outcome per capture.
+
+The original setter webhook (`POST /va/hooks/outbound`) still uses the seven slugs below.
+
+Harbor CTE (`POST /va/harbor/outcome` and `/va/harbor/inbound`) uses the Harbor slugs in [workflow.md](./workflow.md).
+
+## Webhook slugs (setter capture)
 
 | Slug | Meaning | CRM note? |
 | --- | --- | --- |
@@ -11,6 +17,22 @@ Exactly one outcome per capture. The webhook and CRM note use these slugs.
 | `booked` | Qualified appointment (call or site visit) with the closer. | Yes. Include time + closer name. |
 | `DNC` | They asked to be left alone, or the number is on the do-not-touch list. | Yes — this is how the book learns. |
 | `wrong-number` | Number does not belong to the named lead. | Yes, if a contact matches. |
+
+## Harbor CTE slugs
+
+| Slug | Card |
+| --- | --- |
+| `no-answer` | Harbor · Working · next CTE |
+| `voicemail` | Harbor · Working · next CTE · Harbor DID callback |
+| `answered` | Harbor · Working |
+| `callback` / `soft-delay` | Harbor · Follow-up · follow-up task |
+| `inbound-answered` | Harbor · Working |
+| `inbound-message` | Harbor · Follow-up |
+| `ready-to-buy` / `inbound-ready-to-buy` | Christopher or Bryan · Ready to buy · full closer note |
+| `not-interested` | Not interested · no follow-up |
+| `bought-elsewhere` | Bought elsewhere · no follow-up |
+| `DNC` | DNC · no follow-up |
+| `wrong-number` | Email campaign · off dial queue |
 
 ## Aliases the webhook accepts
 
@@ -37,5 +59,7 @@ VA outbound · booked · Acme Welding · 8705550100 · closer Christopher Banks 
 Appointment: Thu 2pm site visit
 Summary: Jobsite 40HC delivery, buyer is Pat.
 ```
+
+Ready-to-buy Harbor notes use the full closer block in [scripts.md](./scripts.md).
 
 Transcript is stored on the KV capture and clipped on the CRM note so the card stays readable.

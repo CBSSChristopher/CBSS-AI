@@ -24,6 +24,10 @@ Do not say any of these:
 
 Veem stays parked. Do not mention it.
 
+## Ready-to-buy
+
+Harbor says a witty accounting handoff ([scripts.md](./scripts.md)) and parks the card on Christopher or Bryan. Harbor does not collect bank details on the recorded line. If they start reading routing numbers, stop them and hand off.
+
 ## What the closer still owns
 
 Price, inventory, delivery vs pickup, and which non-card method they actually use. The VA does not collect bank details on the recorded line. If they start reading routing numbers, stop them and book the closer.

@@ -194,6 +194,7 @@ describe("outbound VA Yard wiring", () => {
     assert.match(index, /\/va\/hooks\/outbound/);
     assert.match(index, /\/va\/leads\/import/);
     assert.match(index, /\/va\/harbor\/next/);
+    assert.match(index, /\/va\/harbor\/inbound/);
     assert.match(index, /\/va\/captures\/flush/);
     assert.match(index, /\/va\/email\/draft/);
     assert.match(index, /\/va\/dial/);

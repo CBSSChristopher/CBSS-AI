@@ -70,8 +70,14 @@ Do not promise a brochure blast. v1 email is drafts-only.
 
 Outcome: `not-interested`.
 
-**Callback**
-One agreed window. Outcome `callback`. Do not stack three “just checking” voicemails.
+**Callback / soft delay**
+One agreed window. Outcome `callback` or `soft-delay`. Follow-up on that date or the next business day. Stay on Harbor. Do not close-out. Do not stack three “just checking” voicemails.
+
+**Ready to buy**
+Warm accounting handoff from [scripts.md](./scripts.md). Hand to Christopher or Bryan. Harbor does not collect.
+
+**Bought elsewhere**
+Polite close-out. Outcome `bought-elsewhere`. No follow-up.
 
 ## Forbidden ops
 
