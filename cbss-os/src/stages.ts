@@ -6,6 +6,7 @@ export const STAGES = [
   "Follow-up",
   "Email campaign",
   "Quoted",
+  "Ready to buy",
   "Proposal Sent",
   "Invoiced",
   "Paid",
@@ -36,6 +37,11 @@ export const STAGE_ALIASES: Record<string, Stage> = {
   quoted: "Quoted",
   quote: "Quoted",
   "flex buy": "Quoted",
+  "ready to buy": "Ready to buy",
+  "ready-to-buy": "Ready to buy",
+  handoff: "Ready to buy",
+  "new/unassigned": "New",
+  newunassigned: "New",
   "proposal sent": "Proposal Sent",
   invoiced: "Invoiced",
   invoice: "Invoiced",
@@ -55,6 +61,7 @@ const STAGE_TO_LIFECYCLE: Record<Stage, "New" | "Working" | "Quoted" | "Invoiced
   "Follow-up": "Working",
   "Email campaign": "Working",
   Quoted: "Quoted",
+  "Ready to buy": "Quoted",
   "Proposal Sent": "Quoted",
   Invoiced: "Invoiced",
   Paid: "Paid",
@@ -85,4 +92,4 @@ export function stageMatches(stored: unknown, column: Stage): boolean {
 }
 
 /** Pipeline always shows the money path even when a column is empty. */
-export const PIPELINE_ALWAYS: readonly Stage[] = ["New", "Working", "Quoted", "Proposal Sent", "Paid", "Lost"];
+export const PIPELINE_ALWAYS: readonly Stage[] = ["New", "Working", "Quoted", "Ready to buy", "Proposal Sent", "Paid", "Lost"];

@@ -5,7 +5,7 @@ export const VA_CAPTURE_PREFIX = "va:capture:";
 export const VA_INDEX_KEY = "va:index";
 const INDEX_CAP = 200;
 
-export type VaSource = "elevenlabs" | "twilio" | "manual" | "unknown";
+export type VaSource = "elevenlabs" | "twilio" | "manual" | "facebook" | "unknown";
 
 export type VaCapture = {
   id: string;
@@ -45,7 +45,13 @@ export function emptyCapture(partial: Partial<VaCapture> = {}): VaCapture {
   return {
     id: String(partial.id || "").trim() || randomId(),
     receivedAt: String(partial.receivedAt || "").trim() || new Date().toISOString(),
-    source: partial.source === "elevenlabs" || partial.source === "twilio" || partial.source === "manual" ? partial.source : "unknown",
+    source:
+      partial.source === "elevenlabs" ||
+      partial.source === "twilio" ||
+      partial.source === "manual" ||
+      partial.source === "facebook"
+        ? partial.source
+        : "unknown",
     callId: String(partial.callId || "").trim(),
     conversationId: String(partial.conversationId || "").trim(),
     from: String(partial.from || "").trim(),

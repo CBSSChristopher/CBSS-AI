@@ -3,6 +3,7 @@ import {
   clearSession,
   isCompanyEmail,
   loginAllTools,
+  loginCrmTool,
   makeSession,
   origins,
   readSession,
@@ -38,7 +39,9 @@ import { handleAgentMailHook, handleCycleAuthed, runCycleCron } from "./cycle/ht
 import { startWorking } from "./cycle/engine.ts";
 import { buildMondayReport } from "./monday-report.ts";
 import {
+  contactsAddedFromCrmPayload,
   contactsFromCrmPayload,
+  crmContactPool,
   flushVaCaptures,
   handleVaOutboundHook,
   listVaCaptures,
@@ -47,6 +50,17 @@ import {
   vaDraftResponse,
   vaPublicStatus,
 } from "./va/http.ts";
+import { applyLeadImport, parseLeadCsv, parseLeadJsonRows, planLeadImport, publicImportPreview, readImportPayload } from "./va/leads-import.ts";
+import { timingSafeEqualStr } from "./va/hmac.ts";
+import { emptyCapture, putVaCapture } from "./va/store.ts";
+import { crmRequestWithCookie } from "./va/crm-client.ts";
+import {
+  HARBOR_OWNER,
+  harborAssignNote,
+  harborAssignPatch,
+  harborOutcomePlan,
+  pickHarborNext,
+} from "./va/workflow.ts";
 
 const SECURITY = {
   "X-Content-Type-Options": "nosniff",
@@ -213,6 +227,34 @@ async function crmJson(
   const res = await proxyTool(req, env, "crm", rest.startsWith("/crm-data") ? rest : "/crm-data");
   const data = await res.json().catch(() => ({})) as Record<string, unknown>;
   return { ok: res.ok, data };
+}
+
+async function harborCrmAccess(request: Request, env: Env, user: { email: string; name: string } | null) {
+  if (user) {
+    return {
+      ok: true as const,
+      get: () => crmJson(request, env, "/crm-data?action=get&omitNotes=1"),
+      edits: (edits: Record<string, Record<string, unknown>>) =>
+        crmJson(request, env, "/crm-data", { method: "POST", body: { action: "saveContactEdits", contactEdits: edits } }),
+      note: async (contactId: string, text: string) => {
+        await appendCycleCrmNote(request, env, contactId, text);
+        return { ok: true };
+      },
+    };
+  }
+  const email = String(env.VA_CRM_EMAIL || "").trim();
+  const password = String(env.VA_CRM_PASSWORD || "").trim();
+  if (!email || !password) return { ok: false as const, error: "Sign into The Yard, or set VA_CRM_EMAIL / VA_CRM_PASSWORD for the Harbor agent." };
+  const login = await loginCrmTool(env, email, password);
+  if (!login.ok) return { ok: false as const, error: "Harbor CRM service login failed." };
+  return {
+    ok: true as const,
+    get: () => crmRequestWithCookie(env, login.cookie, { method: "GET", search: "?action=get&omitNotes=1" }),
+    edits: (edits: Record<string, Record<string, unknown>>) =>
+      crmRequestWithCookie(env, login.cookie, { body: { action: "saveContactEdits", contactEdits: edits } }),
+    note: (contactId: string, text: string) =>
+      crmRequestWithCookie(env, login.cookie, { body: { action: "appendNote", contactId, text, tag: "Book" } }),
+  };
 }
 
 async function attachProposalToCrm(
@@ -845,6 +887,111 @@ export default {
         return true;
       }, str(body.id));
       return json(200, { ok: true, ...result, ...vaPublicStatus(env) });
+    }
+
+    if (path === "/va/leads/import" && request.method === "POST") {
+      const user = await readSession(request, env);
+      if (!user) return json(401, { error: "Sign in first." });
+      if (!isChristopherUser(user.email, user.name)) {
+        return json(403, { error: "Lead import is for Christopher only." });
+      }
+      const payload = await readImportPayload(request);
+      if (payload.error) return json(400, { error: payload.error });
+      const parsed = payload.rows ? parseLeadJsonRows(payload.rows) : parseLeadCsv(payload.csv);
+      const get = await crmJson(request, env, "/crm-data?action=get&omitNotes=1");
+      if (!get.ok) return json(502, { error: "Could not read the book to import leads." });
+      const plan = planLeadImport(parsed.rows, crmContactPool(get.data));
+      if (payload.dryRun) {
+        return json(200, { ok: true, dryRun: true, skippedEmptyPhone: parsed.skippedEmptyPhone, ...publicImportPreview(plan) });
+      }
+      const applied = await applyLeadImport(plan, contactsAddedFromCrmPayload(get.data), {
+        saveAdded: async (added) => {
+          const res = await crmJson(request, env, "/crm-data", { method: "POST", body: { action: "saveContactsAdded", contactsAdded: added } });
+          return res.ok;
+        },
+        saveEdits: async (edits) => {
+          const res = await crmJson(request, env, "/crm-data", { method: "POST", body: { action: "saveContactEdits", contactEdits: edits } });
+          return res.ok;
+        },
+        appendNote: async (contactId, text) => {
+          await appendCycleCrmNote(request, env, contactId, text);
+          return true;
+        },
+      });
+      for (const item of plan.actions) {
+        if (item.action === "skip") continue;
+        const id = item.action === "create" ? String(item.contact.id || "") : item.contactId;
+        await putVaCapture(env, emptyCapture({
+          source: "facebook",
+          contactId: id,
+          contactName: item.row.name,
+          phone: item.row.phone,
+          summary: "Meta CSV · New/Unassigned · queued. Not dialed.",
+          crmFlushed: true,
+        }));
+      }
+      return json(200, { ok: applied.ok, dryRun: false, ...publicImportPreview(plan), applied, ...vaPublicStatus(env) });
+    }
+
+    if (path === "/va/harbor/next" && request.method === "GET") {
+      const user = await readSession(request, env);
+      const secret = String(env.VA_WEBHOOK_SECRET || "").trim();
+      const bearer = String(request.headers.get("authorization") || "").replace(/^bearer\s+/i, "").trim();
+      const asAgent = Boolean(secret && bearer && timingSafeEqualStr(bearer, secret));
+      if (!user && !asAgent) return json(401, { error: "Sign in first." });
+      if (user && !isChristopherUser(user.email, user.name) && !asAgent) {
+        return json(403, { error: "Harbor queue is for Christopher or the outbound VA." });
+      }
+      const crm = await harborCrmAccess(request, env, user);
+      if (!crm.ok) return json(503, { error: crm.error });
+      const get = await crm.get();
+      if (!get.ok) return json(502, { error: "Could not read the book for Harbor." });
+      const hit = pickHarborNext(crmContactPool(get.data));
+      if (!hit) return json(200, { ok: true, empty: true, dialing: false, contact: null });
+      const id = String(hit.id || "");
+      const patch = harborAssignPatch("CTE1");
+      const edits: Record<string, Record<string, unknown>> = {};
+      edits[id] = patch;
+      await crm.edits(edits);
+      await crm.note(id, harborAssignNote("CTE1"));
+      return json(200, {
+        ok: true,
+        empty: false,
+        dialing: false,
+        assigned: HARBOR_OWNER,
+        cteStage: "CTE1",
+        contact: { ...hit, ...patch, id },
+        ...vaPublicStatus(env),
+      });
+    }
+
+    if (path === "/va/harbor/outcome" && request.method === "POST") {
+      const user = await readSession(request, env);
+      const secret = String(env.VA_WEBHOOK_SECRET || "").trim();
+      const bearer = String(request.headers.get("authorization") || "").replace(/^bearer\s+/i, "").trim();
+      const asAgent = Boolean(secret && bearer && timingSafeEqualStr(bearer, secret));
+      if (!user && !asAgent) return json(401, { error: "Sign in first." });
+      if (user && !isChristopherUser(user.email, user.name) && !asAgent) {
+        return json(403, { error: "Harbor outcomes are for Christopher or the outbound VA." });
+      }
+      const body = await readJson(request);
+      const crm = await harborCrmAccess(request, env, user);
+      if (!crm.ok) return json(503, { error: crm.error });
+      const get = await crm.get();
+      if (!get.ok) return json(502, { error: "Could not read the book for Harbor." });
+      const hit = crmContactPool(get.data).find((row) => {
+        const rec = row && typeof row === "object" ? (row as Record<string, unknown>) : {};
+        return String(rec.id || "") === str(body.contactId || body.id);
+      }) as Record<string, unknown> | undefined;
+      if (!hit) return json(404, { error: "That contact is not on the book." });
+      const plan = harborOutcomePlan(hit, body.outcome, { closer: body.closer, note: str(body.note), cte: body.cteStage || hit.cteStage });
+      if (!plan.outcome) return json(400, { error: "Need a Harbor call outcome." });
+      const id = String(hit.id || "");
+      const edits: Record<string, Record<string, unknown>> = {};
+      edits[id] = { owner: plan.owner, status: plan.status, cteStage: plan.cteStage };
+      await crm.edits(edits);
+      await crm.note(id, plan.note);
+      return json(200, { ok: true, dialing: false, plan, ...vaPublicStatus(env) });
     }
 
     if (path === "/va/email/draft" && request.method === "POST") {

@@ -34,6 +34,7 @@ export const TEAM_OWNERS = [
   "Derrek Clements",
   "Sean Thurman",
   "Julia",
+  "Harbor",
   "New/Unassigned",
 ] as const;
 
@@ -50,6 +51,8 @@ export const OWNER_ALIASES: Record<string, string> = {
   derrek: "Derrek Clements",
   sean: "Sean Thurman",
   julia: "Julia",
+  harbor: "Harbor",
+  brian: "Bryan Reese",
 };
 
 export function titleOwner(value: string): string {
@@ -57,6 +60,8 @@ export function titleOwner(value: string): string {
   if (!raw) return "";
   const compact = raw.toLowerCase().replace(/[\s_-]+/g, "");
   if (compact === "new/unassigned" || compact === "newunassigned" || compact === "unassigned") return "New/Unassigned";
+  if (compact === "harbor") return "Harbor";
+  if (compact === "brian" || compact === "brianreese") return "Bryan Reese";
   if (compact === "kylehodgkiss") return "Kyle Hodgkiss";
   const first = raw.split(/[\s@]/)[0].toLowerCase();
   return OWNER_ALIASES[first] || raw;

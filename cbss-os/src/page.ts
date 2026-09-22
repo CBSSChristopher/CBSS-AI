@@ -2053,16 +2053,53 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
           return "<tr><td>"+esc(String(row.receivedAt||"").slice(0,19).replace("T"," "))+"</td><td>"+esc(vaOutcomeLabel(row.outcome))+"</td><td>"+esc(row.contactName||"")+"</td><td>"+esc(row.phone||row.from||"")+"</td><td>"+esc(vaCrmCell(row))+"</td><td>"+esc(String(row.summary||"").slice(0,140))+"</td></tr>";
         }).join("");
         el.innerHTML = "<h2>VA calls</h2>"
-          +'<p class="muted">Outbound appointment-setter captures. Phone VA is parked until secrets are pasted and Christopher says go. This is not the Harbor staff Grok Bot. Cards stay frozen — no card checkout talk.</p>'
+          +'<p class="muted">Outbound Harbor CTE. Import Meta CSVs onto New/Unassigned. Harbor self-assigns, runs CTE1–4, then hands ready-to-buy to Christopher or Bryan Reese. No Meta webhook. Cards frozen. Dial parked until VA_DIAL_ARMED.</p>'
           +vaStatusBoxes(res.j)
           +'<p class="muted">'+esc(String((res.j && res.j.voiceNote) || ""))+"</p>"
+          +"<h3>Import Meta CSV</h3>"
+          +'<p class="muted">Export leads from Meta Ads Manager. Real leads only. Test rows named TEST- are skipped. Preview first, then write to the book.</p>'
+          +'<input id="va-csv-file" type="file" accept=".csv,text/csv" />'
+          +'<div class="row"><button type="button" class="secondary" id="va-csv-preview">Preview CSV</button><button type="button" id="va-csv-import">Import to New/Unassigned</button></div>'
+          +'<p class="muted" id="va-csv-note"></p>'
           +'<div class="row"><button type="button" id="va-flush">Write pending to CRM</button></div>'
           +'<p class="muted" id="va-flush-note"></p>'
           +(rows ? "<table><thead><tr><th>When</th><th>Outcome</th><th>Name</th><th>Phone</th><th>CRM</th><th>Summary</th></tr></thead><tbody>"+rows+"</tbody></table>" : '<p class="muted">No VA captures yet.</p>');
         const flush = $("va-flush");
         if (flush) flush.addEventListener("click", flushVaCalls);
+        const previewBtn = $("va-csv-preview");
+        const importBtn = $("va-csv-import");
+        if (previewBtn) previewBtn.addEventListener("click", function(){ runLeadImport(true); });
+        if (importBtn) importBtn.addEventListener("click", function(){ runLeadImport(false); });
       } catch (err) {
         el.innerHTML = '<p class="err">'+(err && err.message ? esc(err.message) : "Could not load VA captures.")+"</p>";
+      }
+    }
+    async function readVaCsvText(){
+      const input = $("va-csv-file");
+      const file = input && input.files && input.files[0];
+      if (!file) return "";
+      return await file.text();
+    }
+    async function runLeadImport(dryRun){
+      const note = $("va-csv-note");
+      const csv = await readVaCsvText();
+      if (!csv.trim()){ if (note) note.textContent = "Choose a Meta Lead Ads CSV first."; return; }
+      if (note) note.textContent = dryRun ? "Previewing…" : "Importing real leads onto New/Unassigned…";
+      try {
+        const res = await api("/va/leads/import", { method:"POST", body: JSON.stringify({ csv:csv, dryRun:!!dryRun }), allowError: true });
+        if (!res.r.ok || res.j.ok === false) throw new Error(res.j.error || "Could not import that CSV.");
+        const bits = [
+          dryRun ? "Preview" : "Imported",
+          "create "+(res.j.created||0),
+          "update "+(res.j.updated||0),
+          "no phone "+(res.j.skippedEmptyPhone||0),
+          "DNC "+(res.j.skippedDnc||0),
+          "fixture skipped "+(res.j.skippedFixture||0)
+        ];
+        if (note) note.textContent = bits.join(" · ") + ". Pile "+(res.j.pile||"New/Unassigned")+" · stage "+(res.j.bookStage||"New")+".";
+        if (!dryRun) await loadVaCalls();
+      } catch (err) {
+        if (note) note.textContent = (err && err.message) || "Could not import that CSV.";
       }
     }
     async function flushVaCalls(){

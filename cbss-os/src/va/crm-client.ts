@@ -29,3 +29,16 @@ export function contactsFromCrmPayload(data: Record<string, unknown>): unknown[]
   const nested = data.data && typeof data.data === "object" ? (data.data as Record<string, unknown>) : {};
   return Array.isArray(nested.contacts) ? nested.contacts : [];
 }
+
+export function contactsAddedFromCrmPayload(data: Record<string, unknown>): Record<string, unknown>[] {
+  const raw = Array.isArray(data.contactsAdded)
+    ? data.contactsAdded
+    : data.data && typeof data.data === "object" && Array.isArray((data.data as Record<string, unknown>).contactsAdded)
+      ? ((data.data as Record<string, unknown>).contactsAdded as unknown[])
+      : [];
+  return raw.filter((row) => row && typeof row === "object") as Record<string, unknown>[];
+}
+
+export function crmContactPool(data: Record<string, unknown>): unknown[] {
+  return contactsAddedFromCrmPayload(data).concat(contactsFromCrmPayload(data));
+}

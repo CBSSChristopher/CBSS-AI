@@ -17,7 +17,7 @@ export function legacyStatusFor(life: Lifecycle): string {
 export function bookStatusFor(life: Lifecycle, current?: unknown): string {
   const cur = normalizeStage(current);
   if (life === "Working" && (cur === "Follow-up" || cur === "Email campaign")) return cur;
-  if (life === "Quoted" && cur === "Proposal Sent") return cur;
+  if (life === "Quoted" && (cur === "Proposal Sent" || cur === "Ready to buy")) return cur;
   if (life === "Lost" && cur === "DNC") return "DNC";
   return life || cur || "New";
 }

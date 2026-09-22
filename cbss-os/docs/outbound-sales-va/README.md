@@ -2,31 +2,31 @@
 
 Appointment-setter for **business shipping containers** only. Not personal storage fluff. Not the Harbor staff-comms Grok Bot.
 
-Goal: book a qualified call or site visit for a human closer. Christopher Banks stays closer of record unless a named rep is assigned.
+Goal: Harbor opens on CTE, then hands **ready-to-buy** to Christopher Banks or Bryan Reese. Harbor does not collect payment.
 
-v1 channel: **phone VA** (ElevenLabs Conversational + Twilio later) → this Yard webhook → CRM activity on the existing book. Email sequences are **drafts only**. Nothing sends. Nothing dials until Christopher pastes secrets and says go.
+**No Meta webhook.** Leads enter from a Meta CSV (`docs/meta-lead-csv/`). Workflow: `workflow.md`.
+
+v1 channel: CSV import → New/Unassigned pile → Harbor pull/CTE → closer handoff. ElevenLabs + Twilio later. Email drafts only. Nothing dials until Christopher arms `VA_DIAL_ARMED`.
 
 ## Architecture
 
 ```
-ElevenLabs Conversational agent
-        │  post-call / transcript webhook
-        ▼
-Twilio number (later; inbound PSTN + status callbacks)
+Meta Ads Manager CSV (iPad export)
         │
         ▼
-POST /va/hooks/outbound   (Yard / cbssos)
-        │  HMAC VA_WEBHOOK_SECRET
+POST /va/leads/import     (Christopher · The Yard)
+        │  owner New/Unassigned · stage New · source facebook_lead_ads
         ▼
-SESSIONS KV   va:capture:<id> + va:index
+GET /va/harbor/next       Harbor self-assigns · CTE1 · Working
         │
         ▼
-CRM appendNote (existing book — tag Book)
-        │  match contactId or digits-only phone
-        │  skip do-not-touch / DNC unless the outcome itself is DNC
+POST /va/harbor/outcome   VM / answered / ready-to-buy / DNC …
+        │
         ▼
-The Yard → CRM → VA calls tab (Christopher only)
+Ready to buy → owner Christopher Banks or Bryan Reese
 ```
+
+The Facebook Lead Ads Cloudflare webhook (`/va/hooks/facebook-leads`) is **abandoned**. Do not ask for FB app secrets for this flow.
 
 This pack reuses The Yard and the live CRM `appendNote` path. It does **not** invent a second CRM.
 

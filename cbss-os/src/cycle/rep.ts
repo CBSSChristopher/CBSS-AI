@@ -25,7 +25,7 @@ export function firstNameOf(name: string): string {
 }
 
 function isRosterOwner(name: string): boolean {
-  return (TEAM_OWNERS as readonly string[]).includes(name) && name !== "New/Unassigned";
+  return (TEAM_OWNERS as readonly string[]).includes(name) && name !== "New/Unassigned" && name !== "Harbor";
 }
 
 /** Jonesboro office line. Used when a rep has no posted direct line. (870) 323-1747 is omit — out of service. */

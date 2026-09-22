@@ -1,5 +1,5 @@
 import { loginCrmTool, type Env } from "../auth.ts";
-import { contactsFromCrmPayload, crmRequestWithCookie } from "./crm-client.ts";
+import { contactsAddedFromCrmPayload, contactsFromCrmPayload, crmContactPool, crmRequestWithCookie } from "./crm-client.ts";
 import { buildVaEmailDraft } from "./draft.ts";
 import { applyFlushResult, planVaFlush } from "./flush.ts";
 import { verifyVaWebhook } from "./hmac.ts";
@@ -125,4 +125,4 @@ export function vaPublicStatus(env: VaEnvBits): Record<string, unknown> {
   return publicVaStatus(env);
 }
 
-export { listVaCaptures, contactsFromCrmPayload };
+export { listVaCaptures, contactsFromCrmPayload, contactsAddedFromCrmPayload, crmContactPool };

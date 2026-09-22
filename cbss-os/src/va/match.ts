@@ -27,9 +27,15 @@ export function isDoNotTouch(contact: Record<string, unknown> | null | undefined
   return stage === "DNC";
 }
 
+export function emailsMatch(a: unknown, b: unknown): boolean {
+  const left = String(a || "").trim().toLowerCase();
+  const right = String(b || "").trim().toLowerCase();
+  return Boolean(left && right && left.includes("@") && left === right);
+}
+
 export function matchCrmContact(
   contacts: unknown,
-  hint: { contactId?: string; phone?: string },
+  hint: { contactId?: string; phone?: string; email?: string },
 ): Record<string, unknown> | null {
   const rows = Array.isArray(contacts) ? contacts : [];
   const id = String(hint.contactId || "").trim();
@@ -41,10 +47,20 @@ export function matchCrmContact(
     if (hit && typeof hit === "object") return hit as Record<string, unknown>;
   }
   const phone = hint.phone || "";
-  if (!phoneDigits(phone)) return null;
-  const hit = rows.find((row) => {
-    const rec = row && typeof row === "object" ? (row as Record<string, unknown>) : {};
-    return phonesMatch(phone, rec.phone) || phonesMatch(phone, rec.mobile);
-  });
-  return hit && typeof hit === "object" ? (hit as Record<string, unknown>) : null;
+  if (phoneDigits(phone)) {
+    const hit = rows.find((row) => {
+      const rec = row && typeof row === "object" ? (row as Record<string, unknown>) : {};
+      return phonesMatch(phone, rec.phone) || phonesMatch(phone, rec.mobile);
+    });
+    if (hit && typeof hit === "object") return hit as Record<string, unknown>;
+  }
+  const email = hint.email || "";
+  if (email) {
+    const hit = rows.find((row) => {
+      const rec = row && typeof row === "object" ? (row as Record<string, unknown>) : {};
+      return emailsMatch(email, rec.email);
+    });
+    if (hit && typeof hit === "object") return hit as Record<string, unknown>;
+  }
+  return null;
 }

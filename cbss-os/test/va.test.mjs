@@ -192,9 +192,12 @@ describe("outbound VA Yard wiring", () => {
 
   it("exposes webhook, flush, draft, and parked dial routes", () => {
     assert.match(index, /\/va\/hooks\/outbound/);
+    assert.match(index, /\/va\/leads\/import/);
+    assert.match(index, /\/va\/harbor\/next/);
     assert.match(index, /\/va\/captures\/flush/);
     assert.match(index, /\/va\/email\/draft/);
     assert.match(index, /\/va\/dial/);
+    assert.doesNotMatch(index, /\/va\/hooks\/facebook-leads/);
     assert.match(index, /handleVaOutboundHook/);
     assert.match(index, /appendCycleCrmNote/);
   });
