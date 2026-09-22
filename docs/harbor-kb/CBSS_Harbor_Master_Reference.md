@@ -34,7 +34,7 @@ Harbor runs the sales conversation. Harbor does **not** take cards, bank details
 | Item | Value |
 | --- | --- |
 | Agent ID | `agent_5401m358q6x4fwgvqtjvmaspf5dr` |
-| Display name | Rename from “My Agent” → **Harbor** |
+| Display name | **Harbor voice agent** |
 | Voice | **Harbor Voice** clone (Christopher’s CB Shipping warmth; agent must still name itself Harbor, not Christopher) |
 | Phone import URL | https://elevenlabs.io/app/agents/phone-numbers |
 | Import | From Twilio → `+18703804010` → Account SID + Auth Token → **SMS off** → assign to Harbor |
@@ -200,7 +200,7 @@ Harbor (ElevenLabs agent + Twilio DID + Yard CRM + Cursor agent `bc-711f8685-…
 
 ## 9. Gaps & contradictions (flagged)
 
-1. **ElevenLabs display name** — Export still said “My Agent.” Must rename to **Harbor** in the Agents UI.  
+1. **ElevenLabs display name** — **Harbor voice agent**. Spoken identity stays Harbor, not Christopher.  
 2. **Twilio ↔ ElevenLabs import** — DID bought; **not confirmed imported/assigned** at `/app/agents/phone-numbers` as of this doc. Blocking inbound/outbound phone.  
 3. **Secrets not in Master Chief box** — No `ELEVENLABS_API_KEY` / Twilio SID/token stored for CoS automation yet. Christopher holds live account taps.  
 4. **Two “Harbor” identities** — (A) ElevenLabs/Yard **sales phone VA**; (B) Grok Bot teammate **Harbor** (staff-comms). Do not conflate.  
@@ -217,7 +217,7 @@ Harbor (ElevenLabs agent + Twilio DID + Yard CRM + Cursor agent `bc-711f8685-…
 
 ## 10. Go-live checklist (Christopher)
 
-- [ ] Rename ElevenLabs agent → **Harbor**  
+- [ ] Confirm ElevenLabs agent UI name is **Harbor voice agent**  
 - [ ] Confirm voice = Harbor Voice clone  
 - [ ] Paste system prompt from §2  
 - [ ] Import `+18703804010` at https://elevenlabs.io/app/agents/phone-numbers (SMS off)  

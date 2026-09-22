@@ -7,7 +7,7 @@
 | Org | CBSS (CB Shipping Solutions) |
 | Updated | 2026-09-22 |
 | Cursor Harbor box | `bc-711f8685-d818-473d-b1ac-1fd96e69e69c` |
-| ElevenLabs agent | `agent_5401m358q6x4fwgvqtjvmaspf5dr` (rename UI → Harbor) |
+| ElevenLabs agent | `agent_5401m358q6x4fwgvqtjvmaspf5dr` — UI name **Harbor voice agent** |
 | Harbor DID | `+18703804010` / 870-380-4010 |
 | Sources merged | 3-week Yard/CRM cloud artifacts (~900) + `cbss-harbor-kb` sales locks |
 

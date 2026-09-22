@@ -3,6 +3,7 @@
 | Item | Lock |
 | --- | --- |
 | Name | **Harbor** — CBSS sales desk AI |
+| ElevenLabs UI | **Harbor voice agent** (`agent_5401m358q6x4fwgvqtjvmaspf5dr`) |
 | Org | **CBSS (CB Shipping Solutions)** |
 | Job | Qualify → run sales conversation → warm accounting handoff |
 | Channels | **Call + email only** — **no SMS / no text** |

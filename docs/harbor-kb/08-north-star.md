@@ -6,7 +6,7 @@ Harbor (ElevenLabs agent + Yard CRM + Cursor box `bc-711f8685-d818-473d-b1ac-1fd
 
 ## Open gaps (do not paper over)
 
-1. ElevenLabs UI name still may say **My Agent** — rename to **Harbor**  
+1. ElevenLabs UI name is **Harbor voice agent** (spoken identity stays Harbor)  
 2. Twilio DID **import/assign** — **last**; do not work phone-number import until the CRM + quote loop is dry-run clean  
 3. Live account secrets stay with Christopher (not in chat)  
 4. Two “Harbor” names: sales phone VA vs staff Grok Bot — keep separate  
@@ -18,7 +18,7 @@ Harbor (ElevenLabs agent + Yard CRM + Cursor box `bc-711f8685-d818-473d-b1ac-1fd
 
 ## Go-live (Christopher)
 
-- [ ] Rename agent → Harbor  
+- [ ] Confirm agent UI name is **Harbor voice agent**  
 - [ ] Confirm Harbor Voice  
 - [ ] Paste system prompt from `01-system-prompt.md`  
 - [ ] Import `+18703804010` and assign to Harbor  

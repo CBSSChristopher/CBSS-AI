@@ -1,6 +1,6 @@
 # ElevenLabs Harbor tools (sales-rep workflow)
 
-Paste these **webhook** tools on Harbor (`agent_5401m358q6x4fwgvqtjvmaspf5dr`) in the ElevenLabs UI. Do **not** wire Cursor MCP into ElevenLabs. Do **not** add SMS, dial, or Twilio phone-import tools.
+Paste these **webhook** tools on **Harbor voice agent** (`agent_5401m358q6x4fwgvqtjvmaspf5dr`) in the ElevenLabs UI. Do **not** wire Cursor MCP into ElevenLabs. Do **not** add SMS, dial, or Twilio phone-import tools.
 
 Loop: `get_next_lead` → qualify → `harbor_quote_by_zip` → `update_lead` / `log_outcome` → `harbor_ready_to_buy`. See [15-sales-rep-workflow.md](./15-sales-rep-workflow.md).
 
