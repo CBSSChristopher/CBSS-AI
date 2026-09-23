@@ -375,7 +375,7 @@
         <span class="mark">CB</span>
         <div>
           <h1>CBShippingSolutions</h1>
-          <p>Container Sales CRM · build 19</p>
+          <p>Container Sales CRM · build 20</p>
         </div>
       </div>
       <div class="user">
@@ -604,13 +604,47 @@
       const raw = String(s == null ? '' : s).trim().replace(/\s+/g, ' ');
       if (!raw) return '';
       if (/^contact owner$/i.test(raw)) return '';
-      return raw.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+      const email = raw.match(/^([^@\s]+)@cbshippingsolutions\.com$/i);
+      const STAFF = {
+        christopher: 'Christopher Banks',
+        james: 'James',
+        bryan: 'Bryan Reese',
+        matthew: 'Matthew Brent',
+        veeka: 'Kawika Pangelinan',
+        veek: 'Kawika Pangelinan',
+        ivyanna: 'Ivyanna',
+        aliyah: 'Aliyah',
+        kyle: 'Kyle',
+        mery: 'Mery',
+        terrell: 'Terrell',
+        joshua: 'Joshua'
+      };
+      if (email) {
+        const local = email[1].toLowerCase();
+        return STAFF[local] || local.split(/[._-]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+      }
+      if (STAFF[raw.toLowerCase()]) return STAFF[raw.toLowerCase()];
+      const titled = raw.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+      const titledEmail = titled.match(/^([^@\s]+)@cbshippingsolutions\.com$/i);
+      if (titledEmail) {
+        const local = titledEmail[1].toLowerCase();
+        return STAFF[local] || local.split(/[._-]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+      }
+      return STAFF[titled.toLowerCase()] || titled;
     }
 
     const EMAIL_OWNER_ALIASES = {
       james: ['James'],
       bryan: ['Bryan Reese', 'Bryan'],
-      christopher: ['Christopher Banks', 'Christopher']
+      christopher: ['Christopher Banks', 'Christopher'],
+      matthew: ['Matthew Brent', 'Matthew'],
+      veeka: ['Kawika Pangelinan', 'Veek', 'Veeka'],
+      ivyanna: ['Ivyanna'],
+      aliyah: ['Aliyah'],
+      kyle: ['Kyle'],
+      mery: ['Mery'],
+      terrell: ['Terrell'],
+      joshua: ['Joshua']
     };
 
     function sessionIdentity() {

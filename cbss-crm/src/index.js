@@ -1,5 +1,6 @@
 import { applyCompleteFollowupState, applyFollowupPatch, completedActionText, mergeNoteOntoContact, mergeNotesMap, resolveCrmAction } from "./followups.js";
 import { adminCleanupCodeOk, applyContactCleanup, applyContactCleanups, preserveFoldedFlags } from "./cleanup.js";
+import { canonicalizeOwner, healPortedBook, mergeContactsAdded } from "./owners.js";
 import {
   META_CONFIG_KEY,
   META_SOURCE,
@@ -373,7 +374,7 @@ async function loginWithPassword(env, email, password) {
   }
   const users = await loadUsers(env);
   const rec = users[e];
-  const displayName = isSeedOwnerEmail(e) ? "Christopher Banks" : e.split("@")[0];
+  const displayName = canonicalizeOwner(e) || e.split("@")[0];
   if (!rec) {
     const salt2 = crypto.getRandomValues(new Uint8Array(16));
     const iter2 = 1e5;
@@ -394,7 +395,7 @@ async function loginWithPassword(env, email, password) {
   if (!timingSafeEqualStr(hash, rec.hash)) {
     return { error: "Invalid email or password.", status: 401 };
   }
-  return { email: e, name: rec.name || displayName, firstSet: false };
+  return { email: e, name: canonicalizeOwner(rec.name) || rec.name || displayName, firstSet: false };
 }
 __name(loginWithPassword, "loginWithPassword");
 async function handleLogin(request, env) {
@@ -452,7 +453,7 @@ async function serveAssets(request, env) {
     headers.set("CDN-Cache-Control", "no-store");
     headers.set("Cloudflare-CDN-Cache-Control", "no-store");
     headers.set("Pragma", "no-cache");
-    headers.set("x-crm-build", "18");
+    headers.set("x-crm-build", "20");
     return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
   }
   return res;
@@ -662,7 +663,7 @@ function upsertDeal(deals, contact, fields) {
       name: (contact.name || "Contact") + " - Container",
       stage: mapStage(fields.stage || contact.status || "Quote"),
       created: (/* @__PURE__ */ new Date()).toISOString().slice(0, 10),
-      owner: contact.owner || "",
+      owner: canonicalizeOwner(contact.owner || ""),
       amount: "",
       container: "",
       depot: "",
@@ -684,7 +685,7 @@ function upsertDeal(deals, contact, fields) {
   if (fields.payment) deal.payment = fields.payment;
   if (fields.name) deal.name = fields.name;
   deal.contactName = contact.name || deal.contactName;
-  deal.owner = contact.owner || deal.owner;
+  deal.owner = canonicalizeOwner(contact.owner || deal.owner);
   deal.updated = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
   deal.lastActivity = nowStamp();
   return deal;
@@ -711,10 +712,7 @@ function rewriteQuoted(obj) {
 }
 __name(rewriteQuoted, "rewriteQuoted");
 function titleCaseOwner(s) {
-  const raw = String(s == null ? "" : s).trim().replace(/\s+/g, " ");
-  if (!raw) return "";
-  if (/^contact owner$/i.test(raw)) return "";
-  return raw.split(" ").map((w) => w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : "").join(" ");
+  return canonicalizeOwner(s);
 }
 __name(titleCaseOwner, "titleCaseOwner");
 function resolvedOwner(contact, edits) {
@@ -866,7 +864,7 @@ function ingestOne(state, archive, payload, source) {
   const name = payload.name || payload.customerName || payload.contactName || "";
   const company = realCompany(payload.company || payload.accountName || "");
   const notesText = payload.notes || payload.note || "";
-  const owner = payload.owner || payload.beingWorkedBy || payload.repName || payload.dealOwner || "";
+  const owner = canonicalizeOwner(payload.owner || payload.beingWorkedBy || payload.repName || payload.repEmail || payload.dealOwner || "");
   const match = findMatch(
     [
       state.contactsAdded,
@@ -1043,7 +1041,7 @@ async function handleCrmData(request, env) {
       await store.setJSON("notes", next);
       return jsonResponse(request, 200, {
         ok: true,
-        crmBuild: 18,
+        crmBuild: 20,
         contactId,
         note,
         notes: next[contactId] || next[String(contactId)] || []
@@ -1076,7 +1074,7 @@ async function handleCrmData(request, env) {
       ]);
       return jsonResponse(request, 200, {
         ok: true,
-        crmBuild: 18,
+        crmBuild: 20,
         contactId,
         completed: true,
         completedTasks: next.completedTasks[contactId] || []
@@ -1091,6 +1089,13 @@ async function handleCrmData(request, env) {
     const archive = await loadArchive(store);
     const state = await readState(store);
     if (request.method === "GET" || action === "get") {
+      if (healPortedBook(state, archive)) {
+        await Promise.all([
+          store.setJSON("contactsAdded", state.contactsAdded),
+          store.setJSON("deals", state.deals),
+          store.setJSON("contactEdits", state.contactEdits)
+        ]);
+      }
       applyApprovedArchives(state);
       applyEdits(archive, state.contactEdits);
       applyEdits(state.contactsAdded, state.contactEdits);
@@ -1098,7 +1103,7 @@ async function handleCrmData(request, env) {
       attachStoredNotes(state.contactsAdded, state.notes);
       const omitNotes = url.searchParams.get("omitNotes") === "1" || body.omitNotes === true || body.omitNotes === "1";
       const payload = {
-        crmBuild: 18,
+        crmBuild: 20,
         deals: state.deals,
         followups: state.followups,
         contactsAdded: state.contactsAdded,
@@ -1250,6 +1255,8 @@ async function handleCrmData(request, env) {
         await store.setJSON(key, preserveFoldedFlags(state.contactEdits, value));
       } else if (key === "notes") {
         await store.setJSON(key, mergeNotesMap(state.notes, value));
+      } else if (key === "contactsAdded") {
+        await store.setJSON(key, mergeContactsAdded(state.contactsAdded, value));
       } else {
         await store.setJSON(key, value);
       }
@@ -1789,7 +1796,7 @@ var index_default = {
     const path = normalizePath(url.pathname);
     if (path === "/__bust" && ctx && ctx.cache && typeof ctx.cache.purge === "function") {
       try { await ctx.cache.purge({ purgeEverything: true }); } catch (_) {}
-      return new Response("ok", { status: 200, headers: { "Cache-Control": "private, no-store", "x-crm-build": "18" } });
+      return new Response("ok", { status: 200, headers: { "Cache-Control": "private, no-store", "x-crm-build": "20" } });
     }
     if (path === "/auth/login") return handleLogin(request, env);
     if (path === "/auth/me") return handleMe(request, env);
