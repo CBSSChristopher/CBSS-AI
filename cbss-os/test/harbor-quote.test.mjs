@@ -13,6 +13,10 @@ import {
   normalizeHarborZip,
   planHarborReadyToBuyNotify,
   spokenHarborNoMatch,
+  spokenHarborQuote,
+  spokenHarborGrade,
+  spokenHarborWarranty,
+  HARBOR_QUOTE_WAIT_LINE,
 } from "../src/va/harbor-quote.ts";
 import { matchPostedBox } from "../src/xchange-match.ts";
 import { dialGate } from "../src/va/status.ts";
@@ -26,6 +30,9 @@ const index = readFileSync(new URL("../src/index.ts", import.meta.url), "utf8");
 const kb14 = readFileSync(new URL("../../docs/harbor-kb/14-zip-proposal-tooling.md", import.meta.url), "utf8");
 const kb15 = readFileSync(new URL("../../docs/harbor-kb/15-elevenlabs-tools.md", import.meta.url), "utf8");
 const kbWorkflow = readFileSync(new URL("../../docs/harbor-kb/15-sales-rep-workflow.md", import.meta.url), "utf8");
+const kb01 = readFileSync(new URL("../../docs/harbor-kb/01-system-prompt.md", import.meta.url), "utf8");
+const kb07 = readFileSync(new URL("../../docs/harbor-kb/07-product.md", import.meta.url), "utf8");
+const kb16 = readFileSync(new URL("../../docs/harbor-kb/16-new-hire-call-sheet.md", import.meta.url), "utf8");
 
 const TOKEN = "harbor-quote-test-token";
 const littleRock = { lat: 34.7465, lon: -92.2896, place: "Little Rock, AR" };
@@ -82,7 +89,8 @@ describe("Harbor ZIP quote helpers", () => {
     assert.equal(out.unit_price, null);
     assert.equal(out.box, null);
     assert.equal(out.dialing, false);
-    assert.match(out.spoken_summary, /will not invent a price/i);
+    assert.match(out.spoken_summary, /don.?t have a posted number/i);
+    assert.doesNotMatch(out.spoken_summary, /make it up|invent|cards are frozen/i);
   });
 
   it("speaks the posted cash quote after the same matchPostedBox hit", () => {
@@ -97,9 +105,55 @@ describe("Harbor ZIP quote helpers", () => {
     assert.equal(out.place, "Little Rock, AR");
     assert.equal(out.dialing, false);
     assert.equal(out.sms, false);
-    assert.match(out.spoken_summary, /\$/);
-    assert.doesNotMatch(out.spoken_summary, /invent/i);
-    assert.match(spokenHarborNoMatch("72201", "Little Rock, AR", "no_match"), /No posted CBSS match/);
+    assert.match(out.spoken_summary, /Thanks for being patient with me/);
+    assert.match(out.spoken_summary, /40FT high cube container/);
+    assert.match(out.spoken_summary, /cargo worthy/);
+    assert.match(out.spoken_summary, /5-year structural and 5-year no-leak warranty/);
+    assert.match(out.spoken_summary, /delivered, is going to be \$/);
+    assert.doesNotMatch(out.spoken_summary, /wind and water|10-year/i);
+    assert.doesNotMatch(out.spoken_summary, /make it up|invent|proposal tool|cards are frozen/i);
+    assert.match(spokenHarborNoMatch("72201", "Little Rock, AR", "no_match"), /don.?t have a posted number/);
+  });
+
+  it("speaks the floor-card warranty matrix from the tool grade", () => {
+    const wwt = harborQuoteWant({ size: "40", height: "DC", grade: "WWT" });
+    const spoken = spokenHarborQuote({ ok: true }, "72201", "Little Rock, AR", wwt, 2800);
+    assert.equal(
+      spoken,
+      "Thanks for being patient with me. That 40FT container, verified wind and water tight, comes with our 5-year structural and 5-year no-leak warranty, delivered, is going to be $2,800.",
+    );
+    assert.equal(spokenHarborGrade("CW"), "cargo worthy");
+    assert.equal(spokenHarborGrade("WWT"), "verified wind and water tight");
+    assert.equal(spokenHarborGrade("IICL"), "IICL / multi-trip");
+    assert.equal(spokenHarborGrade("multi-trip"), "IICL / multi-trip");
+    assert.equal(spokenHarborGrade("Multi-Trip"), "IICL / multi-trip");
+    assert.equal(harborQuoteWant({ grade: "multi-trip" }).grade, "IICL");
+    assert.equal(spokenHarborWarranty("multi-trip"), spokenHarborWarranty("IICL"));
+    assert.equal(spokenHarborWarranty("WWT"), "5-year structural and 5-year no-leak warranty");
+    assert.equal(spokenHarborWarranty("CW"), "5-year structural and 5-year no-leak warranty");
+    assert.equal(spokenHarborWarranty("IICL"), "10-year structural and 10-year no-leak warranty");
+    assert.equal(spokenHarborWarranty("AsIs"), "no warranty");
+    assert.equal(spokenHarborWarranty("OneTrip"), "10-year structural and 10-year no-leak warranty plus manufacturer");
+    const cw = spokenHarborQuote({ ok: true }, "72201", "Little Rock, AR", harborQuoteWant({ size: "40", height: "HC", grade: "CW" }), 2800);
+    assert.equal(
+      cw,
+      "Thanks for being patient with me. That 40FT high cube container, cargo worthy, comes with our 5-year structural and 5-year no-leak warranty, delivered, is going to be $2,800.",
+    );
+    const oneTrip = spokenHarborQuote({ ok: true }, "72201", "Little Rock, AR", harborQuoteWant({ size: "40", height: "HC", grade: "OneTrip" }), 4200);
+    assert.equal(
+      oneTrip,
+      "Thanks for being patient with me. That 40FT high cube container, one-trip, comes with our 10-year structural and 10-year no-leak warranty plus manufacturer, delivered, is going to be $4,200.",
+    );
+    const asIs = spokenHarborQuote({ ok: true }, "72201", "Little Rock, AR", harborQuoteWant({ size: "40", height: "DC", grade: "AsIs" }), 1800);
+    assert.match(asIs, /as-is, with no warranty/);
+    assert.doesNotMatch(asIs, /trash|5-year|10-year|wind and water/i);
+    const iicl = spokenHarborQuote({ ok: true }, "72201", "Little Rock, AR", harborQuoteWant({ size: "40", height: "DC", grade: "IICL" }), 2600);
+    assert.equal(
+      iicl,
+      "Thanks for being patient with me. That 40FT container, IICL / multi-trip, comes with our 10-year structural and 10-year no-leak warranty, delivered, is going to be $2,600.",
+    );
+    assert.doesNotMatch(oneTrip, /5-year|cargo worthy|wind and water|make it up|invent|proposal tool|cards are frozen/i);
+    assert.match(HARBOR_QUOTE_WAIT_LINE, /container wiz, not a math expert/);
   });
 
   it("accepts X-Harbor-Token or Bearer and rejects missing/wrong tokens", () => {
@@ -159,7 +213,8 @@ describe("POST /va/harbor/quote", () => {
     assert.equal(miss.body.unit_price, null);
     assert.equal(miss.body.dialing, false);
     assert.equal(miss.body.sms, false);
-    assert.match(String(miss.body.spoken_summary), /will not invent a price/i);
+    assert.match(String(miss.body.spoken_summary), /don.?t have a posted number/i);
+    assert.doesNotMatch(String(miss.body.spoken_summary), /make it up|invent|cards are frozen/i);
   });
 
   it("returns the posted cash quote and never dials", async () => {
@@ -180,7 +235,11 @@ describe("POST /va/harbor/quote", () => {
     assert.equal(hit.body.place, "Little Rock, AR");
     assert.equal(hit.body.dialing, false);
     assert.equal(hit.body.sms, false);
-    assert.match(String(hit.body.spoken_summary), /Posted CBSS quote/);
+    assert.match(String(hit.body.spoken_summary), /Thanks for being patient with me/);
+    assert.match(String(hit.body.spoken_summary), /cargo worthy/);
+    assert.match(String(hit.body.spoken_summary), /5-year structural and 5-year no-leak warranty/);
+    assert.match(String(hit.body.spoken_summary), /is going to be \$/);
+    assert.doesNotMatch(String(hit.body.spoken_summary), /wind and water|10-year|make it up|invent|proposal tool|cards are frozen/i);
   });
 });
 
@@ -292,5 +351,33 @@ describe("Harbor quote rails stay parked", () => {
     assert.match(kbWorkflow, /Twilio import last/);
     assert.match(kbWorkflow, /Do \*\*not\*\* import the Harbor DID/);
     assert.doesNotMatch(kbWorkflow, /From Twilio →|Account SID \+ Auth Token/);
+    assert.match(kb01, /container wiz, not a math expert/);
+    assert.match(kb01, /Thanks for being patient with me/);
+    assert.match(kb01, /5-year structural and 5-year no-leak warranty/);
+    assert.match(kb01, /10-year structural \+ 10-year no-leak \+ manufacturer/);
+    assert.match(kb01, /Do not volunteer cards/);
+    assert.match(kb01, /Do not mention Veem/);
+    assert.match(kb01, /OS 2D ≠ OS 4D ≠ Full open/);
+    assert.match(kb01, /air\/water leak testing to verify the container’s condition/);
+    assert.match(kb07, /5-year structural \+ 5-year no-leak/);
+    assert.match(kb07, /same warranty as WWT/);
+    assert.match(kb07, /10-year structural \+ 10-year no-leak \+ manufacturer/);
+    assert.match(kb07, /IICL \/ multi-trip[\s\S]*10-year structural \+ 10-year no-leak/);
+    assert.match(kb07, /IICL is multi-trip — not two products/);
+    assert.match(kb01, /IICL is multi-trip — not two products/);
+    assert.match(kb16, /IICL is multi-trip — not two products/);
+    assert.match(kb07, /No warranty/);
+    assert.match(kb07, /verified wind and water tight/);
+    assert.match(kb07, /air\/water leak testing to verify the container’s condition/);
+    assert.doesNotMatch(kb07, /1-year leak/);
+    assert.match(kb16, /container wiz, not a math expert/);
+    assert.match(kb16, /Thanks for being patient with me/);
+    assert.match(kb16, /Do \*\*not\*\* volunteer cards/);
+    assert.match(kb16, /10-year structural \+ 10-year no-leak \+ manufacturer/);
+    assert.match(kb16, /OS 2D ≠ OS 4D ≠ Full open/);
+    assert.match(kb16, /Do \*\*not\*\* mention Veem/);
+    assert.match(kb16, /air\/water leak testing to verify the container’s condition/);
+    assert.doesNotMatch(kb16, /1-year leak/);
+    assert.doesNotMatch(kb01, /1-year leak/);
   });
 });
