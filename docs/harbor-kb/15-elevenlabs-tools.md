@@ -107,7 +107,7 @@ If `ok` is false or `unit_price` is null, **say there is no posted price and do 
 {
   "type": "webhook",
   "name": "harbor_quote_by_zip",
-  "description": "Get a posted CBSS quote from a US ZIP and box needs (size, height, config, grade, qty, delivery or pickup). While this runs, say the zip wait line. After a hit, speak spoken_summary (patient + size + that grade + that grade’s warranty + fulfillment + dollar). CW and WWT are 5/5. IICL is 10/10. One-Trip is 10/10 + manufacturer. As-Is has no warranty. Do not upgrade cargo worthy to WWT. Do not say you didn’t make it up or mention the proposal tool or cards. If ok is false or reason is no_match, say you don’t have a posted number — do not invent a dollar. Never collect payment. This is not a dial.",
+  "description": "Get a posted CBSS quote from a US ZIP and box needs (size, height, config, grade, qty, delivery or pickup). While this runs, say the zip wait line. After a hit, speak spoken_summary (patient + size + that grade + that grade’s warranty + fulfillment + dollar). CW and WWT are 5/5. IICL / multi-trip is one grade at 10/10. One-Trip is 10/10 + manufacturer. As-Is has no warranty. Do not upgrade cargo worthy to WWT. Do not say you didn’t make it up or mention the proposal tool or cards. If ok is false or reason is no_match, say you don’t have a posted number — do not invent a dollar. Never collect payment. This is not a dial.",
   "api_schema": {
     "url": "https://floor.cbshippingsolutions.app/va/harbor/quote",
     "method": "POST",
@@ -140,7 +140,7 @@ If `ok` is false or `unit_price` is null, **say there is no posted price and do 
         },
         "grade": {
           "type": "string",
-          "description": "CW, WWT, OneTrip, IICL, AsIs. Default CW."
+          "description": "CW, WWT, OneTrip, IICL (same grade as multi-trip), AsIs. Default CW."
         },
         "qty": {
           "type": "number",

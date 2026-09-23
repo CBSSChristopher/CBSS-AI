@@ -113,12 +113,12 @@ export function spokenHarborGrade(grade: string): string {
   if (key === "WWT") return "verified wind and water tight";
   if (key === "CW") return "cargo worthy";
   if (key === "OneTrip") return "one-trip";
-  if (key === "IICL") return "IICL / multi-trip";
+  if (key === "IICL") return "IICL / multi-trip"; // same grade as multi-trip — not two products
   if (key === "AsIs") return "as-is";
   return key || "cargo worthy";
 }
 
-/** As-Is: none. WWT + CW: 5/5. IICL: 10/10. One-Trip: 10/10 + manufacturer. */
+/** As-Is: none. WWT + CW: 5/5. IICL / multi-trip: one grade, 10/10. One-Trip: 10/10 + manufacturer. */
 export function spokenHarborWarranty(grade?: string): string {
   const key = normalizeGrade(grade || "");
   if (key === "OneTrip") return "10-year structural and 10-year no-leak warranty plus manufacturer";

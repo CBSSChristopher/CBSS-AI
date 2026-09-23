@@ -125,6 +125,10 @@ describe("Harbor ZIP quote helpers", () => {
     assert.equal(spokenHarborGrade("CW"), "cargo worthy");
     assert.equal(spokenHarborGrade("WWT"), "verified wind and water tight");
     assert.equal(spokenHarborGrade("IICL"), "IICL / multi-trip");
+    assert.equal(spokenHarborGrade("multi-trip"), "IICL / multi-trip");
+    assert.equal(spokenHarborGrade("Multi-Trip"), "IICL / multi-trip");
+    assert.equal(harborQuoteWant({ grade: "multi-trip" }).grade, "IICL");
+    assert.equal(spokenHarborWarranty("multi-trip"), spokenHarborWarranty("IICL"));
     assert.equal(spokenHarborWarranty("WWT"), "5-year structural and 5-year no-leak warranty");
     assert.equal(spokenHarborWarranty("CW"), "5-year structural and 5-year no-leak warranty");
     assert.equal(spokenHarborWarranty("IICL"), "10-year structural and 10-year no-leak warranty");
@@ -359,6 +363,9 @@ describe("Harbor quote rails stay parked", () => {
     assert.match(kb07, /same warranty as WWT/);
     assert.match(kb07, /10-year structural \+ 10-year no-leak \+ manufacturer/);
     assert.match(kb07, /IICL \/ multi-trip[\s\S]*10-year structural \+ 10-year no-leak/);
+    assert.match(kb07, /IICL is multi-trip — not two products/);
+    assert.match(kb01, /IICL is multi-trip — not two products/);
+    assert.match(kb16, /IICL is multi-trip — not two products/);
     assert.match(kb07, /No warranty/);
     assert.match(kb07, /verified wind and water tight/);
     assert.match(kb07, /air\/water leak testing to verify the container’s condition/);
