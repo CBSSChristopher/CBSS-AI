@@ -385,5 +385,36 @@ describe("Harbor quote rails stay parked", () => {
     assert.match(kb16, /air\/water leak testing to verify the container’s condition/);
     assert.doesNotMatch(kb16, /1-year leak/);
     assert.doesNotMatch(kb01, /1-year leak/);
+    for (const doc of [kb01, kb16]) {
+      assert.match(doc, /I bet your phone's blowing up/);
+      assert.match(doc, /When it's that cheap, get kind of leery/);
+      assert.match(doc, /Not the cheapest — we take care of you and get it right/);
+      assert.match(doc, /welder, not a fiberglass patch/i);
+      assert.match(doc, /only company/);
+      assert.match(doc, /two trucks/);
+      assert.match(doc, /hydraulic tilt-bed/i);
+      assert.match(doc, /130 ft/);
+      assert.match(doc, /surface rust/i);
+      assert.match(doc, /BBB/);
+      assert.match(doc, /not the owner/i);
+      assert.match(doc, /whenever the time's right/);
+      assert.doesNotMatch(doc, /U-Haul|PODS|Mobile Mini|1-800-PACK-RAT/i);
+    }
+    assert.match(kb07, /Not the cheapest — we take care of you and get it right/);
+    assert.match(kb07, /welder, not a fiberglass patch/i);
+    assert.match(kb07, /two trucks/);
+    assert.match(kb07, /hydraulic tilt-bed/i);
+    assert.match(kb07, /130 ft/);
+    assert.match(kb07, /surface rust/i);
+    assert.match(kb07, /Do not say CBSS is the only company/);
+    assert.match(kb01, /Facebook form you filled out/);
+    assert.match(kb01, /one email follow-up/);
+    assert.match(kb01, /Do not convert it/);
+    assert.match(kb01, /Never offer, request, or send SMS\/text/);
+    assert.match(kb16, /Facebook form you filled out/);
+    assert.match(kb16, /Do \*\*not\*\* convert a maybe/);
+    assert.match(kb16, /No SMS/);
+    assert.match(kb07, /Do not say CBSS is the only company/);
+    assert.match(kb07, /residential \*\*and\*\* business/);
   });
 });
