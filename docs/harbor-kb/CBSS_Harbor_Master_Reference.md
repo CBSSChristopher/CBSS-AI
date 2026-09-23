@@ -21,6 +21,7 @@ This is the single source of truth for Harbor as the CBSS sales desk AI. If anot
 | Default closer | **Christopher Banks** |
 | Alternate closer | **Bryan Reese** |
 | Harbor DID (Twilio) | **870-380-4010** · E.164 **+18703804010** |
+| Harbor CBSS email | **harbor@cbshippingsolutions.com** — CRM owner/rep, CTE Reply-To, AgentMail reply, outbound attribution. Do not invent another Harbor address. |
 | Christopher cell (human handoff only) | **870-323-2593** — **never** on Harbor voicemail or as customer callback |
 | Dial safety | Outbound dial **parked** until Christopher says **“arm”**. No live customer dials without that word. |
 | Quote | On-call ZIP + box → Yard `POST /quote/match` via `POST /va/harbor/quote`. Never invent wholesale/price. Ready-to-buy notifies Christopher + Bryan (email / in-Yard). See `14-zip-proposal-tooling.md`. |
