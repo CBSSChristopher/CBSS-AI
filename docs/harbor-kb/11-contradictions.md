@@ -11,7 +11,8 @@
 | Lead intake | Meta webhook experiments appeared in CRM history | **CSV import only** for Harbor VA | CSV path wins for Harbor. |
 | Who is Harbor | Staff Grok Bot “Harbor” + sales VA + Yard desk AI branding | Sales/Yard unified desk ≠ staff email bot | Keep staff-comms bot separate from this KB. |
 | Price inventing | Proposal tools quote from inventory/zip | Harbor must not invent price on cold talk | Harbor may call `harbor_quote_by_zip` which wraps Yard `POST /quote/match`. If `ok` is false / `no_match`, **no dollar**. Closers still own payment. |
-| “New” container | Customer says new; factory-new does not exist on this desk | **New = one-trip / like-new** (grade OneTrip). Used stays used (CW / WWT / IICL / As-Is). | **Sales lock wins.** Say one-trip / like-new. Quote OneTrip when they asked for new. Do not promise factory brand-new. |
+| “New” container | Customer says new; factory-new does not exist on this desk | **New = one-trip / like-new** (grade OneTrip). Used stays used (CW / WWT / IICL-multi-trip one grade / As-Is). | **Sales lock wins.** Say one-trip / like-new. Quote OneTrip when they asked for new. Do not promise factory brand-new. |
+| Who we sell | Older lock said business-only; hang up on household / backyard | **Residential and business.** Do not refuse personal / home storage. | **2026-09-22 fence wins.** Qualify use, ZIP, size, one-trip vs used. Do not politely end personal-only leads. |
 
 If unsure, **new sales locks in 00-identity / payments / product win**.
 

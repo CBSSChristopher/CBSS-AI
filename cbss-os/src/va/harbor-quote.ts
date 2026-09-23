@@ -103,6 +103,38 @@ function heightLabel(height: string): string {
   return height || "high cube";
 }
 
+/** Say this while harbor_quote_by_zip runs. Warm, light laugh — not corny. */
+export const HARBOR_QUOTE_WAIT_LINE =
+  "Thanks for giving me your zip — bear with me while I work on getting you a price. I'm a container wiz, not a math expert.";
+
+/** Never upgrade CW to WWT. Warranty follows Christopher's full matrix. */
+export function spokenHarborGrade(grade: string): string {
+  const key = normalizeGrade(grade);
+  if (key === "WWT") return "verified wind and water tight";
+  if (key === "CW") return "cargo worthy";
+  if (key === "OneTrip") return "one-trip";
+  if (key === "IICL") return "IICL / multi-trip"; // same grade as multi-trip — not two products
+  if (key === "AsIs") return "as-is";
+  return key || "cargo worthy";
+}
+
+/** As-Is: none. WWT + CW: 5/5. IICL / multi-trip: one grade, 10/10. One-Trip: 10/10 + manufacturer. */
+export function spokenHarborWarranty(grade?: string): string {
+  const key = normalizeGrade(grade || "");
+  if (key === "OneTrip") return "10-year structural and 10-year no-leak warranty plus manufacturer";
+  if (key === "IICL") return "10-year structural and 10-year no-leak warranty";
+  if (key === "WWT" || key === "CW") return "5-year structural and 5-year no-leak warranty";
+  if (key === "AsIs") return "no warranty";
+  return "";
+}
+
+function spokenHarborSize(want: HarborQuoteWant): string {
+  const feet = String(want.size || "40").replace(/ft$/i, "") + "FT";
+  const height = want.height === "HC" ? " high cube" : "";
+  const cfg = want.config === "standard" ? "" : " " + want.config;
+  return feet + height + cfg;
+}
+
 function rails(): { dialing: false; sms: false } {
   return { dialing: false, sms: false };
 }
@@ -176,44 +208,27 @@ export function harborQuoteAuthResult(request: Request, env: { HARBOR_QUOTE_TOKE
 }
 
 export function spokenHarborQuote(hit: PostedMatch, zip: string, place: string, want: HarborQuoteWant, unitPrice: number): string {
-  const where = place || ("ZIP " + zip);
-  const qty = want.qty > 1 ? want.qty + " " : "one ";
   const haul = want.fulfillment === "pickup" ? "pickup" : "delivered";
-  return (
-    "Posted CBSS quote for ZIP " +
-    zip +
-    " (" +
-    where +
-    "): " +
-    qty +
-    want.size +
-    " " +
-    heightLabel(want.height) +
-    " " +
-    (want.config === "standard" ? "" : want.config + " ") +
-    want.grade +
-    ", " +
-    haul +
-    ", is " +
-    money(unitPrice) +
-    ". That number is from the proposal tool match — I did not make it up. Cards are frozen; Harbor does not take payment."
-  );
+  const size = spokenHarborSize(want);
+  const noun = want.qty > 1 ? "Those " + want.qty + " " + size + " containers" : "That " + size + " container";
+  const verb = want.qty > 1 ? "come" : "comes";
+  const grade = spokenHarborGrade(want.grade);
+  const warranty = spokenHarborWarranty(want.grade);
+  let mid = noun + ", " + grade;
+  if (warranty === "no warranty") mid += ", with no warranty";
+  else if (warranty) mid += ", " + verb + " with our " + warranty;
+  return "Thanks for being patient with me. " + mid + ", " + haul + ", is going to be " + money(unitPrice) + ".";
 }
 
 export function spokenHarborNoMatch(zip: string, place: string, reason: HarborQuoteMiss["reason"]): string {
   if (reason === "inventory_unavailable") {
-    return "I cannot pull the posted proposal book right now, so I will not invent a price. I'll note what they need and Christopher or Bryan can quote from the tool.";
+    return "I cannot pull the posted book right now. I'll note what they need and Christopher or Bryan can quote.";
   }
   if (reason === "zip_not_found") {
-    return "I could not place that ZIP. I need a real 5-digit US ZIP before I quote, and I will not invent a price.";
+    return "I could not place that ZIP. I need a real 5-digit US ZIP before I quote.";
   }
   const where = place ? " (" + place + ")" : "";
-  return (
-    "No posted CBSS match for ZIP " +
-    zip +
-    where +
-    " and that box. I will not invent a price. If they still want it, I note the need and hand off to Christopher or Bryan."
-  );
+  return "I don't have a posted number for ZIP " + zip + where + " and that box.";
 }
 
 export function harborQuoteFromMatch(
@@ -328,7 +343,7 @@ export async function runHarborQuote(
       result: {
         ok: false,
         reason: "zip_not_found",
-        spoken_summary: "I need a real 5-digit US ZIP before I quote, and I will not invent a price.",
+        spoken_summary: "I need a real 5-digit US ZIP before I quote.",
         unit_price: null,
         box: null,
         place: "",
