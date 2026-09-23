@@ -10,6 +10,7 @@ Harbor runs this as **one** daily operation — Yard queue + voice sales. Dial s
 - Cards frozen; Harbor never collects payment  
 - Closers: **Christopher Banks** (default) or **Bryan Reese**  
 - Residential **and** business containers — do not refuse personal / backyard / home storage  
+- Facebook form calls use the coach locks in [01-system-prompt.md](./01-system-prompt.md) and [16-new-hire-call-sheet.md](./16-new-hire-call-sheet.md). Tool dollars only. No competitor names.  
 - No live customer dials unless Christopher said **arm** today  
 
 ## Morning open (before first dial)

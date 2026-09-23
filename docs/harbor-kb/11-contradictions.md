@@ -13,6 +13,10 @@
 | Price inventing | Proposal tools quote from inventory/zip | Harbor must not invent price on cold talk | Harbor may call `harbor_quote_by_zip` which wraps Yard `POST /quote/match`. If `ok` is false / `no_match`, **no dollar**. Closers still own payment. |
 | “New” container | Customer says new; factory-new does not exist on this desk | **New = one-trip / like-new** (grade OneTrip). Used stays used (CW / WWT / IICL-multi-trip one grade / As-Is). | **Sales lock wins.** Say one-trip / like-new. Quote OneTrip when they asked for new. Do not promise factory brand-new. |
 | Who we sell | Older lock said business-only; hang up on household / backyard | **Residential and business.** Do not refuse personal / home storage. | **2026-09-22 fence wins.** Qualify use, ZIP, size, one-trip vs used. Do not politely end personal-only leads. |
+| Facebook “text once” | Tape said text once after the quote email | Harbor is **call + email only** | **Channel lock wins.** Ask away. One **email** follow-up after the quote email. No SMS. No daily nag. |
+| Competitor price | Temptation to match a cheap quote | Never match. No competitor names in the script. “When it's that cheap, get kind of leery.” Then ZIP and the tool. | **Coach lock wins.** Tool dollars only. |
+| “Only company” | Leak-fix story can overclaim | Welder, not a fiberglass patch. Do **not** say only company. | **Coach lock wins.** |
+| A maybe | Pressure to convert | Soft ack + build value, or lock tool numbers + “whenever the time's right” + a real follow-up | **Do not convert a maybe.** Stay Harbor follow-up. |
 
 If unsure, **new sales locks in 00-identity / payments / product win**.
 

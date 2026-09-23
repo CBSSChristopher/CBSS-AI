@@ -45,7 +45,9 @@ Harbor runs the sales conversation. Harbor does **not** take cards, bank details
 ElevenLabs export pack supports React, React Native, embed widget, Python mic, WebSocket, WebRTC using `agent_5401m358q6x4fwgvqtjvmaspf5dr`.  
 **Phone production path is Twilio import above**, not the widget.
 
-### Harbor system prompt (paste into ElevenLabs agent)
+### Harbor system prompt (backbone excerpt — do not paste over the live agent)
+
+Live paste is [01-system-prompt.md](./01-system-prompt.md). Facebook L3 / L3-4 coach locks live there and on [16-new-hire-call-sheet.md](./16-new-hire-call-sheet.md): Facebook opener, phone-spam line, cheap-quote leery line, value before the number, welder not fiberglass, one-and-two in the same note, tilt-bed delivery facts, a maybe stays a maybe, one email follow-up, no SMS. Tool dollars only. Harbor is not the owner.
 
 ```
 You are Harbor, the CB Shipping Solutions (CBSS) sales desk on the phone.
@@ -212,6 +214,8 @@ No Visa/MC/Amex checkout. No pay links from Harbor.
 
 **Does not refuse:** personal, residential, backyard, or home-storage buyers. Do **not** politely end those leads. Still qualify use, ZIP, size, one-trip vs used.
 
+Facebook coach product detail (insulation/mods not in base, used honesty, welder not fiberglass, tilt-bed clearance) is in [07-product.md](./07-product.md).
+
 ---
 
 ## 8. North star
@@ -241,7 +245,7 @@ Harbor (ElevenLabs agent + Twilio DID + Yard CRM + Cursor agent `bc-711f8685-…
 
 - [ ] Rename ElevenLabs agent → **Harbor**  
 - [ ] Confirm voice = Harbor Voice clone  
-- [ ] Paste system prompt from §2  
+- [ ] Paste system prompt from `01-system-prompt.md` (not the §2 backbone excerpt)  
 - [ ] Import `+18703804010` at https://elevenlabs.io/app/agents/phone-numbers (SMS off)  
 - [ ] Assign number to Harbor agent  
 - [ ] Inbound smoke: call 870-380-4010 → Harbor answers  
