@@ -366,6 +366,12 @@ describe("Harbor quote rails stay parked", () => {
     assert.match(kb07, /IICL is multi-trip — not two products/);
     assert.match(kb01, /IICL is multi-trip — not two products/);
     assert.match(kb16, /IICL is multi-trip — not two products/);
+    assert.match(kb01, /USE-CASE RAPPORT/);
+    assert.match(kb01, /Yeah, I love that use/);
+    assert.match(kb01, /Do not rush past the story into questionnaire mode/);
+    assert.match(kb01, /Do not invent inventory, ETAs, or discounts while hyping/);
+    assert.match(kb16, /Yeah, I love that use/);
+    assert.match(kb16, /not an endless hangout/);
     assert.match(kb07, /No warranty/);
     assert.match(kb07, /verified wind and water tight/);
     assert.match(kb07, /air\/water leak testing to verify the container’s condition/);

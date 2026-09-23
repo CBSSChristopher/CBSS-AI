@@ -14,6 +14,9 @@ get_next_lead
     │  self-assign owner Harbor · Working
     │  pile → CTE1   follow-up → keep current CTE
     ▼
+use-case rapport (yeah I love that use → mirror → then qualify)
+    │
+    ▼
 qualify  (company, box, ZIP, delivery/pickup)
     │
     ▼
