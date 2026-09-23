@@ -107,22 +107,23 @@ function heightLabel(height: string): string {
 export const HARBOR_QUOTE_WAIT_LINE =
   "Thanks for giving me your zip — bear with me while I work on getting you a price. I'm a container wiz, not a math expert.";
 
-/** Never upgrade CW to WWT. Warranty is the Julia floor-card matrix — no invented leak story. */
+/** Never upgrade CW to WWT. Warranty follows Christopher's full matrix. */
 export function spokenHarborGrade(grade: string): string {
   const key = normalizeGrade(grade);
   if (key === "WWT") return "verified wind and water tight";
-  if (key === "CW") return "cargo-worthy";
+  if (key === "CW") return "cargo worthy";
   if (key === "OneTrip") return "one-trip";
-  if (key === "IICL") return "IICL";
+  if (key === "IICL") return "IICL / multi-trip";
   if (key === "AsIs") return "as-is";
-  return key || "cargo-worthy";
+  return key || "cargo worthy";
 }
 
-/** Floor-card warranty only. CW / IICL: no invented term. As-Is: none. WWT: 5+5. One-Trip: 10+10 + manufacturer. */
+/** As-Is: none. WWT + CW: 5/5. IICL: 10/10. One-Trip: 10/10 + manufacturer. */
 export function spokenHarborWarranty(grade?: string): string {
   const key = normalizeGrade(grade || "");
   if (key === "OneTrip") return "10-year structural and 10-year no-leak warranty plus manufacturer";
-  if (key === "WWT") return "5-year structural and 5-year no-leak warranty";
+  if (key === "IICL") return "10-year structural and 10-year no-leak warranty";
+  if (key === "WWT" || key === "CW") return "5-year structural and 5-year no-leak warranty";
   if (key === "AsIs") return "no warranty";
   return "";
 }

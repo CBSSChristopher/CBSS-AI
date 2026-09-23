@@ -107,9 +107,10 @@ describe("Harbor ZIP quote helpers", () => {
     assert.equal(out.sms, false);
     assert.match(out.spoken_summary, /Thanks for being patient with me/);
     assert.match(out.spoken_summary, /40FT high cube container/);
-    assert.match(out.spoken_summary, /cargo-worthy/);
+    assert.match(out.spoken_summary, /cargo worthy/);
+    assert.match(out.spoken_summary, /5-year structural and 5-year no-leak warranty/);
     assert.match(out.spoken_summary, /delivered, is going to be \$/);
-    assert.doesNotMatch(out.spoken_summary, /wind and water|5-year|10-year|warranty/i);
+    assert.doesNotMatch(out.spoken_summary, /wind and water|10-year/i);
     assert.doesNotMatch(out.spoken_summary, /make it up|invent|proposal tool|cards are frozen/i);
     assert.match(spokenHarborNoMatch("72201", "Little Rock, AR", "no_match"), /don.?t have a posted number/);
   });
@@ -121,13 +122,19 @@ describe("Harbor ZIP quote helpers", () => {
       spoken,
       "Thanks for being patient with me. That 40FT container, verified wind and water tight, comes with our 5-year structural and 5-year no-leak warranty, delivered, is going to be $2,800.",
     );
-    assert.equal(spokenHarborGrade("CW"), "cargo-worthy");
+    assert.equal(spokenHarborGrade("CW"), "cargo worthy");
     assert.equal(spokenHarborGrade("WWT"), "verified wind and water tight");
+    assert.equal(spokenHarborGrade("IICL"), "IICL / multi-trip");
     assert.equal(spokenHarborWarranty("WWT"), "5-year structural and 5-year no-leak warranty");
-    assert.equal(spokenHarborWarranty("CW"), "");
-    assert.equal(spokenHarborWarranty("IICL"), "");
+    assert.equal(spokenHarborWarranty("CW"), "5-year structural and 5-year no-leak warranty");
+    assert.equal(spokenHarborWarranty("IICL"), "10-year structural and 10-year no-leak warranty");
     assert.equal(spokenHarborWarranty("AsIs"), "no warranty");
     assert.equal(spokenHarborWarranty("OneTrip"), "10-year structural and 10-year no-leak warranty plus manufacturer");
+    const cw = spokenHarborQuote({ ok: true }, "72201", "Little Rock, AR", harborQuoteWant({ size: "40", height: "HC", grade: "CW" }), 2800);
+    assert.equal(
+      cw,
+      "Thanks for being patient with me. That 40FT high cube container, cargo worthy, comes with our 5-year structural and 5-year no-leak warranty, delivered, is going to be $2,800.",
+    );
     const oneTrip = spokenHarborQuote({ ok: true }, "72201", "Little Rock, AR", harborQuoteWant({ size: "40", height: "HC", grade: "OneTrip" }), 4200);
     assert.equal(
       oneTrip,
@@ -137,9 +144,11 @@ describe("Harbor ZIP quote helpers", () => {
     assert.match(asIs, /as-is, with no warranty/);
     assert.doesNotMatch(asIs, /trash|5-year|10-year|wind and water/i);
     const iicl = spokenHarborQuote({ ok: true }, "72201", "Little Rock, AR", harborQuoteWant({ size: "40", height: "DC", grade: "IICL" }), 2600);
-    assert.match(iicl, /IICL/);
-    assert.doesNotMatch(iicl, /1-year|leak|5-year|10-year|warranty/i);
-    assert.doesNotMatch(oneTrip, /5-year|cargo-worthy|wind and water|make it up|invent|proposal tool|cards are frozen/i);
+    assert.equal(
+      iicl,
+      "Thanks for being patient with me. That 40FT container, IICL / multi-trip, comes with our 10-year structural and 10-year no-leak warranty, delivered, is going to be $2,600.",
+    );
+    assert.doesNotMatch(oneTrip, /5-year|cargo worthy|wind and water|make it up|invent|proposal tool|cards are frozen/i);
     assert.match(HARBOR_QUOTE_WAIT_LINE, /container wiz, not a math expert/);
   });
 
@@ -223,9 +232,10 @@ describe("POST /va/harbor/quote", () => {
     assert.equal(hit.body.dialing, false);
     assert.equal(hit.body.sms, false);
     assert.match(String(hit.body.spoken_summary), /Thanks for being patient with me/);
-    assert.match(String(hit.body.spoken_summary), /cargo-worthy/);
+    assert.match(String(hit.body.spoken_summary), /cargo worthy/);
+    assert.match(String(hit.body.spoken_summary), /5-year structural and 5-year no-leak warranty/);
     assert.match(String(hit.body.spoken_summary), /is going to be \$/);
-    assert.doesNotMatch(String(hit.body.spoken_summary), /wind and water|5-year|10-year|warranty|make it up|invent|proposal tool|cards are frozen/i);
+    assert.doesNotMatch(String(hit.body.spoken_summary), /wind and water|10-year|make it up|invent|proposal tool|cards are frozen/i);
   });
 });
 
@@ -345,14 +355,19 @@ describe("Harbor quote rails stay parked", () => {
     assert.match(kb01, /Do not mention Veem/);
     assert.match(kb01, /OS 2D ≠ OS 4D ≠ Full open/);
     assert.match(kb07, /5-year structural \+ 5-year no-leak/);
+    assert.match(kb07, /same warranty as WWT/);
     assert.match(kb07, /10-year structural \+ 10-year no-leak \+ manufacturer/);
+    assert.match(kb07, /IICL \/ multi-trip[\s\S]*10-year structural \+ 10-year no-leak/);
     assert.match(kb07, /No warranty/);
     assert.match(kb07, /verified wind and water tight/);
+    assert.doesNotMatch(kb07, /1-year leak/);
     assert.match(kb16, /container wiz, not a math expert/);
     assert.match(kb16, /Thanks for being patient with me/);
     assert.match(kb16, /Do \*\*not\*\* volunteer cards/);
     assert.match(kb16, /10-year structural \+ 10-year no-leak \+ manufacturer/);
     assert.match(kb16, /OS 2D ≠ OS 4D ≠ Full open/);
     assert.match(kb16, /Do \*\*not\*\* mention Veem/);
+    assert.doesNotMatch(kb16, /1-year leak/);
+    assert.doesNotMatch(kb01, /1-year leak/);
   });
 });

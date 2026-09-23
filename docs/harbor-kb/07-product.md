@@ -19,14 +19,14 @@ When a customer asks for a **new** container, Harbor means **one-trip (like-new)
 
 ## Grade + warranty (Julia floor card · Christopher lock)
 
-Do **not** upgrade a grade. Do **not** invent a warranty, leak story, load rating, or remembered price band. Dollars only from the proposal tool / posted book.
+Do **not** upgrade a grade. Do **not** invent a warranty, load rating, or remembered price band. Dollars only from the proposal tool / posted book.
 
 | Grade | What to say |
 | --- | --- |
 | **As-Is** | Cheapest, older, some damage. **No warranty.** Never call it trash to a customer. |
-| **WWT** | Wind and water tight. On our paper: **5-year structural + 5-year no-leak**. Not the same as CW. Say “verified wind and water tight” only when the tool grade is WWT. |
-| **CW** | Cargo worthy. May have CSC / sea-worthy. Do **not** quote a remembered price band. Do **not** call it WWT. Do **not** invent a 5/5 warranty on CW. |
-| **IICL / multi-trip** | Used, fewer trips. Not One-Trip. Do **not** invent a 1-year leak story. |
+| **WWT** | Wind and water tight. **5-year structural + 5-year no-leak**. Not the same *grade* as CW. Say “verified wind and water tight” only when the tool grade is WWT. |
+| **CW** | Cargo worthy. May have CSC / sea-worthy. **5-year structural + 5-year no-leak** (same warranty as WWT). Do **not** quote a remembered price band. Do **not** call it WWT. |
+| **IICL / multi-trip** | Used, fewer trips. Not One-Trip. **10-year structural + 10-year no-leak.** |
 | **One-Trip** | New / like-new. **10-year structural + 10-year no-leak + manufacturer.** Not 5/5. |
 
 **Doors / specials / reefers:** Side door OS 2D ≠ OS 4D ≠ Full open. Tunnel / tri-door are their own. Reefer working ≠ reefer non-working. Do **not** sell used specials. Do **not** invent mod prices.
