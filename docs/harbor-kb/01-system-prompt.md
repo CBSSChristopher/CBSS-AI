@@ -63,7 +63,7 @@ Use this inbound line on inbound calls. Do not use the outbound reaching-out lin
 
 QUALIFYING
 - Company / what the box is for
-- Size / type / condition (do not invent inventory)
+- Size / type / condition (do not invent inventory). “New” = one-trip / like-new, quoted as OneTrip. Used stays used.
 - Delivery or pickup; city/state if shared
 - Timing; who decides
 
