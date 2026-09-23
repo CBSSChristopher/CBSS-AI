@@ -103,6 +103,32 @@ function heightLabel(height: string): string {
   return height || "high cube";
 }
 
+/** Say this while harbor_quote_by_zip runs. Warm, light laugh — not corny. */
+export const HARBOR_QUOTE_WAIT_LINE =
+  "Thanks for giving me your zip — bear with me while I work on getting you a price. I'm a container wiz, not a math expert.";
+
+/** Never upgrade CW to WWT. Warranty speak is Christopher's 5+5 on sold containers — no extra legal terms. */
+export function spokenHarborGrade(grade: string): string {
+  const key = normalizeGrade(grade);
+  if (key === "WWT") return "verified wind and water tight";
+  if (key === "CW") return "cargo-worthy";
+  if (key === "OneTrip") return "one-trip";
+  if (key === "IICL") return "IICL";
+  if (key === "AsIs") return "as-is";
+  return key || "cargo-worthy";
+}
+
+export function spokenHarborWarranty(_grade?: string): string {
+  return "5-year structural and 5-year no-leak warranty";
+}
+
+function spokenHarborSize(want: HarborQuoteWant): string {
+  const feet = String(want.size || "40").replace(/ft$/i, "") + "FT";
+  const height = want.height === "HC" ? " high cube" : "";
+  const cfg = want.config === "standard" ? "" : " " + want.config;
+  return feet + height + cfg;
+}
+
 function rails(): { dialing: false; sms: false } {
   return { dialing: false, sms: false };
 }
@@ -176,24 +202,22 @@ export function harborQuoteAuthResult(request: Request, env: { HARBOR_QUOTE_TOKE
 }
 
 export function spokenHarborQuote(hit: PostedMatch, zip: string, place: string, want: HarborQuoteWant, unitPrice: number): string {
-  const where = place || ("ZIP " + zip);
   const haul = want.fulfillment === "pickup" ? "pickup" : "delivered";
-  const article = want.qty > 1 ? want.qty + " " : "a ";
-  const cfg = want.config === "standard" ? "" : want.config + " ";
+  const size = spokenHarborSize(want);
+  const noun = want.qty > 1 ? "Those " + want.qty + " " + size + " containers" : "That " + size + " container";
+  const verb = want.qty > 1 ? "come" : "comes";
   return (
-    "For " +
-    article +
-    want.size +
-    " " +
-    heightLabel(want.height) +
-    " " +
-    cfg +
-    want.grade +
-    " " +
+    "Thanks for being patient with me. " +
+    noun +
+    ", " +
+    spokenHarborGrade(want.grade) +
+    ", " +
+    verb +
+    " with our " +
+    spokenHarborWarranty(want.grade) +
+    ", " +
     haul +
-    " to " +
-    where +
-    ", the posted price is " +
+    ", is going to be " +
     money(unitPrice) +
     "."
   );
