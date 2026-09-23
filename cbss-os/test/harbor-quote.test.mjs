@@ -354,12 +354,14 @@ describe("Harbor quote rails stay parked", () => {
     assert.match(kb01, /Do not volunteer cards/);
     assert.match(kb01, /Do not mention Veem/);
     assert.match(kb01, /OS 2D ≠ OS 4D ≠ Full open/);
+    assert.match(kb01, /air\/water leak testing to verify the container’s condition/);
     assert.match(kb07, /5-year structural \+ 5-year no-leak/);
     assert.match(kb07, /same warranty as WWT/);
     assert.match(kb07, /10-year structural \+ 10-year no-leak \+ manufacturer/);
     assert.match(kb07, /IICL \/ multi-trip[\s\S]*10-year structural \+ 10-year no-leak/);
     assert.match(kb07, /No warranty/);
     assert.match(kb07, /verified wind and water tight/);
+    assert.match(kb07, /air\/water leak testing to verify the container’s condition/);
     assert.doesNotMatch(kb07, /1-year leak/);
     assert.match(kb16, /container wiz, not a math expert/);
     assert.match(kb16, /Thanks for being patient with me/);
@@ -367,6 +369,7 @@ describe("Harbor quote rails stay parked", () => {
     assert.match(kb16, /10-year structural \+ 10-year no-leak \+ manufacturer/);
     assert.match(kb16, /OS 2D ≠ OS 4D ≠ Full open/);
     assert.match(kb16, /Do \*\*not\*\* mention Veem/);
+    assert.match(kb16, /air\/water leak testing to verify the container’s condition/);
     assert.doesNotMatch(kb16, /1-year leak/);
     assert.doesNotMatch(kb01, /1-year leak/);
   });

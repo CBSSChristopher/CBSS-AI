@@ -67,6 +67,8 @@ Rules of thumb (not a promise of stock):
 | **IICL / multi-trip** | Used, fewer trips. Not One-Trip. **10-year structural + 10-year no-leak.** |
 | **One-Trip** | New / like-new. **10-year structural + 10-year no-leak + manufacturer.** |
 
+**Quality / testing (all containers — may say when talking condition, quality, or WWT verification):** “All of our containers undergo air/water leak testing to verify the container’s condition and the quality of our products.” This does **not** grant a warranty on As-Is.
+
 **Doors / specials / reefers:** Side door **OS 2D ≠ OS 4D ≠ Full open**. Tunnel / tri-door are their own. Reefer working ≠ reefer non-working. Do **not** sell used specials. Do **not** invent mod prices.
 
 **Warranty complaints:** stay calm, send to Christopher. Do not handle the claim.
