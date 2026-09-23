@@ -107,7 +107,7 @@ function heightLabel(height: string): string {
 export const HARBOR_QUOTE_WAIT_LINE =
   "Thanks for giving me your zip — bear with me while I work on getting you a price. I'm a container wiz, not a math expert.";
 
-/** Never upgrade CW to WWT. Warranty speak is Christopher's 5+5 on sold containers — no extra legal terms. */
+/** Never upgrade CW to WWT. Warranty is the Julia floor-card matrix — no invented leak story. */
 export function spokenHarborGrade(grade: string): string {
   const key = normalizeGrade(grade);
   if (key === "WWT") return "verified wind and water tight";
@@ -118,8 +118,13 @@ export function spokenHarborGrade(grade: string): string {
   return key || "cargo-worthy";
 }
 
-export function spokenHarborWarranty(_grade?: string): string {
-  return "5-year structural and 5-year no-leak warranty";
+/** Floor-card warranty only. CW / IICL: no invented term. As-Is: none. WWT: 5+5. One-Trip: 10+10 + manufacturer. */
+export function spokenHarborWarranty(grade?: string): string {
+  const key = normalizeGrade(grade || "");
+  if (key === "OneTrip") return "10-year structural and 10-year no-leak warranty plus manufacturer";
+  if (key === "WWT") return "5-year structural and 5-year no-leak warranty";
+  if (key === "AsIs") return "no warranty";
+  return "";
 }
 
 function spokenHarborSize(want: HarborQuoteWant): string {
@@ -206,21 +211,12 @@ export function spokenHarborQuote(hit: PostedMatch, zip: string, place: string, 
   const size = spokenHarborSize(want);
   const noun = want.qty > 1 ? "Those " + want.qty + " " + size + " containers" : "That " + size + " container";
   const verb = want.qty > 1 ? "come" : "comes";
-  return (
-    "Thanks for being patient with me. " +
-    noun +
-    ", " +
-    spokenHarborGrade(want.grade) +
-    ", " +
-    verb +
-    " with our " +
-    spokenHarborWarranty(want.grade) +
-    ", " +
-    haul +
-    ", is going to be " +
-    money(unitPrice) +
-    "."
-  );
+  const grade = spokenHarborGrade(want.grade);
+  const warranty = spokenHarborWarranty(want.grade);
+  let mid = noun + ", " + grade;
+  if (warranty === "no warranty") mid += ", with no warranty";
+  else if (warranty) mid += ", " + verb + " with our " + warranty;
+  return "Thanks for being patient with me. " + mid + ", " + haul + ", is going to be " + money(unitPrice) + ".";
 }
 
 export function spokenHarborNoMatch(zip: string, place: string, reason: HarborQuoteMiss["reason"]): string {
