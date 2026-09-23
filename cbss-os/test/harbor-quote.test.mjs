@@ -82,7 +82,8 @@ describe("Harbor ZIP quote helpers", () => {
     assert.equal(out.unit_price, null);
     assert.equal(out.box, null);
     assert.equal(out.dialing, false);
-    assert.match(out.spoken_summary, /will not invent a price/i);
+    assert.match(out.spoken_summary, /don.?t have a posted number/i);
+    assert.doesNotMatch(out.spoken_summary, /make it up|invent|cards are frozen/i);
   });
 
   it("speaks the posted cash quote after the same matchPostedBox hit", () => {
@@ -97,9 +98,9 @@ describe("Harbor ZIP quote helpers", () => {
     assert.equal(out.place, "Little Rock, AR");
     assert.equal(out.dialing, false);
     assert.equal(out.sms, false);
-    assert.match(out.spoken_summary, /\$/);
-    assert.doesNotMatch(out.spoken_summary, /invent/i);
-    assert.match(spokenHarborNoMatch("72201", "Little Rock, AR", "no_match"), /No posted CBSS match/);
+    assert.match(out.spoken_summary, /posted price is \$/);
+    assert.doesNotMatch(out.spoken_summary, /make it up|invent|proposal tool|cards are frozen/i);
+    assert.match(spokenHarborNoMatch("72201", "Little Rock, AR", "no_match"), /don.?t have a posted number/);
   });
 
   it("accepts X-Harbor-Token or Bearer and rejects missing/wrong tokens", () => {
@@ -159,7 +160,8 @@ describe("POST /va/harbor/quote", () => {
     assert.equal(miss.body.unit_price, null);
     assert.equal(miss.body.dialing, false);
     assert.equal(miss.body.sms, false);
-    assert.match(String(miss.body.spoken_summary), /will not invent a price/i);
+    assert.match(String(miss.body.spoken_summary), /don.?t have a posted number/i);
+    assert.doesNotMatch(String(miss.body.spoken_summary), /make it up|invent|cards are frozen/i);
   });
 
   it("returns the posted cash quote and never dials", async () => {
@@ -180,7 +182,8 @@ describe("POST /va/harbor/quote", () => {
     assert.equal(hit.body.place, "Little Rock, AR");
     assert.equal(hit.body.dialing, false);
     assert.equal(hit.body.sms, false);
-    assert.match(String(hit.body.spoken_summary), /Posted CBSS quote/);
+    assert.match(String(hit.body.spoken_summary), /posted price/i);
+    assert.doesNotMatch(String(hit.body.spoken_summary), /make it up|invent|proposal tool|cards are frozen/i);
   });
 });
 

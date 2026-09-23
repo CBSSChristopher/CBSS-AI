@@ -177,43 +177,37 @@ export function harborQuoteAuthResult(request: Request, env: { HARBOR_QUOTE_TOKE
 
 export function spokenHarborQuote(hit: PostedMatch, zip: string, place: string, want: HarborQuoteWant, unitPrice: number): string {
   const where = place || ("ZIP " + zip);
-  const qty = want.qty > 1 ? want.qty + " " : "one ";
   const haul = want.fulfillment === "pickup" ? "pickup" : "delivered";
+  const article = want.qty > 1 ? want.qty + " " : "a ";
+  const cfg = want.config === "standard" ? "" : want.config + " ";
   return (
-    "Posted CBSS quote for ZIP " +
-    zip +
-    " (" +
-    where +
-    "): " +
-    qty +
+    "For " +
+    article +
     want.size +
     " " +
     heightLabel(want.height) +
     " " +
-    (want.config === "standard" ? "" : want.config + " ") +
+    cfg +
     want.grade +
-    ", " +
+    " " +
     haul +
-    ", is " +
+    " to " +
+    where +
+    ", the posted price is " +
     money(unitPrice) +
-    ". That number is from the proposal tool match — I did not make it up. Cards are frozen; Harbor does not take payment."
+    "."
   );
 }
 
 export function spokenHarborNoMatch(zip: string, place: string, reason: HarborQuoteMiss["reason"]): string {
   if (reason === "inventory_unavailable") {
-    return "I cannot pull the posted proposal book right now, so I will not invent a price. I'll note what they need and Christopher or Bryan can quote from the tool.";
+    return "I cannot pull the posted book right now. I'll note what they need and Christopher or Bryan can quote.";
   }
   if (reason === "zip_not_found") {
-    return "I could not place that ZIP. I need a real 5-digit US ZIP before I quote, and I will not invent a price.";
+    return "I could not place that ZIP. I need a real 5-digit US ZIP before I quote.";
   }
   const where = place ? " (" + place + ")" : "";
-  return (
-    "No posted CBSS match for ZIP " +
-    zip +
-    where +
-    " and that box. I will not invent a price. If they still want it, I note the need and hand off to Christopher or Bryan."
-  );
+  return "I don't have a posted number for ZIP " + zip + where + " and that box.";
 }
 
 export function harborQuoteFromMatch(
@@ -328,7 +322,7 @@ export async function runHarborQuote(
       result: {
         ok: false,
         reason: "zip_not_found",
-        spoken_summary: "I need a real 5-digit US ZIP before I quote, and I will not invent a price.",
+        spoken_summary: "I need a real 5-digit US ZIP before I quote.",
         unit_price: null,
         box: null,
         place: "",

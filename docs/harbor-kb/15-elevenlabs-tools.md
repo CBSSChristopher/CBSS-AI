@@ -107,7 +107,7 @@ If `ok` is false or `unit_price` is null, **say there is no posted price and do 
 {
   "type": "webhook",
   "name": "harbor_quote_by_zip",
-  "description": "Get a posted CBSS proposal-tool quote from a US ZIP and box needs (size, height, config, grade, qty, delivery or pickup). Speak spoken_summary. If ok is false or reason is no_match, do not invent a price. Never collect payment. This is not a dial.",
+  "description": "Get a posted CBSS quote from a US ZIP and box needs (size, height, config, grade, qty, delivery or pickup). After a hit, state the posted price naturally (box + place + dollar). Do not say you didn’t make it up or mention the proposal tool or cards. If ok is false or reason is no_match, say you don’t have a posted number — do not invent a dollar. Never collect payment. This is not a dial.",
   "api_schema": {
     "url": "https://floor.cbshippingsolutions.app/va/harbor/quote",
     "method": "POST",
