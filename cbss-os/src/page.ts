@@ -9,8 +9,9 @@ function htmlEsc(value: string): string {
   });
 }
 
-export function pageHtml(opts: { loginError?: string } = {}): string {
+export function pageHtml(opts: { loginError?: string; sessionToken?: string } = {}): string {
   const loginError = htmlEsc(opts.loginError || "");
+  const sessionTokenJs = JSON.stringify(opts.sessionToken || "");
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -1167,6 +1168,19 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     $("sales-spark").addEventListener("click", nextSpark);
     setInterval(nextSpark, 9000);
     paintSpark();
+    function rememberYard(tok){
+      if (!tok) return;
+      try { localStorage.setItem("cbss_yard", tok); } catch (e) {}
+      try { sessionStorage.setItem("cbss_yard", tok); } catch (e) {}
+    }
+    function forgetYard(){
+      try { localStorage.removeItem("cbss_yard"); } catch (e) {}
+      try { sessionStorage.removeItem("cbss_yard"); } catch (e) {}
+    }
+    try { if (${sessionTokenJs}) rememberYard(${sessionTokenJs}); } catch (e) {}
+    function yardToken(){
+      try { return localStorage.getItem("cbss_yard") || sessionStorage.getItem("cbss_yard") || ""; } catch (e) { return ""; }
+    }
     async function api(path, opt){
       opt = opt || {};
       const allow401 = opt.allow401;
@@ -1174,8 +1188,11 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       const fetchOpt = Object.assign({ credentials:"same-origin", headers:{ "Content-Type":"application/json", "Accept":"application/json" } }, opt);
       delete fetchOpt.allow401;
       delete fetchOpt.allowError;
+      const tok = yardToken();
+      if (tok) fetchOpt.headers.Authorization = "Bearer "+tok;
       const r = await fetch(path, fetchOpt);
       const j = await r.json().catch(function(){ return {}; });
+      if (j && j.token) rememberYard(j.token);
       if (r.status===401){
         if (allow401) return { r:r, j:j };
         if (!user) show("login");
@@ -1293,7 +1310,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         +"&body="+encodeURIComponent(body);
     }
 
-    document.getElementById("login-form").addEventListener("submit", async function(e){
+    document.getElementById("login-form").addEventListener("submit", function(e){
       const email = String($("email").value||"").trim();
       const password = String($("password").value||"");
       if (!email || !password){
@@ -1302,38 +1319,14 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         $(password ? "email" : "password").focus();
         return;
       }
-      e.preventDefault();
-      $("login-err").textContent = "";
       const btn = $("login-go");
       if (btn){ btn.disabled = true; btn.textContent = "Opening…"; }
-      try {
-        const res = await api("/auth/login", {
-          method:"POST",
-          body: JSON.stringify({ email:email, password:password }),
-          allow401: true,
-          allowError: true
-        });
-        if (!res.r.ok || !res.j.ok){
-          try { e.target.submit(); return; }
-          catch (ignored) { $("login-err").textContent = res.j.error || "Could not sign in."; return; }
-        }
-        const sess = await api("/session", { allow401: true, allowError: true });
-        if (!sess.j || !sess.j.ok || !sess.j.user){
-          e.target.submit();
-          return;
-        }
-        user = sess.j.user; greet(user.name); paintTools(user.tools); show("app");
-        openMod("home");
-        showChristopherTabs();
-        try { await loadCrm(); } catch (err) { $("crm-err").textContent = "Signed in. Refresh if the book stays empty."; }
-      } catch (err) {
-        try { e.target.submit(); return; }
-        catch (ignored) { $("login-err").textContent = (err && err.message) ? err.message : "Could not sign in. Try again."; }
-      } finally {
-        if (btn){ btn.disabled = false; btn.textContent = "Open The Yard"; }
-      }
     });
-    $("out").addEventListener("click", async function(){ try { await api("/auth/logout",{method:"POST"}); } catch (e) {} show("login"); });
+    $("out").addEventListener("click", async function(){
+      forgetYard();
+      try { await api("/auth/logout",{method:"POST"}); } catch (e) {}
+      show("login");
+    });
     document.querySelectorAll("#nav [data-mod]").forEach(function(btn){
       btn.addEventListener("click", function(){ openMod(btn.dataset.mod); });
     });

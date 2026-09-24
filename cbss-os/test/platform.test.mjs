@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { readFileSync } from "node:fs";
 import { BRAND, LIVE_TOOLS, MODULES, SALES_SPARKS, TEAM_OWNERS } from "../src/brand.ts";
-import { emptyTools, isCompanyEmail, makeSession, origins, readSession, sessionCookieDomain, toolsReady } from "../src/auth.ts";
+import { emptyTools, isCompanyEmail, makeSession, origins, readSession, sessionCookieDomain, sessionTokenFromRequest, sessionTokenFromSetCookie, toolsReady } from "../src/auth.ts";
 import { pageHtml } from "../src/page.ts";
 
 const page = pageHtml();
@@ -220,6 +220,15 @@ describe("session stays small", () => {
     const inbound = new Request("https://cbssos.cbss.workers.dev/", {
       headers: { Cookie: cookies[0].split(";")[0] },
     });
+    const token = sessionTokenFromSetCookie(cookies[0]);
+    assert.ok(token);
+    assert.equal(sessionTokenFromRequest(new Request("https://cbssos.cbss.workers.dev/", {
+      headers: { Authorization: "Bearer " + token },
+    })), token);
+    const viaBearer = await readSession(new Request("https://cbssos.cbss.workers.dev/", {
+      headers: { Authorization: "Bearer " + token },
+    }), env);
+    assert.equal(viaBearer?.email, user.email);
     const got = await readSession(inbound, env);
     assert.equal(got?.email, user.email);
     assert.equal(got?.tools.crm.length, 800);
@@ -247,7 +256,10 @@ describe("Safari can open The Yard", () => {
     assert.match(page, /id="login"/);
     assert.match(page, /Turn JavaScript on in Safari/);
     assert.doesNotMatch(page, /html, body \{ height: 100%; margin: 0; \}/);
-    assert.match(page, /e\.target\.submit\(\)/);
+    assert.match(page, /sessionStorage.setItem\("cbss_yard"/);
+    assert.match(page, /localStorage.setItem\("cbss_yard"/);
+    assert.match(page, /Authorization/);
+    assert.doesNotMatch(page, /e\.target\.submit\(\)/);
     assert.match(page, /catch \(err\) \{\s*show\("login"\)/);
     const wrap = page.slice(page.indexOf(".login-wrap {"), page.indexOf(".login-card {"));
     assert.ok(wrap.indexOf("-webkit-fill-available") < wrap.lastIndexOf("100dvh"), wrap);
@@ -385,7 +397,9 @@ describe("stale CRM cookie does not leave a signed-in empty book", () => {
     assert.match(page, /crmLoadGen/);
     assert.doesNotMatch(page, /refreshYardSignIn/);
     assert.doesNotMatch(page, /refreshBookAfterLogin/);
-    assert.match(page, /api\("\/session", \{ allow401: true, allowError: true \}\)/);
+    assert.match(page, /sessionStorage.setItem\("cbss_yard"/);
+    assert.match(page, /localStorage.setItem\("cbss_yard"/);
+    assert.match(index, /sessionTokenFromRequest/);
   });
 });
 

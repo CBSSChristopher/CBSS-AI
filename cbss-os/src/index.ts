@@ -6,6 +6,8 @@ import {
   loginCrmTool,
   makeSession,
   origins,
+  sessionTokenFromRequest,
+  sessionTokenFromSetCookie,
   readSession,
   toolsReady,
   UA,
@@ -121,7 +123,7 @@ function htmlWithCookies(body: string, cookies: string[]): Response {
   return new Response(body, { status: 200, headers });
 }
 
-function yardPage(request: Request, opts?: { loginError?: string }): Response {
+function yardPage(request: Request, opts?: { loginError?: string; sessionToken?: string }): Response {
   const page = html(pageHtml(opts));
   if (request.method === "HEAD") return new Response(null, { status: 200, headers: page.headers });
   return page;
@@ -435,7 +437,8 @@ export default {
 
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: SECURITY });
     if ((request.method === "GET" || request.method === "HEAD") && isYardPagePath(path)) {
-      return yardPage(request);
+      const token = sessionTokenFromRequest(request);
+      return yardPage(request, token ? { sessionToken: token } : undefined);
     }
 
     if (request.method === "GET" && path === "/health") {
@@ -445,7 +448,8 @@ export default {
     if (request.method === "GET" && path === "/session") {
       const user = await readSession(request, env);
       if (user) await rememberUser(env, user);
-      return json(200, user ? { ok: true, user: publicUser(user) } : { ok: false });
+      const token = user ? sessionTokenFromRequest(request) : "";
+      return json(200, user ? { ok: true, user: publicUser(user), token } : { ok: false });
     }
 
     if (request.method === "POST" && path === "/auth/login") {
@@ -464,9 +468,11 @@ export default {
       if (!result.ok) return fail(result.status, result.error || "Could not sign in.");
       const cookies = await makeSession(request, env, result.user);
       await rememberUser(env, result.user);
+      const token = sessionTokenFromSetCookie(cookies[0] || "");
       if (asPage) {
         // 303 drops Set-Cookie in Safari/Chrome on these hosts. Stay on 200 so the session sticks.
-        return htmlWithCookies(pageHtml(), cookies);
+        // Safari ITP can also drop the host-only cookie on the Yard CNAME — keep the token in the page too.
+        return htmlWithCookies(pageHtml({ sessionToken: token }), cookies);
       }
       return withCookies(200, { ok: true, user: publicUser(result.user) }, cookies);
     }
