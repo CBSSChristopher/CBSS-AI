@@ -160,6 +160,9 @@ describe("Yard Flex Buy section writes a client proposal", () => {
     assert.match(page, /id="p-zip-info"/);
     assert.match(page, /id="p-flex-zip-info"/);
     assert.match(page, /pullZipWhenReady/);
+    assert.match(page, /function completeZip/);
+    assert.match(page, /syncCompleteZip/);
+    assert.doesNotMatch(page, /digitsZip\(\$\("p-zip"\)\) \|\| digitsZip\(\$\("p-flex-zip"\)\)/);
     assert.match(page, /fillAddressFromZip/);
     assert.match(page, /bindZipField/);
     assert.match(page, /Do not invent a number/);

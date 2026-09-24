@@ -3019,6 +3019,18 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     function digitsZip(el){
       return String((el && el.value) || "").replace(/\\D/g,"").slice(0,5);
     }
+    function completeZip(){
+      const a = digitsZip($("p-zip"));
+      const b = digitsZip($("p-flex-zip"));
+      if (a.length===5) return a;
+      if (b.length===5) return b;
+      return "";
+    }
+    function syncCompleteZip(zip){
+      if (!zip || zip.length!==5) return;
+      if ($("p-zip")) $("p-zip").value = zip;
+      if ($("p-flex-zip")) $("p-flex-zip").value = zip;
+    }
     function showZipInfo(text, ok){
       ["p-zip-info","p-flex-zip-info"].forEach(function(id){
         const el = $(id);
@@ -3065,9 +3077,8 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       if (chip && chip.scrollIntoView) chip.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
     async function quoteMatch(refresh){
-      const zip = digitsZip($("p-zip")) || digitsZip($("p-flex-zip"));
-      if ($("p-zip") && zip) $("p-zip").value = zip;
-      if ($("p-flex-zip") && zip) $("p-flex-zip").value = zip;
+      const zip = completeZip();
+      syncCompleteZip(zip);
       if (zip.length!==5){
         const need = "Type a 5-digit client ZIP first.";
         $("p-status").textContent = need;
@@ -3102,11 +3113,12 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     $("p-match").addEventListener("click", function(){ zipPullKey = ""; quoteMatch(false); });
     let zipPullTimer = 0;
     let zipPullKey = "";
-    function pullZipWhenReady(){
-      const zip = digitsZip($("p-zip")) || digitsZip($("p-flex-zip"));
-      if ($("p-zip") && zip) $("p-zip").value = zip;
-      if ($("p-flex-zip") && zip) $("p-flex-zip").value = zip;
+    function pullZipWhenReady(source){
+      const typed = digitsZip(source);
+      if (source && typed) source.value = typed;
+      const zip = typed.length===5 ? typed : completeZip();
       if (zip.length!==5) return;
+      syncCompleteZip(zip);
       const key = [zip, pick.size, pick.height, pick.config, pick.grade, $("p-qty") && $("p-qty").value, $("p-ful") && $("p-ful").value].join("|");
       if (key === zipPullKey) return;
       clearTimeout(zipPullTimer);
@@ -3318,12 +3330,9 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     $("p-zip").addEventListener("keydown", function(e){
       if (e.key === "Enter"){ e.preventDefault(); zipPullKey = ""; quoteMatch(false); }
     });
-    bindZipField($("p-zip"), pullZipWhenReady);
+    bindZipField($("p-zip"), function(){ pullZipWhenReady($("p-zip")); });
     if ($("p-flex-zip")){
-      bindZipField($("p-flex-zip"), function(){
-        if ($("p-zip")) $("p-zip").value = $("p-flex-zip").value;
-        pullZipWhenReady();
-      });
+      bindZipField($("p-flex-zip"), function(){ pullZipWhenReady($("p-flex-zip")); });
       $("p-flex-zip").addEventListener("keydown", function(e){
         if (e.key === "Enter"){ e.preventDefault(); e.stopPropagation(); zipPullKey = ""; quoteMatch(false); }
       });
