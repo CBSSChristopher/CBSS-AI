@@ -36,7 +36,7 @@ import { buildModifiedSpec, readModifiedDraft } from "./modified-catalog.ts";
 import { readFlexBuyRequest } from "./flex-buy.ts";
 import { buildProposalSubmit, readProposalLine } from "./proposal-lines.ts";
 import { matchContactForProposal, proposalAttachPatch } from "./crm-proposal.ts";
-import { scopeCrmGetPayload, shouldScopeCrmGet } from "./crm-scope.ts";
+import { scopeCrmGetPayload, shouldScopeCrmGet, trimBookForEmbed } from "./crm-scope.ts";
 import { rememberUser } from "./cycle/store.ts";
 import { handleAgentMailHook, handleCycleAuthed, runCycleCron } from "./cycle/http.ts";
 import { startWorking } from "./cycle/engine.ts";
@@ -129,7 +129,7 @@ function htmlWithCookies(body: string, cookies: string[]): Response {
   return new Response(body, { status: 200, headers });
 }
 
-function yardPage(request: Request, opts?: { loginError?: string; sessionToken?: string; user?: { email: string; name: string; tools: { crm: boolean; desk: boolean; proposal: boolean; pay: boolean; invoice: boolean } } }): Response {
+function yardPage(request: Request, opts?: { loginError?: string; sessionToken?: string; user?: { email: string; name: string; tools: { crm: boolean; desk: boolean; proposal: boolean; pay: boolean; invoice: boolean } }; book?: Record<string, unknown> | null }): Response {
   const page = html(pageHtml(opts));
   if (request.method === "HEAD") return new Response(null, { status: 200, headers: page.headers });
   return page;
@@ -376,6 +376,33 @@ async function attachProposalToCrm(
   return true;
 }
 
+async function loadEmbeddedBook(env: Env, user: { tools: { crm: string }; email: string; name: string }): Promise<Record<string, unknown> | null> {
+  const cookie = user.tools?.crm;
+  if (!cookie) return null;
+  const o = origins(env);
+  const target = o.crm + "/crm-data?action=get&omitNotes=1";
+  const headers = new Headers();
+  headers.set("User-Agent", UA);
+  headers.set("Origin", o.crm);
+  headers.set("Accept", "application/json");
+  headers.set("Cookie", cookie);
+  const req = new Request(target, { method: "GET", headers, signal: AbortSignal.timeout(12000) });
+  let res: Response;
+  try {
+    res = env.CRM ? await env.CRM.fetch(req) : await fetch(req);
+  } catch {
+    return null;
+  }
+  if (!res.ok) return null;
+  try {
+    const data = (await res.json()) as Record<string, unknown>;
+    const book = trimBookForEmbed(scopeCrmGetPayload(data, user));
+    return Array.isArray(book.contacts) && book.contacts.length ? book : null;
+  } catch {
+    return null;
+  }
+}
+
 async function proxyTool(request: Request, env: Env, key: ToolKey, rest: string): Promise<Response> {
   const user = await readSession(request, env);
   if (!user) return json(401, { error: "Sign in first." });
@@ -448,7 +475,13 @@ export default {
     if ((request.method === "GET" || request.method === "HEAD") && isYardPagePath(path)) {
       const token = sessionTokenFromRequest(request);
       const existing = token ? await readSession(request, env) : null;
-      if (existing && token) return yardPage(request, { sessionToken: token, user: publicUser(existing) });
+      if (request.method === "HEAD") {
+        return yardPage(request, existing && token ? { sessionToken: token, user: publicUser(existing) } : token ? { sessionToken: token } : undefined);
+      }
+      if (existing && token) {
+        const book = await loadEmbeddedBook(env, existing);
+        return yardPage(request, { sessionToken: token, user: publicUser(existing), book });
+      }
       return yardPage(request, token ? { sessionToken: token } : undefined);
     }
 
@@ -482,8 +515,9 @@ export default {
       const token = sessionTokenFromSetCookie(cookies[0] || "");
       if (asPage) {
         // 303 drops Set-Cookie in Safari/Chrome on these hosts. Stay on 200 so the session sticks.
-        // Safari ITP can also drop the host-only cookie on the Yard CNAME — keep the token in the page too.
-        return htmlWithCookies(pageHtml({ sessionToken: token, user: publicUser(result.user) }), cookies);
+        // Safari drops the follow-up book fetch on this CNAME, so the names ride in this HTML.
+        const book = await loadEmbeddedBook(env, result.user);
+        return htmlWithCookies(pageHtml({ sessionToken: token, user: publicUser(result.user), book }), cookies);
       }
       return withCookies(200, { ok: true, user: publicUser(result.user), token }, cookies);
     }

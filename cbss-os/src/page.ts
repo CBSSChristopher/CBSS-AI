@@ -13,6 +13,7 @@ export function pageHtml(opts: {
   loginError?: string;
   sessionToken?: string;
   user?: { email: string; name: string; tools?: Record<string, boolean> };
+  book?: Record<string, unknown> | null;
 } = {}): string {
   const loginError = htmlEsc(opts.loginError || "");
   const sessionTokenJs = JSON.stringify(opts.sessionToken || "");
@@ -20,6 +21,7 @@ export function pageHtml(opts: {
     ? { email: opts.user.email, name: opts.user.name || opts.user.email, tools: opts.user.tools || {} }
     : null;
   const userJs = JSON.stringify(pageUser);
+  const bookJs = JSON.stringify(opts.book || null).replace(/</g, "\\u003c").replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
   const signedIn = Boolean(pageUser);
   return `<!doctype html>
 <html lang="en">
@@ -369,7 +371,7 @@ export function pageHtml(opts: {
       <h1>The Yard</h1>
       <p class="muted">CB Shipping Solutions floor CRM. One sign-in for CRM, Desk, Proposal, Modified, and Money. Company email only. Same password as the CRM book — not Gmail. Bookmark ${YARD_PUBLIC}.</p>
       <p class="muted" id="login-stamp">${htmlEsc(BRAND.stamp)}</p>
-      <form id="login-form" method="post" action="/auth/login?v=29">
+      <form id="login-form" method="post" action="/auth/login?v=30">
         <label for="email">Company email</label>
         <input id="email" name="email" type="text" inputmode="email" autocomplete="username" placeholder="you@cbshippingsolutions.com" required />
         <label for="password">CRM password</label>
@@ -1129,6 +1131,7 @@ export function pageHtml(opts: {
     const MOD_USES = ${JSON.stringify(MODIFIED_USES)};
     let user = ${userJs}, book = null, selected = null, deskContact = null, deskHits = [], deskSearchSeq = 0, deskSearchTimer = 0, lastGmail = "", lastDoc = "", lastPdf = "", pick = {size:"40",height:"HC",config:"standard",grade:"CW"};
     let embeddedYard = ${sessionTokenJs} || "";
+    let embeddedBook = ${bookJs};
     let workPanel = "";
     let cteStep = "";
     let lastQuote = null;
@@ -1203,6 +1206,7 @@ export function pageHtml(opts: {
       show("app");
       openMod("home");
       showChristopherTabs();
+      if (embeddedBook && embeddedBook.contacts && embeddedBook.contacts.length) applyCrmPayload(embeddedBook, null);
       loadCrm();
       loadCycleAlerts();
       return true;
@@ -1451,28 +1455,8 @@ export function pageHtml(opts: {
         });
       }
     }
-    async function loadCrm(keepNotice){
-      const gen = ++crmLoadGen;
-      const notice = keepNotice && typeof keepNotice === "object" ? keepNotice : null;
-      $("crm-err").className = "err";
-      $("crm-err").textContent = "Loading book…";
-      let res;
-      try {
-      res = await api("/x/crm/crm-data?action=get&omitNotes=1", { allowError: true, allow401: true });
-      } catch (err) {
-        if (gen !== crmLoadGen) return;
-        const fail = (err && err.message) || "Could not load CRM.";
-        $("crm-err").textContent = fail;
-        if ($("crm-rows")) $("crm-rows").innerHTML = "<tr><td colspan=\\"5\\">"+esc(fail)+"</td></tr>";
-        return;
-      }
-      if (gen !== crmLoadGen) return;
-      if (res.r.status===401 || (res.j && res.j.code==="tool_session_expired")){
-        showBookSignIn((res.j && res.j.error) || "The book signed out. Sign in again from the button.");
-        return;
-      }
-      if (!res.r.ok){ $("crm-err").textContent = res.j.error || res.j.message || "Could not load CRM."; return; }
-      const j = res.j;
+    function applyCrmPayload(j, notice){
+      if (!j) return;
       const contacts = (j.contacts||[]).slice();
       const added = j.contactsAdded||[];
       const addedIds = {};
@@ -1506,8 +1490,41 @@ export function pageHtml(opts: {
         $("crm-err").className = "err";
         $("crm-err").textContent = "";
       }
-      await loadCampaign();
       fillOwners(); renderStats(); renderContacts();
+    }
+    async function loadCrm(keepNotice){
+      const gen = ++crmLoadGen;
+      const notice = keepNotice && typeof keepNotice === "object" ? keepNotice : null;
+      const hadBook = book && book.contacts && book.contacts.length;
+      if (!hadBook) {
+        $("crm-err").className = "err";
+        $("crm-err").textContent = "Loading book…";
+      }
+      let res;
+      try {
+      res = await api("/x/crm/crm-data?action=get&omitNotes=1", { allowError: true, allow401: true });
+      } catch (err) {
+        if (gen !== crmLoadGen) return;
+        if (hadBook) return;
+        const fail = (err && err.message) || "Could not load CRM.";
+        $("crm-err").textContent = fail;
+        if ($("crm-rows")) $("crm-rows").innerHTML = "<tr><td colspan=\\"5\\">"+esc(fail)+"</td></tr>";
+        return;
+      }
+      if (gen !== crmLoadGen) return;
+      if (res.r.status===401 || (res.j && res.j.code==="tool_session_expired")){
+        if (book && book.contacts && book.contacts.length) return;
+        showBookSignIn((res.j && res.j.error) || "The book signed out. Sign in again from the button.");
+        return;
+      }
+      if (!res.r.ok){
+        if (hadBook) return;
+        $("crm-err").textContent = res.j.error || res.j.message || "Could not load CRM.";
+        return;
+      }
+      applyCrmPayload(res.j, notice);
+      await loadCampaign();
+      renderStats(); renderContacts();
     }
     async function loadCampaign(){
       try {

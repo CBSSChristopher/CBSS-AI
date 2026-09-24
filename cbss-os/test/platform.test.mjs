@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { BRAND, LIVE_TOOLS, MODULES, SALES_SPARKS, TEAM_OWNERS } from "../src/brand.ts";
 import { emptyTools, isCompanyEmail, makeSession, origins, readSession, sessionCookieDomain, sessionTokenFromRequest, sessionTokenFromSetCookie, toolsReady } from "../src/auth.ts";
 import { pageHtml } from "../src/page.ts";
+import { trimBookForEmbed } from "../src/crm-scope.ts";
 
 const page = pageHtml();
 const index = readFileSync(new URL("../src/index.ts", import.meta.url), "utf8");
@@ -266,7 +267,12 @@ describe("Safari can open The Yard", () => {
     assert.match(page, /function enterYard/);
     assert.match(page, /embeddedYard/);
     assert.match(page, /id="login-stamp"/);
-    assert.match(page, /action="\/auth\/login\?v=29"/);
+    assert.match(page, /action="\/auth\/login\?v=30"/);
+    assert.match(page, /embeddedBook/);
+    assert.match(page, /function applyCrmPayload/);
+    assert.match(page, /if \(book && book\.contacts && book\.contacts\.length\) return;/);
+    assert.match(index, /loadEmbeddedBook/);
+    assert.match(index, /trimBookForEmbed/);
     assert.match(page, /X-Yard-Token/);
     assert.match(page, /yt=/);
     assert.match(page, /Open the book/);
@@ -420,6 +426,26 @@ describe("stale CRM cookie does not leave a signed-in empty book", () => {
     assert.match(signed, /id="app" class="shell"/);
     assert.match(signed, /Floor Rep/);
     assert.match(signed, /tok\.sig/);
+    const withBook = pageHtml({
+      sessionToken: "tok.sig",
+      user: { email: "rep@cbshippingsolutions.com", name: "Floor Rep", tools: { crm: true } },
+      book: { contacts: [{ id: "c1", name: "Ada Yard", notes: "secret note" }], deals: [], followups: {} },
+    });
+    assert.match(withBook, /let embeddedBook = \{/);
+    assert.match(withBook, /Ada Yard/);
+  });
+
+  it("trims the embedded book down to list fields", () => {
+    const slim = trimBookForEmbed({
+      contacts: [{ id: "c1", name: "Ada Yard", notes: [{ text: "leave this out" }], owner: "Floor Rep", city: "Memphis" }],
+      followups: { c1: { nextAction: "Call", followUpDate: "2026-09-25", completed: false }, c2: { completed: true, nextAction: "Skip" } },
+      deals: [{ id: "d1", contactId: "c1", stage: "Quote", extra: "nope" }],
+    });
+    assert.equal(slim.contacts[0].name, "Ada Yard");
+    assert.equal(slim.contacts[0].notes, undefined);
+    assert.equal(slim.followups.c1.nextAction, "Call");
+    assert.equal(slim.followups.c2, undefined);
+    assert.equal(slim.deals[0].extra, undefined);
   });
 });
 
