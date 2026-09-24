@@ -72,13 +72,13 @@ describe("The Yard sign-in on any hostname", () => {
   });
 
   it("shows a sign-in error and does not let boot kick them back to login", () => {
-    assert.match(page, /id="login-form" method="post" action="\/auth\/login"/);
+    assert.match(page, /id="login-form" method="post" action="\/auth\/login\?v=28"/);
     assert.match(page, /name="email"/);
     assert.match(page, /name="password"/);
     assert.match(page, /id="login-go"/);
     assert.match(page, /Opening…/);
     assert.match(page, /allow401: true/);
-    assert.match(page, /if \(user\) return;/);
+    assert.match(page, /if \(user && user.email\)/);
     assert.match(page, /sessionStorage.setItem\("cbss_yard"/);
     assert.match(page, /localStorage.setItem\("cbss_yard"/);
     assert.match(index, /sessionTokenFromSetCookie/);

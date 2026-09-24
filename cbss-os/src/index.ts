@@ -103,11 +103,17 @@ function withCookies(status: number, body: unknown, cookies: string[]): Response
   return new Response(JSON.stringify(body), { status, headers });
 }
 
+const HTML_CACHE = {
+  "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+  Pragma: "no-cache",
+  Expires: "0",
+} as const;
+
 function html(body: string): Response {
   return new Response(body, {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
-      "Cache-Control": "no-store",
+      ...HTML_CACHE,
       ...SECURITY,
     },
   });
@@ -116,14 +122,14 @@ function html(body: string): Response {
 function htmlWithCookies(body: string, cookies: string[]): Response {
   const headers = new Headers({
     "Content-Type": "text/html; charset=utf-8",
-    "Cache-Control": "no-store",
+    ...HTML_CACHE,
     ...SECURITY,
   });
   for (const c of cookies) headers.append("Set-Cookie", c);
   return new Response(body, { status: 200, headers });
 }
 
-function yardPage(request: Request, opts?: { loginError?: string; sessionToken?: string }): Response {
+function yardPage(request: Request, opts?: { loginError?: string; sessionToken?: string; user?: { email: string; name: string; tools: { crm: boolean; desk: boolean; proposal: boolean; pay: boolean; invoice: boolean } } }): Response {
   const page = html(pageHtml(opts));
   if (request.method === "HEAD") return new Response(null, { status: 200, headers: page.headers });
   return page;
@@ -438,6 +444,8 @@ export default {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: SECURITY });
     if ((request.method === "GET" || request.method === "HEAD") && isYardPagePath(path)) {
       const token = sessionTokenFromRequest(request);
+      const existing = token ? await readSession(request, env) : null;
+      if (existing && token) return yardPage(request, { sessionToken: token, user: publicUser(existing) });
       return yardPage(request, token ? { sessionToken: token } : undefined);
     }
 
@@ -472,9 +480,9 @@ export default {
       if (asPage) {
         // 303 drops Set-Cookie in Safari/Chrome on these hosts. Stay on 200 so the session sticks.
         // Safari ITP can also drop the host-only cookie on the Yard CNAME — keep the token in the page too.
-        return htmlWithCookies(pageHtml({ sessionToken: token }), cookies);
+        return htmlWithCookies(pageHtml({ sessionToken: token, user: publicUser(result.user) }), cookies);
       }
-      return withCookies(200, { ok: true, user: publicUser(result.user) }, cookies);
+      return withCookies(200, { ok: true, user: publicUser(result.user), token }, cookies);
     }
 
     if (request.method === "POST" && path === "/auth/logout") {

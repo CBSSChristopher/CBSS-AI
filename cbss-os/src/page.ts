@@ -9,9 +9,18 @@ function htmlEsc(value: string): string {
   });
 }
 
-export function pageHtml(opts: { loginError?: string; sessionToken?: string } = {}): string {
+export function pageHtml(opts: {
+  loginError?: string;
+  sessionToken?: string;
+  user?: { email: string; name: string; tools?: Record<string, boolean> };
+} = {}): string {
   const loginError = htmlEsc(opts.loginError || "");
   const sessionTokenJs = JSON.stringify(opts.sessionToken || "");
+  const pageUser = opts.user && opts.user.email
+    ? { email: opts.user.email, name: opts.user.name || opts.user.email, tools: opts.user.tools || {} }
+    : null;
+  const userJs = JSON.stringify(pageUser);
+  const signedIn = Boolean(pageUser);
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -354,12 +363,13 @@ export function pageHtml(opts: { loginError?: string; sessionToken?: string } = 
   </style>
 </head>
 <body>
-  <div id="login" class="login-wrap">
+  <div id="login" class="login-wrap${signedIn ? " hide" : ""}">
     <section class="card login-card">
       <div class="seal">CB</div>
       <h1>The Yard</h1>
       <p class="muted">CB Shipping Solutions floor CRM. One sign-in for CRM, Desk, Proposal, Modified, and Money. Company email only. Same password as the CRM book — not Gmail. Bookmark ${YARD_PUBLIC}.</p>
-      <form id="login-form" method="post" action="/auth/login">
+      <p class="muted" id="login-stamp">${htmlEsc(BRAND.stamp)}</p>
+      <form id="login-form" method="post" action="/auth/login?v=28">
         <label for="email">Company email</label>
         <input id="email" name="email" type="text" inputmode="email" autocomplete="username" placeholder="you@cbshippingsolutions.com" required />
         <label for="password">CRM password</label>
@@ -371,7 +381,7 @@ export function pageHtml(opts: { loginError?: string; sessionToken?: string } = 
     </section>
   </div>
 
-  <div id="app" class="shell hide">
+  <div id="app" class="shell${signedIn ? "" : " hide"}">
     <aside>
       <div class="brand-lock">
         <div class="seal">CB</div>
@@ -397,7 +407,7 @@ export function pageHtml(opts: { loginError?: string; sessionToken?: string } = 
           <div class="sub">CRM · Desk · Proposal · Modified · Money</div>
         </div>
         <div class="right">
-          <div class="who" id="who"></div>
+          <div class="who" id="who">${pageUser ? htmlEsc(pageUser.name) : ""}</div>
           <button type="button" class="secondary" id="out">Sign out</button>
         </div>
       </header>
@@ -1117,7 +1127,8 @@ export function pageHtml(opts: { loginError?: string; sessionToken?: string } = 
     const MOD_CATS = ${JSON.stringify(MODIFIED_CATEGORIES)};
     const MOD_ITEMS = ${JSON.stringify(MODIFIED_ITEMS)};
     const MOD_USES = ${JSON.stringify(MODIFIED_USES)};
-    let user = null, book = null, selected = null, deskContact = null, deskHits = [], deskSearchSeq = 0, deskSearchTimer = 0, lastGmail = "", lastDoc = "", lastPdf = "", pick = {size:"40",height:"HC",config:"standard",grade:"CW"};
+    let user = ${userJs}, book = null, selected = null, deskContact = null, deskHits = [], deskSearchSeq = 0, deskSearchTimer = 0, lastGmail = "", lastDoc = "", lastPdf = "", pick = {size:"40",height:"HC",config:"standard",grade:"CW"};
+    let embeddedYard = ${sessionTokenJs} || "";
     let workPanel = "";
     let cteStep = "";
     let lastQuote = null;
@@ -1170,16 +1181,31 @@ export function pageHtml(opts: { loginError?: string; sessionToken?: string } = 
     paintSpark();
     function rememberYard(tok){
       if (!tok) return;
+      embeddedYard = tok;
       try { localStorage.setItem("cbss_yard", tok); } catch (e) {}
       try { sessionStorage.setItem("cbss_yard", tok); } catch (e) {}
     }
     function forgetYard(){
+      embeddedYard = "";
       try { localStorage.removeItem("cbss_yard"); } catch (e) {}
       try { sessionStorage.removeItem("cbss_yard"); } catch (e) {}
     }
-    try { if (${sessionTokenJs}) rememberYard(${sessionTokenJs}); } catch (e) {}
+    try { if (embeddedYard) rememberYard(embeddedYard); } catch (e) {}
     function yardToken(){
+      if (embeddedYard) return embeddedYard;
       try { return localStorage.getItem("cbss_yard") || sessionStorage.getItem("cbss_yard") || ""; } catch (e) { return ""; }
+    }
+    function enterYard(next){
+      if (!next || !next.email) return false;
+      user = next;
+      greet(user.name);
+      paintTools(user.tools);
+      show("app");
+      openMod("home");
+      showChristopherTabs();
+      loadCrm();
+      loadCycleAlerts();
+      return true;
     }
     async function api(path, opt){
       opt = opt || {};
@@ -1310,7 +1336,7 @@ export function pageHtml(opts: { loginError?: string; sessionToken?: string } = 
         +"&body="+encodeURIComponent(body);
     }
 
-    document.getElementById("login-form").addEventListener("submit", function(e){
+    document.getElementById("login-form").addEventListener("submit", async function(e){
       const email = String($("email").value||"").trim();
       const password = String($("password").value||"");
       if (!email || !password){
@@ -1319,8 +1345,29 @@ export function pageHtml(opts: { loginError?: string; sessionToken?: string } = 
         $(password ? "email" : "password").focus();
         return;
       }
+      e.preventDefault();
+      $("login-err").textContent = "";
       const btn = $("login-go");
       if (btn){ btn.disabled = true; btn.textContent = "Opening…"; }
+      try {
+        const res = await api("/auth/login", {
+          method:"POST",
+          body: JSON.stringify({ email:email, password:password }),
+          allow401: true,
+          allowError: true
+        });
+        if (res.j && res.j.ok && res.j.user){
+          if (res.j.token) rememberYard(res.j.token);
+          if (enterYard(res.j.user)) return;
+        }
+        e.target.submit();
+      } catch (err) {
+        try { e.target.submit(); }
+        catch (ignored) {
+          $("login-err").textContent = (err && err.message) ? err.message : "Could not sign in.";
+          if (btn){ btn.disabled = false; btn.textContent = "Open The Yard"; }
+        }
+      }
     });
     $("out").addEventListener("click", async function(){
       forgetYard();
@@ -3592,13 +3639,14 @@ export function pageHtml(opts: { loginError?: string; sessionToken?: string } = 
     });
 
     (async function boot(){
+      if (user && user.email){ enterYard(user); return; }
       try {
-        const res = await api("/session");
-        if (user) return;
-        if (res.j.ok && res.j.user){ user=res.j.user; greet(user.name); paintTools(user.tools); show("app"); openMod("home"); showChristopherTabs(); loadCrm(); loadCycleAlerts(); }
+        const res = await api("/session", { allow401: true, allowError: true });
+        if (user && user.email) return;
+        if (res.j && res.j.ok && res.j.user){ enterYard(res.j.user); }
         else show("login");
       } catch (err) {
-        show("login");
+        if (!user) show("login");
       }
     })();
   </script>

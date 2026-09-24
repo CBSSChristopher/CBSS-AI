@@ -259,8 +259,11 @@ describe("Safari can open The Yard", () => {
     assert.match(page, /sessionStorage.setItem\("cbss_yard"/);
     assert.match(page, /localStorage.setItem\("cbss_yard"/);
     assert.match(page, /Authorization/);
-    assert.doesNotMatch(page, /e\.target\.submit\(\)/);
-    assert.match(page, /catch \(err\) \{\s*show\("login"\)/);
+    assert.match(page, /function enterYard/);
+    assert.match(page, /embeddedYard/);
+    assert.match(page, /id="login-stamp"/);
+    assert.match(page, /action="\/auth\/login\?v=28"/);
+    assert.match(page, /if \(!user\) show\("login"\)/);
     const wrap = page.slice(page.indexOf(".login-wrap {"), page.indexOf(".login-card {"));
     assert.ok(wrap.indexOf("-webkit-fill-available") < wrap.lastIndexOf("100dvh"), wrap);
     assert.match(page, /\.login-card \{[\s\S]*flex-shrink: 0/);
@@ -400,6 +403,15 @@ describe("stale CRM cookie does not leave a signed-in empty book", () => {
     assert.match(page, /sessionStorage.setItem\("cbss_yard"/);
     assert.match(page, /localStorage.setItem\("cbss_yard"/);
     assert.match(index, /sessionTokenFromRequest/);
+    assert.match(index, /user: publicUser\(result\.user\)/);
+    const signed = pageHtml({
+      sessionToken: "tok.sig",
+      user: { email: "rep@cbshippingsolutions.com", name: "Floor Rep", tools: { crm: true } },
+    });
+    assert.match(signed, /id="login" class="login-wrap hide"/);
+    assert.match(signed, /id="app" class="shell"/);
+    assert.match(signed, /Floor Rep/);
+    assert.match(signed, /tok\.sig/);
   });
 });
 

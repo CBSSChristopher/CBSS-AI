@@ -10,12 +10,26 @@ export function yardAliasAction(_hostname: string, _method: string): "proxy" {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const res = await env.HOUSE.fetch(request);
+    const headers = new Headers(request.headers);
+    const auth = request.headers.get("Authorization");
+    const cookie = request.headers.get("Cookie");
+    if (auth) headers.set("Authorization", auth);
+    if (cookie) headers.set("Cookie", cookie);
+    const init: RequestInit & { duplex?: string } = {
+      method: request.method,
+      headers,
+      redirect: "manual",
+    };
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      init.body = request.body;
+      init.duplex = "half";
+    }
+    const res = await env.HOUSE.fetch(new Request(request.url, init));
     const cookies = typeof res.headers.getSetCookie === "function" ? res.headers.getSetCookie() : [];
     if (!cookies.length) return res;
-    const headers = new Headers(res.headers);
-    headers.delete("Set-Cookie");
-    for (const c of cookies) headers.append("Set-Cookie", c);
-    return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+    const out = new Headers(res.headers);
+    out.delete("Set-Cookie");
+    for (const c of cookies) out.append("Set-Cookie", c);
+    return new Response(res.body, { status: res.status, statusText: res.statusText, headers: out });
   },
 };
