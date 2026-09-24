@@ -369,7 +369,7 @@ export function pageHtml(opts: {
       <h1>The Yard</h1>
       <p class="muted">CB Shipping Solutions floor CRM. One sign-in for CRM, Desk, Proposal, Modified, and Money. Company email only. Same password as the CRM book — not Gmail. Bookmark ${YARD_PUBLIC}.</p>
       <p class="muted" id="login-stamp">${htmlEsc(BRAND.stamp)}</p>
-      <form id="login-form" method="post" action="/auth/login?v=28">
+      <form id="login-form" method="post" action="/auth/login?v=29">
         <label for="email">Company email</label>
         <input id="email" name="email" type="text" inputmode="email" autocomplete="username" placeholder="you@cbshippingsolutions.com" required />
         <label for="password">CRM password</label>
@@ -1207,6 +1207,10 @@ export function pageHtml(opts: {
       loadCycleAlerts();
       return true;
     }
+    function withYardToken(path, tok){
+      if (!tok || path.indexOf("/auth/login") === 0) return path;
+      return path + (path.indexOf("?") >= 0 ? "&" : "?") + "yt=" + encodeURIComponent(tok);
+    }
     async function api(path, opt){
       opt = opt || {};
       const allow401 = opt.allow401;
@@ -1215,7 +1219,11 @@ export function pageHtml(opts: {
       delete fetchOpt.allow401;
       delete fetchOpt.allowError;
       const tok = yardToken();
-      if (tok) fetchOpt.headers.Authorization = "Bearer "+tok;
+      if (tok){
+        fetchOpt.headers.Authorization = "Bearer "+tok;
+        fetchOpt.headers["X-Yard-Token"] = tok;
+        path = withYardToken(path, tok);
+      }
       const r = await fetch(path, fetchOpt);
       const j = await r.json().catch(function(){ return {}; });
       if (j && j.token) rememberYard(j.token);
@@ -1398,19 +1406,48 @@ export function pageHtml(opts: {
 
     let crmLoadGen = 0;
     function showBookSignIn(msg){
-      const text = msg || "The book signed out. Use Sign in again — I will not bounce you in a loop.";
+      const text = msg || "The book needs your CRM password once more. You stay in The Yard.";
       $("crm-err").className = "err";
       $("crm-err").textContent = text;
       if ($("crm-rows")) {
+        const email = user && user.email ? esc(user.email) : "";
         $("crm-rows").innerHTML = "<tr><td colspan=\\"5\\">"+esc(text)
-          +' <button type="button" class="gold" id="crm-relogin">Sign in again</button></td></tr>';
+          + (email ? " <span class=\\"muted\\">"+email+"</span>" : "")
+          + ' <input id="crm-repass" type="password" autocomplete="current-password" placeholder="CRM password" style="max-width:220px;display:inline-block;width:auto" />'
+          + ' <button type="button" class="gold" id="crm-relogin">Open the book</button></td></tr>';
         const b = $("crm-relogin");
-        if (b) b.addEventListener("click", function(){
-          user = null;
-          book = null;
-          show("login");
-          if ($("login-err")) $("login-err").textContent = "Sign in once more to refresh the book.";
-          if ($("password")) { $("password").value = ""; $("password").focus(); }
+        if (b) b.addEventListener("click", async function(){
+          const password = String(($("crm-repass") && $("crm-repass").value) || "");
+          const emailNow = String((user && user.email) || "").trim();
+          if (!emailNow || !password){
+            $("crm-err").textContent = password ? "Stay on this page and type the company email password." : "Type your CRM password, then Open the book.";
+            if ($("crm-repass")) $("crm-repass").focus();
+            return;
+          }
+          b.disabled = true;
+          b.textContent = "Opening…";
+          try {
+            const res = await api("/auth/login", {
+              method:"POST",
+              body: JSON.stringify({ email:emailNow, password:password }),
+              allow401: true,
+              allowError: true
+            });
+            if (res.j && res.j.ok && res.j.user){
+              if (res.j.token) rememberYard(res.j.token);
+              user = res.j.user;
+              greet(user.name);
+              paintTools(user.tools);
+              await loadCrm();
+              return;
+            }
+            $("crm-err").textContent = (res.j && res.j.error) || "Could not open the book.";
+          } catch (err) {
+            $("crm-err").textContent = (err && err.message) || "Could not open the book.";
+          } finally {
+            b.disabled = false;
+            b.textContent = "Open the book";
+          }
         });
       }
     }

@@ -382,7 +382,10 @@ async function proxyTool(request: Request, env: Env, key: ToolKey, rest: string)
   const cookie = user.tools[key];
   if (!cookie) return json(503, { error: "That module did not sign in. Sign out and sign in again." });
   const o = origins(env);
-  const target = o[key] + rest + (new URL(request.url).search || "");
+  const incoming = new URL(request.url);
+  incoming.searchParams.delete("yt");
+  incoming.searchParams.delete("os");
+  const target = o[key] + rest + incoming.search;
   const headers = new Headers();
   headers.set("User-Agent", UA);
   headers.set("Origin", o[key]);

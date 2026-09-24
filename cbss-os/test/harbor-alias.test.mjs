@@ -72,7 +72,7 @@ describe("The Yard sign-in on any hostname", () => {
   });
 
   it("shows a sign-in error and does not let boot kick them back to login", () => {
-    assert.match(page, /id="login-form" method="post" action="\/auth\/login\?v=28"/);
+    assert.match(page, /id="login-form" method="post" action="\/auth\/login\?v=29"/);
     assert.match(page, /name="email"/);
     assert.match(page, /name="password"/);
     assert.match(page, /id="login-go"/);

@@ -225,6 +225,10 @@ describe("session stays small", () => {
     assert.equal(sessionTokenFromRequest(new Request("https://cbssos.cbss.workers.dev/", {
       headers: { Authorization: "Bearer " + token },
     })), token);
+    assert.equal(sessionTokenFromRequest(new Request("https://cbssos.cbss.workers.dev/x/crm/crm-data?yt=" + encodeURIComponent(token))), token);
+    assert.equal(sessionTokenFromRequest(new Request("https://cbssos.cbss.workers.dev/", {
+      headers: { "X-Yard-Token": token },
+    })), token);
     const viaBearer = await readSession(new Request("https://cbssos.cbss.workers.dev/", {
       headers: { Authorization: "Bearer " + token },
     }), env);
@@ -262,7 +266,11 @@ describe("Safari can open The Yard", () => {
     assert.match(page, /function enterYard/);
     assert.match(page, /embeddedYard/);
     assert.match(page, /id="login-stamp"/);
-    assert.match(page, /action="\/auth\/login\?v=28"/);
+    assert.match(page, /action="\/auth\/login\?v=29"/);
+    assert.match(page, /X-Yard-Token/);
+    assert.match(page, /yt=/);
+    assert.match(page, /Open the book/);
+    assert.doesNotMatch(page, /user = null;\s*book = null;\s*show\("login"\)/);
     assert.match(page, /if \(!user\) show\("login"\)/);
     const wrap = page.slice(page.indexOf(".login-wrap {"), page.indexOf(".login-card {"));
     assert.ok(wrap.indexOf("-webkit-fill-available") < wrap.lastIndexOf("100dvh"), wrap);

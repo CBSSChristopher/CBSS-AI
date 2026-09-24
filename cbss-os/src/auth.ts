@@ -137,11 +137,18 @@ export function sessionTokenFromSetCookie(header: string): string {
   }
 }
 
-/** Cookie first, then Authorization Bearer — Safari ITP can drop the host-only cookie on the Yard CNAME. */
+/** Cookie, Bearer, X-Yard-Token, then ?yt= — Safari ITP can drop cookies and Authorization on the Yard CNAME. */
 export function sessionTokenFromRequest(request: Request): string {
   const auth = String(request.headers.get("Authorization") || "");
   const bearer = /^bearer\s+/i.test(auth) ? auth.replace(/^bearer\s+/i, "").trim() : "";
-  return parseCookies(request)[COOKIE] || bearer;
+  const headerTok = String(request.headers.get("X-Yard-Token") || "").trim();
+  let queryTok = "";
+  try {
+    queryTok = new URL(request.url).searchParams.get("yt") || "";
+  } catch {
+    queryTok = "";
+  }
+  return parseCookies(request)[COOKIE] || bearer || headerTok || queryTok;
 }
 
 export function parseCookies(request: Request): Record<string, string> {
