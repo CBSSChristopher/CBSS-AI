@@ -31,6 +31,7 @@ import {
   scheduleDeskTrack,
 } from "./desk-contact.ts";
 import { buildModifiedSpec, readModifiedDraft } from "./modified-catalog.ts";
+import { readFlexBuyRequest } from "./flex-buy.ts";
 import { buildProposalSubmit, readProposalLine } from "./proposal-lines.ts";
 import { matchContactForProposal, proposalAttachPatch } from "./crm-proposal.ts";
 import { scopeCrmGetPayload, shouldScopeCrmGet } from "./crm-scope.ts";
@@ -789,6 +790,7 @@ export default {
       const lines = rawLines
         .map((row) => (row && typeof row === "object" ? readProposalLine(row as Record<string, unknown>) : null))
         .filter((row): row is NonNullable<typeof row> => Boolean(row));
+      const flex = readFlexBuyRequest(raw);
       const built = buildProposalSubmit({
         customerName: raw.customerName,
         email: raw.email,
@@ -799,6 +801,11 @@ export default {
         notes: raw.notes,
         clientType: raw.clientType,
         paymentMode: raw.paymentMode,
+        flexSelected: flex.selected,
+        flexTermMonths: flex.months,
+        flexDownPaymentPct: flex.downPct,
+        flexModificationPrice: flex.modPrice,
+        flexModDownPct: flex.modDownPct,
         fulfillment: raw.fulfillment,
         repName: raw.repName || user.name,
         repEmail: raw.repEmail || user.email,

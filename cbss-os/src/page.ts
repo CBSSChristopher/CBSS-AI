@@ -163,6 +163,12 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     .quote-ticket .kicker { color: var(--gold); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; }
     .quote-ticket .cash { font-size: 28px; margin: 6px 0 0; font-family: "Times New Roman", Times, serif; color: #fff; }
     .quote-ticket .muted { color: #9eb0c4; margin: 6px 0 0; }
+    .flex-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .flex-table th, .flex-table td { padding: 8px 6px; text-align: left; border-bottom: 1px solid var(--line); }
+    .flex-table th { color: var(--muted); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; }
+    .flex-table tr { cursor: pointer; }
+    .flex-table tr.on { background: #FBF6E8; }
+    .flex-upfront { margin-top: 10px; background: #FBF6E8; border: 1px solid var(--gold); border-radius: 10px; padding: 12px 14px; }
     .mod-item {
       display: grid; grid-template-columns: auto 1fr 72px; gap: 10px; align-items: start;
       padding: 10px 8px; border-bottom: 1px solid var(--line);
@@ -402,6 +408,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
             <div class="card tile" data-go="crm"><div class="kicker">Book</div><h2>CRM</h2><p class="muted">Contacts, follow-ups, tasks, pipeline, notes.</p></div>
             <div class="card tile" data-go="desk"><div class="kicker">Assist</div><h2>Desk</h2><p class="muted">Your CBSS AI — built for every CB Shipping Solutions employee. Ask it. Then go close.</p></div>
             <div class="card tile" data-go="proposal"><div class="kicker">Quote</div><h2>Proposal</h2><p class="muted">Build the quote. Send the proposal. Put the deal in writing before they cool off.</p></div>
+            <div class="card tile" data-go="proposal" data-flex="1"><div class="kicker">Terms</div><h2>Flex Buy</h2><p class="muted">Turn a posted cash ticket into a Flex Buy proposal for the client. Do not invent a number.</p></div>
             <div class="card tile" data-go="modified"><div class="kicker">Build</div><h2>Modified</h2><p class="muted">Doors, windows, electrical, insulation, framing, roll-up, and the CB Apex helical foundation.</p></div>
             <div class="card tile" data-go="money"><div class="kicker">Collect</div><h2>Money</h2><p class="muted">Invoice the cash they agreed to. ACH, wire, or card — get it in the account.</p></div>
           </div>
@@ -680,9 +687,61 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
           </div>
 
           <form id="p-form">
-          <div class="card step">
+          <div class="card step" id="p-flex">
             <div class="step-head">
               <div class="step-num">4</div>
+              <div>
+                <h2>Flex Buy</h2>
+                <p class="muted">Cash or Flex Buy. Flex writes the monthly on the client proposal from the posted cash ticket. Do not invent a number.</p>
+              </div>
+            </div>
+            <label>How they pay</label>
+            <div class="picks big" id="p-pay">
+              <button type="button" class="on" id="p-pay-cash" data-pay="cash">Cash</button>
+              <button type="button" id="p-pay-flex" data-pay="flex">Flex Buy</button>
+            </div>
+            <div class="split" style="margin-top:10px">
+              <div>
+                <label>Client type</label>
+                <select id="p-client">
+                  <option value="Residential">Residential</option>
+                  <option value="Commercial">Commercial</option>
+                </select>
+              </div>
+              <div>
+                <label>Down payment % (on the box)</label>
+                <input id="p-down" inputmode="decimal" value="10" />
+              </div>
+            </div>
+            <div class="split">
+              <div>
+                <label>Modification / custom $ (if any)</label>
+                <input id="p-mod" inputmode="decimal" value="0" />
+              </div>
+              <div>
+                <label>Modification down %</label>
+                <input id="p-moddown" inputmode="decimal" value="35" />
+              </div>
+            </div>
+            <div id="p-flex-ui" class="hide">
+              <div class="flex-upfront" id="p-flex-upfront">Get a posted CBSS price first. Flex Buy does not invent a number.</div>
+              <p class="muted" style="margin:10px 0 6px">Select a term to write on the client proposal.</p>
+              <div style="overflow-x:auto">
+                <table class="flex-table" id="p-flex-table">
+                  <thead>
+                    <tr><th>Term</th><th>APR</th><th>Monthly</th><th>Total paid*</th><th>Interest</th></tr>
+                  </thead>
+                  <tbody id="p-flex-body"></tbody>
+                </table>
+              </div>
+              <p class="muted" id="p-flex-note">* Down payment is collected upfront from the posted cash figure. Delivery stays upfront on a delivered ticket.</p>
+            </div>
+            <p class="muted" id="p-cash-note">Full payment due. No Flex Buy selected.</p>
+          </div>
+
+          <div class="card step">
+            <div class="step-head">
+              <div class="step-num">5</div>
               <div>
                 <h2>Who it is for</h2>
                 <p class="muted">Put the customer on the proposal while the yes is still warm. Enter writes it. Shift+Enter adds a line in notes.</p>
@@ -702,10 +761,10 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
 
           <div class="card step">
             <div class="step-head">
-              <div class="step-num">5</div>
+              <div class="step-num">6</div>
               <div>
                 <h2>Send it</h2>
-                <p class="muted">Needs a posted wholesale on every option. Two or three grades become Option A / Option B / Option C on the client PDF. Enter writes the proposal and emails it. It does not invent a number.</p>
+                <p class="muted">Needs a posted wholesale on every option. Flex Buy writes monthly terms on the client PDF. Two or three grades become Option A / Option B / Option C on a cash proposal. Enter writes it. It does not invent a number.</p>
               </div>
             </div>
             <div class="row"><button type="submit" class="gold" id="p-send">Enter proposal</button></div>
@@ -1263,7 +1322,10 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       btn.addEventListener("click", function(){ openMod(btn.dataset.mod); });
     });
     document.querySelectorAll("[data-go]").forEach(function(tile){
-      tile.addEventListener("click", function(){ openMod(tile.getAttribute("data-go")); });
+      tile.addEventListener("click", function(){
+        openMod(tile.getAttribute("data-go"));
+        if (tile.getAttribute("data-flex") === "1") openFlexBuy();
+      });
     });
     document.querySelectorAll("[data-crm]").forEach(function(btn){
       btn.addEventListener("click", function(){
@@ -2939,6 +3001,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         $("p-ticket-cash").textContent = "—";
         $("p-ticket-meta").textContent = "";
         $("p-status").textContent = (j && (j.error||j.message)) || "No matching posted box. Do not invent a wholesale.";
+        paintFlex();
         return;
       }
       $("p-wholesale").value = String(j.wholesale);
@@ -2956,6 +3019,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       $("p-ticket-cash").textContent = money(cash);
       $("p-ticket-meta").textContent = (j.place||"ZIP")+" · depot "+(j.city||"?")+(j.miles!=null?" · "+j.miles+" mi":"")
         +" · posted "+money(j.wholesale)+(delivery?" · delivery "+money(delivery):" · pickup")+" · margin "+money(margin);
+      paintFlex();
     }
     async function quoteMatch(refresh){
       const zip = String($("p-zip").value||"").replace(/\\D/g,"").slice(0,5);
@@ -2975,9 +3039,98 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     }
     $("p-pull").addEventListener("click", function(){ quoteMatch(true); });
     $("p-match").addEventListener("click", function(){ quoteMatch(false); });
-    function recastCash(){ if (lastQuote && lastQuote.ok) applyQuoteMatch(lastQuote); }
+    function recastCash(){ if (lastQuote && lastQuote.ok) applyQuoteMatch(lastQuote); else paintFlex(); }
     $("p-margin").addEventListener("change", recastCash);
     $("p-ful").addEventListener("change", recastCash);
+    const FLEX_TERMS = [
+      { months: 6, apr: 0.12 }, { months: 12, apr: 0.14 }, { months: 18, apr: 0.15 }, { months: 24, apr: 0.16 },
+      { months: 36, apr: 0.18 }, { months: 48, apr: 0.20 }, { months: 60, apr: 0.22 }, { months: 72, apr: 0.24 }
+    ];
+    let payMode = "cash";
+    let selectedFlexIdx = 0;
+    function flexPmt(rate, nper, pv){
+      if (!nper) return 0;
+      if (!rate) return pv / nper;
+      return pv * rate * Math.pow(1 + rate, nper) / (Math.pow(1 + rate, nper) - 1);
+    }
+    function flexTicket(){
+      const lines = proposalLines.slice();
+      if (!lines.length){
+        const line = currentProposalLine();
+        if (line) lines.push(line);
+      }
+      if (!lines.length) return null;
+      const first = lines[0];
+      return {
+        many: lines.length >= 2,
+        cash: Number(first.cash)||0,
+        qty: Math.max(1, Number(first.qty)||1),
+        delivery: first.fulfillment==="pickup" ? 0 : Number(first.delivery||0)
+      };
+    }
+    function setPayMode(mode){
+      payMode = mode === "flex" ? "flex" : "cash";
+      $("p-pay-cash").classList.toggle("on", payMode==="cash");
+      $("p-pay-flex").classList.toggle("on", payMode==="flex");
+      $("p-flex-ui").classList.toggle("hide", payMode!=="flex");
+      $("p-cash-note").classList.toggle("hide", payMode==="flex");
+      paintFlex();
+    }
+    function openFlexBuy(){
+      setPayMode("flex");
+      const box = $("p-flex");
+      if (box && box.scrollIntoView) box.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    function paintFlex(){
+      const ticket = flexTicket();
+      const downPct = Math.min(0.5, Math.max(0.05, (Number($("p-down").value)||10)/100));
+      const modPrice = Math.max(0, Number($("p-mod").value)||0);
+      const modDownPct = Math.min(1, Math.max(0.1, (Number($("p-moddown").value)||35)/100));
+      const body = $("p-flex-body");
+      if (!ticket || !ticket.cash){
+        $("p-flex-upfront").textContent = "Get a posted CBSS price first. Flex Buy does not invent a number.";
+        body.innerHTML = "";
+        return;
+      }
+      if (ticket.many && payMode==="flex"){
+        $("p-flex-upfront").textContent = "Flex Buy is one box. Remove the extra options or send the cash options first. Do not invent a number.";
+      }
+      const containerCash = (ticket.cash - ticket.delivery) * ticket.qty;
+      const containerDown = containerCash * downPct;
+      const modDown = modPrice * modDownPct;
+      const totalDown = containerDown + modDown;
+      const financed = (containerCash + modPrice) - totalDown;
+      const upfront = totalDown + (ticket.delivery * ticket.qty);
+      if (!ticket.many){
+        $("p-flex-upfront").innerHTML = "<strong>Upfront due:</strong> "+money(upfront)
+          +" · <strong>Amount financed:</strong> "+money(financed)
+          +"<br><span class=\\"muted\\">Container down "+money(containerDown)+(modDown?" + mod down "+money(modDown):"")+(ticket.delivery?" + delivery "+money(ticket.delivery * ticket.qty):"")+". From the posted ticket.</span>";
+      }
+      $("p-flex-note").textContent = ticket.delivery
+        ? "* Down payment is collected upfront from the posted cash figure. Delivery stays upfront on a delivered ticket."
+        : "* Pickup ticket. Down payment is collected upfront. No delivery charge and no invented pickup fee.";
+      body.innerHTML = FLEX_TERMS.map(function(t, idx){
+        const monthly = flexPmt(t.apr/12, t.months, financed);
+        const totalPaid = (monthly * t.months) + totalDown;
+        const interest = totalPaid - (containerCash + modPrice);
+        return '<tr data-flex-idx="'+idx+'"'+(idx===selectedFlexIdx?' class="on"':'')+'><td><strong>'+t.months+' mo</strong></td><td>'+(t.apr*100).toFixed(0)+'%</td><td>'+money(monthly)+'</td><td>'+money(totalPaid)+'</td><td>'+money(interest)+'</td></tr>';
+      }).join("");
+    }
+    $("p-pay").addEventListener("click", function(e){
+      const b = e.target.closest("[data-pay]");
+      if (!b) return;
+      setPayMode(b.getAttribute("data-pay"));
+    });
+    $("p-flex-body").addEventListener("click", function(e){
+      const tr = e.target.closest("[data-flex-idx]");
+      if (!tr) return;
+      selectedFlexIdx = Number(tr.getAttribute("data-flex-idx"))||0;
+      paintFlex();
+    });
+    ["p-down","p-mod","p-moddown"].forEach(function(id){
+      $(id).addEventListener("input", paintFlex);
+    });
+    setPayMode("cash");
     function configLabel(v){
       const hit = CONFIGS.find(function(c){ return c.v===v; });
       return hit ? hit.l : (v || "Standard");
@@ -3019,6 +3172,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       });
       if (!same) proposalLines.push(line);
       paintProposalLines();
+      paintFlex();
       $("p-err").className="ok";
       $("p-err").textContent = proposalLines.length===1
         ? "Option A is on the proposal. Add another option for a second or third grade the client can choose."
@@ -3040,6 +3194,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       if (!b) return;
       proposalLines.splice(Number(b.getAttribute("data-pline-x")), 1);
       paintProposalLines();
+      paintFlex();
     });
     paintProposalLines();
     function showProposalSaved(title, body){
@@ -3081,12 +3236,27 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         $("p-err").textContent = "Get a posted CBSS price and add the box first. Do not invent a wholesale.";
         return;
       }
+      const flexPick = payMode==="flex" ? FLEX_TERMS[selectedFlexIdx] : null;
+      if (payMode==="flex" && !flexPick){
+        $("p-err").textContent = "Select a Flex Buy term from the table first.";
+        return;
+      }
+      if (payMode==="flex" && lines.length>=2){
+        $("p-err").textContent = "Flex Buy is one box. Remove the extra options or send the cash options first.";
+        return;
+      }
       $("p-send").disabled = true;
       try {
         const res = await api("/proposal/submit", { method:"POST", body: JSON.stringify({
           customerName:$("p-name").value, email:$("p-email").value, phone:$("p-phone").value, company:$("p-co").value,
           zip:$("p-zip").value, delivery:$("p-del").value, notes:$("p-notes").value,
-          fulfillment:$("p-ful").value, clientType:"Residential", paymentMode:"cash",
+          fulfillment:$("p-ful").value, clientType:$("p-client").value || "Residential",
+          paymentMode: payMode,
+          flexSelected: payMode==="flex",
+          flexTermMonths: flexPick && flexPick.months,
+          flexDownPaymentPct: $("p-down").value,
+          flexModificationPrice: $("p-mod").value,
+          flexModDownPct: $("p-moddown").value,
           repName: user && (user.name || user.email), repEmail: user && user.email,
           contactId: selected && selected.id,
           lines: lines
