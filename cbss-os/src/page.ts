@@ -3114,10 +3114,15 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     let zipPullTimer = 0;
     let zipPullKey = "";
     function pullZipWhenReady(source){
-      const typed = digitsZip(source);
-      if (source && typed) source.value = typed;
-      const zip = typed.length===5 ? typed : completeZip();
-      if (zip.length!==5) return;
+      let zip = "";
+      if (source){
+        zip = digitsZip(source);
+        if (source.value !== zip) source.value = zip;
+        if (zip.length!==5) return;
+      } else {
+        zip = completeZip();
+        if (zip.length!==5) return;
+      }
       syncCompleteZip(zip);
       const key = [zip, pick.size, pick.height, pick.config, pick.grade, $("p-qty") && $("p-qty").value, $("p-ful") && $("p-ful").value].join("|");
       if (key === zipPullKey) return;
