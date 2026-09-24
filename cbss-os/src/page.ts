@@ -1317,9 +1317,13 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
           try { e.target.submit(); return; }
           catch (ignored) { $("login-err").textContent = res.j.error || "Could not sign in."; return; }
         }
-        user = res.j.user; greet(user.name); paintTools(user.tools); show("app");
-        openMod(refreshBookAfterLogin ? "crm" : "home");
-        refreshBookAfterLogin = false;
+        const sess = await api("/session", { allow401: true, allowError: true });
+        if (!sess.j || !sess.j.ok || !sess.j.user){
+          e.target.submit();
+          return;
+        }
+        user = sess.j.user; greet(user.name); paintTools(user.tools); show("app");
+        openMod("home");
         showChristopherTabs();
         try { await loadCrm(); } catch (err) { $("crm-err").textContent = "Signed in. Refresh if the book stays empty."; }
       } catch (err) {
@@ -1352,19 +1356,26 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       });
     });
 
-    let refreshBookAfterLogin = false;
-    async function refreshYardSignIn(why){
-      const email = (user && user.email) || ($("email") && $("email").value) || "";
-      refreshBookAfterLogin = true;
-      try { await api("/auth/logout", { method:"POST", allow401:true, allowError:true }); } catch (e) {}
-      user = null;
-      book = null;
-      show("login");
-      if ($("email")) $("email").value = email;
-      if ($("login-err")) $("login-err").textContent = why || "The book signed out. Sign in once to refresh.";
-      if ($("password")) { $("password").value = ""; $("password").focus(); }
+    let crmLoadGen = 0;
+    function showBookSignIn(msg){
+      const text = msg || "The book signed out. Use Sign in again — I will not bounce you in a loop.";
+      $("crm-err").className = "err";
+      $("crm-err").textContent = text;
+      if ($("crm-rows")) {
+        $("crm-rows").innerHTML = "<tr><td colspan=\\"5\\">"+esc(text)
+          +' <button type="button" class="gold" id="crm-relogin">Sign in again</button></td></tr>';
+        const b = $("crm-relogin");
+        if (b) b.addEventListener("click", function(){
+          user = null;
+          book = null;
+          show("login");
+          if ($("login-err")) $("login-err").textContent = "Sign in once more to refresh the book.";
+          if ($("password")) { $("password").value = ""; $("password").focus(); }
+        });
+      }
     }
     async function loadCrm(keepNotice){
+      const gen = ++crmLoadGen;
       const notice = keepNotice && typeof keepNotice === "object" ? keepNotice : null;
       $("crm-err").className = "err";
       $("crm-err").textContent = "Loading book…";
@@ -1372,16 +1383,15 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       try {
       res = await api("/x/crm/crm-data?action=get&omitNotes=1", { allowError: true, allow401: true });
       } catch (err) {
+        if (gen !== crmLoadGen) return;
         const fail = (err && err.message) || "Could not load CRM.";
         $("crm-err").textContent = fail;
         if ($("crm-rows")) $("crm-rows").innerHTML = "<tr><td colspan=\\"5\\">"+esc(fail)+"</td></tr>";
         return;
       }
+      if (gen !== crmLoadGen) return;
       if (res.r.status===401 || (res.j && res.j.code==="tool_session_expired")){
-        const msg = (res.j && res.j.error) || "The book signed out. Sign in once to refresh.";
-        $("crm-err").textContent = msg;
-        if ($("crm-rows")) $("crm-rows").innerHTML = "<tr><td colspan=\\"5\\">"+esc(msg)+"</td></tr>";
-        await refreshYardSignIn(msg);
+        showBookSignIn((res.j && res.j.error) || "The book signed out. Sign in again from the button.");
         return;
       }
       if (!res.r.ok){ $("crm-err").textContent = res.j.error || res.j.message || "Could not load CRM."; return; }

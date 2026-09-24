@@ -377,13 +377,15 @@ describe("live HTML contracts for build 20", () => {
 });
 
 describe("stale CRM cookie does not leave a signed-in empty book", () => {
-  it("rewrites a tool 401 and sends the rep back to sign in", () => {
+  it("shows a Sign in again button instead of bouncing the login loop", () => {
     assert.match(index, /tool_session_expired/);
     assert.match(index, /label \+ " signed out/);
-    assert.match(page, /refreshYardSignIn/);
-    assert.match(page, /allow401: true/);
-    assert.match(page, /The book signed out. Sign in once to refresh/);
-    assert.match(page, /refreshBookAfterLogin/);
+    assert.match(page, /showBookSignIn/);
+    assert.match(page, /crm-relogin/);
+    assert.match(page, /crmLoadGen/);
+    assert.doesNotMatch(page, /refreshYardSignIn/);
+    assert.doesNotMatch(page, /refreshBookAfterLogin/);
+    assert.match(page, /api\("\/session", \{ allow401: true, allowError: true \}\)/);
   });
 });
 
