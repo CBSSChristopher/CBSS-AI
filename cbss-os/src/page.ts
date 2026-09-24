@@ -234,6 +234,8 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     .hit:hover, .hit.on { background: #e8f0f7; }
     button, .hit { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
     .picked { background: #e8f5ee; border: 1px solid #c8e4d4; border-radius: 8px; padding: 9px 11px; margin-top: 8px; font-size: 14px; }
+    .zip-info { margin-top: 10px; font-weight: 600; }
+    .zip-info.hide { display: none; }
     .outbox { white-space: pre-wrap; background: #f7fafc; border: 1px dashed var(--line); border-radius: 8px; padding: 11px; min-height: 4em; font-size: 14px; }
     .warn { background: #FBF6E8; border: 1px solid #e3d7a8; border-radius: 8px; padding: 10px; font-size: 13px; }
     .spark {
@@ -584,7 +586,8 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
               <div><label for="n-state">State</label><input id="n-state" autocomplete="address-level1" /></div>
             </div>
             <label for="n-zip">ZIP</label>
-            <input id="n-zip" inputmode="numeric" maxlength="10" autocomplete="postal-code" />
+            <input id="n-zip" inputmode="numeric" maxlength="10" autocomplete="postal-code" enterkeyhint="go" pattern="[0-9]*" />
+            <p class="muted" id="n-zip-status"></p>
             <label for="n-notes">Notes</label>
             <textarea id="n-notes" rows="4" placeholder="What they need, next step, anything the book should keep"></textarea>
             <label>Is this CTE or follow-up?</label>
@@ -641,12 +644,13 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
               </div>
             </div>
             <div class="comp-bar">
-              <div class="zip-wrap"><label for="p-zip">Client ZIP</label><input id="p-zip" inputmode="numeric" maxlength="5" placeholder="85001" /></div>
+              <div class="zip-wrap"><label for="p-zip">Client ZIP</label><input id="p-zip" inputmode="numeric" maxlength="5" placeholder="85001" autocomplete="postal-code" enterkeyhint="go" pattern="[0-9]*" /></div>
               <div class="zip-wrap"><label for="p-qty">Qty</label><input id="p-qty" inputmode="numeric" value="1" /></div>
               <button type="button" class="secondary" id="p-pull">Pull xChange</button>
               <button type="button" class="gold" id="p-match">Get CBSS Price</button>
             </div>
-            <p class="muted" id="p-status">Type the client ZIP, pick the exact box, then Get CBSS Price. The yard’s posted wholesale stays theirs. Our proposal amount is what we send.</p>
+            <p class="picked zip-info hide" id="p-zip-info" aria-live="polite"></p>
+            <p class="muted" id="p-status">Type the 5-digit client ZIP. I pull the city and the posted book — I do not invent a number.</p>
           </div>
 
           <div class="card step">
@@ -692,9 +696,15 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
               <div class="step-num">4</div>
               <div>
                 <h2>Flex Buy</h2>
-                <p class="muted">Cash or Flex Buy. Flex writes the monthly on the client proposal from the posted cash ticket. Do not invent a number.</p>
+                <p class="muted">Cash or Flex Buy. Flex writes the monthly on the client proposal from the posted ticket. Do not invent a number.</p>
               </div>
             </div>
+            <div class="comp-bar">
+              <div class="zip-wrap"><label for="p-flex-zip">Client ZIP</label><input id="p-flex-zip" inputmode="numeric" maxlength="5" placeholder="85001" autocomplete="postal-code" enterkeyhint="go" pattern="[0-9]*" /></div>
+              <button type="button" class="gold" id="p-flex-match">Get CBSS Price</button>
+            </div>
+            <p class="picked zip-info hide" id="p-flex-zip-info" aria-live="polite"></p>
+            <p class="muted" id="p-flex-status">Type the ZIP here or in step 2. I pull the city and the posted book — I do not invent a number.</p>
             <label>How they pay</label>
             <div class="picks big" id="p-pay">
               <button type="button" class="on" id="p-pay-cash" data-pay="cash">Cash</button>
@@ -737,11 +747,6 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
               <p class="muted" id="p-flex-note">* Down payment is collected upfront from the posted cash figure. Delivery stays upfront on a delivered ticket.</p>
             </div>
             <p class="muted" id="p-cash-note">Full payment due. No Flex Buy selected.</p>
-            <div class="comp-bar" style="margin-top:12px">
-              <div class="zip-wrap"><label for="p-flex-zip">Client ZIP</label><input id="p-flex-zip" inputmode="numeric" maxlength="5" placeholder="85001" /></div>
-              <button type="button" class="gold" id="p-flex-match">Get CBSS Price</button>
-            </div>
-            <p class="muted" id="p-flex-status">Type the ZIP here or in step 2. I pull the posted book — I do not invent a number.</p>
           </div>
 
           <div class="card step">
@@ -991,7 +996,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         <div><label for="m-state">State</label><input id="m-state" /></div>
       </div>
       <div class="split">
-        <div><label for="m-zip">ZIP</label><input id="m-zip" /></div>
+        <div><label for="m-zip">ZIP</label><input id="m-zip" inputmode="numeric" maxlength="10" autocomplete="postal-code" enterkeyhint="go" pattern="[0-9]*" /></div>
         <div><label for="m-company">Company</label><input id="m-company" /></div>
       </div>
       <div class="split">
@@ -2606,6 +2611,17 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     }
     $("comp-pull").addEventListener("click", function(){ pullCompetitor("container-one"); });
     $("comp-pull-usa").addEventListener("click", function(){ pullCompetitor("usa-containers"); });
+    bindZipField($("comp-zip"), async function(){
+      const zip = digitsZip($("comp-zip"));
+      if ($("comp-zip") && zip) $("comp-zip").value = zip;
+      if (zip.length!==5) return;
+      try {
+        const res = await api("/geo/zip?code="+zip, { allowError: true });
+        if (res.j && res.j.ok){
+          $("desk-chat-err").textContent = (res.j.place||zip)+" — pull Container One or USA Containers for their posted number.";
+        }
+      } catch (e) {}
+    });
     async function loadTemplates(){
       try {
         const res = await api("/x/desk/templates", { allowError: true });
@@ -2745,6 +2761,8 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         followUpDate: $("n-when").value.trim()
       };
     }
+    bindZipField($("n-zip"), function(){ fillAddressFromZip($("n-zip"), $("n-city"), $("n-state"), $("n-zip-status")); });
+    bindZipField($("m-zip"), function(){ fillAddressFromZip($("m-zip"), $("m-city"), $("m-state"), null); });
     $("n-save").addEventListener("click", async function(){
       $("n-err").className = "err";
       $("n-err").textContent = "";
@@ -2990,6 +3008,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         const b = e.target.closest("button"); if(!b) return;
         pick[key]=b.dataset.v;
         el.querySelectorAll("button").forEach(function(x){ x.classList.toggle("on", x===b); });
+        if (typeof pullZipWhenReady === "function") pullZipWhenReady();
       });
       const first = el.querySelector('[data-v="'+pick[key]+'"]');
       if (first) first.classList.add("on");
@@ -2997,6 +3016,18 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     picks($("p-size"), SIZES, "size"); picks($("p-height"), HEIGHTS, "height");
     picks($("p-config"), CONFIGS, "config"); picks($("p-grade"), GRADES, "grade");
 
+    function digitsZip(el){
+      return String((el && el.value) || "").replace(/\\D/g,"").slice(0,5);
+    }
+    function showZipInfo(text, ok){
+      ["p-zip-info","p-flex-zip-info"].forEach(function(id){
+        const el = $(id);
+        if (!el) return;
+        el.textContent = text || "";
+        el.classList.toggle("hide", !text);
+        el.classList.toggle("ok", !!ok);
+      });
+    }
     function applyQuoteMatch(j){
       lastQuote = j && j.ok ? j : null;
       if (!j || !j.ok){
@@ -3008,6 +3039,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         const miss = (j && (j.error||j.message)) || "No matching posted box. Do not invent a wholesale.";
         $("p-status").textContent = miss;
         if ($("p-flex-status")) $("p-flex-status").textContent = miss;
+        if (j && j.place) showZipInfo(j.place+" — "+miss, false);
         try { paintFlex(); } catch (err) {}
         return;
       }
@@ -3022,15 +3054,18 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         +" · "+(j.size||"")+" · "+(j.condition||"")+" · posted "+money(j.wholesale)+" · qty "+(j.qty||"?")+"."
         +skip+" That number is theirs, not a CBSS quote.";
       $("p-status").textContent = line;
+      showZipInfo((j.place||"ZIP")+" · posted "+money(j.wholesale)+" · proposal "+money(cash), true);
       $("p-ticket").classList.remove("hide");
       $("p-ticket-cash").textContent = money(cash);
       $("p-ticket-meta").textContent = (j.place||"ZIP")+" · depot "+(j.city||"?")+(j.miles!=null?" · "+j.miles+" mi":"")
         +" · posted "+money(j.wholesale)+(delivery?" · delivery "+money(delivery):" · pickup")+" · margin "+money(margin);
       if ($("p-flex-status")) $("p-flex-status").textContent = $("p-status").textContent;
       try { paintFlex(); } catch (err) {}
+      const chip = $("p-zip-info") || $("p-ticket");
+      if (chip && chip.scrollIntoView) chip.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
     async function quoteMatch(refresh){
-      const zip = String(($("p-zip") && $("p-zip").value) || ($("p-flex-zip") && $("p-flex-zip").value) || "").replace(/\\D/g,"").slice(0,5);
+      const zip = digitsZip($("p-zip")) || digitsZip($("p-flex-zip"));
       if ($("p-zip") && zip) $("p-zip").value = zip;
       if ($("p-flex-zip") && zip) $("p-flex-zip").value = zip;
       if (zip.length!==5){
@@ -3041,10 +3076,14 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       }
       $("p-pull").disabled = true; $("p-match").disabled = true;
       if ($("p-flex-match")) $("p-flex-match").disabled = true;
-      const wait = refresh ? "Pulling posted xChange book for that ZIP…" : "Getting the CBSS price for that ZIP…";
+      const wait = refresh ? "Pulling posted xChange book for that ZIP…" : "Getting the posted book for "+zip+"…";
       $("p-status").textContent = wait;
       if ($("p-flex-status")) $("p-flex-status").textContent = wait;
+      showZipInfo("Looking up "+zip+"…", false);
       try {
+        api("/geo/zip?code="+zip, { allowError: true }).then(function(geo){
+          if (geo && geo.j && geo.j.ok && geo.j.place && !lastQuote) showZipInfo(geo.j.place+" — getting the posted book…", false);
+        }).catch(function(){});
         const res = await api("/quote/match", { method:"POST", body: JSON.stringify({
           zip:zip, size:pick.size, height:pick.height, config:pick.config, grade:pick.grade,
           qty:$("p-qty").value, fulfillment:$("p-ful").value, refresh:refresh
@@ -3054,19 +3093,49 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         const fail = (err && err.message) ? String(err.message) : "Could not match that ZIP to a posted box. Do not invent a wholesale.";
         $("p-status").textContent = fail;
         if ($("p-flex-status")) $("p-flex-status").textContent = fail;
+        showZipInfo(fail, false);
       }
       $("p-pull").disabled = false; $("p-match").disabled = false;
       if ($("p-flex-match")) $("p-flex-match").disabled = false;
     }
-    $("p-pull").addEventListener("click", function(){ quoteMatch(true); });
-    $("p-match").addEventListener("click", function(){ quoteMatch(false); });
+    $("p-pull").addEventListener("click", function(){ zipPullKey = ""; quoteMatch(true); });
+    $("p-match").addEventListener("click", function(){ zipPullKey = ""; quoteMatch(false); });
     let zipPullTimer = 0;
+    let zipPullKey = "";
     function pullZipWhenReady(){
-      const zip = String(($("p-zip") && $("p-zip").value) || "").replace(/\\D/g,"").slice(0,5);
+      const zip = digitsZip($("p-zip")) || digitsZip($("p-flex-zip"));
+      if ($("p-zip") && zip) $("p-zip").value = zip;
       if ($("p-flex-zip") && zip) $("p-flex-zip").value = zip;
       if (zip.length!==5) return;
+      const key = [zip, pick.size, pick.height, pick.config, pick.grade, $("p-qty") && $("p-qty").value, $("p-ful") && $("p-ful").value].join("|");
+      if (key === zipPullKey) return;
       clearTimeout(zipPullTimer);
-      zipPullTimer = setTimeout(function(){ quoteMatch(false); }, 280);
+      zipPullTimer = setTimeout(function(){ zipPullKey = key; quoteMatch(false); }, 280);
+    }
+    function bindZipField(el, onReady){
+      if (!el) return;
+      ["input","change","blur"].forEach(function(ev){
+        el.addEventListener(ev, function(){ onReady(); });
+      });
+      el.addEventListener("paste", function(){ setTimeout(onReady, 0); });
+    }
+    async function fillAddressFromZip(zipEl, cityEl, stateEl, statusEl){
+      const zip = digitsZip(zipEl);
+      if (zipEl && zip) zipEl.value = zip;
+      if (zip.length!==5 || !cityEl || !stateEl) return;
+      if (statusEl) statusEl.textContent = "Looking up "+zip+"…";
+      try {
+        const res = await api("/geo/zip?code="+zip, { allowError: true });
+        if (!res.j || !res.j.ok){
+          if (statusEl) statusEl.textContent = (res.j && res.j.error) || "Could not find that ZIP.";
+          return;
+        }
+        if (res.j.city) cityEl.value = res.j.city;
+        if (res.j.state) stateEl.value = res.j.state;
+        if (statusEl) statusEl.textContent = (res.j.place || (res.j.city+", "+res.j.state))+" — pulled from that ZIP.";
+      } catch (err) {
+        if (statusEl) statusEl.textContent = (err && err.message) || "Could not find that ZIP.";
+      }
     }
     function recastCash(){ if (lastQuote && lastQuote.ok) applyQuoteMatch(lastQuote); else paintFlex(); }
     $("p-margin").addEventListener("change", recastCash);
@@ -3110,6 +3179,8 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       if ($("p-zip") && $("p-flex-zip") && $("p-zip").value) $("p-flex-zip").value = $("p-zip").value;
       const box = $("p-flex");
       if (box && box.scrollIntoView) box.scrollIntoView({ behavior: "smooth", block: "start" });
+      if ($("p-flex-zip") && $("p-flex-zip").focus) $("p-flex-zip").focus();
+      pullZipWhenReady();
     }
     function paintFlex(){
       const ticket = flexTicket();
@@ -3245,25 +3316,27 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       else $("p-send").click();
     }
     $("p-zip").addEventListener("keydown", function(e){
-      if (e.key === "Enter"){ e.preventDefault(); quoteMatch(false); }
+      if (e.key === "Enter"){ e.preventDefault(); zipPullKey = ""; quoteMatch(false); }
     });
-    $("p-zip").addEventListener("input", pullZipWhenReady);
+    bindZipField($("p-zip"), pullZipWhenReady);
     if ($("p-flex-zip")){
-      $("p-flex-zip").addEventListener("input", function(){
+      bindZipField($("p-flex-zip"), function(){
         if ($("p-zip")) $("p-zip").value = $("p-flex-zip").value;
         pullZipWhenReady();
       });
       $("p-flex-zip").addEventListener("keydown", function(e){
-        if (e.key === "Enter"){ e.preventDefault(); quoteMatch(false); }
+        if (e.key === "Enter"){ e.preventDefault(); e.stopPropagation(); zipPullKey = ""; quoteMatch(false); }
       });
     }
-    if ($("p-flex-match")) $("p-flex-match").addEventListener("click", function(){ quoteMatch(false); });
+    if ($("p-flex-match")) $("p-flex-match").addEventListener("click", function(){ zipPullKey = ""; quoteMatch(false); });
     $("p-qty").addEventListener("keydown", function(e){
-      if (e.key === "Enter"){ e.preventDefault(); quoteMatch(false); }
+      if (e.key === "Enter"){ e.preventDefault(); zipPullKey = ""; quoteMatch(false); }
     });
+    bindZipField($("p-qty"), pullZipWhenReady);
     $("p-form").addEventListener("keydown", function(e){
       if (e.key !== "Enter") return;
       if (e.target && e.target.tagName === "TEXTAREA" && e.shiftKey) return;
+      if (e.target && (e.target.id === "p-flex-zip" || e.target.id === "p-zip" || e.target.id === "p-qty")) return;
       e.preventDefault();
       writeProposal();
     });

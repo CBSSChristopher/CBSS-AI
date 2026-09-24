@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  lookupZipFromZippopotam,
   mapOfferCondition,
   matchPostedBox,
   parseOfferConfig,
@@ -76,6 +77,16 @@ describe("xChange posted match", () => {
     assert.equal(rateSheetSize("45", "standard"), "40ft");
     assert.equal(rateSheetSize("20", "standard"), "20ft");
     assert.equal(rateSheetSize("40", "standard"), "40ft");
+  });
+
+  it("pulls city and state from a Zippopotam payload", () => {
+    const geo = lookupZipFromZippopotam({
+      places: [{ "place name": "Little Rock", "state abbreviation": "AR", latitude: "34.7465", longitude: "-92.2896" }],
+    });
+    assert.equal(geo?.place, "Little Rock, AR");
+    assert.equal(geo?.city, "Little Rock");
+    assert.equal(geo?.state, "AR");
+    assert.equal(lookupZipFromZippopotam({ places: [] }), null);
   });
 
   it("fails closed when that grade is not posted nearby", () => {
