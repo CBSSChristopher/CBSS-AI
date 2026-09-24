@@ -408,6 +408,14 @@ async function proxyTool(request: Request, env: Env, key: ToolKey, rest: string)
       SECURITY["Content-Security-Policy"].replace("frame-ancestors 'none'", "frame-ancestors 'self'"),
     );
   }
+  if (res.status === 401) {
+    const label = key === "crm" ? "The book" : key === "proposal" ? "Proposal" : key === "desk" ? "Desk" : "That module";
+    return json(401, {
+      error: label + " signed out. Sign out and sign in again.",
+      code: "tool_session_expired",
+      tool: key,
+    });
+  }
   if (key === "crm" && res.ok && shouldScopeCrmGet(rest, new URL(request.url).search, request.method)) {
     const text = await res.text();
     try {
