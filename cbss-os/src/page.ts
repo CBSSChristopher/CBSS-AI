@@ -737,6 +737,11 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
               <p class="muted" id="p-flex-note">* Down payment is collected upfront from the posted cash figure. Delivery stays upfront on a delivered ticket.</p>
             </div>
             <p class="muted" id="p-cash-note">Full payment due. No Flex Buy selected.</p>
+            <div class="comp-bar" style="margin-top:12px">
+              <div class="zip-wrap"><label for="p-flex-zip">Client ZIP</label><input id="p-flex-zip" inputmode="numeric" maxlength="5" placeholder="85001" /></div>
+              <button type="button" class="gold" id="p-flex-match">Get CBSS Price</button>
+            </div>
+            <p class="muted" id="p-flex-status">Type the ZIP here or in step 2. I pull the posted book — I do not invent a number.</p>
           </div>
 
           <div class="card step">
@@ -3000,8 +3005,10 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         $("p-ticket").classList.add("hide");
         $("p-ticket-cash").textContent = "—";
         $("p-ticket-meta").textContent = "";
-        $("p-status").textContent = (j && (j.error||j.message)) || "No matching posted box. Do not invent a wholesale.";
-        paintFlex();
+        const miss = (j && (j.error||j.message)) || "No matching posted box. Do not invent a wholesale.";
+        $("p-status").textContent = miss;
+        if ($("p-flex-status")) $("p-flex-status").textContent = miss;
+        try { paintFlex(); } catch (err) {}
         return;
       }
       $("p-wholesale").value = String(j.wholesale);
@@ -3019,13 +3026,24 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       $("p-ticket-cash").textContent = money(cash);
       $("p-ticket-meta").textContent = (j.place||"ZIP")+" · depot "+(j.city||"?")+(j.miles!=null?" · "+j.miles+" mi":"")
         +" · posted "+money(j.wholesale)+(delivery?" · delivery "+money(delivery):" · pickup")+" · margin "+money(margin);
-      paintFlex();
+      if ($("p-flex-status")) $("p-flex-status").textContent = $("p-status").textContent;
+      try { paintFlex(); } catch (err) {}
     }
     async function quoteMatch(refresh){
-      const zip = String($("p-zip").value||"").replace(/\\D/g,"").slice(0,5);
-      if (zip.length!==5){ $("p-status").textContent = "Type a 5-digit client ZIP first."; return; }
+      const zip = String(($("p-zip") && $("p-zip").value) || ($("p-flex-zip") && $("p-flex-zip").value) || "").replace(/\\D/g,"").slice(0,5);
+      if ($("p-zip") && zip) $("p-zip").value = zip;
+      if ($("p-flex-zip") && zip) $("p-flex-zip").value = zip;
+      if (zip.length!==5){
+        const need = "Type a 5-digit client ZIP first.";
+        $("p-status").textContent = need;
+        if ($("p-flex-status")) $("p-flex-status").textContent = need;
+        return;
+      }
       $("p-pull").disabled = true; $("p-match").disabled = true;
-      $("p-status").textContent = refresh ? "Pulling posted xChange book for that ZIP…" : "Getting the CBSS price for that ZIP…";
+      if ($("p-flex-match")) $("p-flex-match").disabled = true;
+      const wait = refresh ? "Pulling posted xChange book for that ZIP…" : "Getting the CBSS price for that ZIP…";
+      $("p-status").textContent = wait;
+      if ($("p-flex-status")) $("p-flex-status").textContent = wait;
       try {
         const res = await api("/quote/match", { method:"POST", body: JSON.stringify({
           zip:zip, size:pick.size, height:pick.height, config:pick.config, grade:pick.grade,
@@ -3033,12 +3051,23 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         }), allowError: true });
         applyQuoteMatch(res.j);
       } catch (err) {
-        $("p-status").textContent = "Could not match that ZIP to a posted box. Do not invent a wholesale.";
+        const fail = (err && err.message) ? String(err.message) : "Could not match that ZIP to a posted box. Do not invent a wholesale.";
+        $("p-status").textContent = fail;
+        if ($("p-flex-status")) $("p-flex-status").textContent = fail;
       }
       $("p-pull").disabled = false; $("p-match").disabled = false;
+      if ($("p-flex-match")) $("p-flex-match").disabled = false;
     }
     $("p-pull").addEventListener("click", function(){ quoteMatch(true); });
     $("p-match").addEventListener("click", function(){ quoteMatch(false); });
+    let zipPullTimer = 0;
+    function pullZipWhenReady(){
+      const zip = String(($("p-zip") && $("p-zip").value) || "").replace(/\\D/g,"").slice(0,5);
+      if ($("p-flex-zip") && zip) $("p-flex-zip").value = zip;
+      if (zip.length!==5) return;
+      clearTimeout(zipPullTimer);
+      zipPullTimer = setTimeout(function(){ quoteMatch(false); }, 280);
+    }
     function recastCash(){ if (lastQuote && lastQuote.ok) applyQuoteMatch(lastQuote); else paintFlex(); }
     $("p-margin").addEventListener("change", recastCash);
     $("p-ful").addEventListener("change", recastCash);
@@ -3078,17 +3107,23 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     }
     function openFlexBuy(){
       setPayMode("flex");
+      if ($("p-zip") && $("p-flex-zip") && $("p-zip").value) $("p-flex-zip").value = $("p-zip").value;
       const box = $("p-flex");
       if (box && box.scrollIntoView) box.scrollIntoView({ behavior: "smooth", block: "start" });
     }
     function paintFlex(){
       const ticket = flexTicket();
-      const downPct = Math.min(0.5, Math.max(0.05, (Number($("p-down").value)||10)/100));
-      const modPrice = Math.max(0, Number($("p-mod").value)||0);
-      const modDownPct = Math.min(1, Math.max(0.1, (Number($("p-moddown").value)||35)/100));
+      const downEl = $("p-down");
+      const modEl = $("p-mod");
+      const modDownEl = $("p-moddown");
       const body = $("p-flex-body");
+      const box = $("p-flex-upfront");
+      if (!downEl || !body || !box) return;
+      const downPct = Math.min(0.5, Math.max(0.05, (Number(downEl.value)||10)/100));
+      const modPrice = Math.max(0, Number(modEl && modEl.value)||0);
+      const modDownPct = Math.min(1, Math.max(0.1, (Number(modDownEl && modDownEl.value)||35)/100));
       if (!ticket || !ticket.cash){
-        $("p-flex-upfront").textContent = "Get a posted CBSS price first. Flex Buy does not invent a number.";
+        box.textContent = "Get a posted CBSS price first. Flex Buy does not invent a number.";
         body.innerHTML = "";
         return;
       }
@@ -3212,6 +3247,17 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     $("p-zip").addEventListener("keydown", function(e){
       if (e.key === "Enter"){ e.preventDefault(); quoteMatch(false); }
     });
+    $("p-zip").addEventListener("input", pullZipWhenReady);
+    if ($("p-flex-zip")){
+      $("p-flex-zip").addEventListener("input", function(){
+        if ($("p-zip")) $("p-zip").value = $("p-flex-zip").value;
+        pullZipWhenReady();
+      });
+      $("p-flex-zip").addEventListener("keydown", function(e){
+        if (e.key === "Enter"){ e.preventDefault(); quoteMatch(false); }
+      });
+    }
+    if ($("p-flex-match")) $("p-flex-match").addEventListener("click", function(){ quoteMatch(false); });
     $("p-qty").addEventListener("keydown", function(e){
       if (e.key === "Enter"){ e.preventDefault(); quoteMatch(false); }
     });
