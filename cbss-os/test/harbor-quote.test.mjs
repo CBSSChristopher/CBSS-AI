@@ -473,6 +473,8 @@ describe("Harbor quote rails stay parked", () => {
     assert.match(kb01, /harbor_ready_to_buy tool at that moment, every time/);
     assert.match(kb01, /dry_run true/);
     assert.match(kb01, /person who'll lock this in/);
+    assert.match(kb01, /OBSOLETE NOTE/);
+    assert.match(kb15, /OBSOLETE NOTE/);
     assert.match(kb15, /dry_run/);
     assert.match(kb15, /Never assume high cube/);
     assert.match(kb16, /shipping container quote you asked us for/);
