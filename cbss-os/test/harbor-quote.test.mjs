@@ -459,6 +459,9 @@ describe("Harbor quote rails stay parked", () => {
     assert.match(kb01, /Never name Christopher Banks or any specific person/);
     assert.match(kb01, /Call the harbor_ready_to_buy tool at that moment, every time/);
     assert.match(kb01, /set dry_run true/);
+    assert.match(kb01, /does not cancel this call/);
+    assert.match(kb01, /Do not use log_outcome for ready-to-buy/);
+    assert.match(kb15, /Do not use this tool for a ready-to-buy handoff/);
     assert.match(kb16, /PAUSE AFTER THE PRICE/);
     assert.match(kb16, /CONFIRM HIGH CUBE VS STANDARD BEFORE QUOTING/);
     assert.match(kb16, /WARM HANDOFF, NO NAME-DROP/);

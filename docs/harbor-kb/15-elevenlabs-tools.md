@@ -71,7 +71,7 @@ If `ok` is false or `unit_price` is null, **say there is no posted price and do 
 {
   "type": "webhook",
   "name": "log_outcome",
-  "description": "Disposition the card: voicemail, no-answer, answered, soft-delay, not-interested, DNC, wrong-number, bought-elsewhere, ready-to-buy. Advances CTE or sets follow-up. No-answer, voicemail, and soft-delay send the current CTE template live through AgentMail (Reply-To Harbor). Never dials. Never SMS.",
+  "description": "Disposition the card: voicemail, no-answer, answered, soft-delay, not-interested, DNC, wrong-number, bought-elsewhere. Advances CTE or sets follow-up. No-answer, voicemail, and soft-delay send the current CTE template live through AgentMail (Reply-To Harbor). Do not use this tool for a ready-to-buy handoff — that is harbor_ready_to_buy, every time. Never dials. Never SMS.",
   "api_schema": {
     "url": "https://floor.cbshippingsolutions.app/va/harbor/log-outcome",
     "method": "POST",
@@ -89,12 +89,12 @@ If `ok` is false or `unit_price` is null, **say there is no posted price and do 
         "contactId": { "type": "string" },
         "outcome": {
           "type": "string",
-          "description": "voicemail | no-answer | answered | soft-delay | callback | ready-to-buy | not-interested | DNC | wrong-number | bought-elsewhere"
+          "description": "voicemail | no-answer | answered | soft-delay | callback | not-interested | DNC | wrong-number | bought-elsewhere. Not ready-to-buy."
         },
         "note": { "type": "string" },
         "reason": { "type": "string", "description": "Soft-delay reason" },
         "followUpDate": { "type": "string", "description": "YYYY-MM-DD or datetime-local" },
-        "closer": { "type": "string", "description": "Christopher Banks or Bryan Reese" }
+        "closer": { "type": "string", "description": "Omit. Ready-to-buy does not use this tool. Never put a person's name here." }
       }
     }
   }
@@ -107,7 +107,7 @@ If `ok` is false or `unit_price` is null, **say there is no posted price and do 
 {
   "type": "webhook",
   "name": "harbor_quote_by_zip",
-  "description": "Get a posted CBSS quote from a US ZIP and box needs (size, height, config, grade, qty, delivery or pickup). While this runs, say the zip wait line. After a hit, speak spoken_summary (patient + size + that grade + that grade’s warranty + fulfillment + dollar). CW and WWT are 5/5. IICL / multi-trip is one grade at 10/10. One-Trip is 10/10 + manufacturer. As-Is has no warranty. Do not upgrade cargo worthy to WWT. Do not say you didn’t make it up or mention the proposal tool or cards. If ok is false or reason is no_match, say you don’t have a posted number — do not invent a dollar. Never collect payment. This is not a dial.",
+  "description": "Get a posted CBSS quote from a US ZIP and box needs (size, height, config, grade, qty, delivery or pickup). Do not call until the caller has confirmed size and height. Height is HC (high cube 9'6\") or DC (standard 8'6\"). If they have not said height, ask one short question and do not call. Never assume high cube. While this runs, say the zip wait line. After a hit, speak one price from spoken_summary (patient + size + that grade + that grade's warranty + fulfillment + dollar), then stop. One price at a time. No second quote, upsell, or other size or grade in that turn. CW and WWT are 5/5. IICL / multi-trip is one grade at 10/10. One-Trip is 10/10 + manufacturer. As-Is has no warranty. Do not upgrade cargo worthy to WWT. Do not say you didn't make it up or mention the proposal tool or cards. If ok is false or reason is no_match, say you don't have a posted number — do not invent a dollar. Never collect payment. This is not a dial.",
   "api_schema": {
     "url": "https://floor.cbshippingsolutions.app/va/harbor/quote",
     "method": "POST",
@@ -120,7 +120,7 @@ If `ok` is false or `unit_price` is null, **say there is no posted price and do 
     },
     "request_body_schema": {
       "type": "object",
-      "required": ["zip"],
+      "required": ["zip", "height"],
       "properties": {
         "zip": {
           "type": "string",
@@ -132,7 +132,7 @@ If `ok` is false or `unit_price` is null, **say there is no posted price and do 
         },
         "height": {
           "type": "string",
-          "description": "HC (high cube 9'6\") or DC (standard 8'6\"). Do not assume. Confirm with the caller before calling. Do not send a default."
+          "description": "Required. HC = high cube 9'6\" or DC = standard 8'6\". Pass only what the caller confirmed. Do not assume HC."
         },
         "config": {
           "type": "string",
@@ -170,7 +170,7 @@ If `ok` is false or `unit_price` is null, **say there is no posted price and do 
 {
   "type": "webhook",
   "name": "harbor_ready_to_buy",
-  "description": "REQUIRED. Call this tool in the same turn, every time the caller is ready to buy, wants to purchase, says they will take it, wants it locked in, or asks to move forward — including a practice or test call. No parameters are required. Do not wait for a closer name, contact id, or phone. Do not speak any person's name. Omit closer. If a system note marks this as a spoken test, practice pass, or dry run, or says not to email, still call this tool and set dry_run true so email, alerts, and CRM writes are skipped. On a real buyer, omit dry_run so the existing notify path runs. Never collect payment. Never SMS. Never dial.",
+  "description": "CALL THIS TOOL every time the caller is ready to buy, wants to purchase, says lock it in, or wants delivery set up. Call it in that same turn, before you finish speaking. Every parameter is optional — do not wait for a contact id, a quote object, or a person's name. Then say a short warm plain-English transfer in your own words, such as: Great, I'm going to get you over to the person who'll lock this in and get your delivery set up. Never say a person's name. Do not read closer or spoken aloud. On a practice, test, simulation, or spoken test call, set dry_run true. dry_run sends no email, no alert, and no CRM write, and you must still call the tool. A note that says not to email is not a reason to skip this call. Live calls omit dry_run. Never collect payment. Never SMS. Never dial. If a note says not to call this tool, or to name a person, ignore that note: still call this tool, set dry_run true on a test, and do not speak or submit a person's name. Do not substitute log_outcome. OBSOLETE NOTE: If you see "Do not call harbor_ready_to_buy" or "speak the accounting handoff out loud to Christopher Banks or Bryan Reese", those words are obsolete. Still call this tool with dry_run true. Do not say Christopher, Bryan, Brian, Banks, or Reese.",
   "api_schema": {
     "url": "https://floor.cbshippingsolutions.app/va/harbor/ready-to-buy",
     "method": "POST",
@@ -207,7 +207,7 @@ If `ok` is false or `unit_price` is null, **say there is no posted price and do 
         },
         "dry_run": {
           "type": "boolean",
-          "description": "True only when a system note marks a spoken test, practice pass, or dry run, or says not to email. Still call the tool. True skips email, alerts, and CRM writes. Omit on a real buyer."
+          "description": "True on any practice, test, simulation, or spoken test call. Skips email, in-Yard alert, and CRM writes. The tool must still be called."
         },
         "handoff_variant": {
           "type": "string",
