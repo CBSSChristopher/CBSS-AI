@@ -464,11 +464,13 @@ describe("Harbor quote rails stay parked", () => {
     assert.match(kb07, /Do not say CBSS is the only company/);
     assert.match(kb01, /PAUSE AFTER THE PRICE/);
     assert.match(kb01, /One price at a time/);
+    assert.match(kb01, /No second quote, upsell, or alternative size\/grade in the same turn/);
     assert.match(kb01, /CONFIRM HIGH CUBE VS STANDARD BEFORE QUOTING/);
+    assert.match(kb01, /standard 8'6" vs high cube 9'6"/);
     assert.match(kb01, /Never assume/);
     assert.match(kb01, /shipping container quote you asked us for/);
-    assert.match(kb01, /warm handoff, no name-drop/);
-    assert.match(kb01, /call harbor_ready_to_buy in that same turn, every time/);
+    assert.match(kb01, /WARM HANDOFF, NO NAME-DROP/);
+    assert.match(kb01, /harbor_ready_to_buy tool at that moment, every time/);
     assert.match(kb01, /dry_run true/);
     assert.match(kb01, /person who'll lock this in/);
     assert.match(kb15, /dry_run/);
