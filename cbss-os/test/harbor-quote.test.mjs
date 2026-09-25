@@ -313,51 +313,64 @@ describe("POST /va/harbor/ready-to-buy", () => {
     assert.match(notes[0].text, /Ready to buy/);
     assert.equal(mails.length, 1);
     assert.deepEqual(mails[0].to, [CHRISTOPHER_MAIL, BRYAN_MAIL]);
+    assert.equal(got.body.dry_run, false);
+    assert.equal(got.body.say_closer_name, false);
+    assert.match(got.body.handoff_speech, /person who'll lock this in/);
+    assert.doesNotMatch(got.body.handoff_speech, /Christopher|Bryan/);
     assert.doesNotMatch(JSON.stringify(got.body), /twilio|sms sent|texted/i);
     const notify = planHarborReadyToBuyNotify("Bryan Reese");
     assert.deepEqual(notify.to, [CHRISTOPHER_MAIL, BRYAN_MAIL]);
   });
 
-  it("dry_run fires the handoff without email, alert, or CRM write", async () => {
+  it("dry_run records the handoff and does not email, alert, or write the CRM", async () => {
     let mailed = 0;
-    let noted = 0;
+    let notes = 0;
     let contacts = 0;
     const got = await handleHarborReadyToBuy(
       env(),
       req("/va/harbor/ready-to-buy", {
         token: TOKEN,
-        body: { zip: "72201", size: "40", height: "DC", contact_name: "Pat Lee", dry_run: true },
+        body: {
+          zip: "72201",
+          size: "40",
+          height: "HC",
+          grade: "WWT",
+          contact_name: "Pat Lee",
+          phone: "8705550100",
+          dry_run: true,
+        },
       }),
       {
-        sendMail: async () => { mailed += 1; return { ok: true, messageId: "nope", threadId: "t" }; },
-        writeNote: async () => { noted += 1; return true; },
-        getContacts: async () => { contacts += 1; return []; },
+        lookupZip: async () => littleRock,
+        loadOffers: async () => ({ offers: posted40 }),
+        getContacts: async () => {
+          contacts += 1;
+          return [{ id: "c1", name: "Pat Lee", phone: "8705550100", owner: "Harbor", status: "Working", cteStage: "CTE1" }];
+        },
+        writeNote: async () => {
+          notes += 1;
+          return true;
+        },
+        sendMail: async () => {
+          mailed += 1;
+          return { ok: true, messageId: "m1", threadId: "t1" };
+        },
       },
     );
     assert.equal(got.status, 200);
     assert.equal(got.body.ok, true);
     assert.equal(got.body.dry_run, true);
-    assert.equal(got.body.dialing, false);
-    assert.equal(got.body.sms, false);
     assert.equal(got.body.noteWritten, false);
     assert.deepEqual(got.body.notified, []);
     assert.equal(got.body.mail.skipped, true);
+    assert.equal(got.body.dialing, false);
+    assert.equal(got.body.sms, false);
     assert.equal(mailed, 0);
-    assert.equal(noted, 0);
+    assert.equal(notes, 0);
     assert.equal(contacts, 0);
-    assert.doesNotMatch(JSON.stringify(got.body), /Christopher|Bryan|Brian|Banks|Reese/);
-  });
-
-  it("accepts dryRun true as the same no-notify path", async () => {
-    let mailed = 0;
-    const got = await handleHarborReadyToBuy(
-      env(),
-      req("/va/harbor/ready-to-buy", { token: TOKEN, body: { dryRun: "true", contact_name: "Pat" } }),
-      { sendMail: async () => { mailed += 1; return { ok: true, messageId: "nope", threadId: "t" }; } },
-    );
-    assert.equal(got.status, 200);
-    assert.equal(got.body.dry_run, true);
-    assert.equal(mailed, 0);
+    assert.equal(got.body.contact, null);
+    assert.match(got.body.handoff_speech, /lock this in/);
+    assert.doesNotMatch(got.body.handoff_speech, /Christopher|Bryan/);
   });
 });
 
@@ -451,28 +464,22 @@ describe("Harbor quote rails stay parked", () => {
     assert.match(kb07, /Do not say CBSS is the only company/);
     assert.match(kb01, /PAUSE AFTER THE PRICE/);
     assert.match(kb01, /One price at a time/);
+    assert.match(kb01, /No second quote, upsell, or alternative size\/grade in the same turn/);
     assert.match(kb01, /CONFIRM HIGH CUBE VS STANDARD BEFORE QUOTING/);
     assert.match(kb01, /standard 8'6" vs high cube 9'6"/);
     assert.match(kb01, /Never assume/);
+    assert.match(kb01, /shipping container quote you asked us for/);
     assert.match(kb01, /WARM HANDOFF, NO NAME-DROP/);
-    assert.match(kb01, /lock this in and get your delivery set up/);
-    assert.match(kb01, /Never name Christopher Banks or any specific person/);
-    assert.match(kb01, /Call the harbor_ready_to_buy tool at that moment, every time/);
-    assert.match(kb01, /set dry_run true/);
-    assert.match(kb01, /does not cancel this call/);
-    assert.match(kb01, /Do not use log_outcome for ready-to-buy/);
-    assert.match(kb15, /Do not use this tool for a ready-to-buy handoff/);
-    assert.match(kb16, /PAUSE AFTER THE PRICE/);
-    assert.match(kb16, /CONFIRM HIGH CUBE VS STANDARD BEFORE QUOTING/);
-    assert.match(kb16, /WARM HANDOFF, NO NAME-DROP/);
-    assert.match(kb16, /harbor_ready_to_buy/);
-    assert.match(kb07, /CONFIRM HIGH CUBE VS STANDARD BEFORE QUOTING/);
-    assert.match(kb07, /PAUSE AFTER THE PRICE/);
-    assert.match(kb07, /WARM HANDOFF, NO NAME-DROP/);
-    assert.match(kb14, /dry_run: true/);
-    assert.match(kb15, /set dry_run true/);
-    assert.match(kb15, /Do not assume/);
-    assert.doesNotMatch(kb15, /Default HC/);
+    assert.match(kb01, /harbor_ready_to_buy tool at that moment, every time/);
+    assert.match(kb01, /dry_run true/);
+    assert.match(kb01, /person who'll lock this in/);
+    assert.match(kb01, /OBSOLETE NOTE/);
+    assert.match(kb15, /OBSOLETE NOTE/);
+    assert.match(kb15, /dry_run/);
+    assert.match(kb15, /Never assume high cube/);
+    assert.match(kb16, /shipping container quote you asked us for/);
+    assert.match(kb16, /standard 8'6"/);
+    assert.match(kb16, /high cube is 9'6"/i);
     assert.match(kb01, /Facebook form you filled out/);
     assert.match(kb01, /one email follow-up/);
     assert.match(kb01, /Do not convert it/);

@@ -68,7 +68,7 @@ Do this on a **Test-** tagged card or a dry book. Do **not** import the Harbor D
 8. `POST /va/harbor/log-outcome` `{ contactId, outcome: "soft-delay", reason: "call tomorrow" }` — Follow-up set, stays Harbor.
 9. Pull again: due follow-ups on Harbor-assigned leads first, then New/Unassigned. A due Follow-up owned by James, Bryan, Christopher, or any other rep is not returned. CTE is **not** reset to CTE1.
 10. `POST /va/harbor/log-outcome` `{ outcome: "not-interested" }` on a throwaway — closed, no follow-up.
-11. On a separate card: quote then `POST /va/harbor/ready-to-buy` — Christopher + Bryan notified by email/in-Yard alert. No SMS.
+11. On a separate card: quote then `POST /va/harbor/ready-to-buy` — Christopher + Bryan notified by email/in-Yard alert. No SMS. A practice or spoken test passes `dry_run: true` on that same route: the tool still returns ok, and email, alert, and the CRM note are skipped.
 12. `POST /va/dial` still 403. No Twilio console work. No phone-number import.
 
 ## Out of this pass

@@ -29,7 +29,7 @@ Reuses `/quote/match` fields:
 | --- | --- | --- |
 | `zip` | yes (5-digit US) | — |
 | `size` | no | `40` |
-| `height` | no | `HC` |
+| `height` | voice agent: yes, after the caller says it. Yard route: no | `HC` if a non-voice caller omits it. The voice agent confirms standard 8'6" (DC) vs high cube 9'6" (HC) and passes that value. Never assume. |
 | `config` | no | `standard` |
 | `grade` | no | `CW` (used cargo-worthy). If they said **new**, send `OneTrip` (like-new — not factory brand-new). Used stays used. |
 | `qty` | no | `1` |
@@ -65,15 +65,18 @@ Speak `spoken_summary`. Do not invent a second number.
 
 ## `harbor_ready_to_buy`
 
-Body: prior `quote` (or the same ZIP + box fields) + contact (`contact_name` / `phone` / `contactId`) + `closer` (`Christopher Banks` default, or `Bryan Reese`) + `handoff_variant` (`accounting` / `cash-drawer` / `checkbook` / `boxes`).
+Body: prior `quote` (or the same ZIP + box fields) + contact (`contact_name` / `phone` / `contactId`) + optional `closer` (internal only — the caller never hears a name) + `handoff_variant` (`accounting` / `cash-drawer` / `checkbook` / `boxes`) + `dry_run`.
+
+Every field is optional. The voice agent calls this tool in the same turn the caller is ready to buy, every time, then says a short warm plain-English transfer. Example: “Great, I'm going to get you over to the person who'll lock this in and get your delivery set up.” Never name a person.
+
+`dry_run: true` (also accepted as `dryRun`) is the practice / test / simulation path. It returns `ok: true` and skips the CRM note, the email, and the in-Yard alert. The tool is still called. Live calls omit `dry_run`.
 
 Harbor:
 
 1. Re-runs the same posted match when ZIP is present — if rematch fails, price on the note is **not stated** (do not keep a hallucinated dollar).
-2. Writes a CRM ready-to-buy note **if** the contact matches (phone, then email, then id). Stage / owner follow the existing Harbor handoff (Christopher or Bryan).
-3. Notifies **Christopher Banks + Bryan Reese** on the existing Yard email / in-Yard alert path (`sendAgentMail` + `pushAlert`). **No SMS.**
-4. Speaks the warm accounting handoff. Cards frozen. Harbor does not collect payment. The spoken transfer does not name Christopher Banks or any specific person. Call this tool at that moment, every time.
-5. **Dry run / spoken test:** body `dry_run: true` (or `dryRun: true`) still counts as the tool firing, and skips the CRM write, the closer email, and the in-Yard alert. A real buyer omits `dry_run`, and the notify path above runs. This route still never dials and never sends SMS. `VA_DIAL_ARMED` stays false.
+2. On a live call, writes a CRM ready-to-buy note **if** the contact matches (phone, then email, then id). Stage / owner follow the existing Harbor handoff (Christopher or Bryan). `dry_run` skips this write.
+3. On a live call, notifies **Christopher Banks + Bryan Reese** on the existing Yard email / in-Yard alert path (`sendAgentMail` + `pushAlert`). **No SMS.** `dry_run` sends nothing.
+4. The caller hears a short warm transfer with no person's name. Cards frozen. Harbor does not collect payment.
 
 ## Deflection boundary (unchanged)
 

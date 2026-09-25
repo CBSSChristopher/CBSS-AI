@@ -139,6 +139,20 @@ function rails(): { dialing: false; sms: false } {
   return { dialing: false, sms: false };
 }
 
+/** Practice / test / simulation. Skips email, in-Yard alert, and CRM writes. */
+export function isHarborDryRun(src: Record<string, unknown>): boolean {
+  const flag = src.dry_run ?? src.dryRun;
+  if (flag === true || flag === 1) return true;
+  if (typeof flag === "string") {
+    const value = flag.trim().toLowerCase();
+    return value === "true" || value === "1" || value === "yes";
+  }
+  return false;
+}
+
+export const HARBOR_WARM_HANDOFF_SPEECH =
+  "Great, I'm going to get you over to the person who'll lock this in and get your delivery set up.";
+
 /** Same cash ticket as The Yard proposal UI. Never run without a posted wholesale. */
 export function harborCashQuote(wholesale: number, delivery = 0, margin = DEFAULT_HARBOR_MARGIN): number {
   if (!(wholesale > 0)) return 0;
@@ -469,13 +483,6 @@ async function harborServiceWrite(
   return saved.ok && note.ok;
 }
 
-/** Spoken test / practice only. Real buyers omit this so the existing notify path runs. */
-export function harborReadyToBuyIsDryRun(src: Record<string, unknown> | null | undefined): boolean {
-  const body = src && typeof src === "object" ? src : {};
-  const flag = body.dry_run ?? body.dryRun;
-  return flag === true || flag === "true" || flag === 1 || flag === "1";
-}
-
 export async function handleHarborReadyToBuy(env: Env, request: Request, deps: HarborQuoteDeps = {}): Promise<HarborQuoteHandlerResult> {
   const denied = harborQuoteAuthResult(request, env);
   if (denied) return denied;
@@ -485,27 +492,8 @@ export async function handleHarborReadyToBuy(env: Env, request: Request, deps: H
   const quoteBody = src.quote && typeof src.quote === "object" ? (src.quote as Record<string, unknown>) : src;
   const closer = resolveCloser(src.closer);
   const variant = pickReadyToBuyLine(src.handoff_variant ?? src.spoken ?? src.variant, deps.now);
+  const dryRun = isHarborDryRun(src);
   const zip = normalizeHarborZip(quoteBody.zip ?? src.zip);
-  if (zip.length > 0 && zip.length !== 5) {
-    return {
-      status: 400,
-      body: { ok: false, error: "Type a 5-digit ZIP.", reason: "bad_zip", ...rails() },
-    };
-  }
-  if (harborReadyToBuyIsDryRun(src)) {
-    return {
-      status: 200,
-      body: {
-        ok: true,
-        dry_run: true,
-        ...rails(),
-        noteWritten: false,
-        notified: [],
-        mail: { ok: true, skipped: true, dry_run: true },
-        instruction: "Dry run recorded. Speak a short warm transfer in your own words. Do not say any person's name.",
-      },
-    };
-  }
   let quote: HarborQuoteResult;
   if (zip.length === 5) {
     const ran = await runHarborQuote(env, { ...src, ...quoteBody, zip }, deps);
@@ -535,8 +523,8 @@ export async function handleHarborReadyToBuy(env: Env, request: Request, deps: H
   const phone = str(src.phone ?? contact.phone ?? src.contact_phone);
   const email = str(src.email ?? contact.email);
   const contactId = str(src.contactId ?? src.contact_id ?? contact.id ?? contact.contactId);
-  const rows = await harborServiceContacts(env, deps);
-  const hit = matchCrmContact(rows, { contactId, phone, email });
+  const rows = dryRun ? [] : await harborServiceContacts(env, deps);
+  const hit = dryRun ? null : matchCrmContact(rows, { contactId, phone, email });
   const deal = {
     quoted: quote.ok ? quote.spoken_summary : "no posted match — do not invent",
     size: quote.ok ? quote.box.size : str(quoteBody.size),
@@ -554,46 +542,57 @@ export async function handleHarborReadyToBuy(env: Env, request: Request, deps: H
     note: str(src.note),
   });
   let noteWritten = false;
-  if (hit && hit.id) {
-    noteWritten = await harborServiceWrite(env, String(hit.id), plan.note, harborOutcomeEdits(plan), deps);
-  }
-  const notify = planHarborReadyToBuyNotify(closer);
-  const text = harborReadyToBuyNotifyText({
-    closer,
-    variantId: variant.id,
-    spoken: variant.spoken,
-    contactName: contactName || str(hit?.name),
-    phone: phone || str(hit?.phone),
-    quote,
-    note: plan.note,
-  });
-  const send = deps.sendMail || sendAgentMail;
-  const mailed = await send(env, {
-    to: notify.to,
-    subject: "Harbor ready-to-buy — " + (contactName || str(hit?.name) || "lead") + " — " + closer,
-    text,
-    labels: ["harbor-ready-to-buy"],
-  });
-  for (const addr of notify.to) {
-    await pushAlert(env, addr, hit ? String(hit.id) : "", "Harbor ready-to-buy · " + closer + " · " + (contactName || "lead"));
+  let notified: string[] = [];
+  let mail: { ok: boolean; messageId?: string; error?: string; skipped?: boolean; reason?: string };
+  if (dryRun) {
+    mail = { ok: true, skipped: true, reason: "dry_run" };
+  } else {
+    if (hit && hit.id) {
+      noteWritten = await harborServiceWrite(env, String(hit.id), plan.note, harborOutcomeEdits(plan), deps);
+    }
+    const notify = planHarborReadyToBuyNotify(closer);
+    notified = notify.to;
+    const text = harborReadyToBuyNotifyText({
+      closer,
+      variantId: variant.id,
+      spoken: variant.spoken,
+      contactName: contactName || str(hit?.name),
+      phone: phone || str(hit?.phone),
+      quote,
+      note: plan.note,
+    });
+    const send = deps.sendMail || sendAgentMail;
+    const mailed = await send(env, {
+      to: notify.to,
+      subject: "Harbor ready-to-buy — " + (contactName || str(hit?.name) || "lead") + " — " + closer,
+      text,
+      labels: ["harbor-ready-to-buy"],
+    });
+    for (const addr of notify.to) {
+      await pushAlert(env, addr, hit ? String(hit.id) : "", "Harbor ready-to-buy · " + closer + " · " + (contactName || "lead"));
+    }
+    mail = mailed.ok ? { ok: true, messageId: mailed.messageId } : { ok: false, error: mailed.error };
   }
   return {
     status: 200,
     body: {
       ok: true,
       ...rails(),
+      dry_run: dryRun,
       closer,
       handoff_variant: variant.id,
       spoken: variant.spoken,
+      handoff_speech: HARBOR_WARM_HANDOFF_SPEECH,
+      say_closer_name: false,
       spoken_summary: quote.ok ? quote.spoken_summary : quote.spoken_summary,
       unit_price: quote.ok ? quote.unit_price : null,
       quote,
       noteWritten,
-      notified: notify.to,
-      mail: mailed.ok ? { ok: true, messageId: mailed.messageId } : { ok: false, error: mailed.error },
+      notified,
+      mail,
       sms: false,
       dialing: false,
-      contact: hit ? { id: String(hit.id || ""), name: str(hit.name), phone: str(hit.phone) } : null,
+      contact: !dryRun && hit ? { id: String(hit.id || ""), name: str(hit.name), phone: str(hit.phone) } : null,
     },
   };
 }
