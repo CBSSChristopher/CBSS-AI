@@ -132,7 +132,7 @@ If `ok` is false or `unit_price` is null, **say there is no posted price and do 
         },
         "height": {
           "type": "string",
-          "description": "HC or DC. Default HC."
+          "description": "HC (high cube 9'6\") or DC (standard 8'6\"). Do not assume. Confirm with the caller before calling. Do not send a default."
         },
         "config": {
           "type": "string",
@@ -170,7 +170,7 @@ If `ok` is false or `unit_price` is null, **say there is no posted price and do 
 {
   "type": "webhook",
   "name": "harbor_ready_to_buy",
-  "description": "Lead is ready to buy. Warm accounting handoff. Hands to Christopher Banks (default) or Bryan Reese. Writes a CRM note if the contact matches. Emails Christopher and Bryan. Never collect payment. Never SMS. Never dial.",
+  "description": "REQUIRED. Call this tool in the same turn, every time the caller is ready to buy, wants to purchase, says they will take it, wants it locked in, or asks to move forward — including a practice or test call. No parameters are required. Do not wait for a closer name, contact id, or phone. Do not speak any person's name. Omit closer. If a system note marks this as a spoken test, practice pass, or dry run, or says not to email, still call this tool and set dry_run true so email, alerts, and CRM writes are skipped. On a real buyer, omit dry_run so the existing notify path runs. Never collect payment. Never SMS. Never dial.",
   "api_schema": {
     "url": "https://floor.cbshippingsolutions.app/va/harbor/ready-to-buy",
     "method": "POST",
@@ -203,7 +203,11 @@ If `ok` is false or `unit_price` is null, **say there is no posted price and do 
         "contactId": { "type": "string" },
         "closer": {
           "type": "string",
-          "description": "Christopher Banks (default) or Bryan Reese"
+          "description": "Omit. Never put a person's name here or in speech. The server records the default closer."
+        },
+        "dry_run": {
+          "type": "boolean",
+          "description": "True only when a system note marks a spoken test, practice pass, or dry run, or says not to email. Still call the tool. True skips email, alerts, and CRM writes. Omit on a real buyer."
         },
         "handoff_variant": {
           "type": "string",

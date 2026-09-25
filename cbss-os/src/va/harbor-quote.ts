@@ -469,6 +469,13 @@ async function harborServiceWrite(
   return saved.ok && note.ok;
 }
 
+/** Spoken test / practice only. Real buyers omit this so the existing notify path runs. */
+export function harborReadyToBuyIsDryRun(src: Record<string, unknown> | null | undefined): boolean {
+  const body = src && typeof src === "object" ? src : {};
+  const flag = body.dry_run ?? body.dryRun;
+  return flag === true || flag === "true" || flag === 1 || flag === "1";
+}
+
 export async function handleHarborReadyToBuy(env: Env, request: Request, deps: HarborQuoteDeps = {}): Promise<HarborQuoteHandlerResult> {
   const denied = harborQuoteAuthResult(request, env);
   if (denied) return denied;
@@ -479,6 +486,26 @@ export async function handleHarborReadyToBuy(env: Env, request: Request, deps: H
   const closer = resolveCloser(src.closer);
   const variant = pickReadyToBuyLine(src.handoff_variant ?? src.spoken ?? src.variant, deps.now);
   const zip = normalizeHarborZip(quoteBody.zip ?? src.zip);
+  if (zip.length > 0 && zip.length !== 5) {
+    return {
+      status: 400,
+      body: { ok: false, error: "Type a 5-digit ZIP.", reason: "bad_zip", ...rails() },
+    };
+  }
+  if (harborReadyToBuyIsDryRun(src)) {
+    return {
+      status: 200,
+      body: {
+        ok: true,
+        dry_run: true,
+        ...rails(),
+        noteWritten: false,
+        notified: [],
+        mail: { ok: true, skipped: true, dry_run: true },
+        instruction: "Dry run recorded. Speak a short warm transfer in your own words. Do not say any person's name.",
+      },
+    };
+  }
   let quote: HarborQuoteResult;
   if (zip.length === 5) {
     const ran = await runHarborQuote(env, { ...src, ...quoteBody, zip }, deps);

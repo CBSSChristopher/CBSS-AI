@@ -72,7 +72,8 @@ Harbor:
 1. Re-runs the same posted match when ZIP is present — if rematch fails, price on the note is **not stated** (do not keep a hallucinated dollar).
 2. Writes a CRM ready-to-buy note **if** the contact matches (phone, then email, then id). Stage / owner follow the existing Harbor handoff (Christopher or Bryan).
 3. Notifies **Christopher Banks + Bryan Reese** on the existing Yard email / in-Yard alert path (`sendAgentMail` + `pushAlert`). **No SMS.**
-4. Speaks the warm accounting handoff. Cards frozen. Harbor does not collect payment.
+4. Speaks the warm accounting handoff. Cards frozen. Harbor does not collect payment. The spoken transfer does not name Christopher Banks or any specific person. Call this tool at that moment, every time.
+5. **Dry run / spoken test:** body `dry_run: true` (or `dryRun: true`) still counts as the tool firing, and skips the CRM write, the closer email, and the in-Yard alert. A real buyer omits `dry_run`, and the notify path above runs. This route still never dials and never sends SMS. `VA_DIAL_ARMED` stays false.
 
 ## Deflection boundary (unchanged)
 
