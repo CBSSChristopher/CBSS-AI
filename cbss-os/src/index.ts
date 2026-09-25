@@ -6,6 +6,8 @@ import {
   loginCrmTool,
   makeSession,
   origins,
+  sessionTokenFromRequest,
+  sessionTokenFromSetCookie,
   readSession,
   toolsReady,
   UA,
@@ -31,9 +33,10 @@ import {
   scheduleDeskTrack,
 } from "./desk-contact.ts";
 import { buildModifiedSpec, readModifiedDraft } from "./modified-catalog.ts";
+import { readFlexBuyRequest } from "./flex-buy.ts";
 import { buildProposalSubmit, readProposalLine } from "./proposal-lines.ts";
 import { matchContactForProposal, proposalAttachPatch } from "./crm-proposal.ts";
-import { scopeCrmGetPayload, shouldScopeCrmGet } from "./crm-scope.ts";
+import { scopeCrmGetPayload, shouldScopeCrmGet, trimBookForEmbed } from "./crm-scope.ts";
 import { rememberUser } from "./cycle/store.ts";
 import { handleAgentMailHook, handleCycleAuthed, runCycleCron } from "./cycle/http.ts";
 import { startWorking } from "./cycle/engine.ts";
@@ -100,11 +103,17 @@ function withCookies(status: number, body: unknown, cookies: string[]): Response
   return new Response(JSON.stringify(body), { status, headers });
 }
 
+const HTML_CACHE = {
+  "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+  Pragma: "no-cache",
+  Expires: "0",
+} as const;
+
 function html(body: string): Response {
   return new Response(body, {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
-      "Cache-Control": "no-store",
+      ...HTML_CACHE,
       ...SECURITY,
     },
   });
@@ -113,14 +122,14 @@ function html(body: string): Response {
 function htmlWithCookies(body: string, cookies: string[]): Response {
   const headers = new Headers({
     "Content-Type": "text/html; charset=utf-8",
-    "Cache-Control": "no-store",
+    ...HTML_CACHE,
     ...SECURITY,
   });
   for (const c of cookies) headers.append("Set-Cookie", c);
   return new Response(body, { status: 200, headers });
 }
 
-function yardPage(request: Request, opts?: { loginError?: string }): Response {
+function yardPage(request: Request, opts?: { loginError?: string; sessionToken?: string; user?: { email: string; name: string; tools: { crm: boolean; desk: boolean; proposal: boolean; pay: boolean; invoice: boolean } }; book?: Record<string, unknown> | null }): Response {
   const page = html(pageHtml(opts));
   if (request.method === "HEAD") return new Response(null, { status: 200, headers: page.headers });
   return page;
@@ -367,13 +376,43 @@ async function attachProposalToCrm(
   return true;
 }
 
+async function loadEmbeddedBook(env: Env, user: { tools: { crm: string }; email: string; name: string }): Promise<Record<string, unknown> | null> {
+  const cookie = user.tools?.crm;
+  if (!cookie) return null;
+  const o = origins(env);
+  const target = o.crm + "/crm-data?action=get&omitNotes=1";
+  const headers = new Headers();
+  headers.set("User-Agent", UA);
+  headers.set("Origin", o.crm);
+  headers.set("Accept", "application/json");
+  headers.set("Cookie", cookie);
+  const req = new Request(target, { method: "GET", headers, signal: AbortSignal.timeout(12000) });
+  let res: Response;
+  try {
+    res = env.CRM ? await env.CRM.fetch(req) : await fetch(req);
+  } catch {
+    return null;
+  }
+  if (!res.ok) return null;
+  try {
+    const data = (await res.json()) as Record<string, unknown>;
+    const book = trimBookForEmbed(scopeCrmGetPayload(data, user));
+    return Array.isArray(book.contacts) && book.contacts.length ? book : null;
+  } catch {
+    return null;
+  }
+}
+
 async function proxyTool(request: Request, env: Env, key: ToolKey, rest: string): Promise<Response> {
   const user = await readSession(request, env);
   if (!user) return json(401, { error: "Sign in first." });
   const cookie = user.tools[key];
   if (!cookie) return json(503, { error: "That module did not sign in. Sign out and sign in again." });
   const o = origins(env);
-  const target = o[key] + rest + (new URL(request.url).search || "");
+  const incoming = new URL(request.url);
+  incoming.searchParams.delete("yt");
+  incoming.searchParams.delete("os");
+  const target = o[key] + rest + incoming.search;
   const headers = new Headers();
   headers.set("User-Agent", UA);
   headers.set("Origin", o[key]);
@@ -407,6 +446,14 @@ async function proxyTool(request: Request, env: Env, key: ToolKey, rest: string)
       SECURITY["Content-Security-Policy"].replace("frame-ancestors 'none'", "frame-ancestors 'self'"),
     );
   }
+  if (res.status === 401) {
+    const label = key === "crm" ? "The book" : key === "proposal" ? "Proposal" : key === "desk" ? "Desk" : "That module";
+    return json(401, {
+      error: label + " signed out. Sign out and sign in again.",
+      code: "tool_session_expired",
+      tool: key,
+    });
+  }
   if (key === "crm" && res.ok && shouldScopeCrmGet(rest, new URL(request.url).search, request.method)) {
     const text = await res.text();
     try {
@@ -426,7 +473,16 @@ export default {
 
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: SECURITY });
     if ((request.method === "GET" || request.method === "HEAD") && isYardPagePath(path)) {
-      return yardPage(request);
+      const token = sessionTokenFromRequest(request);
+      const existing = token ? await readSession(request, env) : null;
+      if (request.method === "HEAD") {
+        return yardPage(request, existing && token ? { sessionToken: token, user: publicUser(existing) } : token ? { sessionToken: token } : undefined);
+      }
+      if (existing && token) {
+        const book = await loadEmbeddedBook(env, existing);
+        return yardPage(request, { sessionToken: token, user: publicUser(existing), book });
+      }
+      return yardPage(request, token ? { sessionToken: token } : undefined);
     }
 
     if (request.method === "GET" && path === "/health") {
@@ -436,7 +492,8 @@ export default {
     if (request.method === "GET" && path === "/session") {
       const user = await readSession(request, env);
       if (user) await rememberUser(env, user);
-      return json(200, user ? { ok: true, user: publicUser(user) } : { ok: false });
+      const token = user ? sessionTokenFromRequest(request) : "";
+      return json(200, user ? { ok: true, user: publicUser(user), token } : { ok: false });
     }
 
     if (request.method === "POST" && path === "/auth/login") {
@@ -455,11 +512,14 @@ export default {
       if (!result.ok) return fail(result.status, result.error || "Could not sign in.");
       const cookies = await makeSession(request, env, result.user);
       await rememberUser(env, result.user);
+      const token = sessionTokenFromSetCookie(cookies[0] || "");
       if (asPage) {
         // 303 drops Set-Cookie in Safari/Chrome on these hosts. Stay on 200 so the session sticks.
-        return htmlWithCookies(pageHtml(), cookies);
+        // Safari drops the follow-up book fetch on this CNAME, so the names ride in this HTML.
+        const book = await loadEmbeddedBook(env, result.user);
+        return htmlWithCookies(pageHtml({ sessionToken: token, user: publicUser(result.user), book }), cookies);
       }
-      return withCookies(200, { ok: true, user: publicUser(result.user) }, cookies);
+      return withCookies(200, { ok: true, user: publicUser(result.user), token }, cookies);
     }
 
     if (request.method === "POST" && path === "/auth/logout") {
@@ -789,6 +849,7 @@ export default {
       const lines = rawLines
         .map((row) => (row && typeof row === "object" ? readProposalLine(row as Record<string, unknown>) : null))
         .filter((row): row is NonNullable<typeof row> => Boolean(row));
+      const flex = readFlexBuyRequest(raw);
       const built = buildProposalSubmit({
         customerName: raw.customerName,
         email: raw.email,
@@ -799,6 +860,11 @@ export default {
         notes: raw.notes,
         clientType: raw.clientType,
         paymentMode: raw.paymentMode,
+        flexSelected: flex.selected,
+        flexTermMonths: flex.months,
+        flexDownPaymentPct: flex.downPct,
+        flexModificationPrice: flex.modPrice,
+        flexModDownPct: flex.modDownPct,
         fulfillment: raw.fulfillment,
         repName: raw.repName || user.name,
         repEmail: raw.repEmail || user.email,

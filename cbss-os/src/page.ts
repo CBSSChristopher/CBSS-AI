@@ -9,8 +9,20 @@ function htmlEsc(value: string): string {
   });
 }
 
-export function pageHtml(opts: { loginError?: string } = {}): string {
+export function pageHtml(opts: {
+  loginError?: string;
+  sessionToken?: string;
+  user?: { email: string; name: string; tools?: Record<string, boolean> };
+  book?: Record<string, unknown> | null;
+} = {}): string {
   const loginError = htmlEsc(opts.loginError || "");
+  const sessionTokenJs = JSON.stringify(opts.sessionToken || "");
+  const pageUser = opts.user && opts.user.email
+    ? { email: opts.user.email, name: opts.user.name || opts.user.email, tools: opts.user.tools || {} }
+    : null;
+  const userJs = JSON.stringify(pageUser);
+  const bookJs = JSON.stringify(opts.book || null).replace(/</g, "\\u003c").replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
+  const signedIn = Boolean(pageUser);
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -163,6 +175,12 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     .quote-ticket .kicker { color: var(--gold); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; }
     .quote-ticket .cash { font-size: 28px; margin: 6px 0 0; font-family: "Times New Roman", Times, serif; color: #fff; }
     .quote-ticket .muted { color: #9eb0c4; margin: 6px 0 0; }
+    .flex-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .flex-table th, .flex-table td { padding: 8px 6px; text-align: left; border-bottom: 1px solid var(--line); }
+    .flex-table th { color: var(--muted); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; }
+    .flex-table tr { cursor: pointer; }
+    .flex-table tr.on { background: #FBF6E8; }
+    .flex-upfront { margin-top: 10px; background: #FBF6E8; border: 1px solid var(--gold); border-radius: 10px; padding: 12px 14px; }
     .mod-item {
       display: grid; grid-template-columns: auto 1fr 72px; gap: 10px; align-items: start;
       padding: 10px 8px; border-bottom: 1px solid var(--line);
@@ -228,6 +246,8 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     .hit:hover, .hit.on { background: #e8f0f7; }
     button, .hit { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
     .picked { background: #e8f5ee; border: 1px solid #c8e4d4; border-radius: 8px; padding: 9px 11px; margin-top: 8px; font-size: 14px; }
+    .zip-info { margin-top: 10px; font-weight: 600; }
+    .zip-info.hide { display: none; }
     .outbox { white-space: pre-wrap; background: #f7fafc; border: 1px dashed var(--line); border-radius: 8px; padding: 11px; min-height: 4em; font-size: 14px; }
     .warn { background: #FBF6E8; border: 1px solid #e3d7a8; border-radius: 8px; padding: 10px; font-size: 13px; }
     .spark {
@@ -345,12 +365,13 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
   </style>
 </head>
 <body>
-  <div id="login" class="login-wrap">
+  <div id="login" class="login-wrap${signedIn ? " hide" : ""}">
     <section class="card login-card">
       <div class="seal">CB</div>
       <h1>The Yard</h1>
       <p class="muted">CB Shipping Solutions floor CRM. One sign-in for CRM, Desk, Proposal, Modified, and Money. Company email only. Same password as the CRM book — not Gmail. Bookmark ${YARD_PUBLIC}.</p>
-      <form id="login-form" method="post" action="/auth/login">
+      <p class="muted" id="login-stamp">${htmlEsc(BRAND.stamp)}</p>
+      <form id="login-form" method="post" action="/auth/login?v=30">
         <label for="email">Company email</label>
         <input id="email" name="email" type="text" inputmode="email" autocomplete="username" placeholder="you@cbshippingsolutions.com" required />
         <label for="password">CRM password</label>
@@ -362,7 +383,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     </section>
   </div>
 
-  <div id="app" class="shell hide">
+  <div id="app" class="shell${signedIn ? "" : " hide"}">
     <aside>
       <div class="brand-lock">
         <div class="seal">CB</div>
@@ -388,7 +409,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
           <div class="sub">CRM · Desk · Proposal · Modified · Money</div>
         </div>
         <div class="right">
-          <div class="who" id="who"></div>
+          <div class="who" id="who">${pageUser ? htmlEsc(pageUser.name) : ""}</div>
           <button type="button" class="secondary" id="out">Sign out</button>
         </div>
       </header>
@@ -402,6 +423,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
             <div class="card tile" data-go="crm"><div class="kicker">Book</div><h2>CRM</h2><p class="muted">Contacts, follow-ups, tasks, pipeline, notes.</p></div>
             <div class="card tile" data-go="desk"><div class="kicker">Assist</div><h2>Desk</h2><p class="muted">Your CBSS AI — built for every CB Shipping Solutions employee. Ask it. Then go close.</p></div>
             <div class="card tile" data-go="proposal"><div class="kicker">Quote</div><h2>Proposal</h2><p class="muted">Build the quote. Send the proposal. Put the deal in writing before they cool off.</p></div>
+            <div class="card tile" data-go="proposal" data-flex="1"><div class="kicker">Terms</div><h2>Flex Buy</h2><p class="muted">Turn a posted cash ticket into a Flex Buy proposal for the client. Do not invent a number.</p></div>
             <div class="card tile" data-go="modified"><div class="kicker">Build</div><h2>Modified</h2><p class="muted">Doors, windows, electrical, insulation, framing, roll-up, and the CB Apex helical foundation.</p></div>
             <div class="card tile" data-go="money"><div class="kicker">Collect</div><h2>Money</h2><p class="muted">Invoice the cash they agreed to. ACH, wire, or card — get it in the account.</p></div>
           </div>
@@ -577,7 +599,8 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
               <div><label for="n-state">State</label><input id="n-state" autocomplete="address-level1" /></div>
             </div>
             <label for="n-zip">ZIP</label>
-            <input id="n-zip" inputmode="numeric" maxlength="10" autocomplete="postal-code" />
+            <input id="n-zip" inputmode="numeric" maxlength="10" autocomplete="postal-code" enterkeyhint="go" pattern="[0-9]*" />
+            <p class="muted" id="n-zip-status"></p>
             <label for="n-notes">Notes</label>
             <textarea id="n-notes" rows="4" placeholder="What they need, next step, anything the book should keep"></textarea>
             <label>Is this CTE or follow-up?</label>
@@ -634,12 +657,13 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
               </div>
             </div>
             <div class="comp-bar">
-              <div class="zip-wrap"><label for="p-zip">Client ZIP</label><input id="p-zip" inputmode="numeric" maxlength="5" placeholder="85001" /></div>
+              <div class="zip-wrap"><label for="p-zip">Client ZIP</label><input id="p-zip" inputmode="numeric" maxlength="5" placeholder="85001" autocomplete="postal-code" enterkeyhint="go" pattern="[0-9]*" /></div>
               <div class="zip-wrap"><label for="p-qty">Qty</label><input id="p-qty" inputmode="numeric" value="1" /></div>
               <button type="button" class="secondary" id="p-pull">Pull xChange</button>
               <button type="button" class="gold" id="p-match">Get CBSS Price</button>
             </div>
-            <p class="muted" id="p-status">Type the client ZIP, pick the exact box, then Get CBSS Price. The yard’s posted wholesale stays theirs. Our proposal amount is what we send.</p>
+            <p class="picked zip-info hide" id="p-zip-info" aria-live="polite"></p>
+            <p class="muted" id="p-status">Type the 5-digit client ZIP. I pull the city and the posted book — I do not invent a number.</p>
           </div>
 
           <div class="card step">
@@ -680,9 +704,67 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
           </div>
 
           <form id="p-form">
-          <div class="card step">
+          <div class="card step" id="p-flex">
             <div class="step-head">
               <div class="step-num">4</div>
+              <div>
+                <h2>Flex Buy</h2>
+                <p class="muted">Cash or Flex Buy. Flex writes the monthly on the client proposal from the posted ticket. Do not invent a number.</p>
+              </div>
+            </div>
+            <div class="comp-bar">
+              <div class="zip-wrap"><label for="p-flex-zip">Client ZIP</label><input id="p-flex-zip" inputmode="numeric" maxlength="5" placeholder="85001" autocomplete="postal-code" enterkeyhint="go" pattern="[0-9]*" /></div>
+              <button type="button" class="gold" id="p-flex-match">Get CBSS Price</button>
+            </div>
+            <p class="picked zip-info hide" id="p-flex-zip-info" aria-live="polite"></p>
+            <p class="muted" id="p-flex-status">Type the ZIP here or in step 2. I pull the city and the posted book — I do not invent a number.</p>
+            <label>How they pay</label>
+            <div class="picks big" id="p-pay">
+              <button type="button" class="on" id="p-pay-cash" data-pay="cash">Cash</button>
+              <button type="button" id="p-pay-flex" data-pay="flex">Flex Buy</button>
+            </div>
+            <div class="split" style="margin-top:10px">
+              <div>
+                <label>Client type</label>
+                <select id="p-client">
+                  <option value="Residential">Residential</option>
+                  <option value="Commercial">Commercial</option>
+                </select>
+              </div>
+              <div>
+                <label>Down payment % (on the box)</label>
+                <input id="p-down" inputmode="decimal" value="10" />
+              </div>
+            </div>
+            <div class="split">
+              <div>
+                <label>Modification / custom $ (if any)</label>
+                <input id="p-mod" inputmode="decimal" value="0" />
+              </div>
+              <div>
+                <label>Modification down %</label>
+                <input id="p-moddown" inputmode="decimal" value="35" />
+              </div>
+            </div>
+            <div id="p-flex-ui" class="hide">
+              <div class="flex-upfront" id="p-flex-upfront">Get a posted CBSS price first. Flex Buy does not invent a number.</div>
+              <p class="muted" style="margin:10px 0 6px">Select a term to write on the client proposal.</p>
+              <div style="overflow-x:auto">
+                <table class="flex-table" id="p-flex-table">
+                  <thead>
+                    <tr><th>Term</th><th>APR</th><th>Monthly</th><th>Total paid*</th><th>Interest</th></tr>
+                  </thead>
+                  <tbody id="p-flex-body"></tbody>
+                </table>
+              </div>
+              <p class="muted" id="p-flex-note">* Down payment is collected upfront from the posted cash figure. Delivery stays upfront on a delivered ticket.</p>
+            </div>
+            <p class="muted" id="p-cash-note">Full payment due. No Flex Buy selected.</p>
+          </div>
+
+          <div class="card step">
+            <div class="step-head">
+              <div class="step-num">5</div>
               <div>
                 <h2>Who it is for</h2>
                 <p class="muted">Put the customer on the proposal while the yes is still warm. Enter writes it. Shift+Enter adds a line in notes.</p>
@@ -702,10 +784,10 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
 
           <div class="card step">
             <div class="step-head">
-              <div class="step-num">5</div>
+              <div class="step-num">6</div>
               <div>
                 <h2>Send it</h2>
-                <p class="muted">Needs a posted wholesale on every option. Two or three grades become Option A / Option B / Option C on the client PDF. Enter writes the proposal and emails it. It does not invent a number.</p>
+                <p class="muted">Needs a posted wholesale on every option. Flex Buy writes monthly terms on the client PDF. Two or three grades become Option A / Option B / Option C on a cash proposal. Enter writes it. It does not invent a number.</p>
               </div>
             </div>
             <div class="row"><button type="submit" class="gold" id="p-send">Enter proposal</button></div>
@@ -927,7 +1009,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         <div><label for="m-state">State</label><input id="m-state" /></div>
       </div>
       <div class="split">
-        <div><label for="m-zip">ZIP</label><input id="m-zip" /></div>
+        <div><label for="m-zip">ZIP</label><input id="m-zip" inputmode="numeric" maxlength="10" autocomplete="postal-code" enterkeyhint="go" pattern="[0-9]*" /></div>
         <div><label for="m-company">Company</label><input id="m-company" /></div>
       </div>
       <div class="split">
@@ -1047,7 +1129,9 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     const MOD_CATS = ${JSON.stringify(MODIFIED_CATEGORIES)};
     const MOD_ITEMS = ${JSON.stringify(MODIFIED_ITEMS)};
     const MOD_USES = ${JSON.stringify(MODIFIED_USES)};
-    let user = null, book = null, selected = null, deskContact = null, deskHits = [], deskSearchSeq = 0, deskSearchTimer = 0, lastGmail = "", lastDoc = "", lastPdf = "", pick = {size:"40",height:"HC",config:"standard",grade:"CW"};
+    let user = ${userJs}, book = null, selected = null, deskContact = null, deskHits = [], deskSearchSeq = 0, deskSearchTimer = 0, lastGmail = "", lastDoc = "", lastPdf = "", pick = {size:"40",height:"HC",config:"standard",grade:"CW"};
+    let embeddedYard = ${sessionTokenJs} || "";
+    let embeddedBook = ${bookJs};
     let workPanel = "";
     let cteStep = "";
     let lastQuote = null;
@@ -1098,6 +1182,39 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     $("sales-spark").addEventListener("click", nextSpark);
     setInterval(nextSpark, 9000);
     paintSpark();
+    function rememberYard(tok){
+      if (!tok) return;
+      embeddedYard = tok;
+      try { localStorage.setItem("cbss_yard", tok); } catch (e) {}
+      try { sessionStorage.setItem("cbss_yard", tok); } catch (e) {}
+    }
+    function forgetYard(){
+      embeddedYard = "";
+      try { localStorage.removeItem("cbss_yard"); } catch (e) {}
+      try { sessionStorage.removeItem("cbss_yard"); } catch (e) {}
+    }
+    try { if (embeddedYard) rememberYard(embeddedYard); } catch (e) {}
+    function yardToken(){
+      if (embeddedYard) return embeddedYard;
+      try { return localStorage.getItem("cbss_yard") || sessionStorage.getItem("cbss_yard") || ""; } catch (e) { return ""; }
+    }
+    function enterYard(next){
+      if (!next || !next.email) return false;
+      user = next;
+      greet(user.name);
+      paintTools(user.tools);
+      show("app");
+      openMod("home");
+      showChristopherTabs();
+      if (embeddedBook && embeddedBook.contacts && embeddedBook.contacts.length) applyCrmPayload(embeddedBook, null);
+      loadCrm();
+      loadCycleAlerts();
+      return true;
+    }
+    function withYardToken(path, tok){
+      if (!tok || path.indexOf("/auth/login") === 0) return path;
+      return path + (path.indexOf("?") >= 0 ? "&" : "?") + "yt=" + encodeURIComponent(tok);
+    }
     async function api(path, opt){
       opt = opt || {};
       const allow401 = opt.allow401;
@@ -1105,8 +1222,15 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       const fetchOpt = Object.assign({ credentials:"same-origin", headers:{ "Content-Type":"application/json", "Accept":"application/json" } }, opt);
       delete fetchOpt.allow401;
       delete fetchOpt.allowError;
+      const tok = yardToken();
+      if (tok){
+        fetchOpt.headers.Authorization = "Bearer "+tok;
+        fetchOpt.headers["X-Yard-Token"] = tok;
+        path = withYardToken(path, tok);
+      }
       const r = await fetch(path, fetchOpt);
       const j = await r.json().catch(function(){ return {}; });
+      if (j && j.token) rememberYard(j.token);
       if (r.status===401){
         if (allow401) return { r:r, j:j };
         if (!user) show("login");
@@ -1244,26 +1368,32 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
           allow401: true,
           allowError: true
         });
-        if (!res.r.ok || !res.j.ok){
-          try { e.target.submit(); return; }
-          catch (ignored) { $("login-err").textContent = res.j.error || "Could not sign in."; return; }
+        if (res.j && res.j.ok && res.j.user){
+          if (res.j.token) rememberYard(res.j.token);
+          if (enterYard(res.j.user)) return;
         }
-        user = res.j.user; greet(user.name); paintTools(user.tools); show("app"); openMod("home");
-        showChristopherTabs();
-        try { await loadCrm(); } catch (err) { $("crm-err").textContent = "Signed in. Refresh if the book stays empty."; }
+        e.target.submit();
       } catch (err) {
-        try { e.target.submit(); return; }
-        catch (ignored) { $("login-err").textContent = (err && err.message) ? err.message : "Could not sign in. Try again."; }
-      } finally {
-        if (btn){ btn.disabled = false; btn.textContent = "Open The Yard"; }
+        try { e.target.submit(); }
+        catch (ignored) {
+          $("login-err").textContent = (err && err.message) ? err.message : "Could not sign in.";
+          if (btn){ btn.disabled = false; btn.textContent = "Open The Yard"; }
+        }
       }
     });
-    $("out").addEventListener("click", async function(){ try { await api("/auth/logout",{method:"POST"}); } catch (e) {} show("login"); });
+    $("out").addEventListener("click", async function(){
+      forgetYard();
+      try { await api("/auth/logout",{method:"POST"}); } catch (e) {}
+      show("login");
+    });
     document.querySelectorAll("#nav [data-mod]").forEach(function(btn){
       btn.addEventListener("click", function(){ openMod(btn.dataset.mod); });
     });
     document.querySelectorAll("[data-go]").forEach(function(tile){
-      tile.addEventListener("click", function(){ openMod(tile.getAttribute("data-go")); });
+      tile.addEventListener("click", function(){
+        openMod(tile.getAttribute("data-go"));
+        if (tile.getAttribute("data-flex") === "1") openFlexBuy();
+      });
     });
     document.querySelectorAll("[data-crm]").forEach(function(btn){
       btn.addEventListener("click", function(){
@@ -1278,19 +1408,55 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       });
     });
 
-    async function loadCrm(keepNotice){
-      const notice = keepNotice && typeof keepNotice === "object" ? keepNotice : null;
+    let crmLoadGen = 0;
+    function showBookSignIn(msg){
+      const text = msg || "The book needs your CRM password once more. You stay in The Yard.";
       $("crm-err").className = "err";
-      $("crm-err").textContent = "Loading book…";
-      let res;
-      try {
-      res = await api("/x/crm/crm-data?action=get&omitNotes=1", { allowError: true });
-      } catch (err) {
-        $("crm-err").textContent = (err && err.message) || "Could not load CRM.";
-        return;
+      $("crm-err").textContent = text;
+      if ($("crm-rows")) {
+        const email = user && user.email ? esc(user.email) : "";
+        $("crm-rows").innerHTML = "<tr><td colspan=\\"5\\">"+esc(text)
+          + (email ? " <span class=\\"muted\\">"+email+"</span>" : "")
+          + ' <input id="crm-repass" type="password" autocomplete="current-password" placeholder="CRM password" style="max-width:220px;display:inline-block;width:auto" />'
+          + ' <button type="button" class="gold" id="crm-relogin">Open the book</button></td></tr>';
+        const b = $("crm-relogin");
+        if (b) b.addEventListener("click", async function(){
+          const password = String(($("crm-repass") && $("crm-repass").value) || "");
+          const emailNow = String((user && user.email) || "").trim();
+          if (!emailNow || !password){
+            $("crm-err").textContent = password ? "Stay on this page and type the company email password." : "Type your CRM password, then Open the book.";
+            if ($("crm-repass")) $("crm-repass").focus();
+            return;
+          }
+          b.disabled = true;
+          b.textContent = "Opening…";
+          try {
+            const res = await api("/auth/login", {
+              method:"POST",
+              body: JSON.stringify({ email:emailNow, password:password }),
+              allow401: true,
+              allowError: true
+            });
+            if (res.j && res.j.ok && res.j.user){
+              if (res.j.token) rememberYard(res.j.token);
+              user = res.j.user;
+              greet(user.name);
+              paintTools(user.tools);
+              await loadCrm();
+              return;
+            }
+            $("crm-err").textContent = (res.j && res.j.error) || "Could not open the book.";
+          } catch (err) {
+            $("crm-err").textContent = (err && err.message) || "Could not open the book.";
+          } finally {
+            b.disabled = false;
+            b.textContent = "Open the book";
+          }
+        });
       }
-      if (!res.r.ok){ $("crm-err").textContent = res.j.error || res.j.message || "Could not load CRM."; return; }
-      const j = res.j;
+    }
+    function applyCrmPayload(j, notice){
+      if (!j) return;
       const contacts = (j.contacts||[]).slice();
       const added = j.contactsAdded||[];
       const addedIds = {};
@@ -1324,8 +1490,41 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         $("crm-err").className = "err";
         $("crm-err").textContent = "";
       }
-      await loadCampaign();
       fillOwners(); renderStats(); renderContacts();
+    }
+    async function loadCrm(keepNotice){
+      const gen = ++crmLoadGen;
+      const notice = keepNotice && typeof keepNotice === "object" ? keepNotice : null;
+      const hadBook = book && book.contacts && book.contacts.length;
+      if (!hadBook) {
+        $("crm-err").className = "err";
+        $("crm-err").textContent = "Loading book…";
+      }
+      let res;
+      try {
+      res = await api("/x/crm/crm-data?action=get&omitNotes=1", { allowError: true, allow401: true });
+      } catch (err) {
+        if (gen !== crmLoadGen) return;
+        if (hadBook) return;
+        const fail = (err && err.message) || "Could not load CRM.";
+        $("crm-err").textContent = fail;
+        if ($("crm-rows")) $("crm-rows").innerHTML = "<tr><td colspan=\\"5\\">"+esc(fail)+"</td></tr>";
+        return;
+      }
+      if (gen !== crmLoadGen) return;
+      if (res.r.status===401 || (res.j && res.j.code==="tool_session_expired")){
+        if (book && book.contacts && book.contacts.length) return;
+        showBookSignIn((res.j && res.j.error) || "The book signed out. Sign in again from the button.");
+        return;
+      }
+      if (!res.r.ok){
+        if (hadBook) return;
+        $("crm-err").textContent = res.j.error || res.j.message || "Could not load CRM.";
+        return;
+      }
+      applyCrmPayload(res.j, notice);
+      await loadCampaign();
+      renderStats(); renderContacts();
     }
     async function loadCampaign(){
       try {
@@ -2539,6 +2738,17 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     }
     $("comp-pull").addEventListener("click", function(){ pullCompetitor("container-one"); });
     $("comp-pull-usa").addEventListener("click", function(){ pullCompetitor("usa-containers"); });
+    bindZipField($("comp-zip"), async function(){
+      const zip = digitsZip($("comp-zip"));
+      if ($("comp-zip") && zip) $("comp-zip").value = zip;
+      if (zip.length!==5) return;
+      try {
+        const res = await api("/geo/zip?code="+zip, { allowError: true });
+        if (res.j && res.j.ok){
+          $("desk-chat-err").textContent = (res.j.place||zip)+" — pull Container One or USA Containers for their posted number.";
+        }
+      } catch (e) {}
+    });
     async function loadTemplates(){
       try {
         const res = await api("/x/desk/templates", { allowError: true });
@@ -2678,6 +2888,8 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         followUpDate: $("n-when").value.trim()
       };
     }
+    bindZipField($("n-zip"), function(){ fillAddressFromZip($("n-zip"), $("n-city"), $("n-state"), $("n-zip-status")); });
+    bindZipField($("m-zip"), function(){ fillAddressFromZip($("m-zip"), $("m-city"), $("m-state"), null); });
     $("n-save").addEventListener("click", async function(){
       $("n-err").className = "err";
       $("n-err").textContent = "";
@@ -2923,6 +3135,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         const b = e.target.closest("button"); if(!b) return;
         pick[key]=b.dataset.v;
         el.querySelectorAll("button").forEach(function(x){ x.classList.toggle("on", x===b); });
+        if (typeof pullZipWhenReady === "function") pullZipWhenReady();
       });
       const first = el.querySelector('[data-v="'+pick[key]+'"]');
       if (first) first.classList.add("on");
@@ -2930,6 +3143,30 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     picks($("p-size"), SIZES, "size"); picks($("p-height"), HEIGHTS, "height");
     picks($("p-config"), CONFIGS, "config"); picks($("p-grade"), GRADES, "grade");
 
+    function digitsZip(el){
+      return String((el && el.value) || "").replace(/\\D/g,"").slice(0,5);
+    }
+    function completeZip(){
+      const a = digitsZip($("p-zip"));
+      const b = digitsZip($("p-flex-zip"));
+      if (a.length===5) return a;
+      if (b.length===5) return b;
+      return "";
+    }
+    function syncCompleteZip(zip){
+      if (!zip || zip.length!==5) return;
+      if ($("p-zip")) $("p-zip").value = zip;
+      if ($("p-flex-zip")) $("p-flex-zip").value = zip;
+    }
+    function showZipInfo(text, ok){
+      ["p-zip-info","p-flex-zip-info"].forEach(function(id){
+        const el = $(id);
+        if (!el) return;
+        el.textContent = text || "";
+        el.classList.toggle("hide", !text);
+        el.classList.toggle("ok", !!ok);
+      });
+    }
     function applyQuoteMatch(j){
       lastQuote = j && j.ok ? j : null;
       if (!j || !j.ok){
@@ -2938,7 +3175,11 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         $("p-ticket").classList.add("hide");
         $("p-ticket-cash").textContent = "—";
         $("p-ticket-meta").textContent = "";
-        $("p-status").textContent = (j && (j.error||j.message)) || "No matching posted box. Do not invent a wholesale.";
+        const miss = (j && (j.error||j.message)) || "No matching posted box. Do not invent a wholesale.";
+        $("p-status").textContent = miss;
+        if ($("p-flex-status")) $("p-flex-status").textContent = miss;
+        if (j && j.place) showZipInfo(j.place+" — "+miss, false);
+        try { paintFlex(); } catch (err) {}
         return;
       }
       $("p-wholesale").value = String(j.wholesale);
@@ -2952,32 +3193,194 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         +" · "+(j.size||"")+" · "+(j.condition||"")+" · posted "+money(j.wholesale)+" · qty "+(j.qty||"?")+"."
         +skip+" That number is theirs, not a CBSS quote.";
       $("p-status").textContent = line;
+      showZipInfo((j.place||"ZIP")+" · posted "+money(j.wholesale)+" · proposal "+money(cash), true);
       $("p-ticket").classList.remove("hide");
       $("p-ticket-cash").textContent = money(cash);
       $("p-ticket-meta").textContent = (j.place||"ZIP")+" · depot "+(j.city||"?")+(j.miles!=null?" · "+j.miles+" mi":"")
         +" · posted "+money(j.wholesale)+(delivery?" · delivery "+money(delivery):" · pickup")+" · margin "+money(margin);
+      if ($("p-flex-status")) $("p-flex-status").textContent = $("p-status").textContent;
+      try { paintFlex(); } catch (err) {}
+      const chip = $("p-zip-info") || $("p-ticket");
+      if (chip && chip.scrollIntoView) chip.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
     async function quoteMatch(refresh){
-      const zip = String($("p-zip").value||"").replace(/\\D/g,"").slice(0,5);
-      if (zip.length!==5){ $("p-status").textContent = "Type a 5-digit client ZIP first."; return; }
+      const zip = completeZip();
+      syncCompleteZip(zip);
+      if (zip.length!==5){
+        const need = "Type a 5-digit client ZIP first.";
+        $("p-status").textContent = need;
+        if ($("p-flex-status")) $("p-flex-status").textContent = need;
+        return;
+      }
       $("p-pull").disabled = true; $("p-match").disabled = true;
-      $("p-status").textContent = refresh ? "Pulling posted xChange book for that ZIP…" : "Getting the CBSS price for that ZIP…";
+      if ($("p-flex-match")) $("p-flex-match").disabled = true;
+      const wait = refresh ? "Pulling posted xChange book for that ZIP…" : "Getting the posted book for "+zip+"…";
+      $("p-status").textContent = wait;
+      if ($("p-flex-status")) $("p-flex-status").textContent = wait;
+      showZipInfo("Looking up "+zip+"…", false);
       try {
+        api("/geo/zip?code="+zip, { allowError: true }).then(function(geo){
+          if (geo && geo.j && geo.j.ok && geo.j.place && !lastQuote) showZipInfo(geo.j.place+" — getting the posted book…", false);
+        }).catch(function(){});
         const res = await api("/quote/match", { method:"POST", body: JSON.stringify({
           zip:zip, size:pick.size, height:pick.height, config:pick.config, grade:pick.grade,
           qty:$("p-qty").value, fulfillment:$("p-ful").value, refresh:refresh
         }), allowError: true });
         applyQuoteMatch(res.j);
       } catch (err) {
-        $("p-status").textContent = "Could not match that ZIP to a posted box. Do not invent a wholesale.";
+        const fail = (err && err.message) ? String(err.message) : "Could not match that ZIP to a posted box. Do not invent a wholesale.";
+        $("p-status").textContent = fail;
+        if ($("p-flex-status")) $("p-flex-status").textContent = fail;
+        showZipInfo(fail, false);
       }
       $("p-pull").disabled = false; $("p-match").disabled = false;
+      if ($("p-flex-match")) $("p-flex-match").disabled = false;
     }
-    $("p-pull").addEventListener("click", function(){ quoteMatch(true); });
-    $("p-match").addEventListener("click", function(){ quoteMatch(false); });
-    function recastCash(){ if (lastQuote && lastQuote.ok) applyQuoteMatch(lastQuote); }
+    $("p-pull").addEventListener("click", function(){ zipPullKey = ""; quoteMatch(true); });
+    $("p-match").addEventListener("click", function(){ zipPullKey = ""; quoteMatch(false); });
+    let zipPullTimer = 0;
+    let zipPullKey = "";
+    function pullZipWhenReady(source){
+      let zip = "";
+      if (source){
+        zip = digitsZip(source);
+        if (source.value !== zip) source.value = zip;
+        if (zip.length!==5) return;
+      } else {
+        zip = completeZip();
+        if (zip.length!==5) return;
+      }
+      syncCompleteZip(zip);
+      const key = [zip, pick.size, pick.height, pick.config, pick.grade, $("p-qty") && $("p-qty").value, $("p-ful") && $("p-ful").value].join("|");
+      if (key === zipPullKey) return;
+      clearTimeout(zipPullTimer);
+      zipPullTimer = setTimeout(function(){ zipPullKey = key; quoteMatch(false); }, 280);
+    }
+    function bindZipField(el, onReady){
+      if (!el) return;
+      ["input","change","blur"].forEach(function(ev){
+        el.addEventListener(ev, function(){ onReady(); });
+      });
+      el.addEventListener("paste", function(){ setTimeout(onReady, 0); });
+    }
+    async function fillAddressFromZip(zipEl, cityEl, stateEl, statusEl){
+      const zip = digitsZip(zipEl);
+      if (zipEl && zip) zipEl.value = zip;
+      if (zip.length!==5 || !cityEl || !stateEl) return;
+      if (statusEl) statusEl.textContent = "Looking up "+zip+"…";
+      try {
+        const res = await api("/geo/zip?code="+zip, { allowError: true });
+        if (!res.j || !res.j.ok){
+          if (statusEl) statusEl.textContent = (res.j && res.j.error) || "Could not find that ZIP.";
+          return;
+        }
+        if (res.j.city) cityEl.value = res.j.city;
+        if (res.j.state) stateEl.value = res.j.state;
+        if (statusEl) statusEl.textContent = (res.j.place || (res.j.city+", "+res.j.state))+" — pulled from that ZIP.";
+      } catch (err) {
+        if (statusEl) statusEl.textContent = (err && err.message) || "Could not find that ZIP.";
+      }
+    }
+    function recastCash(){ if (lastQuote && lastQuote.ok) applyQuoteMatch(lastQuote); else paintFlex(); }
     $("p-margin").addEventListener("change", recastCash);
     $("p-ful").addEventListener("change", recastCash);
+    const FLEX_TERMS = [
+      { months: 6, apr: 0.12 }, { months: 12, apr: 0.14 }, { months: 18, apr: 0.15 }, { months: 24, apr: 0.16 },
+      { months: 36, apr: 0.18 }, { months: 48, apr: 0.20 }, { months: 60, apr: 0.22 }, { months: 72, apr: 0.24 }
+    ];
+    let payMode = "cash";
+    let selectedFlexIdx = 0;
+    function flexPmt(rate, nper, pv){
+      if (!nper) return 0;
+      if (!rate) return pv / nper;
+      return pv * rate * Math.pow(1 + rate, nper) / (Math.pow(1 + rate, nper) - 1);
+    }
+    function flexTicket(){
+      const lines = proposalLines.slice();
+      if (!lines.length){
+        const line = currentProposalLine();
+        if (line) lines.push(line);
+      }
+      if (!lines.length) return null;
+      const first = lines[0];
+      return {
+        many: lines.length >= 2,
+        cash: Number(first.cash)||0,
+        qty: Math.max(1, Number(first.qty)||1),
+        delivery: first.fulfillment==="pickup" ? 0 : Number(first.delivery||0)
+      };
+    }
+    function setPayMode(mode){
+      payMode = mode === "flex" ? "flex" : "cash";
+      $("p-pay-cash").classList.toggle("on", payMode==="cash");
+      $("p-pay-flex").classList.toggle("on", payMode==="flex");
+      $("p-flex-ui").classList.toggle("hide", payMode!=="flex");
+      $("p-cash-note").classList.toggle("hide", payMode==="flex");
+      paintFlex();
+    }
+    function openFlexBuy(){
+      setPayMode("flex");
+      if ($("p-zip") && $("p-flex-zip") && $("p-zip").value) $("p-flex-zip").value = $("p-zip").value;
+      const box = $("p-flex");
+      if (box && box.scrollIntoView) box.scrollIntoView({ behavior: "smooth", block: "start" });
+      if ($("p-flex-zip") && $("p-flex-zip").focus) $("p-flex-zip").focus();
+      pullZipWhenReady();
+    }
+    function paintFlex(){
+      const ticket = flexTicket();
+      const downEl = $("p-down");
+      const modEl = $("p-mod");
+      const modDownEl = $("p-moddown");
+      const body = $("p-flex-body");
+      const box = $("p-flex-upfront");
+      if (!downEl || !body || !box) return;
+      const downPct = Math.min(0.5, Math.max(0.05, (Number(downEl.value)||10)/100));
+      const modPrice = Math.max(0, Number(modEl && modEl.value)||0);
+      const modDownPct = Math.min(1, Math.max(0.1, (Number(modDownEl && modDownEl.value)||35)/100));
+      if (!ticket || !ticket.cash){
+        box.textContent = "Get a posted CBSS price first. Flex Buy does not invent a number.";
+        body.innerHTML = "";
+        return;
+      }
+      if (ticket.many && payMode==="flex"){
+        $("p-flex-upfront").textContent = "Flex Buy is one box. Remove the extra options or send the cash options first. Do not invent a number.";
+      }
+      const containerCash = (ticket.cash - ticket.delivery) * ticket.qty;
+      const containerDown = containerCash * downPct;
+      const modDown = modPrice * modDownPct;
+      const totalDown = containerDown + modDown;
+      const financed = (containerCash + modPrice) - totalDown;
+      const upfront = totalDown + (ticket.delivery * ticket.qty);
+      if (!ticket.many){
+        $("p-flex-upfront").innerHTML = "<strong>Upfront due:</strong> "+money(upfront)
+          +" · <strong>Amount financed:</strong> "+money(financed)
+          +"<br><span class=\\"muted\\">Container down "+money(containerDown)+(modDown?" + mod down "+money(modDown):"")+(ticket.delivery?" + delivery "+money(ticket.delivery * ticket.qty):"")+". From the posted ticket.</span>";
+      }
+      $("p-flex-note").textContent = ticket.delivery
+        ? "* Down payment is collected upfront from the posted cash figure. Delivery stays upfront on a delivered ticket."
+        : "* Pickup ticket. Down payment is collected upfront. No delivery charge and no invented pickup fee.";
+      body.innerHTML = FLEX_TERMS.map(function(t, idx){
+        const monthly = flexPmt(t.apr/12, t.months, financed);
+        const totalPaid = (monthly * t.months) + totalDown;
+        const interest = totalPaid - (containerCash + modPrice);
+        return '<tr data-flex-idx="'+idx+'"'+(idx===selectedFlexIdx?' class="on"':'')+'><td><strong>'+t.months+' mo</strong></td><td>'+(t.apr*100).toFixed(0)+'%</td><td>'+money(monthly)+'</td><td>'+money(totalPaid)+'</td><td>'+money(interest)+'</td></tr>';
+      }).join("");
+    }
+    $("p-pay").addEventListener("click", function(e){
+      const b = e.target.closest("[data-pay]");
+      if (!b) return;
+      setPayMode(b.getAttribute("data-pay"));
+    });
+    $("p-flex-body").addEventListener("click", function(e){
+      const tr = e.target.closest("[data-flex-idx]");
+      if (!tr) return;
+      selectedFlexIdx = Number(tr.getAttribute("data-flex-idx"))||0;
+      paintFlex();
+    });
+    ["p-down","p-mod","p-moddown"].forEach(function(id){
+      $(id).addEventListener("input", paintFlex);
+    });
+    setPayMode("cash");
     function configLabel(v){
       const hit = CONFIGS.find(function(c){ return c.v===v; });
       return hit ? hit.l : (v || "Standard");
@@ -3019,6 +3422,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       });
       if (!same) proposalLines.push(line);
       paintProposalLines();
+      paintFlex();
       $("p-err").className="ok";
       $("p-err").textContent = proposalLines.length===1
         ? "Option A is on the proposal. Add another option for a second or third grade the client can choose."
@@ -3040,6 +3444,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       if (!b) return;
       proposalLines.splice(Number(b.getAttribute("data-pline-x")), 1);
       paintProposalLines();
+      paintFlex();
     });
     paintProposalLines();
     function showProposalSaved(title, body){
@@ -3055,14 +3460,24 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
       else $("p-send").click();
     }
     $("p-zip").addEventListener("keydown", function(e){
-      if (e.key === "Enter"){ e.preventDefault(); quoteMatch(false); }
+      if (e.key === "Enter"){ e.preventDefault(); zipPullKey = ""; quoteMatch(false); }
     });
+    bindZipField($("p-zip"), function(){ pullZipWhenReady($("p-zip")); });
+    if ($("p-flex-zip")){
+      bindZipField($("p-flex-zip"), function(){ pullZipWhenReady($("p-flex-zip")); });
+      $("p-flex-zip").addEventListener("keydown", function(e){
+        if (e.key === "Enter"){ e.preventDefault(); e.stopPropagation(); zipPullKey = ""; quoteMatch(false); }
+      });
+    }
+    if ($("p-flex-match")) $("p-flex-match").addEventListener("click", function(){ zipPullKey = ""; quoteMatch(false); });
     $("p-qty").addEventListener("keydown", function(e){
-      if (e.key === "Enter"){ e.preventDefault(); quoteMatch(false); }
+      if (e.key === "Enter"){ e.preventDefault(); zipPullKey = ""; quoteMatch(false); }
     });
+    bindZipField($("p-qty"), pullZipWhenReady);
     $("p-form").addEventListener("keydown", function(e){
       if (e.key !== "Enter") return;
       if (e.target && e.target.tagName === "TEXTAREA" && e.shiftKey) return;
+      if (e.target && (e.target.id === "p-flex-zip" || e.target.id === "p-zip" || e.target.id === "p-qty")) return;
       e.preventDefault();
       writeProposal();
     });
@@ -3081,12 +3496,27 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
         $("p-err").textContent = "Get a posted CBSS price and add the box first. Do not invent a wholesale.";
         return;
       }
+      const flexPick = payMode==="flex" ? FLEX_TERMS[selectedFlexIdx] : null;
+      if (payMode==="flex" && !flexPick){
+        $("p-err").textContent = "Select a Flex Buy term from the table first.";
+        return;
+      }
+      if (payMode==="flex" && lines.length>=2){
+        $("p-err").textContent = "Flex Buy is one box. Remove the extra options or send the cash options first.";
+        return;
+      }
       $("p-send").disabled = true;
       try {
         const res = await api("/proposal/submit", { method:"POST", body: JSON.stringify({
           customerName:$("p-name").value, email:$("p-email").value, phone:$("p-phone").value, company:$("p-co").value,
           zip:$("p-zip").value, delivery:$("p-del").value, notes:$("p-notes").value,
-          fulfillment:$("p-ful").value, clientType:"Residential", paymentMode:"cash",
+          fulfillment:$("p-ful").value, clientType:$("p-client").value || "Residential",
+          paymentMode: payMode,
+          flexSelected: payMode==="flex",
+          flexTermMonths: flexPick && flexPick.months,
+          flexDownPaymentPct: $("p-down").value,
+          flexModificationPrice: $("p-mod").value,
+          flexModDownPct: $("p-moddown").value,
           repName: user && (user.name || user.email), repEmail: user && user.email,
           contactId: selected && selected.id,
           lines: lines
@@ -3263,13 +3693,14 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     });
 
     (async function boot(){
+      if (user && user.email){ enterYard(user); return; }
       try {
-        const res = await api("/session");
-        if (user) return;
-        if (res.j.ok && res.j.user){ user=res.j.user; greet(user.name); paintTools(user.tools); show("app"); openMod("home"); showChristopherTabs(); loadCrm(); loadCycleAlerts(); }
+        const res = await api("/session", { allow401: true, allowError: true });
+        if (user && user.email) return;
+        if (res.j && res.j.ok && res.j.user){ enterYard(res.j.user); }
         else show("login");
       } catch (err) {
-        show("login");
+        if (!user) show("login");
       }
     })();
   </script>

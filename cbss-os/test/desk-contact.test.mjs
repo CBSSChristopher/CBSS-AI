@@ -82,6 +82,8 @@ describe("Desk new contact on The Yard", () => {
     assert.match(page, /id="n-city"/);
     assert.match(page, /id="n-state"/);
     assert.match(page, /id="n-zip"/);
+    assert.match(page, /id="n-zip-status"/);
+    assert.match(page, /fillAddressFromZip/);
     assert.match(page, /id="n-notes"/);
     assert.match(page, /id="n-track"/);
     assert.match(page, /data-track="cte"/);

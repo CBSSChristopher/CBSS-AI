@@ -125,6 +125,32 @@ export function toolsReady(tools: ToolCookies | undefined): ToolReady {
   };
 }
 
+export function sessionTokenFromSetCookie(header: string): string {
+  const first = String(header || "").split(";")[0];
+  const i = first.indexOf("=");
+  if (i < 0) return "";
+  const raw = first.slice(i + 1).trim();
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
+/** Cookie, Bearer, X-Yard-Token, then ?yt= — Safari ITP can drop cookies and Authorization on the Yard CNAME. */
+export function sessionTokenFromRequest(request: Request): string {
+  const auth = String(request.headers.get("Authorization") || "");
+  const bearer = /^bearer\s+/i.test(auth) ? auth.replace(/^bearer\s+/i, "").trim() : "";
+  const headerTok = String(request.headers.get("X-Yard-Token") || "").trim();
+  let queryTok = "";
+  try {
+    queryTok = new URL(request.url).searchParams.get("yt") || "";
+  } catch {
+    queryTok = "";
+  }
+  return parseCookies(request)[COOKIE] || bearer || headerTok || queryTok;
+}
+
 export function parseCookies(request: Request): Record<string, string> {
   const raw = request.headers.get("Cookie") || "";
   const out: Record<string, string> = {};
@@ -167,7 +193,7 @@ function sessionKey(sid: string): string {
 export async function readSession(request: Request, env: Env): Promise<SessionUser | null> {
   const secret = env.AUTH_SECRET;
   if (!secret) return null;
-  const token = parseCookies(request)[COOKIE];
+  const token = sessionTokenFromRequest(request);
   if (!token) return null;
   const [payloadB64, sig] = token.split(".");
   if (!payloadB64 || !sig) return null;

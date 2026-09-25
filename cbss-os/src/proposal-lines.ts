@@ -1,3 +1,5 @@
+import { flexSubmitFields, quoteFlexBuy, readFlexBuyRequest } from "./flex-buy.ts";
+
 /** Multi-box proposal lines. Each line needs a posted wholesale. Do not invent a price. */
 
 export type ProposalLine = {
@@ -47,6 +49,11 @@ export type ProposalSubmitDraft = {
   notes?: string;
   clientType?: string;
   paymentMode?: string;
+  flexSelected?: boolean | string;
+  flexTermMonths?: number | string;
+  flexDownPaymentPct?: number | string;
+  flexModificationPrice?: number | string;
+  flexModDownPct?: number | string;
   fulfillment?: string;
   repName?: string;
   repEmail?: string;
@@ -338,6 +345,24 @@ export function buildProposalSubmit(draft: ProposalSubmitDraft): { ok: boolean; 
   if (notesHaveCostLeak(notes) || notesHaveCostLeak(combined.containerNotes)) {
     return { ok: false, error: "Client notes cannot include posted or delivery dollars." };
   }
+  const flex = readFlexBuyRequest(draft);
+  let flexFields: Record<string, unknown> = { paymentMode: "cash", flexSelected: false };
+  if (flex.selected) {
+    if (combined.chooseOne) {
+      return { ok: false, error: "Flex Buy is one box. Leave one option on the ticket, or send the cash options first." };
+    }
+    const quoted = quoteFlexBuy({
+      unitPrice: combined.unitPrice,
+      quantity: combined.quantity,
+      deliveryPerUnit: combined.deliveryCost,
+      downPct: flex.downPct,
+      modPrice: flex.modPrice,
+      modDownPct: flex.modDownPct,
+      months: flex.months,
+    });
+    if (!quoted.ok) return { ok: false, error: quoted.error };
+    flexFields = flexSubmitFields(quoted.quote);
+  }
   return {
     ok: true,
     body: {
@@ -367,6 +392,7 @@ export function buildProposalSubmit(draft: ProposalSubmitDraft): { ok: boolean; 
       deliveryCost: combined.deliveryCost,
       options: combined.options,
       chooseOne: combined.chooseOne,
+      ...flexFields,
     },
   };
 }
