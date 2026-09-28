@@ -544,6 +544,8 @@ describe("Harbor quote rails stay parked", () => {
     assert.match(kb01, /first message: leave it empty/i);
     assert.match(kb01, /Until that tool returns/);
     assert.match(kb01, /only introduction/);
+    assert.match(kb01, /do not thank them for picking up/);
+    assert.match(kb01, /do not acknowledge the machinery/);
     assert.match(kb01, /Appreciate you\. Talk soon\./);
     assert.match(kb01, /I'll let you go/);
     assert.match(kb01, /I'll be around if you need me/);
