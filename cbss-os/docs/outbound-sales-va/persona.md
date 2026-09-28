@@ -32,7 +32,7 @@ Inbound (they called the Twilio Harbor DID): same qualification. Solid / ready-t
 
 ## Opening (Facebook form — L3 / L3-4)
 
-> Hey, this is Harbor with CB Shipping Solutions — I’m calling about the Facebook form you filled out. What size are you looking at, and what are you using it for?
+> Hey, this is Harbor with CB Shipping Solutions — I’m calling about the Facebook form you filled out. What are you looking to do with it?
 
 Then ZIP. You are Harbor, not the owner.
 

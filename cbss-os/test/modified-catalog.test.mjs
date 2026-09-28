@@ -52,7 +52,13 @@ describe("Modified container catalog", () => {
     assert.match(prompt, /outdoor kitchens/);
     assert.match(prompt, /large assembly buildings/);
     assert.match(prompt, /specialty units/);
-    assert.match(prompt, /six-point project brief/);
+    assert.match(prompt, /six-point project brief is only for a caller who brings up a custom or modified project/);
+    assert.match(prompt, /In the first 30 seconds ask at most one question/);
+    assert.match(prompt, /ask only one question per turn/);
+    assert.match(prompt, /A plain container buyer never hears the project brief/);
+    assert.match(prompt, /design team will fill in the rest on a follow-up/);
+    assert.doesNotMatch(prompt, /Ask one or two points/);
+    assert.doesNotMatch(prompt, /What size are you looking at, and what are you using it for/);
     assert.match(prompt, /call harbor_build_lead once, in that later turn/);
     assert.match(prompt, /Do not invent a callback number/);
     assert.match(prompt, /Do not call harbor_needs_human for a build/);
