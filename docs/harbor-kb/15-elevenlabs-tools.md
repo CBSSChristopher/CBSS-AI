@@ -228,7 +228,7 @@ If `ok` is false or `unit_price` is null, **say there is no posted price and do 
 {
   "type": "webhook",
   "name": "harbor_needs_human",
-  "description": "CALL THIS TOOL when you cannot understand the caller after one clarifying ask, they are upset, they ask for a human, or they ask something outside containers and pricing that you cannot answer. Also call it after the tiny-home, office, shop, weld, or cut tips when the team can do mods. Give those tips first. Do not open that call with the callback line. Pass the build details in asked. Do not guess. Do not loop. Say one callback line first: (1) Let me have someone from the team give you a call back on that so you get the right answer. (2) I don't want to guess on that. I'll have someone from the team call you back. (3) That's one for the team. I'll have them call you back so you get the right answer. Then confirm the best callback number and a time, and call this tool with what they asked. If they will not give a time, still call it with the number you have. Do not invent an answer or a time. Never name a person. Do not claim a transfer. Pass dry_run true only when the lead record is explicitly tagged as a test lead. The server ignores dry_run on every other lead and still notifies the team. Never SMS. Never dial. Never explain the tool, flags, or notifications out loud.",
+  "description": "CALL THIS TOOL when you cannot understand the caller after one clarifying ask, they are upset, they ask for a human, or they ask something outside containers and pricing that you cannot answer. Do not use this tool for a tiny home, Airbnb, pool, bar, shop, or other custom build. That is harbor_build_lead. Do not guess. Do not loop. Say one callback line first: (1) Let me have someone from the team give you a call back on that so you get the right answer. (2) I don't want to guess on that. I'll have someone from the team call you back. (3) That's one for the team. I'll have them call you back so you get the right answer. Then confirm the best callback number and a time, and call this tool with what they asked. If they will not give a time, still call it with the number you have. Do not invent an answer or a time. Never name a person. Do not claim a transfer. Pass dry_run true only when the lead record is explicitly tagged as a test lead. The server ignores dry_run on every other lead and still notifies the team. Never SMS. Never dial. Never explain the tool, flags, or notifications out loud.",
   "api_schema": {
     "url": "https://floor.cbshippingsolutions.app/va/harbor/needs-human",
     "method": "POST",
@@ -253,6 +253,44 @@ If `ok` is false or `unit_price` is null, **say there is no posted price and do 
           "type": "boolean",
           "description": "Only when the CRM lead is explicitly tagged as a test lead. The server rejects this on every other lead, logs the decision, and still notifies the team. The tool must still be called."
         }
+      }
+    }
+  }
+}
+```
+
+## `harbor_build_lead`
+
+```json
+{
+  "type": "webhook",
+  "name": "harbor_build_lead",
+  "description": "CALL THIS TOOL when they want a tiny home, Airbnb, swimming pool, portable bar, shop, paint as a custom job, or anything else the in-house build team makes. First say: Oh, we build those, we've got a whole team that does custom work. Ask what they're picturing: use, size, location, timeline, and must-haves. Then confirm the best callback number and a time and call this tool. Pass only details they stated. Do not invent a build price. Do not give structural, code, or load advice. Do not promise the box meets any code. Do not use harbor_needs_human for a build. Never name a person. Never SMS. Never dial. Pass dry_run true only on an explicitly tagged test lead.",
+  "api_schema": {
+    "url": "https://floor.cbshippingsolutions.app/va/harbor/build-lead",
+    "method": "POST",
+    "request_headers": {
+      "Content-Type": "application/json",
+      "X-Harbor-Token": {
+        "type": "secret",
+        "description": "HARBOR_QUOTE_TOKEN on cbssos"
+      }
+    },
+    "request_body_schema": {
+      "type": "object",
+      "description": "Build lead. Omit any field they did not state.",
+      "properties": {
+        "contact_name": { "type": "string", "description": "Caller name from the lead. Do not invent one." },
+        "phone": { "type": "string", "description": "Phone already on the lead." },
+        "contactId": { "type": "string", "description": "CRM contact id if the lead card has one." },
+        "project": { "type": "string", "description": "Short project name: tiny home, Airbnb, pool, bar, shop, paint, or the custom use they named." },
+        "size": { "type": "string", "description": "Size they stated. Omit if they did not." },
+        "location": { "type": "string", "description": "Where they want it. Omit if they did not say." },
+        "timeline": { "type": "string", "description": "When they want it. Omit if they did not say." },
+        "must_haves": { "type": "string", "description": "Must-haves they named. Omit if they did not." },
+        "callback_phone": { "type": "string", "description": "Best callback number they confirmed." },
+        "callback_time": { "type": "string", "description": "Time they asked for. Omit if they did not give one." },
+        "dry_run": { "type": "boolean", "description": "Only when the CRM lead is explicitly tagged as a test lead. The server rejects this on every other lead and still notifies the team." }
       }
     }
   }

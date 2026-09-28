@@ -13,6 +13,9 @@ export const PAYMENT_CARD_ASK =
 
 export const PAYMENT_PATH_LINE = PAYMENT_HOW_TO_PAY;
 
+/** In-house custom builds: tiny homes, Airbnbs, pools, bars, shops, and anything custom. */
+export const BUILD_TEAM_LINE = "Oh, we build those, we've got a whole team that does custom work.";
+
 /** Unsure, upset, wants a human, or a question outside containers and pricing. Vary them. */
 export const NEEDS_HUMAN_VARIANTS: SpokenLine[] = [
   {

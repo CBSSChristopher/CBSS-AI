@@ -8,6 +8,7 @@ import {
   harborWorkflowAuthed,
   harborQuoteFromMatch,
   harborQuoteWant,
+  handleHarborBuildLead,
   handleHarborNeedsHuman,
   handleHarborQuote,
   handleHarborReadyToBuy,
@@ -529,6 +530,63 @@ describe("POST /va/harbor/needs-human", () => {
   });
 });
 
+describe("POST /va/harbor/build-lead", () => {
+  it("notifies Christopher + Bryan with a Build lead note and does not invent a price", async () => {
+    const notes = [];
+    const mails = [];
+    const got = await handleHarborBuildLead(
+      env(),
+      req("/va/harbor/build-lead", {
+        token: TOKEN,
+        body: {
+          contact_name: "Jordan Hale",
+          phone: "8705550142",
+          contactId: "c9",
+          project: "tiny home",
+          size: "40ft high cube",
+          location: "Jonesboro",
+          timeline: "next month",
+          must_haves: "kitchen and a loft",
+          callback_phone: "8705550142",
+          callback_time: "tomorrow morning",
+        },
+      }),
+      {
+        getContacts: async () => [{ id: "c9", name: "Jordan Hale", phone: "8705550142", city: "Jonesboro", zip: "72401", owner: "Harbor", status: "Working" }],
+        writeNote: async (id, text, edits) => {
+          notes.push({ id, text, edits });
+          return true;
+        },
+        sendMail: async (_env, input) => {
+          mails.push(input);
+          return { ok: true, messageId: "m3", threadId: "t3" };
+        },
+      },
+    );
+    assert.equal(got.status, 200);
+    assert.equal(got.body.dialing, false);
+    assert.equal(got.body.sms, false);
+    assert.equal(got.body.noteWritten, true);
+    assert.equal(notes[0].text, mails[0].text);
+    assert.equal(notes[0].edits.status, undefined);
+    assert.equal(notes[0].edits.nextAction, "Build lead — call back");
+    assert.equal(mails[0].subject, "Build lead: Jordan Hale - tiny home");
+    assert.equal(
+      mails[0].text,
+      [
+        "Build lead: Jordan Hale, (870) 555-0142, Jonesboro 72401",
+        "tiny home, 40ft high cube, Jonesboro, next month, kitchen and a loft",
+        "Callback: (870) 555-0142, tomorrow morning",
+        "Harbor told them: the build team does custom work and will call back.",
+        "Your move: call back",
+      ].join("\n"),
+    );
+    assert.deepEqual(mails[0].to, [CHRISTOPHER_MAIL, BRYAN_MAIL]);
+    assert.equal(got.body.handoff_speech, "Oh, we build those, we've got a whole team that does custom work.");
+    assert.doesNotMatch(mails[0].subject + "\n" + mails[0].text, /\$\d|frozen|Needs a human|Ready to buy/);
+  });
+});
+
 describe("Harbor quote rails stay parked", () => {
   it("keeps VA_DIAL_ARMED false and does not commit the quote secret", () => {
     assert.match(wrangler, /"VA_ENABLED": "false"/);
@@ -544,6 +602,8 @@ describe("Harbor quote rails stay parked", () => {
     assert.match(index, /\/va\/harbor\/ready-to-buy/);
     assert.match(index, /\/va\/harbor\/needs-human/);
     assert.match(index, /handleHarborNeedsHuman/);
+    assert.match(index, /\/va\/harbor\/build-lead/);
+    assert.match(index, /handleHarborBuildLead/);
     assert.match(index, /\/va\/harbor\/get-next-lead/);
     assert.match(index, /\/va\/harbor\/update-lead/);
     assert.match(index, /\/va\/harbor\/log-outcome/);
@@ -556,6 +616,8 @@ describe("Harbor quote rails stay parked", () => {
     assert.match(kb15, /harbor_quote_by_zip/);
     assert.match(kb15, /harbor_ready_to_buy/);
     assert.match(kb15, /harbor_needs_human/);
+    assert.match(kb15, /harbor_build_lead/);
+    assert.match(kb15, /\/va\/harbor\/build-lead/);
     assert.match(kb15, /\/va\/harbor\/needs-human/);
     assert.match(kb15, /get_next_lead/);
     assert.match(kb15, /log_outcome/);

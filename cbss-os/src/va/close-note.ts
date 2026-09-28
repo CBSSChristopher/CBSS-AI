@@ -214,6 +214,47 @@ export type NeedsHumanNoticeInput = {
   test?: boolean;
 };
 
+export type BuildLeadNoticeInput = {
+  name?: unknown;
+  phone?: unknown;
+  city?: unknown;
+  zip?: unknown;
+  place?: unknown;
+  project?: unknown;
+  size?: unknown;
+  location?: unknown;
+  timeline?: unknown;
+  mustHaves?: unknown;
+  callbackPhone?: unknown;
+  callbackTime?: unknown;
+  objections?: unknown;
+  promises?: unknown;
+  test?: boolean;
+};
+
+/** Short note for an in-house build. Email and CRM note are this text. */
+export function renderHarborBuildLeadNotice(input: BuildLeadNoticeInput): ReadyToBuyNotice {
+  const name = blank(input.name);
+  const project = blank(input.project);
+  let subject = name && project ? "Build lead: " + name + " - " + project : name ? "Build lead: " + name : project ? "Build lead: " + project : "Build lead";
+  if (input.test) subject = "[TEST - not a customer] " + subject;
+  const headBits = [name, plainPhone(input.phone), cityZip(input.city, input.zip, input.place)].filter(Boolean);
+  const picture = [project, blank(input.size), blank(input.location), blank(input.timeline), blank(input.mustHaves)].filter(Boolean).join(", ");
+  const callbackPhone = plainPhone(input.callbackPhone) || blank(input.callbackPhone);
+  const callbackTime = blank(input.callbackTime);
+  const callbackBits = [callbackPhone, callbackTime].filter(Boolean);
+  const lines = [
+    headBits.length ? "Build lead: " + headBits.join(", ") : "Build lead",
+    picture,
+    callbackBits.length ? "Callback: " + callbackBits.join(", ") : "",
+    "Harbor told them: the build team does custom work and will call back.",
+    "Your move: call back",
+    notesLine(input.objections, input.promises),
+  ].filter(Boolean);
+  if (input.test) lines.unshift("[TEST - not a customer]");
+  return { subject, text: lines.join("\n") };
+}
+
 /** Short note when Harbor cannot answer and a person has to call back. Email and CRM note are this text. */
 export function renderHarborNeedsHumanNotice(input: NeedsHumanNoticeInput): ReadyToBuyNotice {
   const name = blank(input.name);

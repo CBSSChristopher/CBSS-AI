@@ -38,17 +38,23 @@ describe("Modified container catalog", () => {
     assert.equal(catalogOffersModifications(), true);
     assert.ok(MODIFIED_ITEMS.some((item) => item.product === "yard-mod" && /door|window|fram|insul/i.test(item.name + item.category)));
     const prompt = readFileSync(new URL("../../docs/harbor-kb/01-system-prompt.md", import.meta.url), "utf8").split("```")[1];
-    assert.match(prompt, /TINY HOMES, BUILDS AND MODIFICATIONS/);
-    assert.match(prompt, /People weld on them and cut openings all the time/);
-    assert.match(prompt, /Do not skip one/);
+    assert.match(prompt, /BUILD TEAM/);
+    assert.match(prompt, /Oh, we build those, we've got a whole team that does custom work/);
+    assert.match(prompt, /people weld on them and cut openings all the time/i);
     assert.match(prompt, /cleaner and straighter/);
     assert.match(prompt, /extra foot of height/);
     assert.match(prompt, /framing it back in so the box stays strong/);
     assert.match(prompt, /permits and zoning/);
     assert.match(prompt, /Do not promise the box meets any code/);
-    assert.match(prompt, /say the team can do the mods/);
-    assert.match(prompt, /harbor_needs_human with the build details/);
-    assert.doesNotMatch(prompt, /do not offer mods/);
+    assert.match(prompt, /harbor_build_lead/);
+    assert.match(prompt, /SITE PREP AND PAINT/);
+    assert.match(prompt, /doors open and close square/);
+    assert.match(prompt, /10 ft of width, 13 ft of vertical clearance, and 130 ft of stretch/);
+    assert.match(prompt, /direct-to-metal or industrial metal paint/);
+    assert.doesNotMatch(prompt, /harbor_needs_human with the build details/);
+    const buildKb = readFileSync(new URL("../../docs/harbor-kb/17-build-team.md", import.meta.url), "utf8");
+    assert.match(buildKb, /DRIVE BUILD DETAILS: empty on purpose/);
+    assert.match(buildKb, /Site prep and paint/);
   });
 
   it("does not invent a modification price", () => {
