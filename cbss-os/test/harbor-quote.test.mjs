@@ -750,7 +750,8 @@ describe("Harbor quote rails stay parked", () => {
     assert.match(kb01, /Do not volunteer cards/);
     assert.match(kb01, /WHEN YOU'RE UNSURE OR CONFUSED/);
     assert.match(kb01, /Let me have someone from the team give you a call back on that so you get the right answer/);
-    assert.match(kb01, /What's the best number for them to call/);
+    assert.match(kb01, /Is this number the best one to reach you on/);
+    assert.doesNotMatch(kb01, /What's the best number for them to call/);
     assert.doesNotMatch(kb01.split("```")[1], /You know what, \{name\}/);
     assert.match(kb01, /Do not mention Veem/);
     assert.match(kb01, /OS 2D ≠ OS 4D ≠ Full open/);

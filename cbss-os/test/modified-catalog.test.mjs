@@ -64,6 +64,10 @@ describe("Modified container catalog", () => {
     assert.doesNotMatch(prompt, /Ask one or two points/);
     assert.doesNotMatch(prompt, /What size are you looking at, and what are you using it for/);
     assert.match(prompt, /call harbor_build_lead once, in that later turn/);
+    assert.match(prompt, /Is this number the best one to reach you on/);
+    assert.match(prompt, /Never say “what's the best number\.”/);
+    assert.match(prompt, /What number should they call instead/);
+    assert.doesNotMatch(prompt, /What's the best number for them to call/);
     assert.match(prompt, /Do not invent a callback number/);
     assert.match(prompt, /Do not call harbor_needs_human for a build/);
     assert.match(prompt, /Do not quote an APR, an interest rate, a monthly payment, approval odds, or a credit requirement/);

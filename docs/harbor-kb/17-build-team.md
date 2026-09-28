@@ -60,4 +60,6 @@ When they show interest, the ready-to-buy note and the build-lead note include `
 
 ## Routing
 
+Callback number: confirm the number they are already on. Say “Is this number the best one to reach you on?” Never ask “what's the best number.” Ask for another number only if they say no.
+
 The build lead emails Christopher Banks and Bryan Reese, the same notify list as the other Harbor handoffs. Design lead Kristin has no roster or routing entry, so the note names her and does not add an email. Harbor does not say either name on the call.
