@@ -9,6 +9,8 @@ export type HarborDealFields = {
   objections?: unknown;
   promises?: unknown;
   price?: unknown;
+  flexBuy?: unknown;
+  flexBuyTerm?: unknown;
 };
 
 export const HARBOR_READY_TO_BUY_PAYMENT_LINE =
@@ -39,7 +41,23 @@ export function readHarborDeal(body: Record<string, unknown> | null | undefined)
     objections: src.objections ?? nested.objections,
     promises: src.promises ?? src.softPromises ?? nested.promises ?? nested.softPromises,
     price: src.price ?? src.exactPrice ?? nested.price ?? nested.exactPrice,
+    flexBuy: src.flex_buy ?? src.flexBuy ?? nested.flex_buy ?? nested.flexBuy,
+    flexBuyTerm: src.flex_buy_term ?? src.flexBuyTerm ?? nested.flex_buy_term ?? nested.flexBuyTerm,
   };
+}
+
+/** Note line when they want Flex Buy. Omit when they did not. Never store an APR or a monthly payment. */
+export function flexBuyInterestLine(interest: unknown, term: unknown): string {
+  const flag = blank(interest);
+  const named = blank(term);
+  if (!flag && !named) return "";
+  if (/^(n|no|false|0)$/i.test(flag) && !named) return "";
+  const yes = !flag || /^(y|yes|true|1|interested)$/i.test(flag) || /flex buy/i.test(flag);
+  if (!yes && !named) return "";
+  const fromFlag = flag.replace(/^(yes|y|true|interested|flex buy interest:?)\s*,?\s*/i, "").trim();
+  const rawTerm = named || (fromFlag && !/^(yes|true|y|interested)$/i.test(fromFlag) ? fromFlag : "");
+  const clean = /\bapr\b|interest rate|monthly|credit|approval|\$\d|\d+\s*%/i.test(rawTerm) ? "" : rawTerm;
+  return clean ? "Flex Buy interest: yes, " + clean : "Flex Buy interest: yes";
 }
 
 export function sizeTypeCondition(deal: HarborDealFields): string {
@@ -142,6 +160,8 @@ export type ReadyToBuyNoticeInput = {
   price?: unknown;
   objections?: unknown;
   promises?: unknown;
+  flexBuy?: unknown;
+  flexBuyTerm?: unknown;
   test?: boolean;
 };
 
@@ -160,6 +180,7 @@ export function renderHarborReadyToBuyNotice(input: ReadyToBuyNoticeInput): Read
     want,
     "Harbor told them: back office will send next steps.",
     HARBOR_READY_TO_BUY_PAYMENT_LINE,
+    flexBuyInterestLine(input.flexBuy, input.flexBuyTerm),
     "Your move: " + (price ? "send invoice" : "call back"),
     notesLine(input.objections, input.promises),
   ].filter(Boolean);
@@ -188,6 +209,8 @@ export function readyToBuyNoticeFromContact(
     price: deal.price,
     objections: deal.objections,
     promises: deal.promises,
+    flexBuy: deal.flexBuy,
+    flexBuyTerm: deal.flexBuyTerm,
     test: extra.test,
   });
 }
@@ -235,6 +258,8 @@ export type BuildLeadNoticeInput = {
   mustHaves?: unknown;
   callbackPhone?: unknown;
   callbackTime?: unknown;
+  flexBuy?: unknown;
+  flexBuyTerm?: unknown;
   objections?: unknown;
   promises?: unknown;
   test?: boolean;
@@ -264,6 +289,7 @@ export function renderHarborBuildLeadNotice(input: BuildLeadNoticeInput): ReadyT
     ...brief,
     callbackBits.length ? "Callback: " + callbackBits.join(", ") : "",
     "Harbor told them: the build team does custom work and will call back.",
+    flexBuyInterestLine(input.flexBuy, input.flexBuyTerm),
     BUILD_LEAD_DESIGN_NOTE,
     "Your move: call back",
     notesLine(input.objections, input.promises),

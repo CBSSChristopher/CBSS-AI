@@ -16,9 +16,23 @@ export const PAYMENT_PATH_LINE = PAYMENT_HOW_TO_PAY;
 /** In-house custom builds: homes, tiny homes, pools, shops, and anything custom. */
 export const BUILD_TEAM_LINE = "Oh, we build those, we've got a whole team that does custom work.";
 
-/** If they ask about financing a modified unit or a custom container house. No terms or rates. */
-export const FINANCING_OPTIONS_LINE =
-  "Financing options exist for modified units and custom container houses. The team will go over them with you.";
+/** Budget objection. Flex Buy is financing, not a card. No APR, monthly payment, or credit rule. */
+export const FLEX_BUY_BUDGET_LINE =
+  "If the budget's tight, we've got Flex Buy. You can spread it over 6 up to 72 months, and standard units start at 10% down plus delivery.";
+
+/** Flyer facts Harbor may say. No calculator APR or sample payment. */
+export const FLEX_BUY_PLANS_LINE =
+  "Standard & modified containers: flexible 6, 12, 24, 48, or 72-month plans.";
+
+export const FLEX_BUY_HOUSE_LINE =
+  "Custom container houses: extended mortgage-style terms up to 50 years.";
+
+export const FLEX_BUY_DOWN_LINE = "Standard units start at just 10% down plus delivery.";
+
+export const FLEX_BUY_NUMBERS_LINE = "Back office will run the numbers and send the options.";
+
+/** @deprecated Use FLEX_BUY_BUDGET_LINE. Kept so older imports still compile. */
+export const FINANCING_OPTIONS_LINE = FLEX_BUY_BUDGET_LINE;
 
 /** Unsure, upset, wants a human, or a question outside containers and pricing. Vary them. */
 export const NEEDS_HUMAN_VARIANTS: SpokenLine[] = [

@@ -450,6 +450,33 @@ describe("POST /va/harbor/ready-to-buy", () => {
     assert.match(got.body.handoff_speech, /paperwork/);
     assert.doesNotMatch(got.body.handoff_speech, /Christopher|Bryan|transfer|get you over|\d+\s*minutes/i);
   });
+
+  it("puts Flex Buy interest on the ready-to-buy note", async () => {
+    const mails = [];
+    const got = await handleHarborReadyToBuy(
+      env(),
+      req("/va/harbor/ready-to-buy", {
+        token: TOKEN,
+        body: {
+          contact_name: "Jordan Hale",
+          phone: "8705550142",
+          contactId: "c9",
+          flex_buy: "yes",
+          flex_buy_term: "24 months",
+        },
+      }),
+      {
+        getContacts: async () => [{ id: "c9", name: "Jordan Hale", phone: "8705550142", city: "Jonesboro", zip: "72401" }],
+        sendMail: async (_env, input) => {
+          mails.push(input);
+          return { ok: true, messageId: "mflex" };
+        },
+      },
+    );
+    assert.equal(got.status, 200);
+    assert.match(mails[0].text, /Flex Buy interest: yes, 24 months/);
+    assert.doesNotMatch(mails[0].text + got.body.handoff_speech, /frozen|APR|monthly/i);
+  });
 });
 
 describe("POST /va/harbor/needs-human", () => {
@@ -629,6 +656,50 @@ describe("POST /va/harbor/build-lead", () => {
     assert.match(mails[0].text, /Design lead: Kristin — no routing entry on file/);
     assert.deepEqual(mails[0].to, [CHRISTOPHER_MAIL, BRYAN_MAIL]);
     assert.doesNotMatch(mails[0].text, /\$\d/);
+  });
+
+  it("records Flex Buy interest and a named term, and drops an APR", async () => {
+    const mails = [];
+    await handleHarborBuildLead(
+      env(),
+      req("/va/harbor/build-lead", {
+        token: TOKEN,
+        body: {
+          contact_name: "Jordan Hale",
+          phone: "8705550142",
+          contactId: "c9",
+          project: "container house",
+          flex_buy: "yes",
+          flex_buy_term: "up to 50 years",
+        },
+      }),
+      {
+        getContacts: async () => [{ id: "c9", name: "Jordan Hale", phone: "8705550142", city: "Jonesboro", zip: "72401" }],
+        sendMail: async (_env, input) => {
+          mails.push(input);
+          return { ok: true, messageId: "m5" };
+        },
+      },
+    );
+    assert.match(mails[0].text, /Flex Buy interest: yes, up to 50 years/);
+    assert.doesNotMatch(mails[0].text, /frozen|APR|\d+%/);
+    const dropped = [];
+    await handleHarborBuildLead(
+      env(),
+      req("/va/harbor/build-lead", {
+        token: TOKEN,
+        body: { contact_name: "Jordan Hale", phone: "8705550142", contactId: "c9", project: "tiny home", flex_buy: "yes", flex_buy_term: "12% APR" },
+      }),
+      {
+        getContacts: async () => [{ id: "c9", name: "Jordan Hale", phone: "8705550142" }],
+        sendMail: async (_env, input) => {
+          dropped.push(input);
+          return { ok: true, messageId: "m6" };
+        },
+      },
+    );
+    assert.match(dropped[0].text, /Flex Buy interest: yes\n/);
+    assert.doesNotMatch(dropped[0].text, /12%|APR/);
   });
 });
 

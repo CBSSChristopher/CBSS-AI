@@ -557,6 +557,8 @@ export async function handleHarborReadyToBuy(env: Env, request: Request, deps: H
     price: quote.ok ? String(quote.unit_price) : "",
     objections: src.objections,
     promises: src.promises,
+    flexBuy: src.flex_buy ?? src.flexBuy,
+    flexBuyTerm: src.flex_buy_term ?? src.flexBuyTerm,
   };
   const notice = readyToBuyNoticeFromContact(card, deal, {
     place: quote.place,
@@ -742,6 +744,8 @@ export async function handleHarborBuildLead(env: Env, request: Request, deps: Ha
     budget: src.budget,
     drawings: src.drawings ?? src.sketch,
     mustHaves: src.must_haves ?? src.mustHaves,
+    flexBuy: src.flex_buy ?? src.flexBuy,
+    flexBuyTerm: src.flex_buy_term ?? src.flexBuyTerm,
     callbackPhone: src.callback_phone ?? src.callbackPhone ?? src.callback_number,
     callbackTime: src.callback_time ?? src.callbackTime ?? src.when,
     test: isHarborNotifyTestRecord(hit || card),

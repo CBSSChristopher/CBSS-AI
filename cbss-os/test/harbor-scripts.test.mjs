@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { buildReadyToBuyNote, readHarborDeal, renderHarborNeedsHumanNotice, renderHarborReadyToBuyNotice } from "../src/va/close-note.ts";
+import { buildReadyToBuyNote, flexBuyInterestLine, readHarborDeal, renderHarborBuildLeadNotice, renderHarborNeedsHumanNotice, renderHarborReadyToBuyNotice } from "../src/va/close-note.ts";
 import { inboundCallerPhone, planInboundContact } from "../src/va/inbound.ts";
 import {
   CHRISTOPHER_PERSONAL_CELL,
@@ -10,7 +10,11 @@ import {
   HARBOR_QUOTE_REQUEST_OPENER,
   HARBOR_SIGNOFFS,
   BUILD_TEAM_LINE,
-  FINANCING_OPTIONS_LINE,
+  FLEX_BUY_BUDGET_LINE,
+  FLEX_BUY_DOWN_LINE,
+  FLEX_BUY_HOUSE_LINE,
+  FLEX_BUY_NUMBERS_LINE,
+  FLEX_BUY_PLANS_LINE,
   NEEDS_HUMAN_VARIANTS,
   PAYMENT_CARD_ASK,
   PAYMENT_HOW_TO_PAY,
@@ -92,7 +96,11 @@ describe("payment speech", () => {
       PAYMENT_PATH_LINE,
       ...NEEDS_HUMAN_VARIANTS.map((row) => row.spoken),
       BUILD_TEAM_LINE,
-      FINANCING_OPTIONS_LINE,
+      FLEX_BUY_BUDGET_LINE,
+      FLEX_BUY_DOWN_LINE,
+      FLEX_BUY_HOUSE_LINE,
+      FLEX_BUY_NUMBERS_LINE,
+      FLEX_BUY_PLANS_LINE,
       hardNoSpoken(),
       softDelaySpoken("Friday"),
       voicemailScript({ name: "Sam", container: "40ft", harborDid: "(870) 380-4010" }),
@@ -113,9 +121,14 @@ describe("payment speech", () => {
     );
     assert.equal(PAYMENT_CARD_ASK, "For containers we do bank transfer, check or cash; back office will walk you through it.");
     assert.equal(
-      FINANCING_OPTIONS_LINE,
-      "Financing options exist for modified units and custom container houses. The team will go over them with you.",
+      FLEX_BUY_BUDGET_LINE,
+      "If the budget's tight, we've got Flex Buy. You can spread it over 6 up to 72 months, and standard units start at 10% down plus delivery.",
     );
+    assert.equal(FLEX_BUY_PLANS_LINE, "Standard & modified containers: flexible 6, 12, 24, 48, or 72-month plans.");
+    assert.equal(FLEX_BUY_HOUSE_LINE, "Custom container houses: extended mortgage-style terms up to 50 years.");
+    assert.equal(FLEX_BUY_DOWN_LINE, "Standard units start at just 10% down plus delivery.");
+    assert.equal(FLEX_BUY_NUMBERS_LINE, "Back office will run the numbers and send the options.");
+    assert.doesNotMatch(FLEX_BUY_BUDGET_LINE + FLEX_BUY_PLANS_LINE + FLEX_BUY_HOUSE_LINE, /apr|monthly payment|frozen/i);
     assert.match(fence, /If they ask about a credit card, say/);
     assert.match(payments, /back office will send you the details/);
     assert.match(payments, /back office will walk you through it/);
@@ -218,6 +231,34 @@ describe("ready-to-buy closer note + handoff", () => {
       ].join("\n"),
     );
     assert.doesNotMatch(human.text, /not stated|frozen|Payment:/i);
+    const flex = renderHarborReadyToBuyNotice({
+      name: "Jordan Hale",
+      phone: "8705550142",
+      city: "Jonesboro",
+      zip: "72401",
+      size: "40",
+      type: "standard",
+      condition: "CW",
+      price: 2800,
+      flexBuy: "yes",
+      flexBuyTerm: "24 months",
+    });
+    assert.match(flex.text, /Flex Buy interest: yes, 24 months/);
+    assert.doesNotMatch(flex.text, /frozen|APR|monthly/i);
+    const flexBare = renderHarborReadyToBuyNotice({ name: "Sam Ortiz", flexBuy: "yes" });
+    assert.match(flexBare.text, /Flex Buy interest: yes\n/);
+    assert.doesNotMatch(flexBare.text, /Flex Buy interest: yes,/);
+    const flexBuild = renderHarborBuildLeadNotice({
+      name: "Jordan Hale",
+      project: "container house",
+      flexBuy: true,
+      flexBuyTerm: "up to 50 years",
+    });
+    assert.match(flexBuild.text, /Flex Buy interest: yes, up to 50 years/);
+    assert.equal(flexBuyInterestLine("yes", "12% APR"), "Flex Buy interest: yes");
+    assert.equal(flexBuyInterestLine("", ""), "");
+    const noFlex = renderHarborReadyToBuyNotice({ name: "Sam Ortiz" });
+    assert.doesNotMatch(noFlex.text, /Flex Buy/);
     const tagged = renderHarborNeedsHumanNotice({ name: "TEST- Unsure", test: true, asked: "a warranty from 2019" });
     assert.equal(tagged.subject, "[TEST - not a customer] Needs a human: TEST- Unsure");
     assert.match(tagged.text, /^\[TEST - not a customer\]\nNeeds a human: TEST- Unsure\na warranty from 2019/);

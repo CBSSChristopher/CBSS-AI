@@ -215,7 +215,9 @@ If `ok` is false or `unit_price` is null, **say there is no posted price and do 
         },
         "objections": { "type": "string" },
         "promises": { "type": "string" },
-        "note": { "type": "string" }
+        "note": { "type": "string" },
+        "flex_buy": { "type": "string", "description": "yes when they want Flex Buy. Omit when they did not. Flex Buy is not a card." },
+        "flex_buy_term": { "type": "string", "description": "Term they named: 6, 12, 24, 48, or 72 months, or up to 50 years. Omit if they did not name one. Do not pass an APR, a monthly payment, or a credit requirement." }
       }
     }
   }
@@ -295,6 +297,8 @@ If `ok` is false or `unit_price` is null, **say there is no posted price and do 
         "must_haves": { "type": "string", "description": "Must-haves they named. Omit if they did not." },
         "callback_phone": { "type": "string", "description": "Best callback number they confirmed." },
         "callback_time": { "type": "string", "description": "Time they asked for. Omit if they did not give one." },
+        "flex_buy": { "type": "string", "description": "yes when they want Flex Buy on this build. Omit when they did not. Houses may use terms up to 50 years. Do not pass an APR or a monthly payment." },
+        "flex_buy_term": { "type": "string", "description": "Term they named: 6, 12, 24, 48, or 72 months, or up to 50 years. Omit if they did not name one." },
         "dry_run": { "type": "boolean", "description": "Only when the CRM lead is explicitly tagged as a test lead. The server rejects this on every other lead and still notifies the team." }
       }
     }

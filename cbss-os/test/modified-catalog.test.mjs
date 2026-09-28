@@ -56,10 +56,16 @@ describe("Modified container catalog", () => {
     assert.match(prompt, /call harbor_build_lead once, in that later turn/);
     assert.match(prompt, /Do not invent a callback number/);
     assert.match(prompt, /Do not call harbor_needs_human for a build/);
-    assert.match(prompt, /Do not add the words term, rate, APR, down payment, or monthly/);
+    assert.match(prompt, /Do not quote an APR, an interest rate, a monthly payment, approval odds, or a credit requirement/);
     assert.match(prompt, /base grade/);
     assert.match(prompt, /dream sketch/);
-    assert.match(prompt, /Financing options exist for modified units and custom container houses/);
+    assert.match(prompt, /If the budget's tight, we've got Flex Buy/);
+    assert.match(prompt, /6, 12, 24, 48, or 72-month plans/);
+    assert.match(prompt, /extended mortgage-style terms up to 50 years/);
+    assert.match(prompt, /Standard units start at just 10% down plus delivery/);
+    assert.match(prompt, /Back office will run the numbers and send the options/);
+    assert.match(prompt, /Flex Buy interest: yes/);
+    assert.doesNotMatch(prompt, /\b(12|15|18|21|24)\s*%/);
     assert.match(prompt, /Do not describe a rendering, a design board, or a picture as a finished build/);
     assert.doesNotMatch(prompt, /not in this prompt yet/);
     const buildTeam = prompt.slice(prompt.indexOf("BUILD TEAM"), prompt.indexOf("SITE PREP AND PAINT"));
@@ -73,6 +79,9 @@ describe("Modified container catalog", () => {
     const buildKb = readFileSync(new URL("../../docs/harbor-kb/17-build-team.md", import.meta.url), "utf8");
     assert.match(buildKb, /Six-point project brief/);
     assert.match(buildKb, /Most of the modification work is done in-house/);
+    assert.match(buildKb, /Flex Buy interest: yes/);
+    assert.match(buildKb, /72-month plans/);
+    assert.doesNotMatch(buildKb, /\b(12|15|18|21|24)\s*%/);
     assert.match(buildKb, /no roster or routing entry/);
     assert.match(buildKb, /Site prep and paint/);
     assert.doesNotMatch(buildKb, /empty on purpose/);
