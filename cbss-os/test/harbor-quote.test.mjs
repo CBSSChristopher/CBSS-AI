@@ -8,6 +8,7 @@ import {
   harborWorkflowAuthed,
   harborQuoteFromMatch,
   harborQuoteWant,
+  handleHarborNeedsHuman,
   handleHarborQuote,
   handleHarborReadyToBuy,
   normalizeHarborZip,
@@ -450,6 +451,84 @@ describe("POST /va/harbor/ready-to-buy", () => {
   });
 });
 
+describe("POST /va/harbor/needs-human", () => {
+  it("notifies Christopher + Bryan with the short note and does not mark ready to buy", async () => {
+    const notes = [];
+    const mails = [];
+    const got = await handleHarborNeedsHuman(
+      env(),
+      req("/va/harbor/needs-human", {
+        token: TOKEN,
+        body: {
+          contact_name: "Jordan Hale",
+          phone: "8705550142",
+          contactId: "c9",
+          asked: "crane insurance certificate and the driver's cell",
+          callback_phone: "8705550142",
+          callback_time: "tomorrow morning",
+          handoff_variant: "right-answer",
+        },
+      }),
+      {
+        getContacts: async () => [{ id: "c9", name: "Jordan Hale", phone: "8705550142", city: "Jonesboro", zip: "72401", owner: "Harbor", status: "Working" }],
+        writeNote: async (id, text, edits) => {
+          notes.push({ id, text, edits });
+          return true;
+        },
+        sendMail: async (_env, input) => {
+          mails.push(input);
+          return { ok: true, messageId: "m2", threadId: "t2" };
+        },
+      },
+    );
+    assert.equal(got.status, 200);
+    assert.equal(got.body.dialing, false);
+    assert.equal(got.body.sms, false);
+    assert.equal(got.body.noteWritten, true);
+    assert.equal(got.body.say_closer_name, false);
+    assert.deepEqual(got.body.notified, [...HARBOR_NOTIFY_EMAILS]);
+    assert.equal(notes[0].text, mails[0].text);
+    assert.equal(notes[0].edits.status, undefined);
+    assert.equal(notes[0].edits.nextAction, "Needs a human — call back");
+    assert.equal(mails[0].subject, "Needs a human: Jordan Hale");
+    assert.equal(
+      mails[0].text,
+      [
+        "Needs a human: Jordan Hale, (870) 555-0142, Jonesboro 72401",
+        "crane insurance certificate and the driver's cell",
+        "Callback: (870) 555-0142, tomorrow morning",
+        "Harbor told them: someone from the team will call back.",
+        "Your move: call back",
+      ].join("\n"),
+    );
+    assert.deepEqual(mails[0].to, [CHRISTOPHER_MAIL, BRYAN_MAIL]);
+    assert.match(got.body.handoff_speech, /someone from the team give you a call back/);
+    assert.doesNotMatch(mails[0].subject + "\n" + mails[0].text + "\n" + got.body.handoff_speech, /frozen|CTE|Closer of record|Ready to buy|Christopher|Bryan/i);
+  });
+
+  it("allows dry_run only for an explicitly tagged test lead", async () => {
+    let mailed = 0;
+    const skipped = await handleHarborNeedsHuman(
+      env(),
+      req("/va/harbor/needs-human", {
+        token: TOKEN,
+        body: { contactId: "t1", asked: "a warranty from 2019", dry_run: true },
+      }),
+      {
+        getContacts: async () => [{ id: "t1", name: "TEST- Unsure", tags: ["test-lead"], testLead: true }],
+        sendMail: async () => {
+          mailed += 1;
+          return { ok: true, messageId: "x" };
+        },
+      },
+    );
+    assert.equal(skipped.body.dry_run, true);
+    assert.equal(skipped.body.mail.skipped, true);
+    assert.equal(mailed, 0);
+    assert.match(skipped.body.handoff_variants[0].spoken, /right answer/);
+  });
+});
+
 describe("Harbor quote rails stay parked", () => {
   it("keeps VA_DIAL_ARMED false and does not commit the quote secret", () => {
     assert.match(wrangler, /"VA_ENABLED": "false"/);
@@ -463,6 +542,8 @@ describe("Harbor quote rails stay parked", () => {
   it("wires quote routes without touching /va/dial", () => {
     assert.match(index, /\/va\/harbor\/quote/);
     assert.match(index, /\/va\/harbor\/ready-to-buy/);
+    assert.match(index, /\/va\/harbor\/needs-human/);
+    assert.match(index, /handleHarborNeedsHuman/);
     assert.match(index, /\/va\/harbor\/get-next-lead/);
     assert.match(index, /\/va\/harbor\/update-lead/);
     assert.match(index, /\/va\/harbor\/log-outcome/);
@@ -474,6 +555,8 @@ describe("Harbor quote rails stay parked", () => {
     assert.match(kb14, /Quote ≠ dial/);
     assert.match(kb15, /harbor_quote_by_zip/);
     assert.match(kb15, /harbor_ready_to_buy/);
+    assert.match(kb15, /harbor_needs_human/);
+    assert.match(kb15, /\/va\/harbor\/needs-human/);
     assert.match(kb15, /get_next_lead/);
     assert.match(kb15, /log_outcome/);
     assert.match(kb15, /\/va\/harbor\/quote/);
@@ -487,6 +570,10 @@ describe("Harbor quote rails stay parked", () => {
     assert.match(kb01, /5-year structural and 5-year no-leak warranty/);
     assert.match(kb01, /10-year structural \+ 10-year no-leak \+ manufacturer/);
     assert.match(kb01, /Do not volunteer cards/);
+    assert.match(kb01, /WHEN YOU'RE UNSURE OR CONFUSED/);
+    assert.match(kb01, /Let me have someone from the team give you a call back on that so you get the right answer/);
+    assert.match(kb01, /What's the best number for them to call/);
+    assert.doesNotMatch(kb01.split("```")[1], /You know what, \{name\}/);
     assert.match(kb01, /Do not mention Veem/);
     assert.match(kb01, /OS 2D ≠ OS 4D ≠ Full open/);
     assert.match(kb01, /air\/water leak testing to verify the container’s condition/);

@@ -222,6 +222,43 @@ If `ok` is false or `unit_price` is null, **say there is no posted price and do 
 }
 ```
 
+## `harbor_needs_human`
+
+```json
+{
+  "type": "webhook",
+  "name": "harbor_needs_human",
+  "description": "CALL THIS TOOL when you cannot understand the caller after one clarifying ask, they are upset, they ask for a human, or they ask something outside containers and pricing that you cannot answer. Do not guess. Do not loop. Say one callback line first: (1) Let me have someone from the team give you a call back on that so you get the right answer. (2) I don't want to guess on that. I'll have someone from the team call you back. (3) That's one for the team. I'll have them call you back so you get the right answer. Then confirm the best callback number and a time, and call this tool with what they asked. If they will not give a time, still call it with the number you have. Do not invent an answer or a time. Never name a person. Do not claim a transfer. Pass dry_run true only when the lead record is explicitly tagged as a test lead. The server ignores dry_run on every other lead and still notifies the team. Never SMS. Never dial. Never explain the tool, flags, or notifications out loud.",
+  "api_schema": {
+    "url": "https://floor.cbshippingsolutions.app/va/harbor/needs-human",
+    "method": "POST",
+    "request_headers": {
+      "Content-Type": "application/json",
+      "X-Harbor-Token": {
+        "type": "secret",
+        "description": "HARBOR_QUOTE_TOKEN on cbssos"
+      }
+    },
+    "request_body_schema": {
+      "type": "object",
+      "properties": {
+        "contact_name": { "type": "string" },
+        "phone": { "type": "string" },
+        "contactId": { "type": "string" },
+        "asked": { "type": "string", "description": "What they asked, in their words. Do not invent details." },
+        "callback_phone": { "type": "string", "description": "Best callback number they confirmed." },
+        "callback_time": { "type": "string", "description": "Time they asked for. Omit if they did not give one." },
+        "handoff_variant": { "type": "string", "description": "right-answer, no-guess, or team-call" },
+        "dry_run": {
+          "type": "boolean",
+          "description": "Only when the CRM lead is explicitly tagged as a test lead. The server rejects this on every other lead, logs the decision, and still notifies the team. The tool must still be called."
+        }
+      }
+    }
+  }
+}
+```
+
 ## After paste
 
 1. Christopher sets `HARBOR_QUOTE_TOKEN` on `cbssos`.

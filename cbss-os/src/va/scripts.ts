@@ -13,6 +13,22 @@ export const PAYMENT_CARD_ASK =
 
 export const PAYMENT_PATH_LINE = PAYMENT_HOW_TO_PAY;
 
+/** Unsure, upset, wants a human, or a question outside containers and pricing. Vary them. */
+export const NEEDS_HUMAN_VARIANTS: SpokenLine[] = [
+  {
+    id: "right-answer",
+    spoken: "Let me have someone from the team give you a call back on that so you get the right answer.",
+  },
+  {
+    id: "no-guess",
+    spoken: "I don't want to guess on that. I'll have someone from the team call you back.",
+  },
+  {
+    id: "team-call",
+    spoken: "That's one for the team. I'll have them call you back so you get the right answer.",
+  },
+];
+
 export type SpokenLine = { id: string; spoken: string };
 
 /**
@@ -127,6 +143,17 @@ export function harborOutboundOpener(
 }
 
 const VARIANT_BY_ID = new Map(READY_TO_BUY_VARIANTS.map((row) => [row.id, row]));
+
+export function pickNeedsHumanLine(seed?: unknown, now = Date.now()): SpokenLine {
+  if (typeof seed === "number" && Number.isFinite(seed)) {
+    const i = Math.abs(Math.floor(seed)) % NEEDS_HUMAN_VARIANTS.length;
+    return NEEDS_HUMAN_VARIANTS[i];
+  }
+  const key = String(seed || "").trim().toLowerCase();
+  const named = NEEDS_HUMAN_VARIANTS.find((row) => row.id === key || row.spoken.toLowerCase() === key);
+  if (named) return named;
+  return NEEDS_HUMAN_VARIANTS[Math.floor(now / 60000) % NEEDS_HUMAN_VARIANTS.length];
+}
 
 export function pickReadyToBuyLine(seed?: unknown, now = Date.now()): SpokenLine {
   if (typeof seed === "number" && Number.isFinite(seed)) {

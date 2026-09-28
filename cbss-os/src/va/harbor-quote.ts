@@ -14,8 +14,8 @@ import {
 import { crmContactPool, crmRequestWithCookie } from "./crm-client.ts";
 import { timingSafeEqualStr } from "./hmac.ts";
 import { matchCrmContact } from "./match.ts";
-import { readyToBuyNoticeFromContact } from "./close-note.ts";
-import { pickReadyToBuyLine, READY_TO_BUY_VARIANTS } from "./scripts.ts";
+import { readyToBuyNoticeFromContact, renderHarborNeedsHumanNotice } from "./close-note.ts";
+import { pickNeedsHumanLine, pickReadyToBuyLine, NEEDS_HUMAN_VARIANTS, READY_TO_BUY_VARIANTS } from "./scripts.ts";
 import {
   HUMAN_CLOSERS,
   harborOutcomeEdits,
@@ -28,6 +28,7 @@ import {
 
 export const HARBOR_QUOTE_PATH = "/va/harbor/quote";
 export const HARBOR_READY_TO_BUY_PATH = "/va/harbor/ready-to-buy";
+export const HARBOR_NEEDS_HUMAN_PATH = "/va/harbor/needs-human";
 export const DEFAULT_HARBOR_MARGIN = 700;
 export const HARBOR_CLOSERS = HUMAN_CLOSERS;
 export const HARBOR_NOTIFY_EMAILS = [
@@ -607,6 +608,89 @@ export async function handleHarborReadyToBuy(env: Env, request: Request, deps: H
       spoken_summary: quote.ok ? quote.spoken_summary : quote.spoken_summary,
       unit_price: quote.ok ? quote.unit_price : null,
       quote,
+      noteWritten,
+      notified,
+      mail,
+      sms: false,
+      dialing: false,
+      contact: !dryRun && hit ? { id: String(hit.id || ""), name: str(hit.name), phone: str(hit.phone) } : null,
+    },
+  };
+}
+
+export async function handleHarborNeedsHuman(env: Env, request: Request, deps: HarborQuoteDeps = {}): Promise<HarborQuoteHandlerResult> {
+  const denied = harborQuoteAuthResult(request, env);
+  if (denied) return denied;
+  const body = await request.json().catch(() => ({})) as Record<string, unknown>;
+  const src = body && typeof body === "object" ? body : {};
+  const contact = src.contact && typeof src.contact === "object" ? (src.contact as Record<string, unknown>) : {};
+  const variant = pickNeedsHumanLine(src.handoff_variant ?? src.spoken ?? src.variant, deps.now);
+  const requestedDryRun = isHarborDryRun(src);
+  const contactName = str(src.contact_name ?? contact.name ?? src.name);
+  const phone = str(src.phone ?? contact.phone ?? src.contact_phone);
+  const email = str(src.email ?? contact.email);
+  const contactId = str(src.contactId ?? src.contact_id ?? contact.id ?? contact.contactId);
+  const rows = await harborServiceContacts(env, deps);
+  const hit = matchCrmContact(rows, { contactId, phone, email });
+  const decision = decideHarborDryRun(requestedDryRun, hit, contactId);
+  const dryRun = decision.dry_run;
+  logHarborDryRun(decision, deps);
+  const card: Record<string, unknown> = {
+    ...(hit || {}),
+    name: contactName || str(hit?.name),
+    phone: phone || str(hit?.phone),
+    city: str(hit?.city || contact.city),
+    zip: str(hit?.zip || contact.zip || src.zip),
+    place: str(hit?.place || contact.place),
+  };
+  const notice = renderHarborNeedsHumanNotice({
+    name: card.name,
+    phone: card.phone,
+    city: card.city,
+    zip: card.zip,
+    place: card.place,
+    asked: src.asked ?? src.question ?? src.note,
+    callbackPhone: src.callback_phone ?? src.callbackPhone ?? src.callback_number,
+    callbackTime: src.callback_time ?? src.callbackTime ?? src.when,
+    test: isHarborNotifyTestRecord(hit || card),
+  });
+  let noteWritten = false;
+  let notified: string[] = [];
+  let mail: { ok: boolean; messageId?: string; error?: string; skipped?: boolean; reason?: string };
+  if (dryRun) {
+    mail = { ok: true, skipped: true, reason: "dry_run" };
+  } else {
+    if (hit && hit.id) {
+      noteWritten = await harborServiceWrite(env, String(hit.id), notice.text, { nextAction: "Needs a human — call back" }, deps);
+    }
+    const notify = planHarborReadyToBuyNotify(resolveCloser(""));
+    notified = notify.to;
+    const send = deps.sendMail || sendAgentMail;
+    const mailed = await send(env, {
+      to: notify.to,
+      subject: notice.subject,
+      text: notice.text,
+      labels: ["harbor-needs-human"],
+    });
+    for (const addr of notify.to) {
+      await pushAlert(env, addr, hit ? String(hit.id) : "", notice.subject);
+    }
+    mail = mailed.ok ? { ok: true, messageId: mailed.messageId } : { ok: false, error: mailed.error };
+  }
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      ...rails(),
+      dry_run: dryRun,
+      dry_run_requested: decision.requested,
+      dry_run_rejected: decision.reason === "rejected_not_test_lead",
+      dry_run_decision: decision,
+      handoff_variant: variant.id,
+      spoken: variant.spoken,
+      handoff_speech: variant.spoken,
+      handoff_variants: NEEDS_HUMAN_VARIANTS.map((row) => ({ id: row.id, spoken: row.spoken })),
+      say_closer_name: false,
       noteWritten,
       notified,
       mail,

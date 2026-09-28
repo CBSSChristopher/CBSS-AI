@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { buildReadyToBuyNote, readHarborDeal, renderHarborReadyToBuyNotice } from "../src/va/close-note.ts";
+import { buildReadyToBuyNote, readHarborDeal, renderHarborNeedsHumanNotice, renderHarborReadyToBuyNotice } from "../src/va/close-note.ts";
 import { inboundCallerPhone, planInboundContact } from "../src/va/inbound.ts";
 import {
   CHRISTOPHER_PERSONAL_CELL,
@@ -9,6 +9,7 @@ import {
   HARBOR_LOOKED_IN_OPENERS,
   HARBOR_QUOTE_REQUEST_OPENER,
   HARBOR_SIGNOFFS,
+  NEEDS_HUMAN_VARIANTS,
   PAYMENT_CARD_ASK,
   PAYMENT_HOW_TO_PAY,
   PAYMENT_PATH_LINE,
@@ -87,6 +88,7 @@ describe("payment speech", () => {
       PAYMENT_HOW_TO_PAY,
       PAYMENT_CARD_ASK,
       PAYMENT_PATH_LINE,
+      ...NEEDS_HUMAN_VARIANTS.map((row) => row.spoken),
       hardNoSpoken(),
       softDelaySpoken("Friday"),
       voicemailScript({ name: "Sam", container: "40ft", harborDid: "(870) 380-4010" }),
@@ -197,6 +199,20 @@ describe("ready-to-buy closer note + handoff", () => {
     assert.equal(isHarborNotifyTestRecord({ name: "Gate Check No Customer", testLead: false }), true);
     assert.equal(isExplicitHarborTestLead({ name: "Gate Check No Customer", testLead: false }), false);
     assert.equal(isHarborNotifyTestRecord({ name: "Pat Lee", cteStage: "CTE1" }), false);
+    const human = renderHarborNeedsHumanNotice({ name: "Sam Ortiz" });
+    assert.equal(human.subject, "Needs a human: Sam Ortiz");
+    assert.equal(
+      human.text,
+      [
+        "Needs a human: Sam Ortiz",
+        "Harbor told them: someone from the team will call back.",
+        "Your move: call back",
+      ].join("\n"),
+    );
+    assert.doesNotMatch(human.text, /not stated|frozen|Payment:/i);
+    const tagged = renderHarborNeedsHumanNotice({ name: "TEST- Unsure", test: true, asked: "a warranty from 2019" });
+    assert.equal(tagged.subject, "[TEST - not a customer] Needs a human: TEST- Unsure");
+    assert.match(tagged.text, /^\[TEST - not a customer\]\nNeeds a human: TEST- Unsure\na warranty from 2019/);
   });
 });
 

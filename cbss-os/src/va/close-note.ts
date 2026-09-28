@@ -199,3 +199,39 @@ export function buildReadyToBuyNote(input: {
 }): string {
   return readyToBuyNoticeFromContact(input.contact, input.deal, { test: input.test }).text;
 }
+
+export type NeedsHumanNoticeInput = {
+  name?: unknown;
+  phone?: unknown;
+  city?: unknown;
+  zip?: unknown;
+  place?: unknown;
+  asked?: unknown;
+  callbackPhone?: unknown;
+  callbackTime?: unknown;
+  objections?: unknown;
+  promises?: unknown;
+  test?: boolean;
+};
+
+/** Short note when Harbor cannot answer and a person has to call back. Email and CRM note are this text. */
+export function renderHarborNeedsHumanNotice(input: NeedsHumanNoticeInput): ReadyToBuyNotice {
+  const name = blank(input.name);
+  const asked = blank(input.asked);
+  let subject = name ? "Needs a human: " + name : "Needs a human";
+  if (input.test) subject = "[TEST - not a customer] " + subject;
+  const headBits = [name, plainPhone(input.phone), cityZip(input.city, input.zip, input.place)].filter(Boolean);
+  const callbackPhone = plainPhone(input.callbackPhone) || blank(input.callbackPhone);
+  const callbackTime = blank(input.callbackTime);
+  const callbackBits = [callbackPhone, callbackTime].filter(Boolean);
+  const lines = [
+    headBits.length ? "Needs a human: " + headBits.join(", ") : "Needs a human",
+    asked,
+    callbackBits.length ? "Callback: " + callbackBits.join(", ") : "",
+    "Harbor told them: someone from the team will call back.",
+    "Your move: call back",
+    notesLine(input.objections, input.promises),
+  ].filter(Boolean);
+  if (input.test) lines.unshift("[TEST - not a customer]");
+  return { subject, text: lines.join("\n") };
+}
