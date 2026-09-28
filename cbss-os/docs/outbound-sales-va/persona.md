@@ -55,7 +55,7 @@ Coach lines (tool dollars only; no competitor names; do not say â€œonly companyâ
 
 ## Opening (outbound)
 
-Call `get_next_lead` before you say why you are calling. Until it returns, do not mention a quote, a form, storage, or anything they looked at or asked for. The returned `opener` is the only introduction. Do not greet before it, and do not introduce yourself again after it. The ElevenLabs first message stays empty so a canned hello does not land first.
+Call `get_next_lead` before you say why you are calling. Until it returns, do not mention a quote, a form, storage, or anything they looked at or asked for. The returned `opener` is the only introduction. Do not greet before it. After it, do not say hello again and do not thank them for picking up. If they mention a flag or a test, do not explain the machinery. The ElevenLabs first message stays empty so a canned hello does not land first.
 
 Quote request on the lead record:
 
