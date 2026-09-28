@@ -419,6 +419,11 @@ function qtyOf(value: unknown): string {
   return raw;
 }
 
+/** True when the catalog lists modification work CBSS can do on a box. */
+export function catalogOffersModifications(): boolean {
+  return MODIFIED_ITEMS.some((item) => item.product === "yard-mod");
+}
+
 export function findModifiedItem(id: string): ModifiedItem | null {
   return ITEM_BY_ID.get(str(id)) || null;
 }

@@ -5,6 +5,7 @@ import {
   MODIFIED_CATEGORIES,
   MODIFIED_ITEMS,
   buildModifiedSpec,
+  catalogOffersModifications,
   findModifiedItem,
   itemsInCategory,
   readModifiedDraft,
@@ -31,6 +32,22 @@ describe("Modified container catalog", () => {
     assert.ok(itemsInCategory("electrical").some((item) => /100A/.test(item.name)));
     assert.ok(itemsInCategory("insulation").some((item) => /spray foam/i.test(item.name)));
     assert.ok(itemsInCategory("framing").some((item) => /Steel stud/.test(item.name)));
+  });
+
+  it("offers yard mods so a build routes to a human", () => {
+    assert.equal(catalogOffersModifications(), true);
+    assert.ok(MODIFIED_ITEMS.some((item) => item.product === "yard-mod" && /door|window|fram|insul/i.test(item.name + item.category)));
+    const prompt = readFileSync(new URL("../../docs/harbor-kb/01-system-prompt.md", import.meta.url), "utf8").split("```")[1];
+    assert.match(prompt, /TINY HOMES, BUILDS AND MODIFICATIONS/);
+    assert.match(prompt, /People weld on them and cut openings all the time/);
+    assert.match(prompt, /cleaner and straighter/);
+    assert.match(prompt, /extra foot of height/);
+    assert.match(prompt, /framing it back in so the box stays strong/);
+    assert.match(prompt, /permits and zoning/);
+    assert.match(prompt, /Do not promise the box meets any code/);
+    assert.match(prompt, /say the team can do the mods/);
+    assert.match(prompt, /harbor_needs_human with the build details/);
+    assert.doesNotMatch(prompt, /do not offer mods/);
   });
 
   it("does not invent a modification price", () => {
