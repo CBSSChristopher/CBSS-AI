@@ -310,7 +310,12 @@ describe("POST /va/harbor/ready-to-buy", () => {
     assert.ok(HARBOR_NOTIFY_EMAILS.includes(BRYAN_MAIL));
     assert.equal(notes.length, 1);
     assert.equal(notes[0].id, "c1");
-    assert.match(notes[0].text, /Ready to buy/);
+    assert.equal(notes[0].text, mails[0].text);
+    assert.match(mails[0].subject, /^Ready to buy: Pat Lee - 40ft high cube, cargo worthy$/);
+    assert.match(mails[0].text, /Ready to buy: Pat Lee, \(870\) 555-0100, Little Rock 72201/);
+    assert.match(mails[0].text, /Harbor told them: back office will send next steps\./);
+    assert.match(mails[0].text, /Your move: send invoice/);
+    assert.doesNotMatch(mails[0].subject + "\n" + mails[0].text, /CTE|Closer of record|Cards frozen|do not invent|no posted match|not stated/);
     assert.equal(mails.length, 1);
     assert.deepEqual(mails[0].to, [CHRISTOPHER_MAIL, BRYAN_MAIL]);
     assert.equal(got.body.dry_run, false);

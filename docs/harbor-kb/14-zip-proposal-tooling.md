@@ -73,8 +73,8 @@ Every field is optional. The voice agent calls this tool in the same turn the ca
 
 Harbor:
 
-1. Re-runs the same posted match when ZIP is present — if rematch fails, price on the note is **not stated** (do not keep a hallucinated dollar).
-2. On a live call, writes a CRM ready-to-buy note **if** the contact matches (phone, then email, then id). Stage / owner follow the existing Harbor handoff (Christopher or Bryan). `dry_run` skips this write.
+1. Re-runs the same posted match when ZIP is present. If rematch fails, the price is left off the note. Unstated fields are omitted.
+2. On a live call, writes the same short note the email uses **if** the contact matches (phone, then email, then id). Stage / owner follow the existing Harbor handoff (Christopher or Bryan). `dry_run` skips this write. Test and gate-check cards prefix the subject with `[TEST - not a customer]`.
 3. On a live call, notifies **Christopher Banks + Bryan Reese** on the existing Yard email / in-Yard alert path (`sendAgentMail` + `pushAlert`). **No SMS.** `dry_run` sends nothing.
 4. The caller hears one back-office next-steps line (`handoff_speech`) with no person's name. Cards frozen. Harbor does not collect payment. `dialing` and `sms` stay false.
 

@@ -113,8 +113,9 @@ describe("Harbor CTE workflow", () => {
     assert.equal(buy.status, "Ready to buy");
     assert.equal(buy.owner, "Bryan Reese");
     assert.equal(buy.handoff, true);
-    assert.match(buy.note, /does not collect payment/);
-    assert.match(buy.note, /wire \/ ACH/);
+    assert.match(buy.note, /Harbor told them: back office will send next steps\./);
+    assert.match(buy.note, /wire, ACH/);
+    assert.doesNotMatch(buy.note, /CTE|Cards frozen|Closer of record/);
     assert.equal(resolveCloser("Bryan Reese"), "Bryan Reese");
     assert.equal(resolveCloser(""), "Christopher Banks");
   });

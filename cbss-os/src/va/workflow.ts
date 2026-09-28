@@ -174,6 +174,14 @@ export function isExplicitHarborTestLead(contact: Record<string, unknown> | null
   return isFixtureContact(contact);
 }
 
+/** Internal ready-to-buy mail and CRM note label. A gate-check card is not a buyer. */
+export function isHarborNotifyTestRecord(contact: Record<string, unknown> | null | undefined): boolean {
+  if (isExplicitHarborTestLead(contact)) return true;
+  if (!contact) return false;
+  const blob = [contact.name, contact.notes, contact.note, contact.company].map((item) => String(item || "")).join("\n");
+  return /\bgate[\s-]*check\b/i.test(blob);
+}
+
 export function isCallableHarborLead(contact: Record<string, unknown> | null | undefined): boolean {
   if (!contact) return false;
   if (isFixtureContact(contact)) return false;
@@ -430,12 +438,9 @@ export function harborOutcomePlan(
     const pick = pickReadyToBuyLine(opts.spoken, now.getTime());
     spoken = pick.spoken;
     line = buildReadyToBuyNote({
-      cte: currentCte,
-      closer,
-      inbound: inbound || outcome === "inbound-ready-to-buy",
-      spoken: pick,
+      contact,
       deal,
-      extra,
+      test: isHarborNotifyTestRecord(contact),
     });
   } else if (isHardNoOutcome(outcome)) {
     hardNo = true;

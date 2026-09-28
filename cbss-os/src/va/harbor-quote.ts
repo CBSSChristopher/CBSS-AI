@@ -14,12 +14,14 @@ import {
 import { crmContactPool, crmRequestWithCookie } from "./crm-client.ts";
 import { timingSafeEqualStr } from "./hmac.ts";
 import { matchCrmContact } from "./match.ts";
+import { readyToBuyNoticeFromContact } from "./close-note.ts";
 import { pickReadyToBuyLine, READY_TO_BUY_VARIANTS } from "./scripts.ts";
 import {
   HUMAN_CLOSERS,
   harborOutcomeEdits,
   harborOutcomePlan,
   isExplicitHarborTestLead,
+  isHarborNotifyTestRecord,
   resolveCloser,
   type HumanCloser,
 } from "./workflow.ts";
@@ -107,12 +109,6 @@ function str(value: unknown): string {
 
 function money(n: number): string {
   return "$" + Math.round(n).toLocaleString("en-US");
-}
-
-function heightLabel(height: string): string {
-  if (height === "HC") return "high cube";
-  if (height === "DC") return "standard";
-  return height || "high cube";
 }
 
 /** Say this while harbor_quote_by_zip runs. Warm, light laugh — not corny. */
@@ -457,35 +453,6 @@ export async function handleHarborQuote(env: Env, request: Request, deps: Harbor
   return { status: ran.status, body: ran.result };
 }
 
-export function harborReadyToBuyNotifyText(input: {
-  closer: HumanCloser;
-  variantId: string;
-  spoken: string;
-  contactName: string;
-  phone: string;
-  quote: HarborQuoteResult | HarborQuoteMiss;
-  note: string;
-}): string {
-  const price = input.quote.ok ? money(input.quote.unit_price) : "not stated — no posted match; do not invent";
-  const place = input.quote.place || input.quote.zip || "ZIP not stated";
-  const box = input.quote.ok
-    ? input.quote.box.size + " " + heightLabel(input.quote.box.height) + " " + input.quote.box.grade
-    : "box not matched";
-  return [
-    "Harbor ready-to-buy handoff.",
-    "Closer of record: " + input.closer + ". Notify Christopher Banks + Bryan Reese.",
-    "Contact: " + (input.contactName || "not stated") + " · " + (input.phone || "no phone"),
-    "ZIP / place: " + place,
-    "Box: " + box,
-    "Quoted: " + price,
-    "Spoken (" + input.variantId + "): " + input.spoken,
-    "Cards frozen. Harbor does not collect payment. No SMS.",
-    "",
-    input.note,
-    "",
-    "CB Shipping Solutions",
-  ].join("\n");
-}
 
 export function planHarborReadyToBuyNotify(closer: HumanCloser): { to: string[]; closer: HumanCloser } {
   const to = [...HARBOR_NOTIFY_EMAILS].filter(Boolean);
@@ -570,21 +537,34 @@ export async function handleHarborReadyToBuy(env: Env, request: Request, deps: H
   const decision = decideHarborDryRun(requestedDryRun, hit, contactId);
   const dryRun = decision.dry_run;
   logHarborDryRun(decision, deps);
+  const card: Record<string, unknown> = {
+    ...(hit || { owner: "Harbor", status: "Working" }),
+    name: contactName || str(hit?.name),
+    phone: phone || str(hit?.phone),
+    city: str(hit?.city || contact.city),
+    zip: str(hit?.zip || contact.zip || quote.zip || zip),
+    place: quote.place || str(hit?.place || contact.place),
+  };
   const deal = {
-    quoted: quote.ok ? quote.spoken_summary : "no posted match — do not invent",
     size: quote.ok ? quote.box.size : str(quoteBody.size),
     type: quote.ok ? quote.box.height + " " + quote.box.config : str(quoteBody.height || quoteBody.config),
-    condition: quote.ok ? quote.box.grade : str(quoteBody.grade),
+    condition: quote.ok ? quote.box.grade : str(quoteBody.grade || quoteBody.condition),
     delivery: quote.ok ? quote.box.fulfillment : str(quoteBody.fulfillment),
+    timing: str(src.timing ?? src.delivery_timing ?? contact.timing),
+    use: str(src.use ?? contact.use ?? contact.purpose),
     price: quote.ok ? String(quote.unit_price) : "",
     objections: src.objections,
     promises: src.promises,
   };
-  const plan = harborOutcomePlan(hit || { name: contactName, phone, owner: "Harbor", status: "Working", cteStage: "CTE1" }, "ready-to-buy", {
+  const notice = readyToBuyNoticeFromContact(card, deal, {
+    place: quote.place,
+    zip: quote.zip || zip,
+    test: isHarborNotifyTestRecord(hit || card),
+  });
+  const plan = harborOutcomePlan(card, "ready-to-buy", {
     closer,
     spoken: variant.id,
     deal,
-    note: str(src.note),
   });
   let noteWritten = false;
   let notified: string[] = [];
@@ -593,28 +573,19 @@ export async function handleHarborReadyToBuy(env: Env, request: Request, deps: H
     mail = { ok: true, skipped: true, reason: "dry_run" };
   } else {
     if (hit && hit.id) {
-      noteWritten = await harborServiceWrite(env, String(hit.id), plan.note, harborOutcomeEdits(plan), deps);
+      noteWritten = await harborServiceWrite(env, String(hit.id), notice.text, harborOutcomeEdits(plan), deps);
     }
     const notify = planHarborReadyToBuyNotify(closer);
     notified = notify.to;
-    const text = harborReadyToBuyNotifyText({
-      closer,
-      variantId: variant.id,
-      spoken: variant.spoken,
-      contactName: contactName || str(hit?.name),
-      phone: phone || str(hit?.phone),
-      quote,
-      note: plan.note,
-    });
     const send = deps.sendMail || sendAgentMail;
     const mailed = await send(env, {
       to: notify.to,
-      subject: "Harbor ready-to-buy — " + (contactName || str(hit?.name) || "lead") + " — " + closer,
-      text,
+      subject: notice.subject,
+      text: notice.text,
       labels: ["harbor-ready-to-buy"],
     });
     for (const addr of notify.to) {
-      await pushAlert(env, addr, hit ? String(hit.id) : "", "Harbor ready-to-buy · " + closer + " · " + (contactName || "lead"));
+      await pushAlert(env, addr, hit ? String(hit.id) : "", notice.subject);
     }
     mail = mailed.ok ? { ok: true, messageId: mailed.messageId } : { ok: false, error: mailed.error };
   }
