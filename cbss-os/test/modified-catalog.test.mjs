@@ -53,7 +53,8 @@ describe("Modified container catalog", () => {
     assert.match(prompt, /large assembly buildings/);
     assert.match(prompt, /specialty units/);
     assert.match(prompt, /six-point project brief/);
-    assert.match(prompt, /call harbor_build_lead once, in that turn/);
+    assert.match(prompt, /call harbor_build_lead once, in that later turn/);
+    assert.match(prompt, /Do not invent a callback number/);
     assert.match(prompt, /Do not call harbor_needs_human for a build/);
     assert.match(prompt, /Do not add the words term, rate, APR, down payment, or monthly/);
     assert.match(prompt, /base grade/);
