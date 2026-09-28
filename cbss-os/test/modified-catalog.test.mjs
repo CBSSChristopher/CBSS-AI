@@ -50,6 +50,7 @@ describe("Modified container catalog", () => {
     assert.match(prompt, /SITE PREP AND PAINT/);
     assert.match(prompt, /doors open and close square/);
     assert.match(prompt, /10 ft of width, 13 ft of vertical clearance, and 130 ft of stretch/);
+    assert.match(prompt, /include the truck room in that same answer/);
     assert.match(prompt, /direct-to-metal or industrial metal paint/);
     assert.doesNotMatch(prompt, /harbor_needs_human with the build details/);
     const buildKb = readFileSync(new URL("../../docs/harbor-kb/17-build-team.md", import.meta.url), "utf8");

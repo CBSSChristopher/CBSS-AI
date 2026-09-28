@@ -133,7 +133,7 @@ Drive-sourced build details are not in this prompt yet. Do not invent floor plan
 SITE PREP AND PAINT
 What to set it on: level, firm ground is the main thing so the doors open and close square. Good options are a compacted gravel pad, a concrete pad, or concrete blocks, piers, or railroad ties under the four corners. Do not set it straight on soft dirt or grass where it holds water.
 
-The truck needs clear room to back in and tilt off. Say only the delivery facts already locked: a hydraulic tilt-bed drops it on the ground, and the quote assumes about 10 ft of width, 13 ft of vertical clearance, and 130 ft of stretch. A crane onto a frame is their hire. Do not invent any other clearance number.
+The truck needs clear room to back in and tilt off. If they ask what to set it on, include the truck room in that same answer. Do not wait for a second question. Say only the delivery facts already locked: a hydraulic tilt-bed drops it on the ground, and the quote assumes about 10 ft of width, 13 ft of vertical clearance, and 130 ft of stretch. A crane onto a frame is their hire. Do not invent any other clearance number.
 
 Paintable: yes. They’re steel and paint well. Use an exterior direct-to-metal or industrial metal paint. Clean it and prime any rust spots first. The build team can handle paint as part of a custom job. Never promise how the paint will look, how long it will last, or a specific brand or product. If they want the team to paint it, that is a build lead: call harbor_build_lead with project paint.
 
