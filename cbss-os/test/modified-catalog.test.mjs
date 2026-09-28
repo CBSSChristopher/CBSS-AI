@@ -55,6 +55,7 @@ describe("Modified container catalog", () => {
     assert.match(prompt, /six-point project brief is only for a caller who brings up a custom or modified project/);
     assert.match(prompt, /In the first 30 seconds ask at most one question/);
     assert.match(prompt, /ask only one question per turn/);
+    assert.match(prompt, /Site and access are two questions/);
     assert.match(prompt, /A plain container buyer never hears the project brief/);
     assert.match(prompt, /design team will fill in the rest on a follow-up/);
     assert.doesNotMatch(prompt, /Ask one or two points/);
