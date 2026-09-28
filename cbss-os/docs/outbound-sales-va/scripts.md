@@ -74,6 +74,16 @@ Note the reason. Follow-up on the date they asked or the next business day. Stay
 
 ## Hard no
 
-> Understood. I won’t keep calling. Thanks for the time.
+> Understood. I won’t keep calling.
 
-No follow-up. Next lead.
+No follow-up. Next lead. Do not add “thanks for the time.”
+
+## Sign-off
+
+When the call is wrapping up and it is not voicemail or a hard no, pick one. No “thanks for choosing.” No “have a great day.”
+
+> Appreciate you. Talk soon.
+
+> Alright, I'll let you go. Catch you later.
+
+> Sounds good. I'll be around if you need me.

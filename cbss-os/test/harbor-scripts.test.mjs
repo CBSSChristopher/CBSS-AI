@@ -8,8 +8,10 @@ import {
   CHRISTOPHER_PERSONAL_DIGITS,
   HARBOR_LOOKED_IN_OPENERS,
   HARBOR_QUOTE_REQUEST_OPENER,
+  HARBOR_SIGNOFFS,
   READY_TO_BUY_VARIANTS,
   harborCallbackNumber,
+  hardNoSpoken,
   harborOutboundOpener,
   isChristopherPersonalCell,
   leadShowsQuoteRequest,
@@ -162,6 +164,16 @@ describe("outbound opener follows the lead record", () => {
     const later = harborOutboundOpener({ name: "Pat", status: "New" }, 60000);
     assert.equal(later.spoken, HARBOR_LOOKED_IN_OPENERS[1]);
     assert.notEqual(looked.spoken, later.spoken);
+  });
+
+  it("signs off like a person and does not thank them for the time on a hard no", () => {
+    assert.equal(HARBOR_SIGNOFFS.length, 3);
+    assert.match(HARBOR_SIGNOFFS[0], /Appreciate you\. Talk soon\./);
+    for (const line of HARBOR_SIGNOFFS) {
+      assert.doesNotMatch(line, /great day|thanks for choosing|thanks for the time/i);
+    }
+    assert.equal(hardNoSpoken(), "Understood. I won't keep calling.");
+    assert.doesNotMatch(hardNoSpoken(), /thanks for the time/i);
   });
 
   it("does not treat a model flag on a real card as a test lead", () => {

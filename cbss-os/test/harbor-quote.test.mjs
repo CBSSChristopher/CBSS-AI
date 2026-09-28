@@ -541,6 +541,18 @@ describe("Harbor quote rails stay parked", () => {
     assert.match(kb01, /Never assume/);
     assert.match(kb01, /shipping container quote you asked us for/);
     assert.match(kb01, /looking into containers for storage/);
+    assert.match(kb01, /first message: leave it empty/i);
+    assert.match(kb01, /Until that tool returns/);
+    assert.match(kb01, /only introduction/);
+    assert.match(kb01, /Appreciate you\. Talk soon\./);
+    assert.match(kb01, /I'll let you go/);
+    assert.match(kb01, /I'll be around if you need me/);
+    assert.match(kb01, /\[friendly\]/);
+    assert.match(kb01, /Never explain dry_run/);
+    assert.match(kb01, /Do not say “have a great day\.”/);
+    assert.match(kb01, /Do not thank them for choosing the company/);
+    assert.doesNotMatch(kb01, /Thanks for choosing CB Shipping Solutions/);
+    assert.doesNotMatch(kb01, /Thanks for the time/);
     assert.match(kb01, /VOICE & COMMON SENSE/);
     assert.match(kb01, /Don't over-explain/);
     assert.match(kb01, /check with the team/);
@@ -553,6 +565,8 @@ describe("Harbor quote rails stay parked", () => {
     assert.doesNotMatch(kb01, /OBSOLETE NOTE/);
     assert.doesNotMatch(kb01.split("```")[1], /\b(Christopher|Bryan|Brian)\b/);
     assert.match(kb15, /back office who handle accounting/);
+    assert.match(kb15, /only introduction/);
+    assert.match(kb15, /Never explain dry_run/);
     assert.match(kb15, /opener_kind/);
     assert.doesNotMatch(kb15, /OBSOLETE NOTE/);
     assert.match(kb15, /dry_run/);
