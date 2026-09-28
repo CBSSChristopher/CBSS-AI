@@ -9,7 +9,7 @@ export const PAYMENT_HOW_TO_PAY =
 
 /** If they ask about a credit card. */
 export const PAYMENT_CARD_ASK =
-  "For containers we do bank transfer, check or cash; back office will walk you through it.";
+  "We take wire, ACH, e-check, money order, cashier's check or cash, and back office will send you the details.";
 
 export const PAYMENT_PATH_LINE = PAYMENT_HOW_TO_PAY;
 

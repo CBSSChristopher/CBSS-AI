@@ -119,7 +119,10 @@ describe("payment speech", () => {
       PAYMENT_HOW_TO_PAY,
       "We take wire, ACH, e-check, money order, cashier's check or cash, and back office will send you the details.",
     );
-    assert.equal(PAYMENT_CARD_ASK, "For containers we do bank transfer, check or cash; back office will walk you through it.");
+    assert.equal(
+      PAYMENT_CARD_ASK,
+      "We take wire, ACH, e-check, money order, cashier's check or cash, and back office will send you the details.",
+    );
     assert.equal(
       FLEX_BUY_BUDGET_LINE,
       "If the budget's tight, we've got Flex Buy. You can spread it over 6 up to 72 months, and standard units start at 10% down plus delivery.",
@@ -129,9 +132,12 @@ describe("payment speech", () => {
     assert.equal(FLEX_BUY_DOWN_LINE, "Standard units start at just 10% down plus delivery.");
     assert.equal(FLEX_BUY_NUMBERS_LINE, "Back office will run the numbers and send the options.");
     assert.doesNotMatch(FLEX_BUY_BUDGET_LINE + FLEX_BUY_PLANS_LINE + FLEX_BUY_HOUSE_LINE, /apr|monthly payment|frozen/i);
-    assert.match(fence, /If they ask about a credit card, say/);
+    assert.match(
+      fence,
+      /If they ask about a credit card, say: “We take wire, ACH, e-check, money order, cashier's check or cash/,
+    );
     assert.match(payments, /back office will send you the details/);
-    assert.match(payments, /back office will walk you through it/);
+    assert.match(payments, /If they ask specifically about a credit card/);
     assert.doesNotMatch(payments, /unless the customer asks/i);
   });
 });

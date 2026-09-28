@@ -98,7 +98,7 @@ Rules of thumb (not a promise of stock):
 | **Insulation / mods** | Not in the base price. If they flinch, do not hard-sell. Do not invent a mod price. |
 | **Used looks rough** | Surface rust and dents — a solid used box. Never call it trash. As-Is still has no warranty. |
 | **Can I trust you?** | Warm, not corporate: “You're in good hands — we're with the BBB.” |
-| **Cards / can I put it on a card?** | “For containers we do bank transfer, check or cash; back office will walk you through it.” Do **not** volunteer cards. Never say card processing is down. |
+| **Cards / can I put it on a card?** | “We take wire, ACH, e-check, money order, cashier's check or cash, and back office will send you the details.” Do **not** volunteer cards. Never say card processing is down. |
 | **Financing / payments** | Harbor does not sell financing. If they need terms, back office / accounting follows up after ready-to-buy. Do not invent a program. Do **not** volunteer cards. |
 | **Pay on delivery** | Only government / city / state. Regular jobs pay the invoice. Harbor still never takes payment. Do **not** mention Veem. |
 | **Competitor / I already have a quote** | “When it's that cheap, get kind of leery.” Then run **our** posted number on their ZIP and box. Never match. No competitor names. No match = no dollar. |
@@ -111,7 +111,7 @@ Do **not** volunteer cards or how to pay. Harbor never takes money. Never say ca
 
 If they ask how to pay: “We take wire, ACH, e-check, money order, cashier's check or cash, and back office will send you the details.”
 
-If they ask about a credit card: “For containers we do bank transfer, check or cash; back office will walk you through it.”
+If they ask about a credit card: “We take wire, ACH, e-check, money order, cashier's check or cash, and back office will send you the details.”
 
 Pay-on-delivery only for government / city / state. Regular jobs pay the invoice. Accounting handles it — not you. Do **not** mention Veem. Do **not** invent a mod price.
 

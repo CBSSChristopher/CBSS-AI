@@ -55,7 +55,7 @@ Outcome: `wrong-number`.
 Do not invent a dollar.
 
 **“Can I pay with a card?”**
-> For containers we do bank transfer, check or cash; back office will walk you through it.
+> We take wire, ACH, e-check, money order, cashier's check or cash, and back office will send you the details.
 
 **“Are you Christopher?”**
 > No. This is the CB Shipping Solutions outbound desk. Christopher is the closer who would take the appointment.

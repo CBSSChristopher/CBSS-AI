@@ -8,7 +8,7 @@ Do **not** volunteer how to pay. If they ask how to pay, say:
 
 If they ask specifically about a credit card, say:
 
-> For containers we do bank transfer, check or cash; back office will walk you through it.
+> We take wire, ACH, e-check, money order, cashier's check or cash, and back office will send you the details.
 
 Pay-on-delivery is **government / city / state only**. Regular jobs pay the invoice. No other POD.
 
