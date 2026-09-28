@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { buildReadyToBuyNote, readHarborDeal } from "../src/va/close-note.ts";
+import { buildReadyToBuyNote, readHarborDeal, renderHarborReadyToBuyNotice } from "../src/va/close-note.ts";
 import { inboundCallerPhone, planInboundContact } from "../src/va/inbound.ts";
 import {
   CHRISTOPHER_PERSONAL_CELL,
@@ -18,11 +18,12 @@ import {
   pickReadyToBuyLine,
   voicemailScript,
 } from "../src/va/scripts.ts";
-import { isExplicitHarborTestLead } from "../src/va/workflow.ts";
 import {
   harborFollowupRow,
   harborOutcomeEdits,
   harborOutcomePlan,
+  isExplicitHarborTestLead,
+  isHarborNotifyTestRecord,
   resolveCloser,
   resolveHarborFollowUpAt,
 } from "../src/va/workflow.ts";
@@ -95,20 +96,67 @@ describe("ready-to-buy closer note + handoff", () => {
     assert.equal(buy.hardNo, false);
     assert.equal(buy.followUp, false);
     assert.match(buy.spoken, /back office who handle accounting/);
-    assert.match(buy.note, /Quoted: 40HC WWT delivered Jonesboro/);
-    assert.match(buy.note, /Size \/ type \/ condition: 40HC \/ standard \/ WWT/);
-    assert.match(buy.note, /Delivery \/ pickup: Delivery — Jonesboro, AR/);
-    assert.match(buy.note, /Objections cleared: Timing next week is fine/);
-    assert.match(buy.note, /Soft promises: Hold color until Friday/);
-    assert.match(buy.note, /Exact price: 3450/);
-    assert.match(buy.note, /does not collect payment/);
-    assert.match(buy.note, /wire \/ ACH/);
-    assert.match(buy.note, /Loved the jobsite story/);
+    assert.match(buy.note, /40ft high cube, wind and water tight/);
+    assert.match(buy.note, /Delivery — Jonesboro, AR/);
+    assert.match(buy.note, /\$3,450/);
+    assert.match(buy.note, /Notes: Timing next week is fine\. Hold color until Friday/);
+    assert.match(buy.note, /Harbor told them: back office will send next steps\./);
+    assert.match(buy.note, /cashier's check or cash only/);
+    assert.match(buy.note, /Your move: send invoice/);
+    assert.doesNotMatch(buy.note, /CTE|Closer of record|Cards frozen|do not invent|no posted match|not stated|Loved the jobsite/);
     assert.equal(resolveCloser("Bryan Reese"), "Bryan Reese");
-    const missing = buildReadyToBuyNote({ cte: "CTE1", closer: "Christopher Banks" });
-    assert.match(missing, /Quoted: not stated/);
-    assert.match(missing, /Cards frozen — wire \/ ACH/);
+    const missing = buildReadyToBuyNote({ contact: { name: "Sam Ortiz" } });
+    assert.match(missing, /Ready to buy: Sam Ortiz/);
+    assert.match(missing, /Your move: call back/);
+    assert.doesNotMatch(missing, /not stated|Notes:/);
     assert.equal(readHarborDeal({ size: "20DC", deal: { price: "1200" } }).price, "1200");
+  });
+
+  it("renders one short note for a filled lead and a sparse lead", () => {
+    const filled = renderHarborReadyToBuyNotice({
+      name: "Jordan Hale",
+      phone: "8705550142",
+      city: "Jonesboro",
+      zip: "72401",
+      size: "40",
+      type: "HC",
+      condition: "CW",
+      use: "backyard storage",
+      delivery: "delivery",
+      timing: "next week",
+      price: 3400,
+      objections: "driveway is tight",
+      promises: "Hold the box until Friday.",
+    });
+    assert.equal(filled.subject, "Ready to buy: Jordan Hale - 40ft high cube, cargo worthy");
+    assert.equal(
+      filled.text,
+      [
+        "Ready to buy: Jordan Hale, (870) 555-0142, Jonesboro 72401",
+        "40ft high cube, cargo worthy, backyard storage, delivery next week, $3,400",
+        "Harbor told them: back office will send next steps.",
+        "Payment: wire, ACH, e-check, money order, cashier's check or cash only.",
+        "Your move: send invoice",
+        "Notes: driveway is tight. Hold the box until Friday.",
+      ].join("\n"),
+    );
+    const sparse = renderHarborReadyToBuyNotice({ name: "Sam Ortiz", price: "no posted match — do not invent", size: "not stated" });
+    assert.equal(sparse.subject, "Ready to buy: Sam Ortiz");
+    assert.equal(
+      sparse.text,
+      [
+        "Ready to buy: Sam Ortiz",
+        "Harbor told them: back office will send next steps.",
+        "Payment: wire, ACH, e-check, money order, cashier's check or cash only.",
+        "Your move: call back",
+      ].join("\n"),
+    );
+    const gate = renderHarborReadyToBuyNotice({ name: "Gate Check No Customer", test: true });
+    assert.equal(gate.subject, "[TEST - not a customer] Ready to buy: Gate Check No Customer");
+    assert.match(gate.text, /^\[TEST - not a customer\]\nReady to buy: Gate Check No Customer/);
+    assert.equal(isHarborNotifyTestRecord({ name: "Gate Check No Customer", testLead: false }), true);
+    assert.equal(isExplicitHarborTestLead({ name: "Gate Check No Customer", testLead: false }), false);
+    assert.equal(isHarborNotifyTestRecord({ name: "Pat Lee", cteStage: "CTE1" }), false);
   });
 });
 
@@ -200,7 +248,9 @@ describe("inbound Harbor answer", () => {
     assert.equal(buy.outcome, "inbound-ready-to-buy");
     assert.equal(buy.owner, "Christopher Banks");
     assert.equal(buy.status, "Ready to buy");
-    assert.match(buy.note, /Harbor inbound/);
+    assert.match(buy.note, /Ready to buy: Pat Lee/);
+    assert.match(buy.note, /Your move: call back/);
+    assert.doesNotMatch(buy.note, /Harbor inbound|CTE|Closer of record/);
     const soft = harborOutcomePlan(card, "inbound-answered");
     assert.equal(soft.owner, "Harbor");
     assert.equal(soft.status, "Working");
