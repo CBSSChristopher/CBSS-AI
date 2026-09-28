@@ -47,6 +47,20 @@ describe("Modified container catalog", () => {
     assert.match(prompt, /permits and zoning/);
     assert.match(prompt, /Do not promise the box meets any code/);
     assert.match(prompt, /harbor_build_lead/);
+    assert.match(prompt, /Most modification work is done in-house/);
+    assert.match(prompt, /hunting cabins/);
+    assert.match(prompt, /outdoor kitchens/);
+    assert.match(prompt, /large assembly buildings/);
+    assert.match(prompt, /specialty units/);
+    assert.match(prompt, /six-point project brief/);
+    assert.match(prompt, /base grade/);
+    assert.match(prompt, /dream sketch/);
+    assert.match(prompt, /Financing options exist for modified units and custom container houses/);
+    assert.match(prompt, /Do not state a term, a rate, a down payment, or a monthly number/);
+    assert.match(prompt, /Do not describe a rendering, a design board, or a picture as a finished build/);
+    assert.doesNotMatch(prompt, /not in this prompt yet/);
+    const buildTeam = prompt.slice(prompt.indexOf("BUILD TEAM"), prompt.indexOf("SITE PREP AND PAINT"));
+    assert.doesNotMatch(buildTeam, /\$\d/);
     assert.match(prompt, /SITE PREP AND PAINT/);
     assert.match(prompt, /doors open and close square/);
     assert.match(prompt, /10 ft of width, 13 ft of vertical clearance, and 130 ft of stretch/);
@@ -54,8 +68,14 @@ describe("Modified container catalog", () => {
     assert.match(prompt, /direct-to-metal or industrial metal paint/);
     assert.doesNotMatch(prompt, /harbor_needs_human with the build details/);
     const buildKb = readFileSync(new URL("../../docs/harbor-kb/17-build-team.md", import.meta.url), "utf8");
-    assert.match(buildKb, /DRIVE BUILD DETAILS: empty on purpose/);
+    assert.match(buildKb, /Six-point project brief/);
+    assert.match(buildKb, /Most of the modification work is done in-house/);
+    assert.match(buildKb, /no roster or routing entry/);
     assert.match(buildKb, /Site prep and paint/);
+    assert.doesNotMatch(buildKb, /empty on purpose/);
+    assert.doesNotMatch(buildKb, /\$\d/);
+    assert.doesNotMatch(buildKb, /Allen King|Shawn Chupik|David Hopper|Tucker-Hunt|Gladstone|Promolont/);
+    assert.doesNotMatch(prompt, /\b(Christopher|Bryan|Brian)\b/);
   });
 
   it("does not invent a modification price", () => {

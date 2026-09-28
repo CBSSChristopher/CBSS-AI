@@ -214,6 +214,9 @@ export type NeedsHumanNoticeInput = {
   test?: boolean;
 };
 
+/** Design lead has no roster email. The note names her. Do not invent an address. */
+export const BUILD_LEAD_DESIGN_NOTE = "Design lead: Kristin — no routing entry on file.";
+
 export type BuildLeadNoticeInput = {
   name?: unknown;
   phone?: unknown;
@@ -222,8 +225,13 @@ export type BuildLeadNoticeInput = {
   place?: unknown;
   project?: unknown;
   size?: unknown;
+  quantity?: unknown;
+  baseGrade?: unknown;
   location?: unknown;
+  access?: unknown;
   timeline?: unknown;
+  budget?: unknown;
+  drawings?: unknown;
   mustHaves?: unknown;
   callbackPhone?: unknown;
   callbackTime?: unknown;
@@ -240,14 +248,23 @@ export function renderHarborBuildLeadNotice(input: BuildLeadNoticeInput): ReadyT
   if (input.test) subject = "[TEST - not a customer] " + subject;
   const headBits = [name, plainPhone(input.phone), cityZip(input.city, input.zip, input.place)].filter(Boolean);
   const picture = [project, blank(input.size), blank(input.location), blank(input.timeline), blank(input.mustHaves)].filter(Boolean).join(", ");
+  const brief = [
+    blank(input.quantity) ? "Quantity: " + blank(input.quantity) : "",
+    blank(input.baseGrade) ? "Base grade: " + blank(input.baseGrade) : "",
+    blank(input.access) ? "Access: " + blank(input.access) : "",
+    blank(input.budget) ? "Budget: " + blank(input.budget) : "",
+    blank(input.drawings) ? "Drawings: " + blank(input.drawings) : "",
+  ].filter(Boolean);
   const callbackPhone = plainPhone(input.callbackPhone) || blank(input.callbackPhone);
   const callbackTime = blank(input.callbackTime);
   const callbackBits = [callbackPhone, callbackTime].filter(Boolean);
   const lines = [
     headBits.length ? "Build lead: " + headBits.join(", ") : "Build lead",
     picture,
+    ...brief,
     callbackBits.length ? "Callback: " + callbackBits.join(", ") : "",
     "Harbor told them: the build team does custom work and will call back.",
+    BUILD_LEAD_DESIGN_NOTE,
     "Your move: call back",
     notesLine(input.objections, input.promises),
   ].filter(Boolean);

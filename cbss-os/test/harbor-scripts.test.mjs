@@ -10,6 +10,7 @@ import {
   HARBOR_QUOTE_REQUEST_OPENER,
   HARBOR_SIGNOFFS,
   BUILD_TEAM_LINE,
+  FINANCING_OPTIONS_LINE,
   NEEDS_HUMAN_VARIANTS,
   PAYMENT_CARD_ASK,
   PAYMENT_HOW_TO_PAY,
@@ -91,6 +92,7 @@ describe("payment speech", () => {
       PAYMENT_PATH_LINE,
       ...NEEDS_HUMAN_VARIANTS.map((row) => row.spoken),
       BUILD_TEAM_LINE,
+      FINANCING_OPTIONS_LINE,
       hardNoSpoken(),
       softDelaySpoken("Friday"),
       voicemailScript({ name: "Sam", container: "40ft", harborDid: "(870) 380-4010" }),
@@ -110,6 +112,10 @@ describe("payment speech", () => {
       "We take wire, ACH, e-check, money order, cashier's check or cash, and back office will send you the details.",
     );
     assert.equal(PAYMENT_CARD_ASK, "For containers we do bank transfer, check or cash; back office will walk you through it.");
+    assert.equal(
+      FINANCING_OPTIONS_LINE,
+      "Financing options exist for modified units and custom container houses. The team will go over them with you.",
+    );
     assert.match(fence, /If they ask about a credit card, say/);
     assert.match(payments, /back office will send you the details/);
     assert.match(payments, /back office will walk you through it/);

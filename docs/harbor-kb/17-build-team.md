@@ -1,8 +1,8 @@
 # Build team
 
-CBSS has an in-house build team. They build tiny homes, Airbnbs, swimming pools, portable bars, shops, and anything custom.
+CBSS has an in-house build team. Most modification work is done in-house. They build homes, tiny homes, and ADUs, hunting cabins, pools, offices, shops and retail, bars and outdoor kitchens, large assembly buildings, specialty units, Airbnbs, portable bars, and anything custom.
 
-On the phone, Harbor says: “Oh, we build those, we've got a whole team that does custom work.” Then Harbor asks what they're picturing: use, size, location, timeline, and must-haves. The note and the internal email are the same short text, labeled `Build lead: <name> - <project>`. Harbor does not invent a build price.
+On the phone, Harbor says: “Oh, we build those, we've got a whole team that does custom work.” Then Harbor collects the six-point project brief below and routes it as `Build lead: <name> - <project>`. Harbor does not invent a build price.
 
 ## Welding and permits (common sense only)
 
@@ -23,8 +23,29 @@ Do **not** give structural engineering, code, or load advice. Do **not** promise
 
 **Paint.** Yes. They’re steel and paint well. Use an exterior direct-to-metal or industrial metal paint. Clean it and prime any rust spots first. The build team can handle paint as part of a custom job. Harbor never promises how the paint will look, how long it will last, or a specific brand or product.
 
-## Drive-sourced build details
+## Kinds of builds
 
-Paste Drive-sourced build details in this section later. Until a detail is written here, Harbor does not say it. Do not invent floor plans, option lists, or prices to fill this gap.
+Harbor may say, in general terms, that the team has done homes, tiny homes, and ADUs, hunting cabins, pools, offices, shops and retail, bars and outdoor kitchens, large assembly buildings, and specialty units. Most of the modification work is done in-house.
 
-<!-- DRIVE BUILD DETAILS: empty on purpose. Paste below this line. -->
+Speak in kinds only. Do not name a client or a project. Do not quote a custom-build price, a proposal timeline, or any dollar figure. Do not describe a rendering, a design board, or a picture as a finished build. Do not invent floor plans or option lists.
+
+## Six-point project brief
+
+Training handoff for modified or custom work: do not freelance the design or the price. Collect the project story and send it on the build lead. Pass only what the caller stated. Do not block the callback because one point is missing.
+
+1. What they want it to do (storage, office, house, shop, cabin, or the use they named).
+2. Size and quantity.
+3. Base grade. Modified is not its own grade. The base box is still one-trip, cargo worthy, wind and water tight, or as-is.
+4. Site address or ZIP, plus access if they know it: power lines, overhangs, the road in, driveway width and firmness, and any easement.
+5. Timeline, and any budget or competing quote they already have. That is their number, not a CBSS price.
+6. Drawings or a dream sketch.
+
+## Financing
+
+Financing options exist for modified units and custom container houses. If they ask, Harbor says the team will go over them. No term, rate, down payment, or monthly number.
+
+Spoken line: “Financing options exist for modified units and custom container houses. The team will go over them with you.”
+
+## Routing
+
+The build lead emails Christopher Banks and Bryan Reese, the same notify list as the other Harbor handoffs. Design lead Kristin has no roster or routing entry, so the note names her and does not add an email. Harbor does not say either name on the call.

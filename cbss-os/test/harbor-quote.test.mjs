@@ -578,12 +578,57 @@ describe("POST /va/harbor/build-lead", () => {
         "tiny home, 40ft high cube, Jonesboro, next month, kitchen and a loft",
         "Callback: (870) 555-0142, tomorrow morning",
         "Harbor told them: the build team does custom work and will call back.",
+        "Design lead: Kristin — no routing entry on file.",
         "Your move: call back",
       ].join("\n"),
     );
     assert.deepEqual(mails[0].to, [CHRISTOPHER_MAIL, BRYAN_MAIL]);
     assert.equal(got.body.handoff_speech, "Oh, we build those, we've got a whole team that does custom work.");
     assert.doesNotMatch(mails[0].subject + "\n" + mails[0].text, /\$\d|frozen|Needs a human|Ready to buy/);
+    assert.doesNotMatch(mails[0].to.join(","), /kristin/i);
+  });
+
+  it("writes the six-point brief and still notifies only Christopher and Bryan", async () => {
+    const mails = [];
+    const got = await handleHarborBuildLead(
+      env(),
+      req("/va/harbor/build-lead", {
+        token: TOKEN,
+        body: {
+          contact_name: "Jordan Hale",
+          phone: "8705550142",
+          contactId: "c9",
+          project: "tiny home",
+          size: "40ft high cube",
+          quantity: "1",
+          base_grade: "one-trip",
+          location: "Jonesboro",
+          access: "power lines clear, gravel drive",
+          timeline: "next month",
+          budget: "they have a competing quote, no number given",
+          drawings: "dream sketch of a loft",
+          must_haves: "kitchen and a loft",
+          callback_phone: "8705550142",
+          callback_time: "tomorrow morning",
+        },
+      }),
+      {
+        getContacts: async () => [{ id: "c9", name: "Jordan Hale", phone: "8705550142", city: "Jonesboro", zip: "72401" }],
+        sendMail: async (_env, input) => {
+          mails.push(input);
+          return { ok: true, messageId: "m4" };
+        },
+      },
+    );
+    assert.equal(got.status, 200);
+    assert.match(mails[0].text, /Quantity: 1/);
+    assert.match(mails[0].text, /Base grade: one-trip/);
+    assert.match(mails[0].text, /Access: power lines clear, gravel drive/);
+    assert.match(mails[0].text, /Budget: they have a competing quote, no number given/);
+    assert.match(mails[0].text, /Drawings: dream sketch of a loft/);
+    assert.match(mails[0].text, /Design lead: Kristin — no routing entry on file/);
+    assert.deepEqual(mails[0].to, [CHRISTOPHER_MAIL, BRYAN_MAIL]);
+    assert.doesNotMatch(mails[0].text, /\$\d/);
   });
 });
 
