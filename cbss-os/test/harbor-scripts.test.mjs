@@ -9,6 +9,9 @@ import {
   HARBOR_LOOKED_IN_OPENERS,
   HARBOR_QUOTE_REQUEST_OPENER,
   HARBOR_SIGNOFFS,
+  PAYMENT_CARD_ASK,
+  PAYMENT_HOW_TO_PAY,
+  PAYMENT_PATH_LINE,
   READY_TO_BUY_VARIANTS,
   harborCallbackNumber,
   hardNoSpoken,
@@ -16,6 +19,7 @@ import {
   isChristopherPersonalCell,
   leadShowsQuoteRequest,
   pickReadyToBuyLine,
+  softDelaySpoken,
   voicemailScript,
 } from "../src/va/scripts.ts";
 import {
@@ -70,6 +74,42 @@ describe("ready-to-buy spoken variants", () => {
     assert.match(twilio, /SMS \/ Messaging off/);
     assert.match(twilio, /may differ from any preferred number unless you \*\*port\*\*/);
     assert.match(twilio, /Messaging capability/);
+  });
+});
+
+describe("payment speech", () => {
+  it("never puts frozen in a spoken line", () => {
+    const spoken = [
+      ...READY_TO_BUY_VARIANTS.map((row) => row.spoken),
+      ...HARBOR_SIGNOFFS,
+      ...HARBOR_LOOKED_IN_OPENERS,
+      HARBOR_QUOTE_REQUEST_OPENER,
+      PAYMENT_HOW_TO_PAY,
+      PAYMENT_CARD_ASK,
+      PAYMENT_PATH_LINE,
+      hardNoSpoken(),
+      softDelaySpoken("Friday"),
+      voicemailScript({ name: "Sam", container: "40ft", harborDid: "(870) 380-4010" }),
+    ];
+    const prompt = readFileSync(new URL("../../docs/harbor-kb/01-system-prompt.md", import.meta.url), "utf8");
+    const payments = readFileSync(new URL("../../docs/harbor-kb/06-payments.md", import.meta.url), "utf8");
+    const fence = prompt.split("```")[1];
+    const quoted = [];
+    for (const source of [fence, payments, persona, scripts]) {
+      for (const match of source.matchAll(/[“"]([^”"]+)[”"]/g)) quoted.push(match[1]);
+    }
+    for (const line of [...spoken, ...quoted]) {
+      assert.doesNotMatch(line, /frozen/i);
+    }
+    assert.equal(
+      PAYMENT_HOW_TO_PAY,
+      "We take wire, ACH, e-check, money order, cashier's check or cash, and back office will send you the details.",
+    );
+    assert.equal(PAYMENT_CARD_ASK, "For containers we do bank transfer, check or cash; back office will walk you through it.");
+    assert.match(fence, /If they ask about a credit card, say/);
+    assert.match(payments, /back office will send you the details/);
+    assert.match(payments, /back office will walk you through it/);
+    assert.doesNotMatch(payments, /unless the customer asks/i);
   });
 });
 

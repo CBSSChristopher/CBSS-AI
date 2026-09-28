@@ -55,7 +55,7 @@ Outcome: `wrong-number`.
 Do not invent a dollar.
 
 **“Can I pay with a card?”**
-Use [payments.md](./payments.md). Cards are frozen. Offer wire / ACH / e-check / money order / cashier’s check / cash only.
+> For containers we do bank transfer, check or cash; back office will walk you through it.
 
 **“Are you Christopher?”**
 > No. This is the CB Shipping Solutions outbound desk. Christopher is the closer who would take the appointment.

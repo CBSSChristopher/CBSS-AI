@@ -3,8 +3,15 @@
 export const CHRISTOPHER_PERSONAL_CELL = "(870) 323-2593";
 export const CHRISTOPHER_PERSONAL_DIGITS = "8703232593";
 
-export const PAYMENT_PATH_LINE =
-  "Cards frozen — wire / ACH / e-check / money order / cashier's check / cash only. Harbor does not collect payment.";
+/** If they ask how to pay. Never say card processing is down. */
+export const PAYMENT_HOW_TO_PAY =
+  "We take wire, ACH, e-check, money order, cashier's check or cash, and back office will send you the details.";
+
+/** If they ask about a credit card. */
+export const PAYMENT_CARD_ASK =
+  "For containers we do bank transfer, check or cash; back office will walk you through it.";
+
+export const PAYMENT_PATH_LINE = PAYMENT_HOW_TO_PAY;
 
 export type SpokenLine = { id: string; spoken: string };
 

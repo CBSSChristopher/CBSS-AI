@@ -52,7 +52,7 @@ Write **all** of these, even if the answer is `not stated`:
 - Objections cleared
 - Soft promises
 - Exact price **if stated** (Harbor does not invent one)
-- Payment path reminder: cards frozen — wire / ACH / e-check / money order / cashier’s check / cash
+- Payment methods if they asked: wire, ACH, e-check, money order, cashier's check, or cash
 - Spoken variant used
 - Closer name
 
