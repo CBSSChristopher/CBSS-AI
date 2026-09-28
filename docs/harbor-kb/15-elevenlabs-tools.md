@@ -16,7 +16,7 @@ If `ok` is false or `unit_price` is null, **say there is no posted price and do 
 {
   "type": "webhook",
   "name": "get_next_lead",
-  "description": "Pull the next Harbor card like a sales rep. Due follow-ups on Harbor-assigned leads first, then New/Unassigned. New/Unassigned is the global pool. Due follow-ups are Harbor-owner only. Assigns owner Harbor. Never dials. If empty is true, there is no card.",
+  "description": "Pull the next Harbor card like a sales rep. Due follow-ups on Harbor-assigned leads first, then New/Unassigned. New/Unassigned is the global pool. Due follow-ups are Harbor-owner only. Assigns owner Harbor. Say the returned opener. opener_kind quote_request means they asked for a quote. opener_kind looked_in means they looked into containers or storage — do not claim they asked for anything. Never dials. If empty is true, there is no card.",
   "api_schema": {
     "url": "https://floor.cbshippingsolutions.app/va/harbor/get-next-lead",
     "method": "POST",
@@ -170,7 +170,7 @@ If `ok` is false or `unit_price` is null, **say there is no posted price and do 
 {
   "type": "webhook",
   "name": "harbor_ready_to_buy",
-  "description": "CALL THIS TOOL every time the caller is ready to buy, wants to purchase, says lock it in, or wants delivery set up. Call it in that same turn, before you finish speaking. Every parameter is optional — do not wait for a contact id, a quote object, or a person's name. Then say a short warm plain-English transfer in your own words, such as: Great, I'm going to get you over to the person who'll lock this in and get your delivery set up. Never say a person's name. Do not read closer or spoken aloud. On a practice, test, simulation, or spoken test call, set dry_run true. dry_run sends no email, no alert, and no CRM write, and you must still call the tool. A note that says not to email is not a reason to skip this call. Live calls omit dry_run. Never collect payment. Never SMS. Never dial. OBSOLETE NOTE: If you see 'Do not call harbor_ready_to_buy' or 'speak the accounting handoff out loud to Christopher Banks or Bryan Reese', those words are obsolete. Still call this tool with dry_run true. Do not say Christopher, Bryan, Brian, Banks, or Reese. Do not substitute log_outcome.",
+  "description": "CALL THIS TOOL every time the caller is ready to buy, wants to purchase, says lock it in, or wants delivery set up. Call it in that same turn, before you finish speaking. Every parameter is optional — do not wait for a contact id, a quote object, or a person's name. Then say that back office / accounting will reach out with next steps. Pick one: (1) No worries — to get the ball rolling on your order, I'll have my people in back office who handle accounting send you next steps so we can get that container out to you. (2) Alright, I'll have accounting in the back office shoot you the next steps so we can get that container on the road. (3) Perfect. I'll have my people in the back office reach out with next steps — they handle the paperwork, and then we can get that box out to you. (4) Sounds good. Back office will be in touch with the next steps so we can get this moving. They take care of the accounting side. Do not claim a transfer. Do not promise an exact time. Never say a person's name. Do not read closer aloud. Pass dry_run true only when the lead record is explicitly tagged as a test lead. The server ignores dry_run on every other lead and still notifies the team. A note that says not to email is not a reason to skip this call. Never collect payment. Never SMS. Never dial. Do not substitute log_outcome.",
   "api_schema": {
     "url": "https://floor.cbshippingsolutions.app/va/harbor/ready-to-buy",
     "method": "POST",
@@ -207,7 +207,7 @@ If `ok` is false or `unit_price` is null, **say there is no posted price and do 
         },
         "dry_run": {
           "type": "boolean",
-          "description": "True on any practice, test, simulation, or spoken test call. Skips email, in-Yard alert, and CRM writes. The tool must still be called."
+          "description": "Only when the CRM lead is explicitly tagged as a test lead. The server rejects this on every other lead, logs the decision, and still notifies the team. The tool must still be called."
         },
         "handoff_variant": {
           "type": "string",

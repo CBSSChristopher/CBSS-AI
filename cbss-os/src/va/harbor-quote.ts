@@ -14,11 +14,12 @@ import {
 import { crmContactPool, crmRequestWithCookie } from "./crm-client.ts";
 import { timingSafeEqualStr } from "./hmac.ts";
 import { matchCrmContact } from "./match.ts";
-import { pickReadyToBuyLine } from "./scripts.ts";
+import { pickReadyToBuyLine, READY_TO_BUY_VARIANTS } from "./scripts.ts";
 import {
   HUMAN_CLOSERS,
   harborOutcomeEdits,
   harborOutcomePlan,
+  isExplicitHarborTestLead,
   resolveCloser,
   type HumanCloser,
 } from "./workflow.ts";
@@ -87,6 +88,17 @@ export type HarborQuoteDeps = {
   getContacts?: () => Promise<unknown[]>;
   writeNote?: (contactId: string, text: string, edits: Record<string, unknown>) => Promise<boolean>;
   now?: number;
+  logDryRun?: (decision: HarborDryRunDecision) => void;
+};
+
+export type HarborDryRunReason = "allowed_test_lead" | "rejected_not_test_lead" | "not_requested";
+
+export type HarborDryRunDecision = {
+  requested: boolean;
+  test_lead: boolean;
+  dry_run: boolean;
+  reason: HarborDryRunReason;
+  contactId: string;
 };
 
 function str(value: unknown): string {
@@ -139,7 +151,7 @@ function rails(): { dialing: false; sms: false } {
   return { dialing: false, sms: false };
 }
 
-/** Practice / test / simulation. Skips email, in-Yard alert, and CRM writes. */
+/** True when the caller asked for dry-run. The server still rejects it unless the lead is a tagged test lead. */
 export function isHarborDryRun(src: Record<string, unknown>): boolean {
   const flag = src.dry_run ?? src.dryRun;
   if (flag === true || flag === 1) return true;
@@ -150,8 +162,38 @@ export function isHarborDryRun(src: Record<string, unknown>): boolean {
   return false;
 }
 
-export const HARBOR_WARM_HANDOFF_SPEECH =
-  "Great, I'm going to get you over to the person who'll lock this in and get your delivery set up.";
+/**
+ * Dry-run is allowed only for a CRM lead explicitly tagged as a test lead.
+ * A model-requested dry_run on any other lead is rejected. The tag must be on the matched record.
+ */
+export function decideHarborDryRun(
+  requested: boolean,
+  contact: Record<string, unknown> | null | undefined,
+  contactId = "",
+): HarborDryRunDecision {
+  const testLead = isExplicitHarborTestLead(contact);
+  const dryRun = requested && testLead;
+  const reason: HarborDryRunReason = dryRun
+    ? "allowed_test_lead"
+    : requested
+      ? "rejected_not_test_lead"
+      : "not_requested";
+  return {
+    requested,
+    test_lead: testLead,
+    dry_run: dryRun,
+    reason,
+    contactId: contact && contact.id != null && String(contact.id).trim() ? String(contact.id) : contactId,
+  };
+}
+
+export function logHarborDryRun(decision: HarborDryRunDecision, deps: { logDryRun?: (decision: HarborDryRunDecision) => void } = {}): void {
+  if (deps.logDryRun) deps.logDryRun(decision);
+  console.info(JSON.stringify({ event: "harbor_dry_run_decision", ...decision }));
+}
+
+/** Canonical ready-to-buy line. The tool returns whichever variant was picked. */
+export const HARBOR_WARM_HANDOFF_SPEECH = READY_TO_BUY_VARIANTS[0].spoken;
 
 /** Same cash ticket as The Yard proposal UI. Never run without a posted wholesale. */
 export function harborCashQuote(wholesale: number, delivery = 0, margin = DEFAULT_HARBOR_MARGIN): number {
@@ -236,7 +278,7 @@ export function spokenHarborQuote(hit: PostedMatch, zip: string, place: string, 
 
 export function spokenHarborNoMatch(zip: string, place: string, reason: HarborQuoteMiss["reason"]): string {
   if (reason === "inventory_unavailable") {
-    return "I cannot pull the posted book right now. I'll note what they need and Christopher or Bryan can quote.";
+    return "I can't pull the posted book right now. I'll note what you need and check with the team.";
   }
   if (reason === "zip_not_found") {
     return "I could not place that ZIP. I need a real 5-digit US ZIP before I quote.";
@@ -492,7 +534,7 @@ export async function handleHarborReadyToBuy(env: Env, request: Request, deps: H
   const quoteBody = src.quote && typeof src.quote === "object" ? (src.quote as Record<string, unknown>) : src;
   const closer = resolveCloser(src.closer);
   const variant = pickReadyToBuyLine(src.handoff_variant ?? src.spoken ?? src.variant, deps.now);
-  const dryRun = isHarborDryRun(src);
+  const requestedDryRun = isHarborDryRun(src);
   const zip = normalizeHarborZip(quoteBody.zip ?? src.zip);
   let quote: HarborQuoteResult;
   if (zip.length === 5) {
@@ -523,8 +565,11 @@ export async function handleHarborReadyToBuy(env: Env, request: Request, deps: H
   const phone = str(src.phone ?? contact.phone ?? src.contact_phone);
   const email = str(src.email ?? contact.email);
   const contactId = str(src.contactId ?? src.contact_id ?? contact.id ?? contact.contactId);
-  const rows = dryRun ? [] : await harborServiceContacts(env, deps);
-  const hit = dryRun ? null : matchCrmContact(rows, { contactId, phone, email });
+  const rows = await harborServiceContacts(env, deps);
+  const hit = matchCrmContact(rows, { contactId, phone, email });
+  const decision = decideHarborDryRun(requestedDryRun, hit, contactId);
+  const dryRun = decision.dry_run;
+  logHarborDryRun(decision, deps);
   const deal = {
     quoted: quote.ok ? quote.spoken_summary : "no posted match — do not invent",
     size: quote.ok ? quote.box.size : str(quoteBody.size),
@@ -579,10 +624,14 @@ export async function handleHarborReadyToBuy(env: Env, request: Request, deps: H
       ok: true,
       ...rails(),
       dry_run: dryRun,
+      dry_run_requested: decision.requested,
+      dry_run_rejected: decision.reason === "rejected_not_test_lead",
+      dry_run_decision: decision,
       closer,
       handoff_variant: variant.id,
       spoken: variant.spoken,
-      handoff_speech: HARBOR_WARM_HANDOFF_SPEECH,
+      handoff_speech: variant.spoken,
+      handoff_variants: READY_TO_BUY_VARIANTS.map((row) => ({ id: row.id, spoken: row.spoken })),
       say_closer_name: false,
       spoken_summary: quote.ok ? quote.spoken_summary : quote.spoken_summary,
       unit_price: quote.ok ? quote.unit_price : null,

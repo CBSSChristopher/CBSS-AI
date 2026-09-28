@@ -67,6 +67,7 @@ import {
   pickHarborQueue,
 } from "./va/workflow.ts";
 import { handleHarborQuote, handleHarborReadyToBuy, harborWorkflowAuthed } from "./va/harbor-quote.ts";
+import { harborOutboundOpener } from "./va/scripts.ts";
 import { dispatchHarborCteMail } from "./va/harbor-mail.ts";
 
 const SECURITY = {
@@ -1011,6 +1012,7 @@ export default {
       }
       const hit = queued.contact;
       const id = String(hit.id || "");
+      const opener = harborOutboundOpener(hit);
       const cte = queued.source === "follow-up" ? normalizeCteStep(hit.cteStage) : "CTE1";
       const patch = harborAssignPatch(cte, queued.source);
       const edits: Record<string, Record<string, unknown>> = {};
@@ -1026,6 +1028,8 @@ export default {
         source: queued.source,
         assigned: HARBOR_OWNER,
         cteStage: cte,
+        opener: opener.spoken,
+        opener_kind: opener.kind,
         contact: { ...hit, ...patch, id },
         ...vaPublicStatus(env),
       });

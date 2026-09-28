@@ -67,16 +67,16 @@ Speak `spoken_summary`. Do not invent a second number.
 
 Body: prior `quote` (or the same ZIP + box fields) + contact (`contact_name` / `phone` / `contactId`) + optional `closer` (internal only — the caller never hears a name) + `handoff_variant` (`accounting` / `cash-drawer` / `checkbook` / `boxes`) + `dry_run`.
 
-Every field is optional. The voice agent calls this tool in the same turn the caller is ready to buy, every time, then says a short warm plain-English transfer. Example: “Great, I'm going to get you over to the person who'll lock this in and get your delivery set up.” Never name a person.
+Every field is optional. The voice agent calls this tool in the same turn the caller is ready to buy, every time, then says back office / accounting will reach out with next steps. Example: “No worries — to get the ball rolling on your order, I'll have my people in back office who handle accounting send you next steps so we can get that container out to you.” Three more variants are in the system prompt. Never claim a transfer. Never promise an exact time. Never name a person.
 
-`dry_run: true` (also accepted as `dryRun`) is the practice / test / simulation path. It returns `ok: true` and skips the CRM note, the email, and the in-Yard alert. The tool is still called. Live calls omit `dry_run`.
+`dry_run: true` (also accepted as `dryRun`) is honored only when the matched CRM lead is explicitly tagged as a test lead (`testLead`, a `test` / `test-lead` tag, or the existing fixture markers). The server logs every decision. A model-requested dry-run on any other lead is rejected: the route still returns `ok: true` and sends the email, in-Yard alert, and CRM note. The tool is still called.
 
 Harbor:
 
 1. Re-runs the same posted match when ZIP is present — if rematch fails, price on the note is **not stated** (do not keep a hallucinated dollar).
 2. On a live call, writes a CRM ready-to-buy note **if** the contact matches (phone, then email, then id). Stage / owner follow the existing Harbor handoff (Christopher or Bryan). `dry_run` skips this write.
 3. On a live call, notifies **Christopher Banks + Bryan Reese** on the existing Yard email / in-Yard alert path (`sendAgentMail` + `pushAlert`). **No SMS.** `dry_run` sends nothing.
-4. The caller hears a short warm transfer with no person's name. Cards frozen. Harbor does not collect payment.
+4. The caller hears one back-office next-steps line (`handoff_speech`) with no person's name. Cards frozen. Harbor does not collect payment. `dialing` and `sms` stay false.
 
 ## Deflection boundary (unchanged)
 

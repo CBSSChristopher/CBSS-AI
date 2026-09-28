@@ -4,7 +4,7 @@ Cards are **frozen**. Harbor **never** collects payment or card/bank details. Do
 
 Pay-on-delivery is **government / city / state only**. Regular jobs pay the invoice. No other POD.
 
-Accepted (closers only — Christopher or Bryan):
+Accepted (back office / accounting only — Harbor does not collect):
 
 - Wire  
 - ACH  
@@ -13,4 +13,4 @@ Accepted (closers only — Christopher or Bryan):
 - Cashier’s check  
 - Cash  
 
-No Visa/MC/Amex. No pay links from Harbor. Spoken line: warm handoff to accounting.
+No Visa/MC/Amex. No pay links from Harbor. Spoken line: back office / accounting will send next steps. Not a live transfer.

@@ -6,12 +6,17 @@ import { inboundCallerPhone, planInboundContact } from "../src/va/inbound.ts";
 import {
   CHRISTOPHER_PERSONAL_CELL,
   CHRISTOPHER_PERSONAL_DIGITS,
+  HARBOR_LOOKED_IN_OPENERS,
+  HARBOR_QUOTE_REQUEST_OPENER,
   READY_TO_BUY_VARIANTS,
   harborCallbackNumber,
+  harborOutboundOpener,
   isChristopherPersonalCell,
+  leadShowsQuoteRequest,
   pickReadyToBuyLine,
   voicemailScript,
 } from "../src/va/scripts.ts";
+import { isExplicitHarborTestLead } from "../src/va/workflow.ts";
 import {
   harborFollowupRow,
   harborOutcomeEdits,
@@ -27,15 +32,18 @@ const inbound = readFileSync(new URL("../docs/outbound-sales-va/inbound.md", imp
 const card = { id: "real", name: "Pat Lee", company: "Lee Farms", owner: "Harbor", status: "Working", cteStage: "CTE2" };
 
 describe("ready-to-buy spoken variants", () => {
-  it("keeps the canonical cheesy accounting line plus three alternates", () => {
-    assert.equal(READY_TO_BUY_VARIANTS.length >= 4, true);
+  it("keeps four back-office next-step lines and no live transfer", () => {
+    assert.equal(READY_TO_BUY_VARIANTS.length, 4);
     const texts = READY_TO_BUY_VARIANTS.map((row) => row.spoken);
     assert.equal(new Set(texts).size, texts.length);
-    assert.match(texts.join("\n"), /I can't take your payment/);
-    assert.match(texts.join("\n"), /I'm just in sales/);
-    assert.match(texts.join("\n"), /cash drawer/);
-    assert.match(texts.join("\n"), /excited about boxes/);
+    assert.match(texts.join("\n"), /back office who handle accounting/);
+    assert.match(texts.join("\n"), /accounting in the back office/);
+    assert.match(texts.join("\n"), /They take care of the accounting side/);
+    assert.doesNotMatch(texts.join("\n"), /transfer|get you over|walk you over|push you off|bump you|put you through/i);
+    assert.doesNotMatch(texts.join("\n"), /\b\d{1,2}:\d{2}\b|\b\d+\s*(minute|hour)s?\b|o'clock/i);
+    assert.doesNotMatch(texts.join("\n"), /Christopher|Bryan|Brian/);
     assert.equal(pickReadyToBuyLine("accounting").id, "accounting");
+    assert.equal(pickReadyToBuyLine("accounting").spoken, texts[0]);
     assert.equal(pickReadyToBuyLine(0).spoken, READY_TO_BUY_VARIANTS[0].spoken);
     assert.notEqual(pickReadyToBuyLine(0).spoken, pickReadyToBuyLine(1).spoken);
   });
@@ -84,7 +92,7 @@ describe("ready-to-buy closer note + handoff", () => {
     assert.equal(buy.handoff, true);
     assert.equal(buy.hardNo, false);
     assert.equal(buy.followUp, false);
-    assert.match(buy.spoken, /I can't take your payment/);
+    assert.match(buy.spoken, /back office who handle accounting/);
     assert.match(buy.note, /Quoted: 40HC WWT delivered Jonesboro/);
     assert.match(buy.note, /Size \/ type \/ condition: 40HC \/ standard \/ WWT/);
     assert.match(buy.note, /Delivery \/ pickup: Delivery — Jonesboro, AR/);
@@ -133,6 +141,35 @@ describe("soft delay vs hard no", () => {
     assert.equal(harborOutcomePlan(card, "not-interested").status, "Not interested");
     assert.equal(harborOutcomePlan(card, "DNC").status, "DNC");
     assert.equal(harborOutcomePlan(card, "wrong-number").status, "Email campaign");
+  });
+});
+
+describe("outbound opener follows the lead record", () => {
+  it("references a quote only when the card shows a quote request", () => {
+    const quote = harborOutboundOpener({ name: "Pat", status: "Quoted", notes: "40HC" }, 0);
+    assert.equal(quote.kind, "quote_request");
+    assert.equal(quote.spoken, HARBOR_QUOTE_REQUEST_OPENER);
+    assert.match(quote.spoken, /quote you asked us for/);
+    const asked = harborOutboundOpener({ name: "Pat", notes: "They asked for a quote on a 20ft." }, 0);
+    assert.equal(asked.kind, "quote_request");
+    assert.equal(leadShowsQuoteRequest({ form: "Get a Quote", status: "New" }), true);
+    assert.equal(leadShowsQuoteRequest({ quote_requested: "yes", status: "New" }), true);
+    const looked = harborOutboundOpener({ name: "Pat", status: "New", source: "facebook_lead_ads", campaign: "storage containers" }, 0);
+    assert.equal(looked.kind, "looked_in");
+    assert.equal(looked.spoken, HARBOR_LOOKED_IN_OPENERS[0]);
+    assert.doesNotMatch(looked.spoken, /asked|quote request|you asked/i);
+    assert.match(looked.spoken, /looking into containers for storage|looking at storage containers/);
+    const later = harborOutboundOpener({ name: "Pat", status: "New" }, 60000);
+    assert.equal(later.spoken, HARBOR_LOOKED_IN_OPENERS[1]);
+    assert.notEqual(looked.spoken, later.spoken);
+  });
+
+  it("does not treat a model flag on a real card as a test lead", () => {
+    assert.equal(isExplicitHarborTestLead({ name: "Pat Lee", phone: "8705550100", status: "Working" }), false);
+    assert.equal(isExplicitHarborTestLead({ name: "Pat Lee", tags: ["test-lead"] }), true);
+    assert.equal(isExplicitHarborTestLead({ name: "Pat Lee", testLead: true }), true);
+    assert.equal(isExplicitHarborTestLead({ name: "TEST- Dummy", source: "facebook_lead_ads" }), true);
+    assert.equal(isExplicitHarborTestLead(null), false);
   });
 });
 
