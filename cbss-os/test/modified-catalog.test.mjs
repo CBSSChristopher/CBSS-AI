@@ -53,11 +53,12 @@ describe("Modified container catalog", () => {
     assert.match(prompt, /large assembly buildings/);
     assert.match(prompt, /specialty units/);
     assert.match(prompt, /six-point project brief/);
-    assert.match(prompt, /call harbor_build_lead once in that turn/);
+    assert.match(prompt, /call harbor_build_lead once, in that turn/);
+    assert.match(prompt, /Do not call harbor_needs_human for a build/);
+    assert.match(prompt, /Do not add the words term, rate, APR, down payment, or monthly/);
     assert.match(prompt, /base grade/);
     assert.match(prompt, /dream sketch/);
     assert.match(prompt, /Financing options exist for modified units and custom container houses/);
-    assert.match(prompt, /Do not state a term, a rate, a down payment, or a monthly number/);
     assert.match(prompt, /Do not describe a rendering, a design board, or a picture as a finished build/);
     assert.doesNotMatch(prompt, /not in this prompt yet/);
     const buildTeam = prompt.slice(prompt.indexOf("BUILD TEAM"), prompt.indexOf("SITE PREP AND PAINT"));
