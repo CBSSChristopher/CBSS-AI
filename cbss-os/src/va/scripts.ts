@@ -35,6 +35,13 @@ export const READY_TO_BUY_VARIANTS: SpokenLine[] = [
   },
 ];
 
+/** Short goodbyes. Not a call-center closer. */
+export const HARBOR_SIGNOFFS = [
+  "Appreciate you. Talk soon.",
+  "Alright, I'll let you go. Catch you later.",
+  "Sounds good. I'll be around if you need me.",
+] as const;
+
 /** Outbound open when the lead record shows they asked for a quote. */
 export const HARBOR_QUOTE_REQUEST_OPENER =
   "Hey, this is Harbor from over here at CB Shipping Solutions — I was reaching out about that shipping container quote you asked us for.";
@@ -179,5 +186,5 @@ export function softDelaySpoken(when = "the next business day"): string {
 }
 
 export function hardNoSpoken(): string {
-  return "Understood. I won't keep calling. Thanks for the time.";
+  return "Understood. I won't keep calling.";
 }
