@@ -136,6 +136,44 @@ export function isFixtureContact(contact: Record<string, unknown> | null | undef
   return contact.__fixture === true || contact.fixture === true;
 }
 
+const EXPLICIT_TEST_TAG = /^(test|test[-_ ]?lead|fixture|demo)$/i;
+
+function explicitTagList(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map((item) => String(item || "").trim()).filter(Boolean);
+  if (typeof value === "string") return value.split(/[,|]/).map((item) => item.trim()).filter(Boolean);
+  return [];
+}
+
+function explicitTestFlag(value: unknown): boolean {
+  if (value === true || value === 1) return true;
+  if (typeof value === "string") return /^(true|1|yes|test|test-lead)$/i.test(value.trim());
+  return false;
+}
+
+/**
+ * Server-side test-lead gate. A model argument is not a tag.
+ * Explicit flags, a test/test-lead tag, or the existing fixture markers count.
+ */
+export function isExplicitHarborTestLead(contact: Record<string, unknown> | null | undefined): boolean {
+  if (!contact) return false;
+  if (
+    explicitTestFlag(contact.testLead) ||
+    explicitTestFlag(contact.test_lead) ||
+    explicitTestFlag(contact.isTestLead) ||
+    explicitTestFlag(contact.is_test_lead)
+  ) {
+    return true;
+  }
+  const tags = [
+    ...explicitTagList(contact.tags),
+    ...explicitTagList(contact.tag),
+    ...explicitTagList(contact.labels),
+    ...explicitTagList(contact.label),
+  ];
+  if (tags.some((tag) => EXPLICIT_TEST_TAG.test(tag))) return true;
+  return isFixtureContact(contact);
+}
+
 export function isCallableHarborLead(contact: Record<string, unknown> | null | undefined): boolean {
   if (!contact) return false;
   if (isFixtureContact(contact)) return false;

@@ -314,18 +314,21 @@ describe("POST /va/harbor/ready-to-buy", () => {
     assert.equal(mails.length, 1);
     assert.deepEqual(mails[0].to, [CHRISTOPHER_MAIL, BRYAN_MAIL]);
     assert.equal(got.body.dry_run, false);
+    assert.equal(got.body.dry_run_decision.reason, "not_requested");
     assert.equal(got.body.say_closer_name, false);
-    assert.match(got.body.handoff_speech, /person who'll lock this in/);
-    assert.doesNotMatch(got.body.handoff_speech, /Christopher|Bryan/);
+    assert.match(got.body.handoff_speech, /back office who handle accounting/);
+    assert.equal(got.body.handoff_variants.length, 4);
+    assert.doesNotMatch(got.body.handoff_speech, /Christopher|Bryan|transfer|get you over/);
     assert.doesNotMatch(JSON.stringify(got.body), /twilio|sms sent|texted/i);
     const notify = planHarborReadyToBuyNotify("Bryan Reese");
     assert.deepEqual(notify.to, [CHRISTOPHER_MAIL, BRYAN_MAIL]);
   });
 
-  it("dry_run records the handoff and does not email, alert, or write the CRM", async () => {
+  it("rejects model dry_run on a real lead, logs it, and still notifies", async () => {
     let mailed = 0;
     let notes = 0;
     let contacts = 0;
+    const logs = [];
     const got = await handleHarborReadyToBuy(
       env(),
       req("/va/harbor/ready-to-buy", {
@@ -338,6 +341,8 @@ describe("POST /va/harbor/ready-to-buy", () => {
           contact_name: "Pat Lee",
           phone: "8705550100",
           dry_run: true,
+          testLead: true,
+          contact: { id: "c1", testLead: true, tags: ["test-lead"] },
         },
       }),
       {
@@ -355,22 +360,88 @@ describe("POST /va/harbor/ready-to-buy", () => {
           mailed += 1;
           return { ok: true, messageId: "m1", threadId: "t1" };
         },
+        logDryRun: (decision) => logs.push(decision),
+      },
+    );
+    assert.equal(got.status, 200);
+    assert.equal(got.body.ok, true);
+    assert.equal(got.body.dry_run, false);
+    assert.equal(got.body.dry_run_requested, true);
+    assert.equal(got.body.dry_run_rejected, true);
+    assert.equal(got.body.dry_run_decision.reason, "rejected_not_test_lead");
+    assert.equal(got.body.dry_run_decision.test_lead, false);
+    assert.equal(got.body.noteWritten, true);
+    assert.equal(got.body.mail.skipped, undefined);
+    assert.equal(got.body.dialing, false);
+    assert.equal(got.body.sms, false);
+    assert.equal(mailed, 1);
+    assert.equal(notes, 1);
+    assert.equal(contacts, 1);
+    assert.equal(logs.length, 1);
+    assert.equal(logs[0].reason, "rejected_not_test_lead");
+    assert.equal(logs[0].contactId, "c1");
+    const lines = got.body.handoff_variants.map((row) => row.spoken);
+    assert.ok(lines.includes(got.body.handoff_speech));
+    assert.doesNotMatch(lines.join("\n"), /transfer|get you over|walk you over|push you off/i);
+    assert.doesNotMatch(got.body.handoff_speech, /Christopher|Bryan/);
+  });
+
+  it("allows dry_run only for an explicitly tagged test lead and logs the allow", async () => {
+    let mailed = 0;
+    let notes = 0;
+    const logs = [];
+    const got = await handleHarborReadyToBuy(
+      env(),
+      req("/va/harbor/ready-to-buy", {
+        token: TOKEN,
+        body: {
+          zip: "72201",
+          size: "40",
+          height: "HC",
+          grade: "WWT",
+          contact_name: "TEST- Dummy",
+          phone: "8705550199",
+          dry_run: true,
+          handoff_variant: "checkbook",
+        },
+      }),
+      {
+        lookupZip: async () => littleRock,
+        loadOffers: async () => ({ offers: posted40 }),
+        getContacts: async () => [
+          { id: "t1", name: "TEST- Dummy", phone: "8705550199", owner: "Harbor", status: "Working", tags: ["test-lead"], cteStage: "CTE1" },
+        ],
+        writeNote: async () => {
+          notes += 1;
+          return true;
+        },
+        sendMail: async () => {
+          mailed += 1;
+          return { ok: true, messageId: "m1", threadId: "t1" };
+        },
+        logDryRun: (decision) => logs.push(decision),
       },
     );
     assert.equal(got.status, 200);
     assert.equal(got.body.ok, true);
     assert.equal(got.body.dry_run, true);
+    assert.equal(got.body.dry_run_rejected, false);
+    assert.equal(got.body.dry_run_decision.reason, "allowed_test_lead");
+    assert.equal(got.body.dry_run_decision.test_lead, true);
     assert.equal(got.body.noteWritten, false);
     assert.deepEqual(got.body.notified, []);
     assert.equal(got.body.mail.skipped, true);
+    assert.equal(got.body.mail.reason, "dry_run");
+    assert.equal(got.body.contact, null);
     assert.equal(got.body.dialing, false);
     assert.equal(got.body.sms, false);
     assert.equal(mailed, 0);
     assert.equal(notes, 0);
-    assert.equal(contacts, 0);
-    assert.equal(got.body.contact, null);
-    assert.match(got.body.handoff_speech, /lock this in/);
-    assert.doesNotMatch(got.body.handoff_speech, /Christopher|Bryan/);
+    assert.equal(logs.length, 1);
+    assert.equal(logs[0].reason, "allowed_test_lead");
+    assert.equal(logs[0].dry_run, true);
+    assert.match(got.body.handoff_speech, /paperwork/);
+    assert.doesNotMatch(got.body.handoff_speech, /Christopher|Bryan|transfer|get you over|\d+\s*minutes/i);
   });
 });
 
@@ -469,15 +540,30 @@ describe("Harbor quote rails stay parked", () => {
     assert.match(kb01, /standard 8'6" vs high cube 9'6"/);
     assert.match(kb01, /Never assume/);
     assert.match(kb01, /shipping container quote you asked us for/);
+    assert.match(kb01, /looking into containers for storage/);
+    assert.match(kb01, /VOICE & COMMON SENSE/);
+    assert.match(kb01, /Don't over-explain/);
+    assert.match(kb01, /check with the team/);
     assert.match(kb01, /WARM HANDOFF, NO NAME-DROP/);
     assert.match(kb01, /harbor_ready_to_buy tool at that moment, every time/);
     assert.match(kb01, /dry_run true/);
-    assert.match(kb01, /person who'll lock this in/);
-    assert.match(kb01, /OBSOLETE NOTE/);
-    assert.match(kb15, /OBSOLETE NOTE/);
+    assert.match(kb01, /back office who handle accounting/);
+    assert.match(kb01, /explicitly tagged as a test lead/);
+    assert.doesNotMatch(kb01, /person who'll lock this in/);
+    assert.doesNotMatch(kb01, /OBSOLETE NOTE/);
+    assert.doesNotMatch(kb01.split("```")[1], /\b(Christopher|Bryan|Brian)\b/);
+    assert.match(kb15, /back office who handle accounting/);
+    assert.match(kb15, /opener_kind/);
+    assert.doesNotMatch(kb15, /OBSOLETE NOTE/);
     assert.match(kb15, /dry_run/);
+    assert.match(index, /harborOutboundOpener\(hit\)/);
+    assert.match(index, /opener_kind/);
+    assert.ok(index.indexOf("harborOutboundOpener(hit)") < index.indexOf("harborAssignPatch(cte, queued.source)"));
     assert.match(kb15, /Never assume high cube/);
     assert.match(kb16, /shipping container quote you asked us for/);
+    assert.match(kb16, /looking into containers for storage/);
+    assert.match(kb16, /back office who handle accounting/);
+    assert.doesNotMatch(kb16, /person who'll lock this in/);
     assert.match(kb16, /standard 8'6"/);
     assert.match(kb16, /high cube is 9'6"/i);
     assert.match(kb01, /Facebook form you filled out/);

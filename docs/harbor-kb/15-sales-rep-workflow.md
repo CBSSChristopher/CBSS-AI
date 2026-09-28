@@ -46,7 +46,7 @@ Auth: `X-Harbor-Token` or `Authorization: Bearer` === secret `HARBOR_QUOTE_TOKEN
 
 | Tool | Route | What it does |
 | --- | --- | --- |
-| `get_next_lead` | `GET`/`POST` `/va/harbor/next` or `/va/harbor/get-next-lead` | Due follow-ups on Harbor-assigned leads first, then New/Unassigned. New/Unassigned is global. Due follow-ups require owner Harbor (`isHarborOwner`) — other reps' Yard cards stay off this queue. Assigns Harbor. `dialing: false`. |
+| `get_next_lead` | `GET`/`POST` `/va/harbor/next` or `/va/harbor/get-next-lead` | Due follow-ups on Harbor-assigned leads first, then New/Unassigned. New/Unassigned is global. Due follow-ups require owner Harbor (`isHarborOwner`) — other reps' Yard cards stay off this queue. Assigns Harbor. Returns `opener` and `opener_kind` (`quote_request` or `looked_in`) from the card before the Working patch. `dialing: false`. |
 | `update_lead` | `POST` `/va/harbor/update-lead` or `/va/harbor/outcome` | Note-only (no `outcome`) appends a CRM note. Optional `cteStage`. |
 | `log_outcome` | `POST` `/va/harbor/log-outcome` or `/va/harbor/outcome` | `voicemail`, `no-answer`, `soft-delay`, `answered`, `not-interested`, `DNC`, `wrong-number`, `bought-elsewhere`, `ready-to-buy`. No-answer, voicemail, and soft-delay fire the **current** CTE template through the same `fireTemplate` / AgentMail path a human Yard rep uses. To = lead email. From = `AGENTMAIL_INBOX` (`cbss@agentmail.to` unless overridden). Reply-To = `harbor@cbshippingsolutions.com`. CTE template CC stays empty (AgentMail still adds the existing Christopher tracking CC). Paid / Next Steps CC is unchanged. If AgentMail is not configured, the send fails closed — no stub success. `dialing: false`. `sms: false`. |
 | `harbor_quote_by_zip` | `POST` `/va/harbor/quote` | Posted proposal match. Never invent price. |
@@ -68,7 +68,7 @@ Do this on a **Test-** tagged card or a dry book. Do **not** import the Harbor D
 8. `POST /va/harbor/log-outcome` `{ contactId, outcome: "soft-delay", reason: "call tomorrow" }` — Follow-up set, stays Harbor.
 9. Pull again: due follow-ups on Harbor-assigned leads first, then New/Unassigned. A due Follow-up owned by James, Bryan, Christopher, or any other rep is not returned. CTE is **not** reset to CTE1.
 10. `POST /va/harbor/log-outcome` `{ outcome: "not-interested" }` on a throwaway — closed, no follow-up.
-11. On a separate card: quote then `POST /va/harbor/ready-to-buy` — Christopher + Bryan notified by email/in-Yard alert. No SMS. A practice or spoken test passes `dry_run: true` on that same route: the tool still returns ok, and email, alert, and the CRM note are skipped.
+11. On a separate card: quote then `POST /va/harbor/ready-to-buy` — Christopher + Bryan notified by email/in-Yard alert. No SMS. `dry_run: true` is accepted only when that card is explicitly tagged as a test lead. The server logs the decision (`harbor_dry_run_decision`). On any other card the flag is rejected and the email, alert, and CRM note still go out. The response still returns ok. Do not place a live dial.
 12. `POST /va/dial` still 403. No Twilio console work. No phone-number import.
 
 ## Out of this pass
