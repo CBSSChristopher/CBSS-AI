@@ -35,11 +35,11 @@ Notes: Two 40 ft containers. Height and grade were not named. This quote is high
 
 ## PRICING TERMS
 
-Delivered cash price (each)     $2,675.00
+Delivered cash price (each)     $2,600.00
 Quantity 2
 Standard weekday delivery is already included.
 
-TOTAL INVESTMENT                 $5,350.00
+TOTAL INVESTMENT                 $5,200.00
 
 Man door
 

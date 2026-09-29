@@ -35,11 +35,11 @@ Notes: 20 ft used, delivered to Douglas. Assumption: standard-height cargo-worth
 
 ## PRICING TERMS
 
-Delivered cash price (each)     $4,675.00
+Delivered cash price (each)     $4,650.00
 Quantity 1
 Standard weekday delivery is already included.
 
-TOTAL INVESTMENT                 $4,675.00
+TOTAL INVESTMENT                 $4,650.00
 
 20 ft high-cube cargo-worthy
 
