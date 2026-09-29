@@ -6,11 +6,7 @@ Subject: Your 20 ft high cube one-trip price for New Braunfels, 78130
 
 Hi Cos,
 
-You asked for a 20 ft high cube one-trip for Prosorus Properties in New Braunfels, ZIP 78130.
-
-Delivered, that container is $3,625.00. Weekday delivery is included.
-
-The proposal is with this note. Reply when you want to lock the container and the delivery schedule.
+A one-trip 20 ft high cube, delivered to New Braunfels, is $3,625.00. Weekday delivery is included. It carries a 10-year structural and 10-year no-leak warranty, and the container is inspected before delivery. Reply to this email and we will lock it in.
 
 With thanks and my blessings!
 Christopher Banks

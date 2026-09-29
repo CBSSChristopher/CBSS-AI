@@ -6,11 +6,7 @@ Subject: Your 20 ft used container price for Douglas, 82633
 
 Hi Donald,
 
-I am following up on the used 20 ft you asked about for Douglas, ZIP 82633. You did not name high cube. A 20 ft high-cube cargo-worthy had no price, so that line is blank. This quote is the standard-height cargo-worthy.
-
-Delivered, that container is $4,675.00. Weekday delivery is included.
-
-Reply when you want to lock the container and the delivery schedule.
+A used 20 ft cargo-worthy container, delivered to Douglas, is $4,675.00. Weekday delivery is included. It carries a 5-year structural and 5-year no-leak warranty, and the container is inspected before delivery. Reply to this email and we will lock it in.
 
 With thanks and my blessings!
 Christopher Banks

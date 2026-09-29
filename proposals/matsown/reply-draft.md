@@ -6,11 +6,7 @@ Subject: Your 40 ft high cube price for Naples, 34119
 
 Hi,
 
-You asked for a used 40 ft high cube with no leaks, delivered to Naples, ZIP 34119. The note did not include a name, so I am writing to this email.
-
-This quote is wind and water tight. Delivered, that container is $2,675.00. Weekday delivery is included.
-
-Reply when you want to lock the container and the delivery schedule.
+A used 40 ft high cube, wind and water tight, delivered to Naples, is $2,675.00. Weekday delivery is included. It carries a 5-year structural and 5-year no-leak warranty, and the container is inspected before delivery. Reply to this email and we will lock it in.
 
 With thanks and my blessings!
 Christopher Banks

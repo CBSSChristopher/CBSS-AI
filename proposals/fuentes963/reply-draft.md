@@ -6,13 +6,7 @@ Subject: Used and new 40 ft prices for Marsing, 83639
 
 Hi,
 
-You asked if we deliver to Idaho, and you asked whether a 40 ft to ZIP 83639 would be new or used. The note did not include a full name, so I am writing to this email. Height was not named, so both prices are high cube.
-
-Used, a 40 ft high cube cargo-worthy, delivered to Marsing, is $5,150.00.
-
-New means one-trip. A 40 ft high cube one-trip, delivered, is $6,350.00.
-
-Weekday delivery is included in each number. Reply and tell me whether you want the used one or the new one.
+A used 40 ft high cube cargo-worthy container, delivered to Marsing, is $5,150.00. A new one-trip 40 ft high cube, delivered, is $6,350.00. Weekday delivery is included in each price. The used one carries a 5-year structural and 5-year no-leak warranty. The one-trip carries a 10-year structural and 10-year no-leak warranty. Each container is inspected before delivery. Reply and tell me whether you want the used one or the new one, and we will lock it in.
 
 With thanks and my blessings!
 Christopher Banks

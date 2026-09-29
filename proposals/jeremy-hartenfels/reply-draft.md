@@ -6,13 +6,7 @@ Subject: Your two 40 ft container prices for Port Jervis, 12771
 
 Hi Jeremy,
 
-You asked for two 40 ft containers in Port Jervis, ZIP 12771, with or without a man door. You did not name the height, so this quote is high-cube cargo-worthy.
-
-The quote tool's delivered price is $2,675.00 each. For two, the proposal total is $5,350.00. Weekday delivery is included in that each price.
-
-A man door is build-team work. The quote tool does not price it, so that line is blank.
-
-Reply and tell me if these two boxes are the ones you want.
+Two 40 ft high cube cargo-worthy containers, delivered to Port Jervis, are $2,675.00 each, $5,350.00 for both. Weekday delivery is included. Each one carries a 5-year structural and 5-year no-leak warranty, and each container is inspected before delivery. A man door is not included in this price. Reply to this email and we will lock them in.
 
 With thanks and my blessings!
 Christopher Banks

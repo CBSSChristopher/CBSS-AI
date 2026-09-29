@@ -6,11 +6,7 @@ Subject: Your 40 ft high cube price for Smyrna, 29743
 
 Hi Shirley,
 
-You asked for a 40 ft high cube for home storage in Smyrna, ZIP 29743. You did not name a grade, so this quote is cargo-worthy.
-
-Delivered, that container is $3,525.00. Weekday delivery is included.
-
-Reply when you are ready and we will lock the container and the delivery schedule.
+A 40 ft high cube cargo-worthy container, delivered to Smyrna, is $3,525.00. Weekday delivery is included. It carries a 5-year structural and 5-year no-leak warranty, and the container is inspected before delivery. Reply to this email and we will lock it in.
 
 With thanks and my blessings!
 Christopher Banks

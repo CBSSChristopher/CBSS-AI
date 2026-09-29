@@ -6,13 +6,7 @@ Subject: Your four 20 ft container prices for Sparta, 38583
 
 Hi Ron,
 
-You asked for four 20 ft containers on a gravel pad in Sparta, ZIP 38583. You did not name high cube. The quote tool has no price for a 20 ft high-cube cargo-worthy, so that line is blank. This quote is the standard-height cargo-worthy.
-
-The quote tool's delivered price is $2,700.00 each. For four, the proposal total is $10,800.00. Weekday delivery is included in that each price.
-
-The gravel pad is your site work. The quote tool does not price it, so that line is blank.
-
-Reply when you want these four locked in.
+Four 20 ft cargo-worthy containers, delivered to Sparta, are $2,700.00 each, $10,800.00 for all four. Weekday delivery is included. Each one carries a 5-year structural and 5-year no-leak warranty, and each container is inspected before delivery. The gravel pad is yours to prepare, and it is not in this price. Reply to this email and we will lock them in.
 
 With thanks and my blessings!
 Christopher Banks

@@ -6,18 +6,7 @@ Subject: 20 ft container prices for Huntington, 75949
 
 Hi,
 
-You asked for a 20 ft side-opening container delivered to Huntington, ZIP 75949. The note did not include a name, so I am writing to this email.
-
-A standard-height 20 ft cargo-worthy, delivered, is $2,300.00. A high-cube cargo-worthy 20 had no price, so that line is blank. A side opening cut onto that box is build-team work. The quote tool does not price that modification.
-
-Used side-opening 20s had no match. The quote tool did price side-opening containers as their own one-trip boxes. Side door OS 2D and full open side are different boxes.
-
-20 ft standard-height one-trip side door OS 2D, delivered, is $4,200.00.
-20 ft high-cube one-trip side door OS 2D, delivered, is $4,675.00.
-20 ft standard-height one-trip full open side, delivered, is $5,100.00.
-20 ft high-cube one-trip full open side, delivered, is $7,200.00.
-
-Weekday delivery is included in each number. Reply and tell me which box you want.
+A 20 ft cargo-worthy container, delivered to Huntington, is $2,300.00. A one-trip 20 ft with two side doors, delivered, is $4,200.00. A one-trip 20 ft high cube with two side doors, delivered, is $4,675.00. A one-trip 20 ft full open side, delivered, is $5,100.00. A one-trip 20 ft high cube full open side, delivered, is $7,200.00. Weekday delivery is included in each price. The cargo-worthy box carries a 5-year structural and 5-year no-leak warranty. The one-trip boxes carry a 10-year structural and 10-year no-leak warranty. Each container is inspected before delivery. A side opening cut into the $2,300.00 box, and a used side-opening 20, are not included in these prices. Reply and tell me which box you want, and we will lock it in.
 
 With thanks and my blessings!
 Christopher Banks

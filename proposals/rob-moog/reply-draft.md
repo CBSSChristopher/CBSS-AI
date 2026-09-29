@@ -6,15 +6,7 @@ Subject: Your one-trip 40 ft high cube prices for Shepherd, 59079
 
 Hi Rob,
 
-You asked for a one-trip 40 ft high cube with side doors, two to four separate door sets, for Shepherd, ZIP 59079. I am writing by email, as you asked.
-
-The one-trip 40 ft high cube, delivered, is $7,000.00.
-
-The quote tool also priced a one-trip 40 ft high cube with side door OS 4D, which is four side-door sets, as its own box. Delivered, that one is $11,725.00.
-
-A one-trip 40 ft high cube with side door OS 2D had no match, so that dollar line is blank. Cutting side doors onto the standard box is build-team work. The quote tool does not price that modification, so the proposal has no modification price.
-
-Weekday delivery is included in the two prices above. Reply to this email and tell me which box you want.
+A one-trip 40 ft high cube, delivered to Shepherd, is $7,000.00. A one-trip 40 ft high cube with four side-door sets, delivered, is $11,725.00. Weekday delivery is included in each price. Each one carries a 10-year structural and 10-year no-leak warranty, and each container is inspected before delivery. A two-door side container, and extra doors cut into the $7,000.00 high cube, are not included in these prices. Reply to this email and tell me which one you want, and we will lock it in.
 
 With thanks and my blessings!
 Christopher Banks
