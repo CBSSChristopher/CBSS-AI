@@ -1,14 +1,16 @@
-# Payment language (cards frozen)
+# Payment language
 
-CBSS cards are **frozen**. The outbound VA must never promise card checkout, a card link, or that “we can run it today.”
+Harbor never collects payment and never promises a card checkout, a card link, or that a card can be run on this call. Never say card processing is broken, down, or unavailable.
 
 ## Say this
 
-> We take wire, ACH, e-check, money order, cashier’s check, or cash. We are not running cards right now.
+If they ask how to pay:
 
-If they push:
+> We take wire, ACH, e-check, money order, cashier's check or cash, and back office will send you the details.
 
-> I cannot take a card on this line, and I cannot send a card link. The closer will walk through wire or ACH on the appointment.
+If they ask about a credit card:
+
+> We take wire, ACH, e-check, money order, cashier's check or cash, and back office will send you the details.
 
 ## Forbidden claims
 
@@ -20,7 +22,7 @@ Do not say any of these:
 - “Pay on the website with your card.”
 - “Invoice has a card button.”
 - “Tap to pay” / “Square” / “Stripe checkout.”
-- Any promise that Veem, Pay, or a frozen card rail will process this order.
+- Any promise that Veem or Pay will process this order.
 
 Veem stays parked. Do not mention it.
 

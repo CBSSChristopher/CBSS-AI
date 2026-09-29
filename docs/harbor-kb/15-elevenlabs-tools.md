@@ -107,7 +107,7 @@ If `ok` is false or `unit_price` is null, **say there is no posted price and do 
 {
   "type": "webhook",
   "name": "harbor_quote_by_zip",
-  "description": "Get a posted CBSS quote from a US ZIP and box needs (size, height, config, grade, qty, delivery or pickup). Do not call until the caller has confirmed size and height. Height is HC (high cube 9'6\") or DC (standard 8'6\"). If they have not said height, ask one short question and do not call. Never assume high cube. While this runs, say the zip wait line. After a hit, speak one price from spoken_summary (patient + size + that grade + that grade’s warranty + fulfillment + dollar), then stop. One price at a time. No second quote, upsell, or other size or grade in that turn. CW and WWT are 5/5. IICL / multi-trip is one grade at 10/10. One-Trip is 10/10 + manufacturer. As-Is has no warranty. Do not upgrade cargo worthy to WWT. Do not say you didn’t make it up or mention the proposal tool or cards. If ok is false or reason is no_match, say you don’t have a posted number — do not invent a dollar. Never collect payment. This is not a dial.",
+  "description": "Get a posted CBSS quote from a US ZIP and box needs (size, height, config, grade, qty, delivery or pickup). Do not call until the caller has confirmed size, height, AND a 5-digit ZIP they actually said. Height is HC (high cube 9'6\") or DC (standard 8'6\"). If they have not said height, ask one short question and do not call. Never assume high cube. If they have not given a ZIP, ask What's the ZIP code for delivery? and do not call. Never say thanks for the zip unless they just gave one. Do not invent a ZIP. While this runs after a real ZIP, say the zip wait line. After a hit, speak one price from spoken_summary (patient + size + that grade + that grade’s warranty + fulfillment + dollar), then stop. One price at a time. No second quote, upsell, or other size or grade in that turn. CW and WWT are 5/5. IICL / multi-trip is one grade at 10/10. One-Trip is 10/10 + manufacturer. As-Is has no warranty. Do not upgrade cargo worthy to WWT. Do not say you didn’t make it up or mention the proposal tool or cards. If ok is false or reason is no_match, say you don’t have a posted number — do not invent a dollar. Never collect payment. This is not a dial.",
   "api_schema": {
     "url": "https://floor.cbshippingsolutions.app/va/harbor/quote",
     "method": "POST",
@@ -215,7 +215,91 @@ If `ok` is false or `unit_price` is null, **say there is no posted price and do 
         },
         "objections": { "type": "string" },
         "promises": { "type": "string" },
-        "note": { "type": "string" }
+        "note": { "type": "string" },
+        "flex_buy": { "type": "string", "description": "yes when they want Flex Buy. Omit when they did not. Flex Buy is not a card." },
+        "flex_buy_term": { "type": "string", "description": "Term they named: 6, 12, 24, 48, or 72 months, or up to 50 years. Omit if they did not name one. Do not pass an APR, a monthly payment, or a credit requirement." }
+      }
+    }
+  }
+}
+```
+
+## `harbor_needs_human`
+
+```json
+{
+  "type": "webhook",
+  "name": "harbor_needs_human",
+  "description": "CALL THIS TOOL when you cannot understand the caller after one clarifying ask, they are upset, they ask for a human, or they ask something outside containers and pricing that you cannot answer. Do not use this tool for a tiny home, Airbnb, pool, bar, shop, or other custom build. That is harbor_build_lead. Do not guess. Do not loop. Say one callback line first: (1) Let me have someone from the team give you a call back on that so you get the right answer. (2) I don't want to guess on that. I'll have someone from the team call you back. (3) That's one for the team. I'll have them call you back so you get the right answer. Then ask only: Is this number the best one to reach you on? Never say what's the best number. If they say yes, pass the number already on the lead. If they say no, ask what number they should call instead, on the next turn. Do not ask for a time in the same turn. Call this tool with what they asked and whatever callback detail they gave. If they will not give a time, still call it with the number you have. Do not invent an answer or a time. Never name a person. Do not claim a transfer. Pass dry_run true only when the lead record is explicitly tagged as a test lead. The server ignores dry_run on every other lead and still notifies the team. Never SMS. Never dial. Never explain the tool, flags, or notifications out loud.",
+  "api_schema": {
+    "url": "https://floor.cbshippingsolutions.app/va/harbor/needs-human",
+    "method": "POST",
+    "request_headers": {
+      "Content-Type": "application/json",
+      "X-Harbor-Token": {
+        "type": "secret",
+        "description": "HARBOR_QUOTE_TOKEN on cbssos"
+      }
+    },
+    "request_body_schema": {
+      "type": "object",
+      "properties": {
+        "contact_name": { "type": "string" },
+        "phone": { "type": "string" },
+        "contactId": { "type": "string" },
+        "asked": { "type": "string", "description": "What they asked, in their words. Do not invent details." },
+        "callback_phone": { "type": "string", "description": "Best callback number they confirmed." },
+        "callback_time": { "type": "string", "description": "Time they asked for. Omit if they did not give one." },
+        "handoff_variant": { "type": "string", "description": "right-answer, no-guess, or team-call" },
+        "dry_run": {
+          "type": "boolean",
+          "description": "Only when the CRM lead is explicitly tagged as a test lead. The server rejects this on every other lead, logs the decision, and still notifies the team. The tool must still be called."
+        }
+      }
+    }
+  }
+}
+```
+
+## `harbor_build_lead`
+
+```json
+{
+  "type": "webhook",
+  "name": "harbor_build_lead",
+  "description": "CALL THIS TOOL when they want a home, tiny home, ADU, hunting cabin, pool, office, shop, retail space, bar, outdoor kitchen, large assembly building, specialty unit, Airbnb, portable bar, paint as a custom job, or anything else the in-house build team makes. Most modification work is done in-house. First say: Oh, we build those, we've got a whole team that does custom work. Do not use this tool for a plain container buyer. The six-point project brief is only for a custom or modified project, spread one question per turn: what they want it to do, size and quantity, base grade, site address or ZIP plus access, timeline and any budget they already named, and drawings or a sketch. If some items are missing, say the design team will fill in the rest on a follow-up and pass only what they stated. When the brief is as complete as they will make it, ask only: Is this number the best one to reach you on? Never say what's the best number. If they say yes, pass the number already on the lead. If they say no, ask for the other number on the next turn. Call this tool once in a later turn, after they answer that question, with the brief and the callback detail they gave. Do not call it on the first answer, and do not call it again after the brief is sent. Do not put the project timeline in callback_time. Do not invent a callback number. Do not also call harbor_needs_human. Pass only details they stated. Do not invent a build price, timeline, or dollar figure. Do not name a client or a project. Do not describe a rendering as a finished build. If they ask about financing a modified unit or a custom container house, use Flex Buy: 6, 12, 24, 48, or 72-month plans, houses up to 50 years, standard units start at 10% down plus delivery. Back office runs the numbers. Do not pass or say an APR or a monthly payment. Do not give structural, code, or load advice. Do not promise the box meets any code. Do not use harbor_needs_human for a build. Never name a person. Never SMS. Never dial. Pass dry_run true only on an explicitly tagged test lead.",
+  "api_schema": {
+    "url": "https://floor.cbshippingsolutions.app/va/harbor/build-lead",
+    "method": "POST",
+    "request_headers": {
+      "Content-Type": "application/json",
+      "X-Harbor-Token": {
+        "type": "secret",
+        "description": "HARBOR_QUOTE_TOKEN on cbssos"
+      }
+    },
+    "request_body_schema": {
+      "type": "object",
+      "description": "Build lead. Omit any field they did not state.",
+      "properties": {
+        "contact_name": { "type": "string", "description": "Caller name from the lead. Do not invent one." },
+        "phone": { "type": "string", "description": "Phone already on the lead." },
+        "contactId": { "type": "string", "description": "CRM contact id if the lead card has one." },
+        "project": { "type": "string", "description": "What they want it to do: home, tiny home, ADU, cabin, pool, office, shop, bar, paint, or the use they named. No client or project name." },
+        "size": { "type": "string", "description": "Size they stated. Omit if they did not." },
+        "quantity": { "type": "string", "description": "How many boxes they want. Omit if they did not say." },
+        "base_grade": { "type": "string", "description": "Base grade they want: one-trip, cargo worthy, wind and water tight, or as-is. Omit if they did not say." },
+        "location": { "type": "string", "description": "Site address or ZIP. Omit if they did not say." },
+        "access": { "type": "string", "description": "Site access they stated: power lines, overhangs, road in, driveway width and firmness, easement. Omit if they did not." },
+        "timeline": { "type": "string", "description": "When they want it, in their words. Omit if they did not say. Do not invent a build duration." },
+        "budget": { "type": "string", "description": "Budget or competing quote they already named, in their words. Omit if they did not. Do not invent a price." },
+        "drawings": { "type": "string", "description": "Whether they have drawings or a dream sketch, in their words. Omit if they did not say." },
+        "must_haves": { "type": "string", "description": "Must-haves they named. Omit if they did not." },
+        "callback_phone": { "type": "string", "description": "Best callback number they confirmed." },
+        "callback_time": { "type": "string", "description": "Time they asked for. Omit if they did not give one." },
+        "flex_buy": { "type": "string", "description": "yes when they want Flex Buy on this build. Omit when they did not. Houses may use terms up to 50 years. Do not pass an APR or a monthly payment." },
+        "flex_buy_term": { "type": "string", "description": "Term they named: 6, 12, 24, 48, or 72 months, or up to 50 years. Omit if they did not name one." },
+        "dry_run": { "type": "boolean", "description": "Only when the CRM lead is explicitly tagged as a test lead. The server rejects this on every other lead and still notifies the team." }
       }
     }
   }

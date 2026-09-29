@@ -89,7 +89,7 @@ Webhook URL after a Yard deploy Christopher approves:
 - [twilio.md](./twilio.md) — Voice-only Buy Number (SMS off)
 - [compliance.md](./compliance.md) — recording consent, TCPA, objections
 - [outcomes.md](./outcomes.md) — call outcome taxonomy
-- [payments.md](./payments.md) — cards frozen language
+- [payments.md](./payments.md) — how to pay, and what to say if they ask about a card
 - [config-checklist.md](./config-checklist.md) — env placeholders
 - [OPEN-TODOS.md](./OPEN-TODOS.md) — what Christopher taps next
 

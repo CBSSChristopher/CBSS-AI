@@ -66,7 +66,7 @@ import {
   normalizeCteStep,
   pickHarborQueue,
 } from "./va/workflow.ts";
-import { handleHarborQuote, handleHarborReadyToBuy, harborWorkflowAuthed } from "./va/harbor-quote.ts";
+import { handleHarborBuildLead, handleHarborNeedsHuman, handleHarborQuote, handleHarborReadyToBuy, harborWorkflowAuthed } from "./va/harbor-quote.ts";
 import { harborOutboundOpener } from "./va/scripts.ts";
 import { dispatchHarborCteMail } from "./va/harbor-mail.ts";
 
@@ -1179,6 +1179,16 @@ export default {
 
     if (path === "/va/harbor/ready-to-buy" && request.method === "POST") {
       const result = await handleHarborReadyToBuy(env, request);
+      return json(result.status, result.body);
+    }
+
+    if (path === "/va/harbor/needs-human" && request.method === "POST") {
+      const result = await handleHarborNeedsHuman(env, request);
+      return json(result.status, result.body);
+    }
+
+    if (path === "/va/harbor/build-lead" && request.method === "POST") {
+      const result = await handleHarborBuildLead(env, request);
       return json(result.status, result.body);
     }
 

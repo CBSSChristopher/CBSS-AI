@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { buildReadyToBuyNote, readHarborDeal, renderHarborReadyToBuyNotice } from "../src/va/close-note.ts";
+import { buildReadyToBuyNote, flexBuyInterestLine, readHarborDeal, renderHarborBuildLeadNotice, renderHarborNeedsHumanNotice, renderHarborReadyToBuyNotice } from "../src/va/close-note.ts";
 import { inboundCallerPhone, planInboundContact } from "../src/va/inbound.ts";
 import {
   CHRISTOPHER_PERSONAL_CELL,
@@ -9,6 +9,16 @@ import {
   HARBOR_LOOKED_IN_OPENERS,
   HARBOR_QUOTE_REQUEST_OPENER,
   HARBOR_SIGNOFFS,
+  BUILD_TEAM_LINE,
+  FLEX_BUY_BUDGET_LINE,
+  FLEX_BUY_DOWN_LINE,
+  FLEX_BUY_HOUSE_LINE,
+  FLEX_BUY_NUMBERS_LINE,
+  FLEX_BUY_PLANS_LINE,
+  NEEDS_HUMAN_VARIANTS,
+  PAYMENT_CARD_ASK,
+  PAYMENT_HOW_TO_PAY,
+  PAYMENT_PATH_LINE,
   READY_TO_BUY_VARIANTS,
   harborCallbackNumber,
   hardNoSpoken,
@@ -16,6 +26,7 @@ import {
   isChristopherPersonalCell,
   leadShowsQuoteRequest,
   pickReadyToBuyLine,
+  softDelaySpoken,
   voicemailScript,
 } from "../src/va/scripts.ts";
 import {
@@ -70,6 +81,64 @@ describe("ready-to-buy spoken variants", () => {
     assert.match(twilio, /SMS \/ Messaging off/);
     assert.match(twilio, /may differ from any preferred number unless you \*\*port\*\*/);
     assert.match(twilio, /Messaging capability/);
+  });
+});
+
+describe("payment speech", () => {
+  it("never puts frozen in a spoken line", () => {
+    const spoken = [
+      ...READY_TO_BUY_VARIANTS.map((row) => row.spoken),
+      ...HARBOR_SIGNOFFS,
+      ...HARBOR_LOOKED_IN_OPENERS,
+      HARBOR_QUOTE_REQUEST_OPENER,
+      PAYMENT_HOW_TO_PAY,
+      PAYMENT_CARD_ASK,
+      PAYMENT_PATH_LINE,
+      ...NEEDS_HUMAN_VARIANTS.map((row) => row.spoken),
+      BUILD_TEAM_LINE,
+      FLEX_BUY_BUDGET_LINE,
+      FLEX_BUY_DOWN_LINE,
+      FLEX_BUY_HOUSE_LINE,
+      FLEX_BUY_NUMBERS_LINE,
+      FLEX_BUY_PLANS_LINE,
+      hardNoSpoken(),
+      softDelaySpoken("Friday"),
+      voicemailScript({ name: "Sam", container: "40ft", harborDid: "(870) 380-4010" }),
+    ];
+    const prompt = readFileSync(new URL("../../docs/harbor-kb/01-system-prompt.md", import.meta.url), "utf8");
+    const payments = readFileSync(new URL("../../docs/harbor-kb/06-payments.md", import.meta.url), "utf8");
+    const fence = prompt.split("```")[1];
+    const quoted = [];
+    for (const source of [fence, payments, persona, scripts]) {
+      for (const match of source.matchAll(/[“"]([^”"]+)[”"]/g)) quoted.push(match[1]);
+    }
+    for (const line of [...spoken, ...quoted]) {
+      assert.doesNotMatch(line, /frozen/i);
+    }
+    assert.equal(
+      PAYMENT_HOW_TO_PAY,
+      "We take wire, ACH, e-check, money order, cashier's check or cash, and back office will send you the details.",
+    );
+    assert.equal(
+      PAYMENT_CARD_ASK,
+      "We take wire, ACH, e-check, money order, cashier's check or cash, and back office will send you the details.",
+    );
+    assert.equal(
+      FLEX_BUY_BUDGET_LINE,
+      "If the budget's tight, we've got Flex Buy. You can spread it over 6 up to 72 months, and standard units start at 10% down plus delivery.",
+    );
+    assert.equal(FLEX_BUY_PLANS_LINE, "Standard & modified containers: flexible 6, 12, 24, 48, or 72-month plans.");
+    assert.equal(FLEX_BUY_HOUSE_LINE, "Custom container houses: extended mortgage-style terms up to 50 years.");
+    assert.equal(FLEX_BUY_DOWN_LINE, "Standard units start at just 10% down plus delivery.");
+    assert.equal(FLEX_BUY_NUMBERS_LINE, "Back office will run the numbers and send the options.");
+    assert.doesNotMatch(FLEX_BUY_BUDGET_LINE + FLEX_BUY_PLANS_LINE + FLEX_BUY_HOUSE_LINE, /apr|monthly payment|frozen/i);
+    assert.match(
+      fence,
+      /If they ask about a credit card, say: “We take wire, ACH, e-check, money order, cashier's check or cash/,
+    );
+    assert.match(payments, /back office will send you the details/);
+    assert.match(payments, /If they ask specifically about a credit card/);
+    assert.doesNotMatch(payments, /unless the customer asks/i);
   });
 });
 
@@ -157,6 +226,48 @@ describe("ready-to-buy closer note + handoff", () => {
     assert.equal(isHarborNotifyTestRecord({ name: "Gate Check No Customer", testLead: false }), true);
     assert.equal(isExplicitHarborTestLead({ name: "Gate Check No Customer", testLead: false }), false);
     assert.equal(isHarborNotifyTestRecord({ name: "Pat Lee", cteStage: "CTE1" }), false);
+    const human = renderHarborNeedsHumanNotice({ name: "Sam Ortiz" });
+    assert.equal(human.subject, "Needs a human: Sam Ortiz");
+    assert.equal(
+      human.text,
+      [
+        "Needs a human: Sam Ortiz",
+        "Harbor told them: someone from the team will call back.",
+        "Your move: call back",
+      ].join("\n"),
+    );
+    assert.doesNotMatch(human.text, /not stated|frozen|Payment:/i);
+    const flex = renderHarborReadyToBuyNotice({
+      name: "Jordan Hale",
+      phone: "8705550142",
+      city: "Jonesboro",
+      zip: "72401",
+      size: "40",
+      type: "standard",
+      condition: "CW",
+      price: 2800,
+      flexBuy: "yes",
+      flexBuyTerm: "24 months",
+    });
+    assert.match(flex.text, /Flex Buy interest: yes, 24 months/);
+    assert.doesNotMatch(flex.text, /frozen|APR|monthly/i);
+    const flexBare = renderHarborReadyToBuyNotice({ name: "Sam Ortiz", flexBuy: "yes" });
+    assert.match(flexBare.text, /Flex Buy interest: yes\n/);
+    assert.doesNotMatch(flexBare.text, /Flex Buy interest: yes,/);
+    const flexBuild = renderHarborBuildLeadNotice({
+      name: "Jordan Hale",
+      project: "container house",
+      flexBuy: true,
+      flexBuyTerm: "up to 50 years",
+    });
+    assert.match(flexBuild.text, /Flex Buy interest: yes, up to 50 years/);
+    assert.equal(flexBuyInterestLine("yes", "12% APR"), "Flex Buy interest: yes");
+    assert.equal(flexBuyInterestLine("", ""), "");
+    const noFlex = renderHarborReadyToBuyNotice({ name: "Sam Ortiz" });
+    assert.doesNotMatch(noFlex.text, /Flex Buy/);
+    const tagged = renderHarborNeedsHumanNotice({ name: "TEST- Unsure", test: true, asked: "a warranty from 2019" });
+    assert.equal(tagged.subject, "[TEST - not a customer] Needs a human: TEST- Unsure");
+    assert.match(tagged.text, /^\[TEST - not a customer\]\nNeeds a human: TEST- Unsure\na warranty from 2019/);
   });
 });
 

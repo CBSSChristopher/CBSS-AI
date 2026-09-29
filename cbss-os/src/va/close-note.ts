@@ -9,6 +9,8 @@ export type HarborDealFields = {
   objections?: unknown;
   promises?: unknown;
   price?: unknown;
+  flexBuy?: unknown;
+  flexBuyTerm?: unknown;
 };
 
 export const HARBOR_READY_TO_BUY_PAYMENT_LINE =
@@ -39,7 +41,23 @@ export function readHarborDeal(body: Record<string, unknown> | null | undefined)
     objections: src.objections ?? nested.objections,
     promises: src.promises ?? src.softPromises ?? nested.promises ?? nested.softPromises,
     price: src.price ?? src.exactPrice ?? nested.price ?? nested.exactPrice,
+    flexBuy: src.flex_buy ?? src.flexBuy ?? nested.flex_buy ?? nested.flexBuy,
+    flexBuyTerm: src.flex_buy_term ?? src.flexBuyTerm ?? nested.flex_buy_term ?? nested.flexBuyTerm,
   };
+}
+
+/** Note line when they want Flex Buy. Omit when they did not. Never store an APR or a monthly payment. */
+export function flexBuyInterestLine(interest: unknown, term: unknown): string {
+  const flag = blank(interest);
+  const named = blank(term);
+  if (!flag && !named) return "";
+  if (/^(n|no|false|0)$/i.test(flag) && !named) return "";
+  const yes = !flag || /^(y|yes|true|1|interested)$/i.test(flag) || /flex buy/i.test(flag);
+  if (!yes && !named) return "";
+  const fromFlag = flag.replace(/^(yes|y|true|interested|flex buy interest:?)\s*,?\s*/i, "").trim();
+  const rawTerm = named || (fromFlag && !/^(yes|true|y|interested)$/i.test(fromFlag) ? fromFlag : "");
+  const clean = /\bapr\b|interest rate|monthly|credit|approval|\$\d|\d+\s*%/i.test(rawTerm) ? "" : rawTerm;
+  return clean ? "Flex Buy interest: yes, " + clean : "Flex Buy interest: yes";
 }
 
 export function sizeTypeCondition(deal: HarborDealFields): string {
@@ -142,6 +160,8 @@ export type ReadyToBuyNoticeInput = {
   price?: unknown;
   objections?: unknown;
   promises?: unknown;
+  flexBuy?: unknown;
+  flexBuyTerm?: unknown;
   test?: boolean;
 };
 
@@ -160,6 +180,7 @@ export function renderHarborReadyToBuyNotice(input: ReadyToBuyNoticeInput): Read
     want,
     "Harbor told them: back office will send next steps.",
     HARBOR_READY_TO_BUY_PAYMENT_LINE,
+    flexBuyInterestLine(input.flexBuy, input.flexBuyTerm),
     "Your move: " + (price ? "send invoice" : "call back"),
     notesLine(input.objections, input.promises),
   ].filter(Boolean);
@@ -188,6 +209,8 @@ export function readyToBuyNoticeFromContact(
     price: deal.price,
     objections: deal.objections,
     promises: deal.promises,
+    flexBuy: deal.flexBuy,
+    flexBuyTerm: deal.flexBuyTerm,
     test: extra.test,
   });
 }
@@ -198,4 +221,101 @@ export function buildReadyToBuyNote(input: {
   test?: boolean;
 }): string {
   return readyToBuyNoticeFromContact(input.contact, input.deal, { test: input.test }).text;
+}
+
+export type NeedsHumanNoticeInput = {
+  name?: unknown;
+  phone?: unknown;
+  city?: unknown;
+  zip?: unknown;
+  place?: unknown;
+  asked?: unknown;
+  callbackPhone?: unknown;
+  callbackTime?: unknown;
+  objections?: unknown;
+  promises?: unknown;
+  test?: boolean;
+};
+
+/** Design lead has no roster email. The note names her. Do not invent an address. */
+export const BUILD_LEAD_DESIGN_NOTE = "Design lead: Kristin — no routing entry on file.";
+
+export type BuildLeadNoticeInput = {
+  name?: unknown;
+  phone?: unknown;
+  city?: unknown;
+  zip?: unknown;
+  place?: unknown;
+  project?: unknown;
+  size?: unknown;
+  quantity?: unknown;
+  baseGrade?: unknown;
+  location?: unknown;
+  access?: unknown;
+  timeline?: unknown;
+  budget?: unknown;
+  drawings?: unknown;
+  mustHaves?: unknown;
+  callbackPhone?: unknown;
+  callbackTime?: unknown;
+  flexBuy?: unknown;
+  flexBuyTerm?: unknown;
+  objections?: unknown;
+  promises?: unknown;
+  test?: boolean;
+};
+
+/** Short note for an in-house build. Email and CRM note are this text. */
+export function renderHarborBuildLeadNotice(input: BuildLeadNoticeInput): ReadyToBuyNotice {
+  const name = blank(input.name);
+  const project = blank(input.project);
+  let subject = name && project ? "Build lead: " + name + " - " + project : name ? "Build lead: " + name : project ? "Build lead: " + project : "Build lead";
+  if (input.test) subject = "[TEST - not a customer] " + subject;
+  const headBits = [name, plainPhone(input.phone), cityZip(input.city, input.zip, input.place)].filter(Boolean);
+  const picture = [project, blank(input.size), blank(input.location), blank(input.timeline), blank(input.mustHaves)].filter(Boolean).join(", ");
+  const brief = [
+    blank(input.quantity) ? "Quantity: " + blank(input.quantity) : "",
+    blank(input.baseGrade) ? "Base grade: " + blank(input.baseGrade) : "",
+    blank(input.access) ? "Access: " + blank(input.access) : "",
+    blank(input.budget) ? "Budget: " + blank(input.budget) : "",
+    blank(input.drawings) ? "Drawings: " + blank(input.drawings) : "",
+  ].filter(Boolean);
+  const callbackPhone = plainPhone(input.callbackPhone) || blank(input.callbackPhone);
+  const callbackTime = blank(input.callbackTime);
+  const callbackBits = [callbackPhone, callbackTime].filter(Boolean);
+  const lines = [
+    headBits.length ? "Build lead: " + headBits.join(", ") : "Build lead",
+    picture,
+    ...brief,
+    callbackBits.length ? "Callback: " + callbackBits.join(", ") : "",
+    "Harbor told them: the build team does custom work and will call back.",
+    flexBuyInterestLine(input.flexBuy, input.flexBuyTerm),
+    BUILD_LEAD_DESIGN_NOTE,
+    "Your move: call back",
+    notesLine(input.objections, input.promises),
+  ].filter(Boolean);
+  if (input.test) lines.unshift("[TEST - not a customer]");
+  return { subject, text: lines.join("\n") };
+}
+
+/** Short note when Harbor cannot answer and a person has to call back. Email and CRM note are this text. */
+export function renderHarborNeedsHumanNotice(input: NeedsHumanNoticeInput): ReadyToBuyNotice {
+  const name = blank(input.name);
+  const asked = blank(input.asked);
+  let subject = name ? "Needs a human: " + name : "Needs a human";
+  if (input.test) subject = "[TEST - not a customer] " + subject;
+  const headBits = [name, plainPhone(input.phone), cityZip(input.city, input.zip, input.place)].filter(Boolean);
+  const callbackPhone = plainPhone(input.callbackPhone) || blank(input.callbackPhone);
+  const callbackTime = blank(input.callbackTime);
+  const callbackBits = [callbackPhone, callbackTime].filter(Boolean);
+  const lines = [
+    headBits.length ? "Needs a human: " + headBits.join(", ") : "Needs a human",
+    asked,
+    callbackBits.length ? "Callback: " + callbackBits.join(", ") : "",
+    "Harbor told them: someone from the team will call back.",
+    "Your move: call back",
+    notesLine(input.objections, input.promises),
+  ].filter(Boolean);
+  if (input.test) lines.unshift("[TEST - not a customer]");
+  return { subject, text: lines.join("\n") };
 }

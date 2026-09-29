@@ -3,8 +3,52 @@
 export const CHRISTOPHER_PERSONAL_CELL = "(870) 323-2593";
 export const CHRISTOPHER_PERSONAL_DIGITS = "8703232593";
 
-export const PAYMENT_PATH_LINE =
-  "Cards frozen — wire / ACH / e-check / money order / cashier's check / cash only. Harbor does not collect payment.";
+/** If they ask how to pay. Never say card processing is down. */
+export const PAYMENT_HOW_TO_PAY =
+  "We take wire, ACH, e-check, money order, cashier's check or cash, and back office will send you the details.";
+
+/** If they ask about a credit card. */
+export const PAYMENT_CARD_ASK =
+  "We take wire, ACH, e-check, money order, cashier's check or cash, and back office will send you the details.";
+
+export const PAYMENT_PATH_LINE = PAYMENT_HOW_TO_PAY;
+
+/** In-house custom builds: homes, tiny homes, pools, shops, and anything custom. */
+export const BUILD_TEAM_LINE = "Oh, we build those, we've got a whole team that does custom work.";
+
+/** Budget objection. Flex Buy is financing, not a card. No APR, monthly payment, or credit rule. */
+export const FLEX_BUY_BUDGET_LINE =
+  "If the budget's tight, we've got Flex Buy. You can spread it over 6 up to 72 months, and standard units start at 10% down plus delivery.";
+
+/** Flyer facts Harbor may say. No calculator APR or sample payment. */
+export const FLEX_BUY_PLANS_LINE =
+  "Standard & modified containers: flexible 6, 12, 24, 48, or 72-month plans.";
+
+export const FLEX_BUY_HOUSE_LINE =
+  "Custom container houses: extended mortgage-style terms up to 50 years.";
+
+export const FLEX_BUY_DOWN_LINE = "Standard units start at just 10% down plus delivery.";
+
+export const FLEX_BUY_NUMBERS_LINE = "Back office will run the numbers and send the options.";
+
+/** @deprecated Use FLEX_BUY_BUDGET_LINE. Kept so older imports still compile. */
+export const FINANCING_OPTIONS_LINE = FLEX_BUY_BUDGET_LINE;
+
+/** Unsure, upset, wants a human, or a question outside containers and pricing. Vary them. */
+export const NEEDS_HUMAN_VARIANTS: SpokenLine[] = [
+  {
+    id: "right-answer",
+    spoken: "Let me have someone from the team give you a call back on that so you get the right answer.",
+  },
+  {
+    id: "no-guess",
+    spoken: "I don't want to guess on that. I'll have someone from the team call you back.",
+  },
+  {
+    id: "team-call",
+    spoken: "That's one for the team. I'll have them call you back so you get the right answer.",
+  },
+];
 
 export type SpokenLine = { id: string; spoken: string };
 
@@ -120,6 +164,17 @@ export function harborOutboundOpener(
 }
 
 const VARIANT_BY_ID = new Map(READY_TO_BUY_VARIANTS.map((row) => [row.id, row]));
+
+export function pickNeedsHumanLine(seed?: unknown, now = Date.now()): SpokenLine {
+  if (typeof seed === "number" && Number.isFinite(seed)) {
+    const i = Math.abs(Math.floor(seed)) % NEEDS_HUMAN_VARIANTS.length;
+    return NEEDS_HUMAN_VARIANTS[i];
+  }
+  const key = String(seed || "").trim().toLowerCase();
+  const named = NEEDS_HUMAN_VARIANTS.find((row) => row.id === key || row.spoken.toLowerCase() === key);
+  if (named) return named;
+  return NEEDS_HUMAN_VARIANTS[Math.floor(now / 60000) % NEEDS_HUMAN_VARIANTS.length];
+}
 
 export function pickReadyToBuyLine(seed?: unknown, now = Date.now()): SpokenLine {
   if (typeof seed === "number" && Number.isFinite(seed)) {

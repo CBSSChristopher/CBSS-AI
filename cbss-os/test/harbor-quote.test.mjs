@@ -8,6 +8,8 @@ import {
   harborWorkflowAuthed,
   harborQuoteFromMatch,
   harborQuoteWant,
+  handleHarborBuildLead,
+  handleHarborNeedsHuman,
   handleHarborQuote,
   handleHarborReadyToBuy,
   normalizeHarborZip,
@@ -448,6 +450,257 @@ describe("POST /va/harbor/ready-to-buy", () => {
     assert.match(got.body.handoff_speech, /paperwork/);
     assert.doesNotMatch(got.body.handoff_speech, /Christopher|Bryan|transfer|get you over|\d+\s*minutes/i);
   });
+
+  it("puts Flex Buy interest on the ready-to-buy note", async () => {
+    const mails = [];
+    const got = await handleHarborReadyToBuy(
+      env(),
+      req("/va/harbor/ready-to-buy", {
+        token: TOKEN,
+        body: {
+          contact_name: "Jordan Hale",
+          phone: "8705550142",
+          contactId: "c9",
+          flex_buy: "yes",
+          flex_buy_term: "24 months",
+        },
+      }),
+      {
+        getContacts: async () => [{ id: "c9", name: "Jordan Hale", phone: "8705550142", city: "Jonesboro", zip: "72401" }],
+        sendMail: async (_env, input) => {
+          mails.push(input);
+          return { ok: true, messageId: "mflex" };
+        },
+      },
+    );
+    assert.equal(got.status, 200);
+    assert.match(mails[0].text, /Flex Buy interest: yes, 24 months/);
+    assert.doesNotMatch(mails[0].text + got.body.handoff_speech, /frozen|APR|monthly/i);
+  });
+});
+
+describe("POST /va/harbor/needs-human", () => {
+  it("notifies Christopher + Bryan with the short note and does not mark ready to buy", async () => {
+    const notes = [];
+    const mails = [];
+    const got = await handleHarborNeedsHuman(
+      env(),
+      req("/va/harbor/needs-human", {
+        token: TOKEN,
+        body: {
+          contact_name: "Jordan Hale",
+          phone: "8705550142",
+          contactId: "c9",
+          asked: "crane insurance certificate and the driver's cell",
+          callback_phone: "8705550142",
+          callback_time: "tomorrow morning",
+          handoff_variant: "right-answer",
+        },
+      }),
+      {
+        getContacts: async () => [{ id: "c9", name: "Jordan Hale", phone: "8705550142", city: "Jonesboro", zip: "72401", owner: "Harbor", status: "Working" }],
+        writeNote: async (id, text, edits) => {
+          notes.push({ id, text, edits });
+          return true;
+        },
+        sendMail: async (_env, input) => {
+          mails.push(input);
+          return { ok: true, messageId: "m2", threadId: "t2" };
+        },
+      },
+    );
+    assert.equal(got.status, 200);
+    assert.equal(got.body.dialing, false);
+    assert.equal(got.body.sms, false);
+    assert.equal(got.body.noteWritten, true);
+    assert.equal(got.body.say_closer_name, false);
+    assert.deepEqual(got.body.notified, [...HARBOR_NOTIFY_EMAILS]);
+    assert.equal(notes[0].text, mails[0].text);
+    assert.equal(notes[0].edits.status, undefined);
+    assert.equal(notes[0].edits.nextAction, "Needs a human — call back");
+    assert.equal(mails[0].subject, "Needs a human: Jordan Hale");
+    assert.equal(
+      mails[0].text,
+      [
+        "Needs a human: Jordan Hale, (870) 555-0142, Jonesboro 72401",
+        "crane insurance certificate and the driver's cell",
+        "Callback: (870) 555-0142, tomorrow morning",
+        "Harbor told them: someone from the team will call back.",
+        "Your move: call back",
+      ].join("\n"),
+    );
+    assert.deepEqual(mails[0].to, [CHRISTOPHER_MAIL, BRYAN_MAIL]);
+    assert.match(got.body.handoff_speech, /someone from the team give you a call back/);
+    assert.doesNotMatch(mails[0].subject + "\n" + mails[0].text + "\n" + got.body.handoff_speech, /frozen|CTE|Closer of record|Ready to buy|Christopher|Bryan/i);
+  });
+
+  it("allows dry_run only for an explicitly tagged test lead", async () => {
+    let mailed = 0;
+    const skipped = await handleHarborNeedsHuman(
+      env(),
+      req("/va/harbor/needs-human", {
+        token: TOKEN,
+        body: { contactId: "t1", asked: "a warranty from 2019", dry_run: true },
+      }),
+      {
+        getContacts: async () => [{ id: "t1", name: "TEST- Unsure", tags: ["test-lead"], testLead: true }],
+        sendMail: async () => {
+          mailed += 1;
+          return { ok: true, messageId: "x" };
+        },
+      },
+    );
+    assert.equal(skipped.body.dry_run, true);
+    assert.equal(skipped.body.mail.skipped, true);
+    assert.equal(mailed, 0);
+    assert.match(skipped.body.handoff_variants[0].spoken, /right answer/);
+  });
+});
+
+describe("POST /va/harbor/build-lead", () => {
+  it("notifies Christopher + Bryan with a Build lead note and does not invent a price", async () => {
+    const notes = [];
+    const mails = [];
+    const got = await handleHarborBuildLead(
+      env(),
+      req("/va/harbor/build-lead", {
+        token: TOKEN,
+        body: {
+          contact_name: "Jordan Hale",
+          phone: "8705550142",
+          contactId: "c9",
+          project: "tiny home",
+          size: "40ft high cube",
+          location: "Jonesboro",
+          timeline: "next month",
+          must_haves: "kitchen and a loft",
+          callback_phone: "8705550142",
+          callback_time: "tomorrow morning",
+        },
+      }),
+      {
+        getContacts: async () => [{ id: "c9", name: "Jordan Hale", phone: "8705550142", city: "Jonesboro", zip: "72401", owner: "Harbor", status: "Working" }],
+        writeNote: async (id, text, edits) => {
+          notes.push({ id, text, edits });
+          return true;
+        },
+        sendMail: async (_env, input) => {
+          mails.push(input);
+          return { ok: true, messageId: "m3", threadId: "t3" };
+        },
+      },
+    );
+    assert.equal(got.status, 200);
+    assert.equal(got.body.dialing, false);
+    assert.equal(got.body.sms, false);
+    assert.equal(got.body.noteWritten, true);
+    assert.equal(notes[0].text, mails[0].text);
+    assert.equal(notes[0].edits.status, undefined);
+    assert.equal(notes[0].edits.nextAction, "Build lead — call back");
+    assert.equal(mails[0].subject, "Build lead: Jordan Hale - tiny home");
+    assert.equal(
+      mails[0].text,
+      [
+        "Build lead: Jordan Hale, (870) 555-0142, Jonesboro 72401",
+        "tiny home, 40ft high cube, Jonesboro, next month, kitchen and a loft",
+        "Callback: (870) 555-0142, tomorrow morning",
+        "Harbor told them: the build team does custom work and will call back.",
+        "Design lead: Kristin — no routing entry on file.",
+        "Your move: call back",
+      ].join("\n"),
+    );
+    assert.deepEqual(mails[0].to, [CHRISTOPHER_MAIL, BRYAN_MAIL]);
+    assert.equal(got.body.handoff_speech, "Oh, we build those, we've got a whole team that does custom work.");
+    assert.doesNotMatch(mails[0].subject + "\n" + mails[0].text, /\$\d|frozen|Needs a human|Ready to buy/);
+    assert.doesNotMatch(mails[0].to.join(","), /kristin/i);
+  });
+
+  it("writes the six-point brief and still notifies only Christopher and Bryan", async () => {
+    const mails = [];
+    const got = await handleHarborBuildLead(
+      env(),
+      req("/va/harbor/build-lead", {
+        token: TOKEN,
+        body: {
+          contact_name: "Jordan Hale",
+          phone: "8705550142",
+          contactId: "c9",
+          project: "tiny home",
+          size: "40ft high cube",
+          quantity: "1",
+          base_grade: "one-trip",
+          location: "Jonesboro",
+          access: "power lines clear, gravel drive",
+          timeline: "next month",
+          budget: "they have a competing quote, no number given",
+          drawings: "dream sketch of a loft",
+          must_haves: "kitchen and a loft",
+          callback_phone: "8705550142",
+          callback_time: "tomorrow morning",
+        },
+      }),
+      {
+        getContacts: async () => [{ id: "c9", name: "Jordan Hale", phone: "8705550142", city: "Jonesboro", zip: "72401" }],
+        sendMail: async (_env, input) => {
+          mails.push(input);
+          return { ok: true, messageId: "m4" };
+        },
+      },
+    );
+    assert.equal(got.status, 200);
+    assert.match(mails[0].text, /Quantity: 1/);
+    assert.match(mails[0].text, /Base grade: one-trip/);
+    assert.match(mails[0].text, /Access: power lines clear, gravel drive/);
+    assert.match(mails[0].text, /Budget: they have a competing quote, no number given/);
+    assert.match(mails[0].text, /Drawings: dream sketch of a loft/);
+    assert.match(mails[0].text, /Design lead: Kristin — no routing entry on file/);
+    assert.deepEqual(mails[0].to, [CHRISTOPHER_MAIL, BRYAN_MAIL]);
+    assert.doesNotMatch(mails[0].text, /\$\d/);
+  });
+
+  it("records Flex Buy interest and a named term, and drops an APR", async () => {
+    const mails = [];
+    await handleHarborBuildLead(
+      env(),
+      req("/va/harbor/build-lead", {
+        token: TOKEN,
+        body: {
+          contact_name: "Jordan Hale",
+          phone: "8705550142",
+          contactId: "c9",
+          project: "container house",
+          flex_buy: "yes",
+          flex_buy_term: "up to 50 years",
+        },
+      }),
+      {
+        getContacts: async () => [{ id: "c9", name: "Jordan Hale", phone: "8705550142", city: "Jonesboro", zip: "72401" }],
+        sendMail: async (_env, input) => {
+          mails.push(input);
+          return { ok: true, messageId: "m5" };
+        },
+      },
+    );
+    assert.match(mails[0].text, /Flex Buy interest: yes, up to 50 years/);
+    assert.doesNotMatch(mails[0].text, /frozen|APR|\d+%/);
+    const dropped = [];
+    await handleHarborBuildLead(
+      env(),
+      req("/va/harbor/build-lead", {
+        token: TOKEN,
+        body: { contact_name: "Jordan Hale", phone: "8705550142", contactId: "c9", project: "tiny home", flex_buy: "yes", flex_buy_term: "12% APR" },
+      }),
+      {
+        getContacts: async () => [{ id: "c9", name: "Jordan Hale", phone: "8705550142" }],
+        sendMail: async (_env, input) => {
+          dropped.push(input);
+          return { ok: true, messageId: "m6" };
+        },
+      },
+    );
+    assert.match(dropped[0].text, /Flex Buy interest: yes\n/);
+    assert.doesNotMatch(dropped[0].text, /12%|APR/);
+  });
 });
 
 describe("Harbor quote rails stay parked", () => {
@@ -463,6 +716,10 @@ describe("Harbor quote rails stay parked", () => {
   it("wires quote routes without touching /va/dial", () => {
     assert.match(index, /\/va\/harbor\/quote/);
     assert.match(index, /\/va\/harbor\/ready-to-buy/);
+    assert.match(index, /\/va\/harbor\/needs-human/);
+    assert.match(index, /handleHarborNeedsHuman/);
+    assert.match(index, /\/va\/harbor\/build-lead/);
+    assert.match(index, /handleHarborBuildLead/);
     assert.match(index, /\/va\/harbor\/get-next-lead/);
     assert.match(index, /\/va\/harbor\/update-lead/);
     assert.match(index, /\/va\/harbor\/log-outcome/);
@@ -474,6 +731,10 @@ describe("Harbor quote rails stay parked", () => {
     assert.match(kb14, /Quote ≠ dial/);
     assert.match(kb15, /harbor_quote_by_zip/);
     assert.match(kb15, /harbor_ready_to_buy/);
+    assert.match(kb15, /harbor_needs_human/);
+    assert.match(kb15, /harbor_build_lead/);
+    assert.match(kb15, /\/va\/harbor\/build-lead/);
+    assert.match(kb15, /\/va\/harbor\/needs-human/);
     assert.match(kb15, /get_next_lead/);
     assert.match(kb15, /log_outcome/);
     assert.match(kb15, /\/va\/harbor\/quote/);
@@ -487,6 +748,11 @@ describe("Harbor quote rails stay parked", () => {
     assert.match(kb01, /5-year structural and 5-year no-leak warranty/);
     assert.match(kb01, /10-year structural \+ 10-year no-leak \+ manufacturer/);
     assert.match(kb01, /Do not volunteer cards/);
+    assert.match(kb01, /WHEN YOU'RE UNSURE OR CONFUSED/);
+    assert.match(kb01, /Let me have someone from the team give you a call back on that so you get the right answer/);
+    assert.match(kb01, /Is this number the best one to reach you on/);
+    assert.doesNotMatch(kb01, /What's the best number for them to call/);
+    assert.doesNotMatch(kb01.split("```")[1], /You know what, \{name\}/);
     assert.match(kb01, /Do not mention Veem/);
     assert.match(kb01, /OS 2D ≠ OS 4D ≠ Full open/);
     assert.match(kb01, /air\/water leak testing to verify the container’s condition/);
