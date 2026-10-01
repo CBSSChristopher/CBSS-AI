@@ -704,9 +704,9 @@ describe("POST /va/harbor/build-lead", () => {
 });
 
 describe("Harbor quote rails stay parked", () => {
-  it("keeps VA_DIAL_ARMED false and does not commit the quote secret", () => {
-    assert.match(wrangler, /"VA_ENABLED": "false"/);
-    assert.match(wrangler, /"VA_DIAL_ARMED": "false"/);
+  it("keeps VA_DIAL_ARMED true and does not commit the quote secret", () => {
+    assert.match(wrangler, /"VA_ENABLED": "true"/);
+    assert.match(wrangler, /"VA_DIAL_ARMED": "true"/);
     assert.doesNotMatch(wrangler, /HARBOR_QUOTE_TOKEN/);
     const parked = dialGate({ VA_ENABLED: "false", VA_DIAL_ARMED: "false" });
     assert.equal(parked.status, 403);

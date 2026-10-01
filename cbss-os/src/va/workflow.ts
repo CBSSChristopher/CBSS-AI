@@ -285,7 +285,7 @@ export function harborAssignPatch(
     owner: HARBOR_OWNER,
     status: "Working",
     cteStage: cte,
-    nextAction: cte + " — Harbor " + track + " (dial parked until VA_DIAL_ARMED)",
+    nextAction: cte + " — Harbor " + track + " (dial armed; Master Chief may park it)",
   };
 }
 
@@ -486,13 +486,13 @@ export function harborAssignNote(cte: CteStep = "CTE1", source: HarborQueueSourc
     return (
       "Harbor pulled a due follow-up and is working it like a sales rep. " +
       cte +
-      " stays open. Dial stays parked until Christopher arms VA_DIAL_ARMED."
+      " stays open. Dial is armed. Master Chief may prompt Harbor to park it. No SMS."
     );
   }
   return (
     "Harbor pulled this card off New/Unassigned and self-assigned. " +
     cte +
-    " is open. Standard Yard CTE cadence (CTE1 call one → CTE2 → CTE3 → CTE4). Dial stays parked until Christopher arms VA_DIAL_ARMED."
+    " is open. Standard Yard CTE cadence (CTE1 call one → CTE2 → CTE3 → CTE4). Dial is armed. Master Chief may prompt Harbor to park it. No SMS."
   );
 }
 
