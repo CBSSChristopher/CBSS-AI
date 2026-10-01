@@ -72,16 +72,36 @@ describe("The Yard sign-in on any hostname", () => {
   });
 
   it("shows a sign-in error and does not let boot kick them back to login", () => {
-    assert.match(page, /id="login-form" method="post" action="\/auth\/login"/);
+    assert.match(page, /id="login-form" method="post" action="\/auth\/login\?v=30"/);
     assert.match(page, /name="email"/);
     assert.match(page, /name="password"/);
     assert.match(page, /id="login-go"/);
     assert.match(page, /Opening…/);
     assert.match(page, /allow401: true/);
-    assert.match(page, /if \(user\) return;/);
-    assert.match(page, /Could not sign in\. Try again\./);
+    assert.match(page, /if \(user && user.email\)/);
+    assert.match(page, /sessionStorage.setItem\("cbss_yard"/);
+    assert.match(page, /localStorage.setItem\("cbss_yard"/);
+    assert.match(index, /sessionTokenFromSetCookie/);
+    assert.match(index, /sessionTokenFromRequest/);
     assert.match(index, /readLoginBody/);
     assert.match(index, /htmlWithCookies/);
     assert.doesNotMatch(index, /status: 303/);
+  });
+
+  it("re-appends Set-Cookie from The Yard so the floor alias does not drop the session", async () => {
+    const house = {
+      fetch() {
+        return Promise.resolve(new Response("<html>ok</html>", {
+          status: 200,
+          headers: {
+            "Content-Type": "text/html; charset=utf-8",
+            "Set-Cookie": "cbss_os=token.sig; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=2592000",
+          },
+        }));
+      },
+    };
+    const res = await alias.fetch(new Request("https://yard.cbshippingsolutions.app/auth/login", { method: "POST" }), { HOUSE: house });
+    const cookies = typeof res.headers.getSetCookie === "function" ? res.headers.getSetCookie() : [res.headers.get("set-cookie")];
+    assert.ok(cookies.some((c) => String(c || "").startsWith("cbss_os=")), cookies);
   });
 });

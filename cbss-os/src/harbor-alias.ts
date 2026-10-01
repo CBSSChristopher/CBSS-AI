@@ -9,7 +9,13 @@ export function yardAliasAction(_hostname: string, _method: string): "proxy" {
 }
 
 export default {
-  fetch(request: Request, env: Env): Promise<Response> {
-    return env.HOUSE.fetch(request);
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const res = await env.HOUSE.fetch(request);
+    const cookies = typeof res.headers.getSetCookie === "function" ? res.headers.getSetCookie() : [];
+    if (!cookies.length) return res;
+    const out = new Headers(res.headers);
+    out.delete("Set-Cookie");
+    for (const c of cookies) out.append("Set-Cookie", c);
+    return new Response(res.body, { status: res.status, statusText: res.statusText, headers: out });
   },
 };

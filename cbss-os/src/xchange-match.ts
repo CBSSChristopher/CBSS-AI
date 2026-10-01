@@ -70,7 +70,7 @@ export type RawOffer = {
   lon?: number | string;
 };
 
-export type ZipGeo = { lat: number; lon: number; place: string };
+export type ZipGeo = { lat: number; lon: number; place: string; city?: string; state?: string };
 
 export type PostedMatch = {
   ok: boolean;
@@ -347,6 +347,8 @@ export function lookupZipFromZippopotam(data: { places?: Array<Record<string, st
   if (!place) return null;
   const lat = parseFloat(place.latitude);
   const lon = parseFloat(place.longitude);
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
-  return { lat, lon, place: `${place["place name"]}, ${place["state abbreviation"]}` };
+  const city = String(place["place name"] || "").trim();
+  const state = String(place["state abbreviation"] || "").trim();
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || !city) return null;
+  return { lat, lon, place: state ? `${city}, ${state}` : city, city, state };
 }

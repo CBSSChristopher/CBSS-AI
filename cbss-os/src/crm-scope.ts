@@ -99,6 +99,49 @@ export function ownerVisibleToViewer(owner: unknown, viewerName: string, viewerE
   return ownerMatchesViewer(owner, viewerName, viewerEmail) || isUnassignedPool(owner);
 }
 
+const BOOK_FIELDS = ["id", "name", "company", "phone", "email", "city", "state", "zip", "street", "owner", "status", "source", "amount", "invoicePaid", "dnc", "archived", "nextAction", "followUpDate", "created"] as const;
+
+function slimRow(row: Record<string, unknown>, keys: readonly string[]): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const key of keys) {
+    const value = row[key];
+    if (value != null && value !== "") out[key] = value;
+  }
+  return out;
+}
+
+/** List fields only. The phone paints this in the HTML so Safari can show the book without a second fetch. */
+export function trimBookForEmbed(payload: Record<string, unknown>): Record<string, unknown> {
+  const src = payload && typeof payload === "object" && !Array.isArray(payload) ? payload : {};
+  const contacts = asRows(src.contacts).map((row) => slimRow(row, BOOK_FIELDS));
+  const contactsAdded = asRows(src.contactsAdded).map((row) => slimRow(row, BOOK_FIELDS));
+  const deals = asRows(src.deals).map((row) => slimRow(row, ["id", "contactId", "stage", "owner", "amount", "name"]));
+  const ids = new Set<string>();
+  for (const row of contacts.concat(contactsAdded)) {
+    if (row.id != null) ids.add(String(row.id));
+  }
+  const followups: Record<string, unknown> = {};
+  const bag = src.followups;
+  if (bag && typeof bag === "object" && !Array.isArray(bag)) {
+    for (const [key, value] of Object.entries(bag as Record<string, unknown>)) {
+      if (!ids.has(String(key)) || !value || typeof value !== "object" || Array.isArray(value)) continue;
+      const row = value as Record<string, unknown>;
+      if (row.completed) continue;
+      const slim = slimRow(row, ["nextAction", "followUpDate"]);
+      if (Object.keys(slim).length) followups[String(key)] = slim;
+    }
+  }
+  return {
+    contacts,
+    contactsAdded,
+    deals,
+    followups,
+    completedTasks: {},
+    proposals: {},
+    scoped: src.scoped === true,
+  };
+}
+
 export function shouldScopeCrmGet(rest: string, search: string, method: string): boolean {
   if (String(method || "").toUpperCase() !== "GET") return false;
   const path = String(rest || "");
