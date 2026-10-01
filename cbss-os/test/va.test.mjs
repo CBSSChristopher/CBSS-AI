@@ -190,9 +190,9 @@ describe("outbound VA parked rails", () => {
 });
 
 describe("outbound VA Yard wiring", () => {
-  it("keeps wrangler flags off and does not commit secret values", () => {
-    assert.match(wrangler, /"VA_ENABLED": "false"/);
-    assert.match(wrangler, /"VA_DIAL_ARMED": "false"/);
+  it("keeps wrangler dial armed and does not commit secret values", () => {
+    assert.match(wrangler, /"VA_ENABLED": "true"/);
+    assert.match(wrangler, /"VA_DIAL_ARMED": "true"/);
     assert.doesNotMatch(wrangler, /ELEVENLABS_API_KEY|TWILIO_AUTH_TOKEN|VA_WEBHOOK_SECRET\s*:/);
     assert.doesNotMatch(wrangler, /HARBOR_QUOTE_TOKEN/);
     assert.match(auth, /VA_WEBHOOK_SECRET\?: string/);

@@ -222,7 +222,7 @@ export function leadImportNote(row: MetaLeadRow): string {
   return [
     "Meta CSV import · " + META_CSV_SOURCE + " / " + META_CSV_METHOD + " · parked on " + POOL_OWNER + " · book stage " + IMPORT_STAGE + ".",
     bits.join(" · "),
-    "Harbor may pull this card, self-assign, and run CTE. Not dialed until VA_DIAL_ARMED.",
+    "Harbor may pull this card, self-assign, and run CTE. Dial is armed. Master Chief may prompt Harbor to park it. No SMS.",
   ]
     .filter(Boolean)
     .join("\n");
