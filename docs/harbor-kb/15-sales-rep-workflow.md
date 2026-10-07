@@ -54,6 +54,16 @@ Auth: `X-Harbor-Token` or `Authorization: Bearer` === secret `HARBOR_QUOTE_TOKEN
 
 JSON paste for ElevenLabs: [15-elevenlabs-tools.md](./15-elevenlabs-tools.md). No Cursor MCP into ElevenLabs.
 
+### One outcome per call (server guard, 2026-10-07)
+
+A personal voicemail greeting can sound live. On Oct 7 Harbor logged no-answer, called `get_next_lead` again, got the same card back, and logged no-answer a second time, which sent a second CTE email a minute later and moved the card two steps. The Worker now keys every `log_outcome` / `update_lead` to the call: the `get_next_lead` pull stamp for the card (one pull per call), else `conversation_id`, else contact + dialed number inside 10 minutes (`cbss-os/src/va/harbor-call-lock.ts`). Per call:
+
+- the CTE stage moves **at most one step** (also through `update_lead` `cteStage`);
+- **at most one** outcome email goes out; a CTE email to the lead in the last 10 minutes on the cycle record also blocks a second one;
+- a repeat `no-answer` / `voicemail` / `answered` is folded into the first log: a CRM audit note only, `duplicate_call_outcome: true`, nothing else written or sent;
+- a later `soft-delay` / `callback` still books its follow-up, and a later hard-no (`DNC`, `not-interested`, `wrong-number`, `bought-elsewhere`) still closes the card, with no second email;
+- a repeat `get_next_lead` on the same call returns the same card and writes nothing; once an outcome is logged it adds `outcome_logged: true`.
+
 ## Dry-run simulation checklist (no Twilio)
 
 Do this on a **Test-** tagged card or a dry book. Do **not** import the Harbor DID. Do **not** place a PSTN call.
