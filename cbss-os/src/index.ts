@@ -69,6 +69,17 @@ import {
 import { handleHarborBuildLead, handleHarborNeedsHuman, handleHarborQuote, handleHarborReadyToBuy, harborWorkflowAuthed } from "./va/harbor-quote.ts";
 import { harborOutboundOpener } from "./va/scripts.ts";
 import { dispatchHarborCteMail } from "./va/harbor-mail.ts";
+import {
+  HARBOR_DID_DEFAULT,
+  harborMarkPull,
+  harborNoMatchMessage,
+  harborPriorPull,
+  harborWasPulled,
+  pickDialedHarborLead,
+  readConversationId,
+  readDialedPhone,
+} from "./va/harbor-dialed.ts";
+import { phonesMatch } from "./va/match.ts";
 
 const SECURITY = {
   "X-Content-Type-Options": "nosniff",
@@ -990,6 +1001,81 @@ export default {
       if (user && !isChristopherUser(user.email, user.name) && !asAgent) {
         return json(403, { error: "Harbor queue is for Christopher or the outbound VA.", ok: false, dialing: false });
       }
+      const nlBody = request.method === "POST" ? await readJson(request) : {};
+      const nlUrl = new URL(request.url);
+      const dialed = readDialedPhone(nlBody, nlUrl);
+      const conversationId = readConversationId(nlBody, nlUrl);
+      if ((asAgent && !user) || dialed) {
+        // Live call: only the card for the number Harbor dialed. Never a queue card. One pull per call.
+        const noLead = (reason: string) => json(200, {
+          ok: true,
+          tool: "get_next_lead",
+          empty: true,
+          no_match: true,
+          reason,
+          message: harborNoMatchMessage(reason),
+          dialing: false,
+          sms: false,
+          source: null,
+          contact: null,
+          ...vaPublicStatus(env),
+        });
+        if (!dialed) return noLead("no_dialed_number");
+        const crmLive = await harborCrmAccess(request, env, user);
+        if (!crmLive.ok) return json(503, { error: crmLive.error });
+        const getLive = await crmLive.get();
+        if (!getLive.ok) return json(502, { error: "Could not read the book for Harbor." });
+        const poolLive = crmContactPool(getLive.data);
+        const pick = pickDialedHarborLead(poolLive, dialed, env.TWILIO_PHONE_NUMBER || HARBOR_DID_DEFAULT);
+        if (!pick.contact) return noLead(pick.reason);
+        const priorId = await harborPriorPull(env.SESSIONS, dialed, conversationId);
+        const prior = priorId
+          ? (poolLive.find((row) => String((row as Record<string, unknown>)?.id || "") === priorId) as Record<string, unknown> | undefined)
+          : undefined;
+        const card = prior || pick.contact;
+        const cardId = String(card.id || "");
+        const cardOpener = harborOutboundOpener(card);
+        if (priorId) {
+          return json(200, {
+            ok: true,
+            tool: "get_next_lead",
+            empty: false,
+            already_pulled: true,
+            message: "This lead is already pulled for this call. Do not call get_next_lead again on this call.",
+            dialing: false,
+            sms: false,
+            source: pick.source,
+            assigned: HARBOR_OWNER,
+            cteStage: normalizeCteStep(card.cteStage),
+            opener: cardOpener.spoken,
+            opener_kind: cardOpener.kind,
+            contact: { ...card, id: cardId },
+            ...vaPublicStatus(env),
+          });
+        }
+        const cteLive = pick.source === "follow-up" ? normalizeCteStep(card.cteStage) : "CTE1";
+        const patchLive = harborAssignPatch(cteLive, pick.source);
+        const editsLive: Record<string, Record<string, unknown>> = {};
+        editsLive[cardId] = patchLive;
+        await harborMarkPull(env.SESSIONS, dialed, conversationId, cardId);
+        await crmLive.edits(editsLive);
+        await crmLive.note(cardId, harborAssignNote(cteLive, pick.source));
+        return json(200, {
+          ok: true,
+          tool: "get_next_lead",
+          empty: false,
+          matched_phone: true,
+          dialing: false,
+          sms: false,
+          source: pick.source,
+          assigned: HARBOR_OWNER,
+          cteStage: cteLive,
+          opener: cardOpener.spoken,
+          opener_kind: cardOpener.kind,
+          contact: { ...card, ...patchLive, id: cardId },
+          ...vaPublicStatus(env),
+        });
+      }
       const crm = await harborCrmAccess(request, env, user);
       if (!crm.ok) return json(503, { error: crm.error });
       const get = await crm.get();
@@ -1057,6 +1143,16 @@ export default {
         return String(rec.id || "") === str(body.contactId || body.id || body.contact_id);
       }) as Record<string, unknown> | undefined;
       if (!hit) return json(404, { error: "That contact is not on the book." });
+      if (asAgent && !user) {
+        const hitId = String(hit.id || "");
+        const callPhone = str(body.phone || body.called_number);
+        if (callPhone && !phonesMatch(callPhone, hit.phone) && !phonesMatch(callPhone, hit.mobile)) {
+          return json(409, { ok: false, error: "That lead's phone does not match this call. Nothing was written.", dialing: false, sms: false });
+        }
+        if (!(await harborWasPulled(env.SESSIONS, hitId))) {
+          return json(409, { ok: false, error: "That lead was not pulled for this call. Log only the lead get_next_lead returned. Nothing was written.", dialing: false, sms: false });
+        }
+      }
       const noteOnly = !str(body.outcome) && Boolean(str(body.note));
       if (noteOnly) {
         const id = String(hit.id || "");
