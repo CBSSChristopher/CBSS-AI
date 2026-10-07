@@ -34,7 +34,7 @@ import { buildModifiedSpec, readModifiedDraft } from "./modified-catalog.ts";
 import { buildProposalSubmit, readProposalLine } from "./proposal-lines.ts";
 import { matchContactForProposal, proposalAttachPatch } from "./crm-proposal.ts";
 import { scopeCrmGetPayload, shouldScopeCrmGet } from "./crm-scope.ts";
-import { rememberUser } from "./cycle/store.ts";
+import { readRecord, rememberUser } from "./cycle/store.ts";
 import { handleAgentMailHook, handleCycleAuthed, runCycleCron } from "./cycle/http.ts";
 import { startWorking } from "./cycle/engine.ts";
 import { buildMondayReport } from "./monday-report.ts";
@@ -68,7 +68,17 @@ import {
 } from "./va/workflow.ts";
 import { handleHarborBuildLead, handleHarborNeedsHuman, handleHarborQuote, handleHarborReadyToBuy, harborWorkflowAuthed } from "./va/harbor-quote.ts";
 import { harborOutboundOpener } from "./va/scripts.ts";
-import { dispatchHarborCteMail } from "./va/harbor-mail.ts";
+import { dispatchHarborCteMail, harborCteTemplateFor } from "./va/harbor-mail.ts";
+import {
+  clampHarborCallCte,
+  cycleMailedWithin,
+  decideHarborCallOutcome,
+  freshHarborCall,
+  harborCallKey,
+  readHarborCall,
+  recordHarborCallOutcome,
+  writeHarborCall,
+} from "./va/harbor-call-lock.ts";
 import {
   HARBOR_DID_DEFAULT,
   harborMarkPull,
@@ -254,11 +264,25 @@ async function finishHarborOutcome(
   body: Record<string, unknown>,
   plan: { outcome: string; spoken?: string },
   extra: Record<string, unknown> = {},
+  opts: { skipMail?: string } = {},
 ): Promise<Response> {
-  const mailed = await dispatchHarborCteMail(env, {
-    ...hit,
-    email: str(hit.email || body.email),
-  }, plan.outcome);
+  const mailed = opts.skipMail
+    ? {
+      required: false,
+      ok: true,
+      dialing: false as const,
+      sms: false as const,
+      step: "" as const,
+      to: str(hit.email || body.email).toLowerCase(),
+      from: "",
+      replyTo: "",
+      skipped: true,
+      reason: opts.skipMail,
+    }
+    : await dispatchHarborCteMail(env, {
+      ...hit,
+      email: str(hit.email || body.email),
+    }, plan.outcome);
   const ok = mailed.required ? mailed.ok === true : true;
   return json(ok ? 200 : 502, {
     ...extra,
@@ -1036,12 +1060,21 @@ export default {
         const cardId = String(card.id || "");
         const cardOpener = harborOutboundOpener(card);
         if (priorId) {
+          // Same call: hand back the same card, change nothing.
+          const priorCall = await readHarborCall(
+            env.SESSIONS,
+            await harborCallKey(env.SESSIONS, cardId, { conversationId, dialed }),
+          );
+          const logged = Boolean(priorCall && priorCall.outcomes.length);
           return json(200, {
             ok: true,
             tool: "get_next_lead",
             empty: false,
             already_pulled: true,
-            message: "This lead is already pulled for this call. Do not call get_next_lead again on this call.",
+            ...(logged ? { outcome_logged: true, outcome: priorCall!.outcomes[0] } : {}),
+            message: logged
+              ? "This call is already logged (" + priorCall!.outcomes.join(", ") + "). Do not call get_next_lead or log_outcome again on this call."
+              : "This lead is already pulled for this call. Do not call get_next_lead again on this call.",
             dialing: false,
             sms: false,
             source: pick.source,
@@ -1153,10 +1186,24 @@ export default {
           return json(409, { ok: false, error: "That lead was not pulled for this call. Log only the lead get_next_lead returned. Nothing was written.", dialing: false, sms: false });
         }
       }
+      const callKey = await harborCallKey(env.SESSIONS, String(hit.id || ""), {
+        conversationId: body.conversation_id || body.conversationId,
+        dialed: body.phone || body.called_number,
+      });
+      const callState = (await readHarborCall(env.SESSIONS, callKey)) || freshHarborCall(callKey, String(hit.id || ""), hit.cteStage);
       const noteOnly = !str(body.outcome) && Boolean(str(body.note));
       if (noteOnly) {
         const id = String(hit.id || "");
-        const cte = body.cteStage ? normalizeCteStep(body.cteStage) : "";
+        // One call never moves the card more than one CTE step, even through update_lead.
+        const cte = body.cteStage ? clampHarborCallCte(callState, body.cteStage) : "";
+        if (cte && cte !== normalizeCteStep(hit.cteStage)) {
+          await writeHarborCall(env.SESSIONS, {
+            ...callState,
+            advanced: callState.advanced || cte !== callState.cteStart,
+            cteNow: cte,
+            lastAt: new Date().toISOString(),
+          });
+        }
         if (cte) {
           const edits: Record<string, Record<string, unknown>> = {};
           edits[id] = { cteStage: cte };
@@ -1187,17 +1234,64 @@ export default {
       });
       if (!plan.outcome) return json(400, { error: "Need a Harbor call outcome." });
       const id = String(hit.id || "");
+      // One Harbor call = at most one CTE step and one outcome email (see harbor-call-lock.ts).
+      const cycleRec = await readRecord(env, id).catch(() => null);
+      const decision = decideHarborCallOutcome(callState, plan.outcome, plan.cteStage, {
+        recentMail: cycleMailedWithin(cycleRec),
+      });
+      const mailStep = harborCteTemplateFor(hit, plan.outcome);
+      const willMail = decision.allowMail && !decision.noteOnly && Boolean(mailStep);
+      const finalPlan = { ...plan, cteStage: decision.cteStage };
+      if (decision.noteOnly) {
+        finalPlan.note = "Harbor · " + decision.reason + " Ignored repeat " + plan.outcome + ".";
+      } else {
+        const held: string[] = [];
+        if (decision.cteStage !== plan.cteStage) {
+          finalPlan.note = finalPlan.note.replace(/Next CTE\d/, "Stays " + decision.cteStage);
+          held.push("One CTE step per call: card stays " + decision.cteStage + ".");
+        }
+        if (mailStep && !decision.allowMail) held.push(decision.reason);
+        if (held.length) finalPlan.note = finalPlan.note + "\n" + held.join(" ");
+      }
+      // Claim the call before any write or send so a fast repeat sees it.
+      await writeHarborCall(env.SESSIONS, recordHarborCallOutcome(callState, plan.outcome, {
+        cteStage: decision.cteStage,
+        mailed: willMail,
+        mailStep: willMail ? mailStep : "",
+      }));
+      if (decision.noteOnly) {
+        await crm.note(id, finalPlan.note);
+        return json(200, {
+          ok: true,
+          tool: "log_outcome",
+          duplicate_call_outcome: true,
+          message: "An outcome is already logged for this call. Nothing else was changed or sent. Do not log again on this call.",
+          dialing: false,
+          sms: false,
+          spoken: "",
+          plan: finalPlan,
+          mail: { required: false, ok: true, skipped: true, reason: decision.reason },
+          ...vaPublicStatus(env),
+        });
+      }
       const edits: Record<string, Record<string, unknown>> = {};
-      edits[id] = harborOutcomeEdits(plan);
+      edits[id] = harborOutcomeEdits(finalPlan);
       await crm.edits(edits);
-      const follow = harborFollowupRow(plan);
+      const follow = harborFollowupRow(finalPlan);
       if (follow) {
         const followups: Record<string, Record<string, unknown>> = {};
         followups[id] = follow;
         await crm.followups(followups);
       }
-      await crm.note(id, plan.note);
-      return finishHarborOutcome(env, hit, body, plan, { tool: "log_outcome" });
+      await crm.note(id, finalPlan.note);
+      return finishHarborOutcome(
+        env,
+        hit,
+        body,
+        finalPlan,
+        { tool: "log_outcome", ...(decision.repeat ? { repeat_call_outcome: true } : {}) },
+        willMail ? {} : { skipMail: decision.reason || "No outcome email for this outcome." },
+      );
     }
 
     if (path === "/va/harbor/inbound" && request.method === "POST") {
