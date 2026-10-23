@@ -132,6 +132,16 @@
       width: 100%; padding: 8px 11px; border: 1px solid var(--border);
       border-radius: 7px; font-size: 0.88rem; font-family: inherit;
     }
+    .complaint-lookup { display: flex; gap: 8px; flex: 1 1 100%; min-width: 0; align-items: center; }
+    .complaint-lookup input { flex: 1; min-width: 0; width: 100%; padding: 8px 11px; border: 1px solid var(--border); border-radius: 7px; font-family: inherit; }
+    #complaintLookupResults { flex: 1 1 100%; }
+    .complaint-hit { display: block; width: 100%; text-align: left; margin-top: 6px; }
+    .proof-lead { color: var(--muted); font-size: 0.85rem; margin: 0 0 10px; }
+    .proof-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+    .proof-block { border-top: 1px solid var(--border); padding-top: 10px; margin-top: 10px; }
+    .proof-block h3 { font-size: 0.92rem; margin: 0 0 8px; color: var(--primary); }
+    .proof-msg { font-size: 0.82rem; color: var(--success); min-height: 1.1em; }
+    .proof-file { font-size: 0.85rem; padding: 8px 0; border-bottom: 1px solid var(--border); }
     .toolbar {
       display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
       padding: 10px 14px; border-bottom: 1px solid var(--border); background: #f7fafc;
@@ -335,7 +345,7 @@
       .stat-bar { flex-wrap: wrap; gap: 10px; padding: 8px 12px; }
       .toolbar { padding: 10px; }
       .search-box { min-width: 0; width: 100%; }
-      .search-box input, textarea, input[type="text"], input[type="date"], input[type="email"], input[type="password"], input[type="datetime-local"], input[type="number"], input[type="search"], select {
+      .search-box input, textarea, input[type="text"], input[type="date"], input[type="email"], input[type="password"], input[type="datetime-local"], input[type="number"], input[type="search"], input[type="file"], select {
         font-size: 16px; min-height: 44px;
       }
       .btn, .filter-chip, .keep-btn { min-height: 44px; padding: 10px 14px; }
@@ -375,7 +385,7 @@
         <span class="mark">CB</span>
         <div>
           <h1>CBShippingSolutions</h1>
-          <p>Container Sales CRM · build 23</p>
+          <p>Container Sales CRM · build 25</p>
         </div>
       </div>
       <div class="user">
@@ -411,6 +421,11 @@
               <input type="search" id="searchInput" name="crm-contact-filter" placeholder="Search name, company, email, phone, city..." autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" role="searchbox" data-lpignore="true" data-1p-ignore="true" data-form-type="other" readonly onfocus="unlockContactSearch(this)" oninput="onSearchInput(event)" />
             </form>
           </div>
+          <form id="complaintLookupForm" class="complaint-lookup" action="#" autocomplete="off" onsubmit="return runComplaintLookup(event)">
+            <input type="search" id="complaintLookup" name="complaint-lookup" placeholder="Complaint lookup: name, phone, email, or order" autocomplete="off" />
+            <button type="submit" class="btn btn-primary">Match</button>
+          </form>
+          <div id="complaintLookupResults"></div>
           <label class="ctrl">
             <span>Owner</span>
             <select id="ownerFilter" onchange="onOwnerFilterChange()" aria-label="Owner filter">
@@ -1871,7 +1886,8 @@
           (c.owner || '').toLowerCase().includes(q) ||
           (c.company || '').toLowerCase().includes(q) ||
           (c.zip || '').includes(q) ||
-          (c.depot || '').toLowerCase().includes(q)
+          (c.depot || '').toLowerCase().includes(q) ||
+          dealsForContact(c.id).some(d => String(d.id).toLowerCase().includes(q) || String(d.name || '').toLowerCase().includes(q))
         );
       } else if (!currentOwnerScope()) {
         filtered = filtered.filter(isWorking);
@@ -1944,6 +1960,7 @@
       }
       const detail = document.getElementById('contactDetail');
       detail.classList.remove('empty');
+      const proofDeal = dealsForContact(c.id)[0] || null;
 
       const notesHtml = (c.notes || []).slice(0, 40).map(n => `
         <div class="note">
@@ -2014,6 +2031,15 @@
           <div class="field-row"><span class="label">Client type</span><span>${esc(c.clientType) || '—'}</span></div>
           <div class="field-row"><span class="label">DNC</span><span>${c.dnc ? 'Yes' : 'No'}</span></div>
         </div>
+        <div class="card" id="orderProofCard" data-contact-id="${esc(String(c.id))}" data-deal-id="${proofDeal ? esc(String(proofDeal.id)) : ''}">
+          <h2>Order proof</h2>
+          <p class="proof-lead">Photos, signed invoice, payment, BOL, customer sign-off, and hauler proof for this order. Nothing here sends an email.</p>
+          <div class="proof-actions">
+            <button type="button" class="btn btn-primary" id="proofPacketBtn" onclick="downloadProofPacket()">Proof packet</button>
+          </div>
+          <div class="proof-msg" id="proofMsg"></div>
+          <div id="orderProofBody">Loading order proof…</div>
+        </div>
         <div class="card">
           <h2>Follow-up</h2>
           <div class="field-row"><span class="label">Next Action</span>
@@ -2051,6 +2077,294 @@
           <div class="actions"><button class="btn btn-primary" onclick="createDeal(${c.id})">Add to Pipeline</button></div>
         </div>
       `;
+      loadOrderProof();
+    }
+
+    let proofLoadToken = 0;
+
+    function proofCardEls() {
+      return {
+        card: document.getElementById('orderProofCard'),
+        body: document.getElementById('orderProofBody'),
+        msg: document.getElementById('proofMsg')
+      };
+    }
+
+    function setProofMsg(text) {
+      const msg = document.getElementById('proofMsg');
+      if (msg) msg.textContent = text || '';
+    }
+
+    async function proofPost(action, payload) {
+      const res = await fetch('/order-proof', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(Object.assign({ action }, payload || {}))
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Save failed');
+      return data;
+    }
+
+    function proofIds() {
+      const card = document.getElementById('orderProofCard');
+      return {
+        contactId: card ? card.getAttribute('data-contact-id') : '',
+        dealId: card ? (card.getAttribute('data-deal-id') || '') : ''
+      };
+    }
+
+    async function loadOrderProof() {
+      const token = ++proofLoadToken;
+      const els = proofCardEls();
+      if (!els.card || !els.body) return;
+      const ids = proofIds();
+      try {
+        const qs = new URLSearchParams({ contactId: ids.contactId, dealId: ids.dealId });
+        const res = await fetch('/order-proof?' + qs.toString(), { credentials: 'include' });
+        const data = await res.json().catch(() => ({}));
+        if (token !== proofLoadToken) return;
+        if (!res.ok) {
+          els.body.textContent = data.error || 'Order proof is unavailable.';
+          return;
+        }
+        renderOrderProof(data);
+      } catch (err) {
+        if (token !== proofLoadToken) return;
+        els.body.textContent = 'Order proof is unavailable.';
+      }
+    }
+
+    function renderOrderProof(data) {
+      const body = document.getElementById('orderProofBody');
+      if (!body) return;
+      const rec = data.record || { attachments: [], timeline: [], communications: [], hauler: {}, orderRef: '' };
+      const hauler = rec.hauler || {};
+      const files = rec.attachments || [];
+      const timeline = rec.timeline || [];
+      const comms = rec.communications || [];
+      const bucketNote = data.bucketReady ? '' : '<p class="proof-lead">File upload waits on the proof bucket. Timeline, hauler, and message links can be saved now.</p>';
+      const typeOptions = ['delivery-photo','delivery-video','signed-invoice','contract','payment','bol','delivery-receipt','customer-signoff','hauler-payment','hauler-ack','other']
+        .map(t => '<option value="' + t + '">' + t + '</option>').join('');
+      const fileHtml = files.map(f => {
+        const pay = f.payment ? ' · ' + esc(f.payment.method || '') + ' ' + esc(f.payment.date || '') + ' ' + esc(f.payment.amount || '') + (f.payment.reference ? ' · ' + esc(f.payment.reference) : '') : '';
+        const pub = f.publicOk ? ' · public ' + esc(f.publicCity || '') + ' ' + esc(f.publicDate || '') : '';
+        return '<div class="proof-file"><strong>' + esc(f.type) + '</strong> ' + esc(f.filename || '') + pay + pub +
+          '<div class="meta">' + esc(f.uploadedAt || '') + ' · ' + esc(f.uploadedBy || '') + '</div>' +
+          '<button type="button" class="btn btn-secondary" onclick="openProofFile(\'' + esc(f.id) + '\')">Open</button>' +
+          (f.type === 'delivery-photo' ? ' <button type="button" class="btn btn-secondary" onclick="saveProofPublic(\'' + esc(f.id) + '\',' + (f.publicOk ? 'false' : 'true') + ')">' + (f.publicOk ? 'Hide from public' : 'OK to show publicly') + '</button>' : '') +
+          '</div>';
+      }).join('') || '<p class="proof-lead">No files yet.</p>';
+      const timelineHtml = timeline.map(ev => '<div class="proof-file">' + esc(ev.at) + ' · <strong>' + esc(ev.kind) + '</strong> · ' + esc(ev.by || '') + (ev.note ? '<div>' + esc(ev.note) + '</div>' : '') + '</div>').join('') || '<p class="proof-lead">No status events yet.</p>';
+      const commHtml = comms.map(item => '<div class="proof-file"><strong>' + esc(item.channel) + '</strong> ' + esc(item.at || '') + (item.externalId ? ' · ' + esc(item.externalId) : '') + '<div>' + esc(item.summary || '') + '</div></div>').join('') || '<p class="proof-lead">No linked messages yet. CRM notes can be linked without sending mail.</p>';
+      body.innerHTML = bucketNote +
+        '<div class="proof-block"><h3>Order ref</h3>' +
+        '<div class="field-row"><span class="label">Ref</span><input type="text" id="proofOrderRef" value="' + esc(rec.orderRef || '') + '" placeholder="Order or invoice number" /></div>' +
+        '<button type="button" class="btn btn-secondary" onclick="saveProofOrderRef()">Save ref</button></div>' +
+        '<div class="proof-block"><h3>Files</h3>' + fileHtml +
+        '<div class="field-row"><span class="label">Type</span><select id="proofFileType">' + typeOptions + '</select></div>' +
+        '<div class="field-row"><span class="label">File</span><input type="file" id="proofFile" accept="image/*,video/mp4,video/quicktime,application/pdf" /></div>' +
+        '<div class="field-row"><span class="label">Method</span><input type="text" id="proofPayMethod" placeholder="wire, ACH, card, check" /></div>' +
+        '<div class="field-row"><span class="label">Paid date</span><input type="date" id="proofPayDate" /></div>' +
+        '<div class="field-row"><span class="label">Amount</span><input type="text" id="proofPayAmount" inputmode="decimal" /></div>' +
+        '<div class="field-row"><span class="label">Reference</span><input type="text" id="proofPayRef" placeholder="Last 4 is enough" /></div>' +
+        '<label class="ctrl"><input type="checkbox" id="proofPublicOk" /> <span>OK to show publicly</span></label>' +
+        '<div class="field-row"><span class="label">Public city</span><input type="text" id="proofPublicCity" placeholder="City only" /></div>' +
+        '<div class="field-row"><span class="label">Public date</span><input type="date" id="proofPublicDate" /></div>' +
+        '<button type="button" class="btn btn-primary" onclick="uploadProofFile()">Upload proof</button></div>' +
+        '<div class="proof-block"><h3>Status</h3>' + timelineHtml +
+        '<div class="field-row"><span class="label">Event</span><select id="proofEventKind"><option value="paid">paid</option><option value="dispatched">dispatched</option><option value="in-transit">in-transit</option><option value="delivered">delivered</option></select></div>' +
+        '<div class="field-row"><span class="label">When</span><input type="datetime-local" id="proofEventAt" /></div>' +
+        '<div class="field-row"><span class="label">Note</span><input type="text" id="proofEventNote" /></div>' +
+        '<button type="button" class="btn btn-primary" onclick="saveProofTimeline()">Log status</button></div>' +
+        '<div class="proof-block"><h3>Hauler</h3>' +
+        '<div class="field-row"><span class="label">Hauler</span><input type="text" id="haulerName" value="' + esc(hauler.name || '') + '" /></div>' +
+        '<div class="field-row"><span class="label">Phone</span><input type="text" id="haulerPhone" value="' + esc(hauler.phone || '') + '" /></div>' +
+        '<div class="field-row"><span class="label">Agreed rate</span><input type="text" id="haulerRate" value="' + esc(hauler.rate || '') + '" inputmode="decimal" /></div>' +
+        '<div class="field-row"><span class="label">Amount paid</span><input type="text" id="haulerPaid" value="' + esc(hauler.amountPaid || '') + '" inputmode="decimal" /></div>' +
+        '<div class="field-row"><span class="label">Paid date</span><input type="date" id="haulerPaidDate" value="' + esc(hauler.paidDate || '') + '" /></div>' +
+        '<div class="field-row"><span class="label">Proof id</span><input type="text" id="haulerProofId" value="' + esc(hauler.paymentProofId || '') + '" /></div>' +
+        '<label class="ctrl"><input type="checkbox" id="haulerAck" ' + (hauler.acknowledged ? 'checked' : '') + ' /> <span>Hauler acknowledged</span></label>' +
+        '<div class="field-row"><span class="label">Note</span><input type="text" id="haulerNote" value="' + esc(hauler.note || '') + '" /></div>' +
+        '<button type="button" class="btn btn-primary" onclick="saveProofHauler()">Save hauler</button></div>' +
+        '<div class="proof-block"><h3>Communications</h3>' + commHtml +
+        '<div class="field-row"><span class="label">Channel</span><select id="proofCommChannel"><option value="email">email</option><option value="text">text</option><option value="call">call</option><option value="agentmail">agentmail</option><option value="harbor">harbor</option><option value="crm-note">crm-note</option></select></div>' +
+        '<div class="field-row"><span class="label">Existing id</span><input type="text" id="proofCommExternal" placeholder="AgentMail thread or message id" /></div>' +
+        '<div class="field-row"><span class="label">Summary</span><input type="text" id="proofCommSummary" /></div>' +
+        '<div class="proof-actions"><button type="button" class="btn btn-primary" onclick="saveProofComm()">Link message</button>' +
+        '<button type="button" class="btn btn-secondary" onclick="linkProofNotes()">Link CRM notes</button></div></div>';
+    }
+
+    async function saveProofOrderRef() {
+      const ids = proofIds();
+      try {
+        const data = await proofPost('setOrderRef', Object.assign(ids, { orderRef: document.getElementById('proofOrderRef').value }));
+        renderOrderProof(data);
+        setProofMsg('Order ref saved.');
+      } catch (err) { setProofMsg(err.message); }
+    }
+
+    async function saveProofTimeline() {
+      const ids = proofIds();
+      const at = document.getElementById('proofEventAt').value;
+      try {
+        const data = await proofPost('addTimeline', Object.assign(ids, {
+          kind: document.getElementById('proofEventKind').value,
+          at: at ? new Date(at).toISOString() : '',
+          note: document.getElementById('proofEventNote').value
+        }));
+        renderOrderProof(data);
+        setProofMsg('Status logged.');
+      } catch (err) { setProofMsg(err.message); }
+    }
+
+    async function saveProofHauler() {
+      const ids = proofIds();
+      try {
+        const data = await proofPost('setHauler', Object.assign(ids, {
+          name: document.getElementById('haulerName').value,
+          phone: document.getElementById('haulerPhone').value,
+          rate: document.getElementById('haulerRate').value,
+          amountPaid: document.getElementById('haulerPaid').value,
+          paidDate: document.getElementById('haulerPaidDate').value,
+          paymentProofId: document.getElementById('haulerProofId').value,
+          acknowledged: document.getElementById('haulerAck').checked,
+          note: document.getElementById('haulerNote').value
+        }));
+        renderOrderProof(data);
+        setProofMsg('Hauler saved.');
+      } catch (err) { setProofMsg(err.message); }
+    }
+
+    async function saveProofComm() {
+      const ids = proofIds();
+      try {
+        const data = await proofPost('addCommunication', Object.assign(ids, {
+          channel: document.getElementById('proofCommChannel').value,
+          externalId: document.getElementById('proofCommExternal').value,
+          summary: document.getElementById('proofCommSummary').value
+        }));
+        renderOrderProof(data);
+        setProofMsg('Message linked. Nothing was sent.');
+      } catch (err) { setProofMsg(err.message); }
+    }
+
+    async function linkProofNotes() {
+      const ids = proofIds();
+      try {
+        const data = await proofPost('linkCrmNotes', ids);
+        renderOrderProof(data);
+        setProofMsg('CRM notes linked.');
+      } catch (err) { setProofMsg(err.message); }
+    }
+
+    async function uploadProofFile() {
+      const ids = proofIds();
+      const input = document.getElementById('proofFile');
+      const file = input && input.files && input.files[0];
+      if (!file) { setProofMsg('Choose a file first.'); return; }
+      const form = new FormData();
+      form.set('contactId', ids.contactId);
+      form.set('dealId', ids.dealId);
+      form.set('type', document.getElementById('proofFileType').value);
+      form.set('file', file);
+      form.set('paymentMethod', document.getElementById('proofPayMethod').value);
+      form.set('paymentDate', document.getElementById('proofPayDate').value);
+      form.set('paymentAmount', document.getElementById('proofPayAmount').value);
+      form.set('paymentReference', document.getElementById('proofPayRef').value);
+      if (document.getElementById('proofPublicOk').checked) {
+        form.set('publicOk', '1');
+        form.set('city', document.getElementById('proofPublicCity').value);
+        form.set('date', document.getElementById('proofPublicDate').value);
+      }
+      try {
+        const res = await fetch('/order-proof/upload', { method: 'POST', credentials: 'include', body: form });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Upload failed');
+        renderOrderProof(data);
+        setProofMsg('Proof file saved.');
+      } catch (err) { setProofMsg(err.message); }
+    }
+
+    function openProofFile(id) {
+      const ids = proofIds();
+      const qs = new URLSearchParams({ id, contactId: ids.contactId, dealId: ids.dealId });
+      window.open('/order-proof/file?' + qs.toString(), '_blank', 'noopener');
+    }
+
+    async function saveProofPublic(id, publicOk) {
+      const ids = proofIds();
+      const city = (document.getElementById('proofPublicCity') && document.getElementById('proofPublicCity').value) || '';
+      const date = (document.getElementById('proofPublicDate') && document.getElementById('proofPublicDate').value) || '';
+      try {
+        const data = await proofPost('setPublic', Object.assign(ids, { attachmentId: id, publicOk, city, date }));
+        renderOrderProof(data);
+        setProofMsg(publicOk ? 'Marked OK to show publicly.' : 'Removed from the public feed.');
+      } catch (err) { setProofMsg(err.message); }
+    }
+
+    async function downloadProofPacket() {
+      const ids = proofIds();
+      setProofMsg('Building proof packet…');
+      try {
+        const qs = new URLSearchParams({ contactId: ids.contactId, dealId: ids.dealId });
+        const res = await fetch('/order-proof/packet?' + qs.toString(), { credentials: 'include' });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || 'Proof packet failed');
+        }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'cbss-proof-' + (ids.dealId || ids.contactId) + '.pdf';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+        setProofMsg('Proof packet downloaded.');
+      } catch (err) { setProofMsg(err.message); }
+    }
+
+    async function runComplaintLookup(event) {
+      if (event) event.preventDefault();
+      const box = document.getElementById('complaintLookup');
+      const results = document.getElementById('complaintLookupResults');
+      const q = (box && box.value || '').trim();
+      if (!results) return false;
+      if (!q) { results.innerHTML = ''; return false; }
+      results.textContent = 'Matching…';
+      try {
+        const res = await fetch('/order-proof/lookup?q=' + encodeURIComponent(q), { credentials: 'include' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Lookup failed');
+        const matches = data.matches || [];
+        if (!matches.length) {
+          results.textContent = 'No order matched that complaint.';
+          return false;
+        }
+        results.innerHTML = matches.map(m =>
+          '<button type="button" class="btn btn-secondary complaint-hit" onclick="openComplaintMatch(\'' + esc(m.contactId) + '\')">' +
+          esc(m.name || 'Contact') + ' · ' + esc(m.city || '') + ' · ' + esc(m.phone || m.email || '') +
+          (m.orderRef ? ' · ' + esc(m.orderRef) : '') +
+          (m.dealId ? ' · order ' + esc(m.dealId) : '') +
+          (m.hasProof ? ' · proof on file' : ' · no proof yet') +
+          '</button>'
+        ).join('');
+      } catch (err) {
+        results.textContent = err.message;
+      }
+      return false;
+    }
+
+    function openComplaintMatch(contactId) {
+      switchView('contacts');
+      const c = contactForId(contactId);
+      if (!c) return;
+      selectContact(contactId);
+      const detail = document.getElementById('contactDetail');
+      if (detail && detail.scrollIntoView) detail.scrollIntoView({ block: 'nearest' });
     }
 
     function isCompletedFollowupRecord(value) {

@@ -27,5 +27,11 @@
       "binding": "CRM_STORE",
       "id": "257a2e17e41b4662b0f8ac164f91d7ca"
     }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "PROOF_BUCKET",
+      "bucket_name": "cbss-crm-order-proof"
+    }
   ]
 }
