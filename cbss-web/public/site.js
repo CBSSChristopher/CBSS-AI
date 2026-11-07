@@ -141,7 +141,11 @@ if (form) {
     msg.classList.remove("ok");
     msg.textContent = "Sending your request…";
     try {
-      const res = await fetch("/api/request", {
+      const api =
+        location.hostname === "cbssweb.cbss.workers.dev"
+          ? "/api/request"
+          : "https://cbssweb.cbss.workers.dev/api/request";
+      const res = await fetch(api, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

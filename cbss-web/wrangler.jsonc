@@ -29,7 +29,7 @@
     "head_sampling_rate": 1
   },
   "routes": [
-    { "pattern": "cbshippingsolutions.app", "custom_domain": true },
-    { "pattern": "www.cbshippingsolutions.app", "custom_domain": true }
+    { "pattern": "cbshippingsolutions.app/*", "zone_name": "cbshippingsolutions.app" },
+    { "pattern": "www.cbshippingsolutions.app/*", "zone_name": "cbshippingsolutions.app" }
   ]
 }

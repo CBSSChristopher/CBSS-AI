@@ -22,15 +22,33 @@ const SECURITY = {
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8" };
 const FROM = ["requests", "cbshippingsolutions.app"].join("@");
 const CRM_INGEST = "https://cbsscrm.cbss.workers.dev/crm-data";
+const FORM_ORIGINS = new Set([
+  "https://cbshippingsolutions.app",
+  "https://www.cbshippingsolutions.app",
+]);
 
-function withSecurity(res) {
+function corsHeaders(request) {
+  const origin = request.headers.get("Origin") || "";
+  if (!FORM_ORIGINS.has(origin)) return {};
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+    Vary: "Origin",
+  };
+}
+
+function withSecurity(res, request) {
   const out = new Response(res.body, res);
   for (const [key, value] of Object.entries(SECURITY)) out.headers.set(key, value);
+  if (request) {
+    for (const [key, value] of Object.entries(corsHeaders(request))) out.headers.set(key, value);
+  }
   return out;
 }
 
-function json(status, payload) {
-  return withSecurity(new Response(JSON.stringify(payload), { status, headers: JSON_HEADERS }));
+function json(status, payload, request) {
+  return withSecurity(new Response(JSON.stringify(payload), { status, headers: JSON_HEADERS }), request);
 }
 
 async function readBody(request) {
@@ -96,22 +114,25 @@ export default {
       url.pathname === "/contact" ||
       url.pathname === "/contact.html"
     ) {
-      return withSecurity(Response.redirect(new URL("/request", url), 301));
+      return withSecurity(Response.redirect(new URL("/request", url), 301), request);
+    }
+    if (url.pathname === "/api/request" && request.method === "OPTIONS") {
+      return withSecurity(new Response(null, { status: 204 }), request);
     }
     if (url.pathname === "/api/request" && request.method === "POST") {
       let raw;
       try {
         raw = await readBody(request);
       } catch {
-        return json(400, { ok: false, error: "The form did not send usable data." });
+        return json(400, { ok: false, error: "The form did not send usable data." }, request);
       }
       const data = parseInquiry(raw);
       const error = validateInquiry(data);
-      if (error) return json(400, { ok: false, error });
+      if (error) return json(400, { ok: false, error }, request);
       const ip = request.headers.get("cf-connecting-ip") || "unknown";
       const rlKey = "rl:" + ip;
       if (env.WEB_INQUIRIES && (await env.WEB_INQUIRIES.get(rlKey))) {
-        return json(429, { ok: false, error: "Wait a minute and send it again." });
+        return json(429, { ok: false, error: "Wait a minute and send it again." }, request);
       }
       const id = Date.now().toString(36) + "-" + crypto.randomUUID().slice(0, 8);
       const record = { id, at: new Date().toISOString(), ip, ...data };
@@ -136,7 +157,7 @@ export default {
       } catch (_) {}
       const result = collectionResult({ stored, emailed, crmOk });
       if (!result.ok) {
-        return json(500, { ok: false, error: result.error, id });
+        return json(500, { ok: false, error: result.error, id }, request);
       }
       return json(200, {
         ok: true,
@@ -146,12 +167,12 @@ export default {
         crm: result.crm,
         contactId,
         warning: result.emailed ? "" : "We kept the request. If you do not hear back, call the office.",
-      });
+      }, request);
     }
     if (url.pathname === "/api/request") {
-      return json(405, { ok: false, error: "POST only." });
+      return json(405, { ok: false, error: "POST only." }, request);
     }
-    const asset = withSecurity(await env.ASSETS.fetch(request));
+    const asset = withSecurity(await env.ASSETS.fetch(request), request);
     const type = asset.headers.get("content-type") || "";
     if (type.includes("text/html")) {
       const html = await asset.text();
@@ -163,6 +184,7 @@ export default {
           status: asset.status,
           headers: { "content-type": "text/html; charset=utf-8" },
         }),
+        request,
       );
       page.headers.set("Cache-Control", cacheControl(url.pathname, "text/html"));
       return page;
