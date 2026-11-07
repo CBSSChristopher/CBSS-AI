@@ -1,6 +1,6 @@
 import { splitName, type InvoiceCard } from "./waave.ts";
 import { NEXT_STEPS_PDF_NAME, loadNextStepsPdf } from "./next-steps-pdf.ts";
-import { withOwnerTrackingCc } from "../../cbss-os/src/cycle/agentmail.ts";
+import { CHRISTOPHER_OPERATIONAL_EMAIL, rewriteChristopherMailbox, withOwnerTrackingCc } from "../../cbss-os/src/cycle/agentmail.ts";
 
 export { NEXT_STEPS_PDF_NAME };
 export const LIST_KEY = "invoices";
@@ -88,10 +88,16 @@ function officeCc(...emails: string[]): string[] {
   const host = "cbshippingsolutions.com";
   const seen = new Set<string>();
   const out: string[] = [];
-  for (const mail of [`christopher@${host}`, `aliyah@${host}`, ...emails.map((v) => String(v || "").trim().toLowerCase())]) {
-    if (!mail || !mail.includes("@") || seen.has(mail)) continue;
-    seen.add(mail);
-    out.push(mail);
+  for (const mail of [
+    CHRISTOPHER_OPERATIONAL_EMAIL,
+    `aliyah@${host}`,
+    ...emails.map((v) => rewriteChristopherMailbox(String(v || "").trim().toLowerCase())),
+  ]) {
+    const next = rewriteChristopherMailbox(mail);
+    const key = next.toLowerCase();
+    if (!next || !next.includes("@") || seen.has(key)) continue;
+    seen.add(key);
+    out.push(next);
   }
   return out;
 }
@@ -112,7 +118,7 @@ export async function sendPaidNextSteps(
   const payload: Record<string, unknown> = {
     to: [to],
     cc: withOwnerTrackingCc([to], officeCc(card.sentBy || "", card.paidBy || "")),
-    reply_to: currentRep ? [currentRep] : undefined,
+    reply_to: currentRep ? [rewriteChristopherMailbox(currentRep)] : undefined,
     subject: NEXT_STEPS_SUBJECT,
     text: paidNextStepsBody(first),
     labels: ["yard-cycle", "paid"],

@@ -1,5 +1,5 @@
 import { loginCrmTool, loginProposalTool, origins, UA, type Env } from "../auth.ts";
-import { sendAgentMail, type SendMailResult } from "../cycle/agentmail.ts";
+import { CHRISTOPHER_OPERATIONAL_EMAIL, sendAgentMail, type SendMailResult } from "../cycle/agentmail.ts";
 import { rosterCompanyEmail } from "../cycle/rep.ts";
 import { pushAlert } from "../cycle/store.ts";
 import { normalizeGrade, normalizeHeight } from "../proposal-lines.ts";
@@ -33,9 +33,17 @@ export const HARBOR_BUILD_LEAD_PATH = "/va/harbor/build-lead";
 export const DEFAULT_HARBOR_MARGIN = 700;
 export const HARBOR_CLOSERS = HUMAN_CLOSERS;
 export const HARBOR_NOTIFY_EMAILS = [
-  rosterCompanyEmail("Christopher Banks"),
+  CHRISTOPHER_OPERATIONAL_EMAIL,
   rosterCompanyEmail("Bryan Reese"),
 ] as const;
+
+/** In-Yard alerts stay on the company login until that account is migrated. */
+export function harborAlertAddress(addr: string): string {
+  if (String(addr || "").trim().toLowerCase() === CHRISTOPHER_OPERATIONAL_EMAIL) {
+    return rosterCompanyEmail("Christopher Banks");
+  }
+  return addr;
+}
 
 export type HarborQuoteHandlerResult = { status: number; body: Record<string, unknown> };
 
@@ -589,7 +597,7 @@ export async function handleHarborReadyToBuy(env: Env, request: Request, deps: H
       labels: ["harbor-ready-to-buy"],
     });
     for (const addr of notify.to) {
-      await pushAlert(env, addr, hit ? String(hit.id) : "", notice.subject);
+      await pushAlert(env, harborAlertAddress(addr), hit ? String(hit.id) : "", notice.subject);
     }
     mail = mailed.ok ? { ok: true, messageId: mailed.messageId } : { ok: false, error: mailed.error };
   }
@@ -676,7 +684,7 @@ export async function handleHarborNeedsHuman(env: Env, request: Request, deps: H
       labels: ["harbor-needs-human"],
     });
     for (const addr of notify.to) {
-      await pushAlert(env, addr, hit ? String(hit.id) : "", notice.subject);
+      await pushAlert(env, harborAlertAddress(addr), hit ? String(hit.id) : "", notice.subject);
     }
     mail = mailed.ok ? { ok: true, messageId: mailed.messageId } : { ok: false, error: mailed.error };
   }
@@ -769,7 +777,7 @@ export async function handleHarborBuildLead(env: Env, request: Request, deps: Ha
       labels: ["harbor-build-lead"],
     });
     for (const addr of notify.to) {
-      await pushAlert(env, addr, hit ? String(hit.id) : "", notice.subject);
+      await pushAlert(env, harborAlertAddress(addr), hit ? String(hit.id) : "", notice.subject);
     }
     mail = mailed.ok ? { ok: true, messageId: mailed.messageId } : { ok: false, error: mailed.error };
   }

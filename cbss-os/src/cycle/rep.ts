@@ -1,5 +1,6 @@
 import { isCompanyEmail } from "../auth.ts";
 import { TEAM_OWNERS, titleOwner } from "../brand.ts";
+import { CHRISTOPHER_OPERATIONAL_EMAIL } from "./agentmail.ts";
 
 export type ActiveUser = {
   email: string;
@@ -171,5 +172,5 @@ export function resolveAssignedRep(
 /** Paid Next Steps office CC. sendAgentMail also forces Christopher on every send. */
 export function officeCopy(): string[] {
   const host = "cbshippingsolutions.com";
-  return [`christopher@${host}`, `aliyah@${host}`];
+  return [CHRISTOPHER_OPERATIONAL_EMAIL, `aliyah@${host}`];
 }

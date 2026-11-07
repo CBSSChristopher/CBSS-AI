@@ -176,10 +176,16 @@ ${flexLine}`;
   return JSON.parse(match[0]);
 }
 
+function rewriteChristopherMailbox(email) {
+  const mail = String(email || "").trim();
+  if (mail.toLowerCase() === ["christopher", "cbshippingsolutions.com"].join("@")) return CHRISTOPHER_INTERNAL_PROPOSAL_EMAIL;
+  return mail;
+}
+
 export function brevoMessageBody({ to, subject, htmlContent, textContent, attachment }) {
   const payload = {
     sender: { name: FROM_NAME, email: FROM_EMAIL },
-    to,
+    to: (to || []).map((row) => ({ ...row, email: rewriteChristopherMailbox(row && row.email) })),
     subject,
     htmlContent,
     textContent,
@@ -684,7 +690,7 @@ export function buildProposalMailPlan(data, pricing) {
     status: "sent",
     messages: [
       {
-        to: [{ email: data.repEmail, name: data.repName }],
+        to: [{ email: rewriteChristopherMailbox(data.repEmail), name: data.repName }],
         subject: `Your Proposal is Ready - ${data.customerName} | ${data.containerDesc}`,
         htmlContent: buildSalesRepHtml(data),
         textContent: `Client-ready proposal for ${data.customerName} is attached.`,

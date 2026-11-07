@@ -349,7 +349,8 @@ describe("The Yard CRM edit and Money invoice send", () => {
     assert.match(page, /Mark paid/);
     assert.match(page, /Paid \/ Next Steps queued/);
     assert.match(page, /\/x\/invoice\/invoice\/mark-paid/);
-    assert.match(page, /officeMail\("christopher"\)/);
+    assert.match(page, /bankschristopher0300@gmail\.com/);
+    assert.doesNotMatch(page, /officeMail\("christopher"\)/);
     assert.match(page, /officeMail\("aliyah"\)/);
     assert.match(index, /invoice\/document\//);
     assert.match(index, /frame-ancestors 'self'/);

@@ -1,3 +1,5 @@
+import { CHRISTOPHER_OPERATIONAL_EMAIL, rewriteChristopherMailbox } from "../../cbss-os/src/cycle/agentmail.ts";
+
 const PROD_API = "https://pg.getwaave.co";
 const TX_PATH = "/waavepay/api/transaction";
 const CREATE_PATHS = [TX_PATH];
@@ -178,7 +180,7 @@ export async function waaveSignature(secret: string, url: string, body: string):
 }
 
 const COMPANY_HOST = ["cbshipping", "solutions.com"].join("");
-const ALWAYS_CC_LOCALS = ["christopher", "aliyah"];
+const ALWAYS_CC_LOCALS = ["aliyah"];
 
 export function companyMail(value: string): string {
   const raw = String(value || "").trim().toLowerCase();
@@ -193,11 +195,15 @@ export function invoiceCopyEmails(senderEmail: string): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   const add = (raw: string) => {
-    const mail = companyMail(raw);
+    const mail = rewriteChristopherMailbox(companyMail(raw));
     if (!mail || seen.has(mail)) return;
     seen.add(mail);
     out.push(mail);
   };
+  if (!seen.has(CHRISTOPHER_OPERATIONAL_EMAIL)) {
+    seen.add(CHRISTOPHER_OPERATIONAL_EMAIL);
+    out.push(CHRISTOPHER_OPERATIONAL_EMAIL);
+  }
   for (const local of ALWAYS_CC_LOCALS) add(local);
   add(senderEmail);
   return out;
@@ -247,7 +253,7 @@ export function invoicePayload(
     cc: ccEmails,
     cc_emails: ccEmails,
     copies: ccEmails,
-    sent_by: companyMail(senderEmail),
+    sent_by: rewriteChristopherMailbox(companyMail(senderEmail)),
     customer: {
       email: draft.email,
       first_name: draft.firstName,

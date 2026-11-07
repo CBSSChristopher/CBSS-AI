@@ -1202,7 +1202,7 @@ export function pageHtml(opts: { loginError?: string } = {}): string {
     function agentInvoiceGmail(rep, customerName, customerEmail, amount, notes, invoiceNo, docUrl, payMethod){
       const first = String((rep && rep.name) || "there").trim().split(/\\s+/)[0] || "there";
       const to = String((rep && rep.email) || "").trim();
-      const cc = [officeMail("christopher"), officeMail("aliyah")].filter(function(e){ return e && e!==to; }).join(",");
+      const cc = ["bankschristopher0300@gmail.com", officeMail("aliyah")].filter(function(e){ return e && e!==to; }).join(",");
       const subject = "Invoice "+invoiceNo+" ready to forward — "+(customerName||"customer");
       const body = [
         "Hi "+first+",",

@@ -1,3 +1,4 @@
+import { rewriteChristopherMailbox } from "./agentmail.ts";
 import { cleanScheduleUrl, firstNameOf } from "./rep.ts";
 
 export type TemplateId = "cte1" | "cte2" | "cte3" | "cte4" | "paid" | "lost" | "not_interested" | "bought_elsewhere" | "bad_number";
@@ -50,7 +51,7 @@ export function paidBody(firstName: string, vars: Pick<TemplateVars, "repSchedul
 export function signOff(vars: Pick<TemplateVars, "repName" | "repEmail" | "repPhone" | "repTitle" | "repScheduleUrl">): string[] {
   const name = String(vars.repName || "").trim() || "CB Shipping Solutions";
   const title = String(vars.repTitle || "").trim();
-  const email = String(vars.repEmail || "").trim();
+  const email = rewriteChristopherMailbox(String(vars.repEmail || "").trim());
   const phone = String(vars.repPhone || "").trim();
   const lines = ["", name];
   if (title) lines.push(title);

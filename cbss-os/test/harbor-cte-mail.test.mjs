@@ -108,8 +108,8 @@ describe("Harbor CTE outcomes use fireTemplate", () => {
       assert.match(calls[0].body.text, /This is Harbor with CB Shipping Solutions/);
       assert.match(calls[0].body.text, /harbor@cbshippingsolutions\.com/);
       assert.match(calls[0].body.text, /870\) 380-4010/);
-      assert.doesNotMatch(calls[0].body.text, /323-2593/);
-      assert.doesNotMatch(JSON.stringify(calls[0].body), /gmail\.com/);
+      assert.doesNotMatch(calls[0].body.text, /323-2593|gmail\.com/);
+      assert.equal(calls[0].body.reply_to.includes("bankschristopher0300@gmail.com"), false);
       const rec = await env.SESSIONS.get("cycle:rec:lead-" + outcome, "json");
       assert.equal(rec.owner, "Harbor");
       assert.equal(rec.ownerEmail, HARBOR_REPLY_TO);
@@ -227,13 +227,14 @@ describe("paid, ready-to-buy, and Harbor queue scope stay put", () => {
     assert.ok(calls[0].body.cc.includes(office[1]));
     assert.ok(calls[0].body.cc.includes(HARBOR_REPLY_TO));
     assert.deepEqual(calls[0].body.reply_to, [HARBOR_REPLY_TO]);
-    assert.doesNotMatch(JSON.stringify(calls[0].body), /gmail\.com|323-2593/);
+    assert.equal(calls[0].body.reply_to.includes("bankschristopher0300@gmail.com"), false);
+    assert.doesNotMatch(calls[0].body.text, /gmail\.com|323-2593/);
   });
 
   it("still notifies only Christopher Banks and Bryan Reese on ready-to-buy", async () => {
     const notify = planHarborReadyToBuyNotify("Bryan Reese");
     assert.deepEqual(notify.to, [
-      rosterCompanyEmail("Christopher Banks"),
+      ownerTrackingCc(),
       rosterCompanyEmail("Bryan Reese"),
     ]);
     assert.equal(notify.to.includes(HARBOR_REPLY_TO), false);

@@ -1032,6 +1032,24 @@ describe("generated proposal internal recipient", () => {
     fulfillment: "deliver",
   };
 
+  it("sends Christopher's own rep copy to the gmail and leaves other reps addressed as signed in", () => {
+    const his = buildProposalMailPlan({ ...sample, repEmail: OLD_CHRISTOPHER_WORK_EMAIL, repName: "Christopher Banks" }, {
+      isLowMargin: false,
+      marginPer: 420,
+      deliveryPer: 0,
+      approvedPricing: false,
+    });
+    assert.equal(his.messages[0].to[0].email, "bankschristopher0300@gmail.com");
+    assert.deepEqual(his.messages[1].to.map((row) => row.email), ["bankschristopher0300@gmail.com", BRYAN_INTERNAL_EMAIL]);
+    const other = buildProposalMailPlan(sample, { isLowMargin: false, marginPer: 420, deliveryPer: 0, approvedPricing: false });
+    assert.equal(other.messages[0].to[0].email, sample.repEmail);
+    const wire = brevoMessageBody(his.messages[0]);
+    assert.equal(wire.to[0].email, "bankschristopher0300@gmail.com");
+    assert.equal(wire.sender.email, FROM_EMAIL);
+    assert.equal(wire.replyTo.email, FROM_EMAIL);
+    assert.equal(JSON.stringify(wire).includes(OLD_CHRISTOPHER_WORK_EMAIL), false);
+  });
+
   it("resolves Christopher's internal copy to the gmail and leaves Bryan in place", () => {
     const recipients = internalRecipients({ PROPOSAL_NOTIFY_EMAIL: "other@example.com" });
     assert.deepEqual(recipients, [
@@ -1125,8 +1143,9 @@ describe("generated proposal internal recipient", () => {
     const paid = readFileSync(new URL("../../cbss-os/src/cycle/rep.ts", import.meta.url), "utf8");
     assert.match(auth, /return \["christopher", "cbshippingsolutions\.com"\]\.join\("@"\);/);
     assert.doesNotMatch(auth, /bankschristopher0300@gmail\.com/);
-    assert.match(invoice, /ALWAYS_CC_LOCALS = \["christopher", "aliyah"\]/);
-    assert.match(paid, /return \[`christopher@\$\{host\}`, `aliyah@\$\{host\}`\]/);
+    assert.match(invoice, /ALWAYS_CC_LOCALS = \["aliyah"\]/);
+    assert.match(invoice, /CHRISTOPHER_OPERATIONAL_EMAIL/);
+    assert.match(paid, /CHRISTOPHER_OPERATIONAL_EMAIL/);
     assert.doesNotMatch(submit, /function ownerEmail\(/);
     assert.match(submit, /buildProposalMailPlan/);
   });

@@ -7,6 +7,7 @@ import {
   harborQuoteAuthed,
   harborWorkflowAuthed,
   harborQuoteFromMatch,
+  harborAlertAddress,
   harborQuoteWant,
   handleHarborBuildLead,
   handleHarborNeedsHuman,
@@ -22,6 +23,7 @@ import {
 } from "../src/va/harbor-quote.ts";
 import { matchPostedBox } from "../src/xchange-match.ts";
 import { dialGate } from "../src/va/status.ts";
+import { CHRISTOPHER_OPERATIONAL_EMAIL } from "../src/cycle/agentmail.ts";
 import { rosterCompanyEmail } from "../src/cycle/rep.ts";
 
 const CHRISTOPHER_MAIL = rosterCompanyEmail("Christopher Banks");
@@ -308,8 +310,11 @@ describe("POST /va/harbor/ready-to-buy", () => {
     assert.equal(got.body.handoff_variant, "accounting");
     assert.equal(got.body.noteWritten, true);
     assert.deepEqual(got.body.notified, [...HARBOR_NOTIFY_EMAILS]);
-    assert.ok(HARBOR_NOTIFY_EMAILS.includes(CHRISTOPHER_MAIL));
+    assert.equal(HARBOR_NOTIFY_EMAILS[0], CHRISTOPHER_OPERATIONAL_EMAIL);
+    assert.equal(HARBOR_NOTIFY_EMAILS.includes(CHRISTOPHER_MAIL), false);
     assert.ok(HARBOR_NOTIFY_EMAILS.includes(BRYAN_MAIL));
+    assert.equal(harborAlertAddress(CHRISTOPHER_OPERATIONAL_EMAIL), CHRISTOPHER_MAIL);
+    assert.equal(harborAlertAddress(BRYAN_MAIL), BRYAN_MAIL);
     assert.equal(notes.length, 1);
     assert.equal(notes[0].id, "c1");
     assert.equal(notes[0].text, mails[0].text);
@@ -319,7 +324,7 @@ describe("POST /va/harbor/ready-to-buy", () => {
     assert.match(mails[0].text, /Your move: send invoice/);
     assert.doesNotMatch(mails[0].subject + "\n" + mails[0].text, /CTE|Closer of record|Cards frozen|do not invent|no posted match|not stated/);
     assert.equal(mails.length, 1);
-    assert.deepEqual(mails[0].to, [CHRISTOPHER_MAIL, BRYAN_MAIL]);
+    assert.deepEqual(mails[0].to, [...HARBOR_NOTIFY_EMAILS]);
     assert.equal(got.body.dry_run, false);
     assert.equal(got.body.dry_run_decision.reason, "not_requested");
     assert.equal(got.body.say_closer_name, false);
@@ -328,7 +333,7 @@ describe("POST /va/harbor/ready-to-buy", () => {
     assert.doesNotMatch(got.body.handoff_speech, /Christopher|Bryan|transfer|get you over/);
     assert.doesNotMatch(JSON.stringify(got.body), /twilio|sms sent|texted/i);
     const notify = planHarborReadyToBuyNotify("Bryan Reese");
-    assert.deepEqual(notify.to, [CHRISTOPHER_MAIL, BRYAN_MAIL]);
+    assert.deepEqual(notify.to, [...HARBOR_NOTIFY_EMAILS]);
   });
 
   it("rejects model dry_run on a real lead, logs it, and still notifies", async () => {
@@ -529,7 +534,7 @@ describe("POST /va/harbor/needs-human", () => {
         "Your move: call back",
       ].join("\n"),
     );
-    assert.deepEqual(mails[0].to, [CHRISTOPHER_MAIL, BRYAN_MAIL]);
+    assert.deepEqual(mails[0].to, [...HARBOR_NOTIFY_EMAILS]);
     assert.match(got.body.handoff_speech, /someone from the team give you a call back/);
     assert.doesNotMatch(mails[0].subject + "\n" + mails[0].text + "\n" + got.body.handoff_speech, /frozen|CTE|Closer of record|Ready to buy|Christopher|Bryan/i);
   });
@@ -609,7 +614,7 @@ describe("POST /va/harbor/build-lead", () => {
         "Your move: call back",
       ].join("\n"),
     );
-    assert.deepEqual(mails[0].to, [CHRISTOPHER_MAIL, BRYAN_MAIL]);
+    assert.deepEqual(mails[0].to, [...HARBOR_NOTIFY_EMAILS]);
     assert.equal(got.body.handoff_speech, "Oh, we build those, we've got a whole team that does custom work.");
     assert.doesNotMatch(mails[0].subject + "\n" + mails[0].text, /\$\d|frozen|Needs a human|Ready to buy/);
     assert.doesNotMatch(mails[0].to.join(","), /kristin/i);
@@ -654,7 +659,7 @@ describe("POST /va/harbor/build-lead", () => {
     assert.match(mails[0].text, /Budget: they have a competing quote, no number given/);
     assert.match(mails[0].text, /Drawings: dream sketch of a loft/);
     assert.match(mails[0].text, /Design lead: Kristin — no routing entry on file/);
-    assert.deepEqual(mails[0].to, [CHRISTOPHER_MAIL, BRYAN_MAIL]);
+    assert.deepEqual(mails[0].to, [...HARBOR_NOTIFY_EMAILS]);
     assert.doesNotMatch(mails[0].text, /\$\d/);
   });
 
