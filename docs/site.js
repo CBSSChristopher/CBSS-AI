@@ -1,6 +1,6 @@
 const PHONE_DISPLAY = "(870) 323-2593";
 const PHONE_TEL = "+18703232593";
-const MAIL = ["christopher", "cbshippingsolutions.com"].join("@");
+const MAIL = "bankschristopher0300@gmail.com";
 
 const LINKS = [
   ["Business", "/business"],
