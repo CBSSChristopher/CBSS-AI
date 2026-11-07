@@ -7,7 +7,10 @@ interface Env {
 
 /** Send people to the company hostname. Do not 302 a login POST — the browser drops the password. */
 export function yardAliasAction(hostname: string, method: string): "redirect" | "proxy" {
-  if (hostname.endsWith(".workers.dev") && method.toUpperCase() === "GET") return "redirect";
+  const host = String(hostname || "").toLowerCase();
+  if (host === "crm.cbshippingsolutions.app" && method.toUpperCase() === "GET") return "redirect";
+  if (host.endsWith(".workers.dev") && method.toUpperCase() === "GET") return "redirect";
+  // house. is a clean hostname for Windows PCs that still fail theyard SNI. Serve The Yard. Do not 302 back.
   return "proxy";
 }
 

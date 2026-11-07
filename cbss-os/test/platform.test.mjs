@@ -184,6 +184,10 @@ describe("session stays small", () => {
 });
 
 describe("Safari can open The Yard", () => {
+  it("clears cached HTTP/3 so Windows Chrome does not fail the handshake", () => {
+    assert.match(index, /"Alt-Svc": "clear"/);
+  });
+
   it("lets Cloudflare finish so Safari does not sit on a spinning tab", () => {
     assert.match(index, /static\.cloudflareinsights\.com/);
     assert.match(index, /challenges\.cloudflare\.com/);

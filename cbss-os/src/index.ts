@@ -37,6 +37,7 @@ const SECURITY = {
   "Referrer-Policy": "same-origin",
   "X-Frame-Options": "DENY",
   "Strict-Transport-Security": "max-age=31536000",
+  "Alt-Svc": "clear",
   "Content-Security-Policy":
     "default-src 'none'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com https://challenges.cloudflare.com; style-src 'unsafe-inline'; img-src 'self' data: https://challenges.cloudflare.com; connect-src 'self' https://cloudflareinsights.com https://static.cloudflareinsights.com https://challenges.cloudflare.com; frame-src 'self' https://challenges.cloudflare.com; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
 };
