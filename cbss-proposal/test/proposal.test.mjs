@@ -76,7 +76,7 @@ import {
   sanitizeClientFacingText,
   stripGluedQty,
 } from "../src/client-options.js";
-import { generateClientPDF, resolveProposalPricing } from "../src/submit-proposal.js";
+import { generateClientPDF, resolveProposalPricing, internalRecipients, buildProposalMailPlan, brevoMessageBody, sendBrevoEmail, CHRISTOPHER_INTERNAL_PROPOSAL_EMAIL } from "../src/submit-proposal.js";
 
 const page = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const submit = readFileSync(new URL("../src/submit-proposal.js", import.meta.url), "utf8");
@@ -1013,5 +1013,121 @@ describe("Client proposal options PDF", () => {
     assert.doesNotMatch(text, /delivery 600|delivery \$600/i);
     assert.doesNotMatch(text, /wholesale/i);
     assert.doesNotMatch(text, /warranty warranty/i);
+  });
+});
+
+const OLD_CHRISTOPHER_WORK_EMAIL = ["christopher", "cbshippingsolutions.com"].join("@");
+const BRYAN_INTERNAL_EMAIL = "Bryan@cbshippingsolutions.com";
+const FROM_EMAIL = "cbshippingsolutionsai@gmail.com";
+
+describe("generated proposal internal recipient", () => {
+  const sample = {
+    customerName: "Pat Customer",
+    email: "customer@example.com",
+    repName: "A Rep",
+    repEmail: "rep@cbshippingsolutions.com",
+    containerDesc: "40HC CW",
+    quantity: "1",
+    unitPrice: "3250",
+    fulfillment: "deliver",
+  };
+
+  it("resolves Christopher's internal copy to the gmail and leaves Bryan in place", () => {
+    const recipients = internalRecipients({ PROPOSAL_NOTIFY_EMAIL: "other@example.com" });
+    assert.deepEqual(recipients, [
+      { email: CHRISTOPHER_INTERNAL_PROPOSAL_EMAIL, name: "Christopher Banks" },
+      { email: BRYAN_INTERNAL_EMAIL, name: "Bryan" },
+    ]);
+    assert.equal(CHRISTOPHER_INTERNAL_PROPOSAL_EMAIL, "bankschristopher0300@gmail.com");
+    assert.equal(recipients.some((row) => row.email === OLD_CHRISTOPHER_WORK_EMAIL), false);
+  });
+
+  it("plans the rep client copy and the internal copy without emailing the customer", () => {
+    const plan = buildProposalMailPlan(sample, {
+      isLowMargin: false,
+      marginPer: 420,
+      deliveryPer: 125,
+      approvedPricing: false,
+      clientAttachment: { name: "client.pdf", content: "Y2xpZW50" },
+      internalAttachment: { name: "internal.pdf", content: "aW50ZXJuYWw=" },
+    });
+    assert.equal(plan.status, "sent");
+    assert.equal(plan.messages.length, 2);
+    assert.deepEqual(plan.messages[0].to, [{ email: sample.repEmail, name: sample.repName }]);
+    assert.deepEqual(plan.messages[1].to, internalRecipients());
+    assert.match(plan.messages[1].subject, /^Internal Copy - Pat Customer/);
+    const addressed = plan.messages.flatMap((message) => message.to.map((row) => row.email));
+    assert.equal(addressed.includes(sample.email), false);
+    assert.equal(addressed.includes(OLD_CHRISTOPHER_WORK_EMAIL), false);
+    const wire = plan.messages.map((message) => brevoMessageBody(message));
+    for (const body of wire) {
+      assert.equal(body.sender.email, FROM_EMAIL);
+      assert.equal(body.replyTo.email, FROM_EMAIL);
+      assert.equal(body.sender.name, "CBShippingSolutions");
+    }
+  });
+
+  it("sends a low-margin flag only to the internal list", () => {
+    const plan = buildProposalMailPlan(sample, { isLowMargin: true, marginPer: 40, deliveryPer: 0 });
+    assert.equal(plan.status, "flagged");
+    assert.equal(plan.messages.length, 1);
+    assert.deepEqual(plan.messages[0].to, internalRecipients());
+    assert.match(plan.messages[0].subject, /^LOW MARGIN FLAG - Pat Customer/);
+    assert.equal(JSON.stringify(plan.messages).includes(sample.repEmail), false);
+    assert.equal(JSON.stringify(plan.messages).includes(sample.email), false);
+  });
+
+  it("mocks the Brevo post and does not address the old work mailbox", async () => {
+    const calls = [];
+    const original = globalThis.fetch;
+    const previousKey = process.env.BREVO_API_KEY;
+    process.env.BREVO_API_KEY = "unit-test-not-a-credential";
+    globalThis.fetch = async (url, opts) => {
+      calls.push({ url: String(url), body: JSON.parse(opts.body) });
+      return new Response(JSON.stringify({ messageId: "mock" }), {
+        status: 201,
+        headers: { "content-type": "application/json" },
+      });
+    };
+    try {
+      const plan = buildProposalMailPlan(sample, {
+        isLowMargin: false,
+        marginPer: 420,
+        deliveryPer: 125,
+        approvedPricing: false,
+      });
+      for (const message of plan.messages) await sendBrevoEmail(message);
+    } finally {
+      globalThis.fetch = original;
+      if (previousKey === undefined) delete process.env.BREVO_API_KEY;
+      else process.env.BREVO_API_KEY = previousKey;
+    }
+    assert.equal(calls.length, 2);
+    assert.deepEqual(calls.map((call) => call.url), [
+      "https://api.brevo.com/v3/smtp/email",
+      "https://api.brevo.com/v3/smtp/email",
+    ]);
+    assert.deepEqual(calls[0].body.to, [{ email: sample.repEmail, name: sample.repName }]);
+    assert.deepEqual(calls[1].body.to.map((row) => row.email), [
+      "bankschristopher0300@gmail.com",
+      BRYAN_INTERNAL_EMAIL,
+    ]);
+    assert.equal(calls[1].body.sender.email, FROM_EMAIL);
+    assert.equal(calls[1].body.replyTo.email, FROM_EMAIL);
+    const wire = JSON.stringify(calls);
+    assert.equal(wire.includes(OLD_CHRISTOPHER_WORK_EMAIL), false);
+    assert.equal(wire.includes(sample.email), false);
+  });
+
+  it("leaves login identity and other mail routes on the company domain", () => {
+    const auth = readFileSync(new URL("../src/auth.js", import.meta.url), "utf8");
+    const invoice = readFileSync(new URL("../../cbss-invoice/src/waave.ts", import.meta.url), "utf8");
+    const paid = readFileSync(new URL("../../cbss-os/src/cycle/rep.ts", import.meta.url), "utf8");
+    assert.match(auth, /return \["christopher", "cbshippingsolutions\.com"\]\.join\("@"\);/);
+    assert.doesNotMatch(auth, /bankschristopher0300@gmail\.com/);
+    assert.match(invoice, /ALWAYS_CC_LOCALS = \["christopher", "aliyah"\]/);
+    assert.match(paid, /return \[`christopher@\$\{host\}`, `aliyah@\$\{host\}`\]/);
+    assert.doesNotMatch(submit, /function ownerEmail\(/);
+    assert.match(submit, /buildProposalMailPlan/);
   });
 });
