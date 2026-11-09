@@ -1,5 +1,5 @@
-const PHONE_DISPLAY = "(870) 323-2593";
-const PHONE_TEL = "+18703232593";
+const PHONE_DISPLAY = "(870) 682-3867";
+const PHONE_TEL = "+18706823867";
 const MAIL = "bankschristopher0300@gmail.com";
 
 const LINKS = [
