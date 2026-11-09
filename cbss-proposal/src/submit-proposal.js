@@ -12,15 +12,15 @@ import { clampNetMargin, customerCashTotal, fulfillmentHaul, isPickupFulfillment
 const MIN_MARGIN = MIN_NET_MARGIN;
 const FROM_NAME = "CBShippingSolutions";
 const FROM_EMAIL = "cbshippingsolutionsai@gmail.com";
+const BRYAN_INTERNAL_PROPOSAL_EMAIL = "Bryan@cbshippingsolutions.com";
 
-function ownerEmail() {
-  return ["christopher", "cbshippingsolutions.com"].join("@");
-}
+// Compiled into the worker. cbsscompletetool has no plain-text var for this address.
+export const CHRISTOPHER_INTERNAL_PROPOSAL_EMAIL = "bankschristopher0300@gmail.com";
 
-function internalRecipients() {
+export function internalRecipients() {
   return [
-    { email: ownerEmail(), name: "Christopher Banks" },
-    { email: "Bryan@cbshippingsolutions.com", name: "Bryan" },
+    { email: CHRISTOPHER_INTERNAL_PROPOSAL_EMAIL, name: "Christopher Banks" },
+    { email: BRYAN_INTERNAL_PROPOSAL_EMAIL, name: "Bryan" },
   ];
 }
 
@@ -176,18 +176,29 @@ ${flexLine}`;
   return JSON.parse(match[0]);
 }
 
-async function sendBrevoEmail({ to, subject, htmlContent, textContent, attachment }) {
-  const apiKey = process.env.BREVO_API_KEY;
-  if (!apiKey) throw new Error("BREVO_API_KEY missing");
+function rewriteChristopherMailbox(email) {
+  const mail = String(email || "").trim();
+  if (mail.toLowerCase() === ["christopher", "cbshippingsolutions.com"].join("@")) return CHRISTOPHER_INTERNAL_PROPOSAL_EMAIL;
+  return mail;
+}
+
+export function brevoMessageBody({ to, subject, htmlContent, textContent, attachment }) {
   const payload = {
     sender: { name: FROM_NAME, email: FROM_EMAIL },
-    to,
+    to: (to || []).map((row) => ({ ...row, email: rewriteChristopherMailbox(row && row.email) })),
     subject,
     htmlContent,
     textContent,
     replyTo: { email: FROM_EMAIL, name: "CBShippingSolutions" },
   };
   if (attachment) payload.attachment = [{ name: attachment.name, content: attachment.content }];
+  return payload;
+}
+
+export async function sendBrevoEmail(message) {
+  const apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey) throw new Error("BREVO_API_KEY missing");
+  const payload = brevoMessageBody(message);
   const res = await fetch("https://api.brevo.com/v3/smtp/email", {
     method: "POST",
     headers: { accept: "application/json", "api-key": apiKey, "content-type": "application/json" },
@@ -659,6 +670,43 @@ function sanitizeFilename(name) {
   return String(name || "Customer").replace(/[^a-z0-9]/gi, "_").substring(0, 40);
 }
 
+export function buildProposalMailPlan(data, pricing) {
+  const internal = internalRecipients();
+  const marginPer = pricing.marginPer;
+  if (pricing.isLowMargin) {
+    return {
+      status: "flagged",
+      messages: [
+        {
+          to: internal,
+          subject: `LOW MARGIN FLAG - ${data.customerName} (Rep: ${data.repName})`,
+          htmlContent: buildLowMarginHtml(data, marginPer),
+          textContent: `Low margin flag for ${data.customerName}. Margin per unit: $${marginPer.toFixed(2)} (below $300)`,
+        },
+      ],
+    };
+  }
+  return {
+    status: "sent",
+    messages: [
+      {
+        to: [{ email: rewriteChristopherMailbox(data.repEmail), name: data.repName }],
+        subject: `Your Proposal is Ready - ${data.customerName} | ${data.containerDesc}`,
+        htmlContent: buildSalesRepHtml(data),
+        textContent: `Client-ready proposal for ${data.customerName} is attached.`,
+        attachment: pricing.clientAttachment,
+      },
+      {
+        to: internal,
+        subject: `Internal Copy - ${data.customerName} | ${pricing.approvedPricing ? "Approved pricing" : `Margin $${marginPer.toFixed(0)}`} | Rep: ${data.repName}`,
+        htmlContent: buildInternalHtml(data, marginPer, pricing.deliveryPer),
+        textContent: `Internal details for ${data.customerName}. Margin: $${marginPer.toFixed(2)}`,
+        attachment: pricing.internalAttachment,
+      },
+    ],
+  };
+}
+
 function optionMargin(option, fallbackFulfillment) {
   const fulfillment = (option && option.fulfillment) || fallbackFulfillment;
   return marginPerUnit(option && option.cash, option && option.wholesale, option && option.delivery, fulfillment);
@@ -764,42 +812,37 @@ async function handleSubmit(event, env) {
     delete data.managerApprovalCode;
     data.netMargin = priced.approved ? marginPer : clampNetMargin(data.netMargin || marginPer);
     const isLowMargin = priced.isLowMargin;
-    if (isLowMargin) {
-      await sendBrevoEmail({
-        to: internalRecipients(),
-        subject: `LOW MARGIN FLAG - ${data.customerName} (Rep: ${data.repName})`,
-        htmlContent: buildLowMarginHtml(data, marginPer),
-        textContent: `Low margin flag for ${data.customerName}. Margin per unit: $${marginPer.toFixed(2)} (below $300)`,
-      });
-      await ingestProposal(env, data, "flagged");
-      return { statusCode: 200, body: JSON.stringify({ status: "flagged" }) };
+    let clientAttachment;
+    let internalAttachment;
+    if (!isLowMargin) {
+      let aiContent = null;
+      try {
+        aiContent = await generateProposalWithGrok(data);
+      } catch (aiErr) {
+        console.error("Grok generation failed, falling back to template:", aiErr.message);
+      }
+      const clientPdfBytes = await generateClientPDF(data, aiContent);
+      const internalPdfBytes = await generateInternalPDF(data, deliveryPer, marginPer);
+      clientAttachment = {
+        name: `CBSS_Proposal_${sanitizeFilename(data.customerName)}.pdf`,
+        content: Buffer.from(clientPdfBytes).toString("base64"),
+      };
+      internalAttachment = {
+        name: `INTERNAL_${sanitizeFilename(data.customerName)}.pdf`,
+        content: Buffer.from(internalPdfBytes).toString("base64"),
+      };
     }
-    let aiContent = null;
-    try {
-      aiContent = await generateProposalWithGrok(data);
-    } catch (aiErr) {
-      console.error("Grok generation failed, falling back to template:", aiErr.message);
-    }
-    const clientPdfBytes = await generateClientPDF(data, aiContent);
-    const internalPdfBytes = await generateInternalPDF(data, deliveryPer, marginPer);
-    const clientBase64 = Buffer.from(clientPdfBytes).toString("base64");
-    const internalBase64 = Buffer.from(internalPdfBytes).toString("base64");
-    await sendBrevoEmail({
-      to: [{ email: data.repEmail, name: data.repName }],
-      subject: `Your Proposal is Ready - ${data.customerName} | ${data.containerDesc}`,
-      htmlContent: buildSalesRepHtml(data),
-      textContent: `Client-ready proposal for ${data.customerName} is attached.`,
-      attachment: { name: `CBSS_Proposal_${sanitizeFilename(data.customerName)}.pdf`, content: clientBase64 },
+    const plan = buildProposalMailPlan(data, {
+      isLowMargin,
+      marginPer,
+      deliveryPer,
+      approvedPricing: data.approvedPricing,
+      clientAttachment,
+      internalAttachment,
     });
-    await sendBrevoEmail({
-      to: internalRecipients(),
-      subject: `Internal Copy - ${data.customerName} | ${data.approvedPricing ? "Approved pricing" : `Margin $${marginPer.toFixed(0)}`} | Rep: ${data.repName}`,
-      htmlContent: buildInternalHtml(data, marginPer, deliveryPer),
-      textContent: `Internal details for ${data.customerName}. Margin: $${marginPer.toFixed(2)}`,
-      attachment: { name: `INTERNAL_${sanitizeFilename(data.customerName)}.pdf`, content: internalBase64 },
-    });
-    await ingestProposal(env, data, "sent");
-    return { statusCode: 200, body: JSON.stringify({ status: "sent" }) };
+    for (const message of plan.messages) await sendBrevoEmail(message);
+    await ingestProposal(env, data, plan.status);
+    return { statusCode: 200, body: JSON.stringify({ status: plan.status }) };
   } catch (err) {
     console.error("submit-proposal error:", err);
     return { statusCode: 500, body: JSON.stringify({ error: "Server error", message: err.message || "Unknown error" }) };

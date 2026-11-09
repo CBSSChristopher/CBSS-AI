@@ -1,10 +1,18 @@
 export const AGENTMAIL_API = "https://api.agentmail.to/v0";
 export const DEFAULT_INBOX = "cbss@agentmail.to";
+export const CHRISTOPHER_RETIRED_EMAIL = ["christopher", "cbshippingsolutions.com"].join("@");
+export const CHRISTOPHER_OPERATIONAL_EMAIL = "bankschristopher0300@gmail.com";
+
+/** Mailbox rewrite only. Login, roles, and stored owner keys stay on the company address. */
+export function rewriteChristopherMailbox(email: string): string {
+  const mail = String(email || "").trim();
+  if (mail.toLowerCase() === CHRISTOPHER_RETIRED_EMAIL) return CHRISTOPHER_OPERATIONAL_EMAIL;
+  return mail;
+}
 
 /** Christopher is always CC'd on AgentMail so he can track outbound mail. */
 export function ownerTrackingCc(): string {
-  const host = "cbshippingsolutions.com";
-  return `christopher@${host}`;
+  return CHRISTOPHER_OPERATIONAL_EMAIL;
 }
 
 export function withOwnerTrackingCc(to: string[] = [], cc: string[] = []): string[] {
@@ -56,6 +64,19 @@ export type ListedMessage = {
   createdAt: string;
 };
 
+function dedupeMail(list: string[]): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of list) {
+    const mail = String(raw || "").trim();
+    const key = mail.toLowerCase();
+    if (!mail || !mail.includes("@") || seen.has(key)) continue;
+    seen.add(key);
+    out.push(mail);
+  }
+  return out;
+}
+
 function inboxId(env: { AGENTMAIL_INBOX?: string }): string {
   return String(env.AGENTMAIL_INBOX || DEFAULT_INBOX).trim() || DEFAULT_INBOX;
 }
@@ -103,9 +124,11 @@ export async function sendAgentMail(
   if (!agentMailReady(env)) {
     return { ok: false, error: "AgentMail is not configured. Set AGENTMAIL_API_KEY on this Worker.", transient: false };
   }
-  const to = (input.to || []).map((v) => String(v || "").trim().toLowerCase()).filter(Boolean);
+  const to = dedupeMail(
+    (input.to || []).map((v) => rewriteChristopherMailbox(String(v || "").trim().toLowerCase())),
+  );
   if (!to.length) return { ok: false, error: "No client email — pause, do not send.", transient: false };
-  const cc = withOwnerTrackingCc(to, input.cc);
+  const cc = dedupeMail(withOwnerTrackingCc(to, (input.cc || []).map((v) => rewriteChristopherMailbox(v))));
   const payload: Record<string, unknown> = {
     to,
     subject: input.subject,
@@ -113,8 +136,11 @@ export async function sendAgentMail(
   };
   if (input.html) payload.html = input.html;
   if (cc.length) payload.cc = cc;
-  if (input.bcc?.length) payload.bcc = input.bcc;
-  if (input.replyTo?.length) payload.reply_to = input.replyTo;
+  if (input.bcc?.length) payload.bcc = dedupeMail(input.bcc.map((v) => rewriteChristopherMailbox(v)));
+  if (input.replyTo?.length) {
+    const replyTo = input.replyTo.map((v) => rewriteChristopherMailbox(String(v || "").trim())).filter(Boolean);
+    if (replyTo.length) payload.reply_to = dedupeMail(replyTo);
+  }
   if (input.labels?.length) payload.labels = input.labels;
   if (input.attachments?.length) payload.attachments = input.attachments;
   let last: SendMailResult = { ok: false, error: "AgentMail send did not run.", transient: true };

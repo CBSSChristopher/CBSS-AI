@@ -153,7 +153,8 @@ describe("CTE copy is an introduction with the rep on the footer", () => {
     assert.doesNotMatch(mail.text, /put a real name on the follow-up/);
     assert.doesNotMatch(mail.text, /I will not invent a price/);
     assert.doesNotMatch(mail.text, /what is posted/);
-    assert.ok(mail.text.includes(rosterCompanyEmail("Christopher Banks")));
+    assert.ok(mail.text.includes("bankschristopher0300@gmail.com"));
+    assert.equal(mail.text.includes(rosterCompanyEmail("Christopher Banks")), false);
     assert.match(mail.text, /\(870\) 682-3867/);
     assert.match(mail.text, /President \/ Owner/);
   });
@@ -184,7 +185,9 @@ describe("CTE copy is an introduction with the rep on the footer", () => {
         repPhone: rosterPhone(owner),
         repTitle: rosterTitle(owner),
       });
-      assert.ok(mail.text.includes(rosterCompanyEmail(owner)), owner);
+      const expectedMail = owner === "Christopher Banks" ? "bankschristopher0300@gmail.com" : rosterCompanyEmail(owner);
+      assert.ok(mail.text.includes(expectedMail), owner);
+      if (owner === "Christopher Banks") assert.equal(mail.text.includes(rosterCompanyEmail(owner)), false, owner);
       assert.ok(mail.text.includes(rosterTitle(owner)), owner);
       assert.match(mail.text, /\(\d{3}\) \d{3}-\d{4}/);
       assert.ok(mail.text.includes("CB Shipping Solutions"));
@@ -336,7 +339,8 @@ describe("CTE override, stop, reassignment, cron idempotency", () => {
     assert.equal(calls.length, 1);
     const payload = JSON.parse(calls[0].init.body);
     assert.deepEqual(payload.to, ["brent@test.com"]);
-    assert.ok(payload.cc.some((addr) => addr.startsWith("christopher@")));
+    assert.ok(payload.cc.includes(ownerTrackingCc()));
+    assert.equal(payload.cc.some((addr) => addr.startsWith("christopher@")), false);
     assert.ok(payload.cc.some((addr) => addr.startsWith("aliyah@")));
     assert.ok(payload.cc.includes("james@cbshippingsolutions.com"));
     assert.deepEqual(payload.reply_to, ["james@cbshippingsolutions.com"]);
@@ -667,7 +671,8 @@ describe("Yard cycle surfaces", () => {
 describe("AgentMail always CCs Christopher", () => {
   it("puts Christopher first and does not duplicate or self-cc", () => {
     const tracking = ownerTrackingCc();
-    const mixed = withOwnerTrackingCc(["gary@test.com"], ["aliyah@cbshippingsolutions.com", tracking.replace("c", "C")]);
+    const mixedCase = tracking.charAt(0).toUpperCase() + tracking.slice(1);
+    const mixed = withOwnerTrackingCc(["gary@test.com"], ["aliyah@cbshippingsolutions.com", mixedCase]);
     assert.equal(mixed[0], tracking);
     assert.deepEqual(mixed, [tracking, "aliyah@cbshippingsolutions.com"]);
     assert.deepEqual(withOwnerTrackingCc(["gary@test.com"], []), [tracking]);
@@ -689,8 +694,9 @@ describe("AgentMail always CCs Christopher", () => {
     assert.equal(result.ok, true);
     const payload = JSON.parse(calls[0].init.body);
     assert.deepEqual(payload.to, ["gary@test.com"]);
-    assert.ok(payload.cc[0].startsWith("christopher@"));
+    assert.equal(payload.cc[0], ownerTrackingCc());
     assert.deepEqual(payload.cc, [ownerTrackingCc()]);
+    assert.equal(JSON.stringify(payload).includes(["christopher", "cbshippingsolutions.com"].join("@")), false);
   });
 
   it("CCs Christopher on CTE mail and on rep-reply alerts", async () => {
@@ -702,7 +708,8 @@ describe("AgentMail always CCs Christopher", () => {
       return new Response(JSON.stringify({ message_id: "cte-cc", thread_id: "t-cte-cc" }), { status: 200 });
     });
     assert.equal(cteCalls.length, 1);
-    assert.ok(cteCalls[0].cc.some((addr) => addr.startsWith("christopher@")));
+    assert.ok(cteCalls[0].cc.includes(ownerTrackingCc()));
+    assert.equal(cteCalls[0].cc.some((addr) => addr.startsWith("christopher@")), false);
     assert.deepEqual(cteCalls[0].to, ["gary@test.com"]);
 
     const alertCalls = [];
@@ -712,6 +719,7 @@ describe("AgentMail always CCs Christopher", () => {
     });
     assert.equal(alertCalls.length, 1);
     assert.deepEqual(alertCalls[0].to, ["james@cbshippingsolutions.com"]);
-    assert.ok(alertCalls[0].cc.some((addr) => addr.startsWith("christopher@")));
+    assert.ok(alertCalls[0].cc.includes(ownerTrackingCc()));
+    assert.equal(alertCalls[0].cc.some((addr) => addr.startsWith("christopher@")), false);
   });
 });

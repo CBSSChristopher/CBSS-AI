@@ -199,9 +199,9 @@ describe("CBSS Invoicing · WAAVE", () => {
     const host = ["cbshipping", "solutions.com"].join("");
     const mail = (local) => `${local}@${host}`;
     const james = invoiceCopyEmails(mail("james"));
-    assert.deepEqual(james, [mail("christopher"), mail("aliyah"), mail("james")]);
+    assert.deepEqual(james, ["bankschristopher0300@gmail.com", mail("aliyah"), mail("james")]);
     const chris = invoiceCopyEmails(mail("Christopher"));
-    assert.deepEqual(chris, [mail("christopher"), mail("aliyah")]);
+    assert.deepEqual(chris, ["bankschristopher0300@gmail.com", mail("aliyah")]);
     const link = gmailDraft("gary@test.com", "Gary Smith", 3990, "https://pg.getwaave.co/pay/x", "40HC CW", james);
     assert.match(link, /[?&]cc=/);
     assert.ok(decodeURIComponent(link).includes(james.join(",")));

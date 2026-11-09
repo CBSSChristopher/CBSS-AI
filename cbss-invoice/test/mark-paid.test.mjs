@@ -109,7 +109,8 @@ describe("Mark paid → AgentMail Next Steps", () => {
     assert.match(calls[0].init.headers.Authorization, /Bearer am_test/);
     const payload = JSON.parse(calls[0].init.body);
     assert.deepEqual(payload.to, ["gary@test.com"]);
-    assert.ok(payload.cc[0].startsWith("christopher@"));
+    assert.equal(payload.cc[0], "bankschristopher0300@gmail.com");
+    assert.equal(payload.cc.some((addr) => addr.startsWith("christopher@")), false);
     assert.ok(payload.cc.includes("aliyah@cbshippingsolutions.com"));
     assert.ok(payload.cc.includes("james@cbshippingsolutions.com"));
     assert.equal(payload.subject, NEXT_STEPS_SUBJECT);
